@@ -1,0 +1,41 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.invalid/snapgene-dna-design/assembly-result-v0.4.json",
+  "title": "Assembly result v0.4",
+  "type": "object",
+  "required": [
+    "method", "experimental", "product_length", "topology", "origins",
+    "fragments", "junctions", "feature_count", "product_sequence"
+  ],
+  "properties": {
+    "method": {"type": "string"},
+    "experimental": {"type": "boolean"},
+    "product_length": {"type": "integer", "minimum": 1},
+    "topology": {"enum": ["linear", "circular"]},
+    "origins": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["part", "name", "start", "end", "length"],
+        "properties": {
+          "part": {"type": "string"},
+          "name": {"type": "string"},
+          "start": {"type": "integer", "minimum": 1},
+          "end": {"type": "integer", "minimum": 1},
+          "length": {"type": "integer", "minimum": 1},
+          "source_start": {"type": "integer", "minimum": 1},
+          "source_end": {"type": "integer", "minimum": 1},
+          "product_start": {"type": "integer", "minimum": 1},
+          "product_end": {"type": "integer", "minimum": 1},
+          "contribution_segments": {"type": "array"},
+          "source_mappings": {"type": "array"}
+        }
+      }
+    },
+    "fragments": {"type": "array"},
+    "junctions": {"type": "array"},
+    "warnings": {"type": "array", "items": {"type": "string"}},
+    "feature_count": {"type": "integer", "minimum": 0},
+    "product_sequence": {"type": "string", "minLength": 1}
+  }
+}

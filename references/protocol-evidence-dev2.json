@@ -1,0 +1,39 @@
+{
+  "schema_version": "0.8.0",
+  "sources": [
+    {
+      "source_id": "protocol-neb-q5",
+      "source_type": "manufacturer-protocol",
+      "provider": "New England Biolabs",
+      "title": "PCR Using Q5 High-Fidelity DNA Polymerase (NEB #M0491)",
+      "url": "https://www.neb.com/en-us/protocols/2013/12/13/pcr-using-q5-high-fidelity-dna-polymerase-m0491?pdf=true",
+      "retrieved_at": "2026-08-22",
+      "catalog_number": "M0491",
+      "document_revision": "not-stated-on-public-page",
+      "verification_status": "official-url-checked",
+      "applicable_to": ["high-fidelity-cloning-pcr", "high-gc-pcr"],
+      "conditions": {
+        "annealing": "manufacturer-provided",
+        "extension": "manufacturer-provided",
+        "buffer": "Q5-provided-buffer",
+        "enhancer": "Q5-High-GC-Enhancer"
+      }
+    },
+    {
+      "source_id": "protocol-neb-nebuilder",
+      "source_type": "manufacturer-protocol",
+      "provider": "New England Biolabs",
+      "title": "NEBuilder HiFi DNA Assembly Reaction Protocol (NEB #E2621, #E5520, #E2623)",
+      "url": "https://www.neb.com/en/protocols/nebuilder-hifi-dna-assembly-reaction-protocol",
+      "retrieved_at": "2026-08-22",
+      "catalog_number": "E2621",
+      "document_revision": "not-stated-on-public-page",
+      "verification_status": "official-url-checked",
+      "applicable_to": ["gibson-like-assembly", "nebuilder-hifi"],
+      "conditions": {
+        "incubation": "manufacturer-provided",
+        "total_volume": "manufacturer-provided"
+      }
+    }
+  ]
+}

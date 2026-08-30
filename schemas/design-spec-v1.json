@@ -1,0 +1,142 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/snapgene-dna-design/design-spec-v1.json",
+  "title": "SnapGene DNA Design DesignSpec v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "spec_id",
+    "revision",
+    "mode",
+    "status",
+    "raw_objective",
+    "objective",
+    "host",
+    "sources",
+    "target",
+    "replacement",
+    "constraints",
+    "outputs",
+    "assumptions",
+    "derived_facts",
+    "missing_information",
+    "questions",
+    "approvals",
+    "provenance"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "spec_id": { "type": "string", "minLength": 1 },
+    "revision": { "type": "integer", "minimum": 1 },
+    "mode": { "enum": ["exploration", "formal"] },
+    "status": {
+      "enum": [
+        "draft",
+        "needs-clarification",
+        "user-confirmed",
+        "evidence-resolved",
+        "planned",
+        "executed",
+        "verified",
+        "delivered",
+        "blocked"
+      ]
+    },
+    "raw_objective": { "type": "string" },
+    "objective": { "type": "object", "additionalProperties": true },
+    "host": { "type": "object", "additionalProperties": true },
+    "sources": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/sequence_source" }
+    },
+    "target": { "type": "object", "additionalProperties": true },
+    "replacement": { "type": "object", "additionalProperties": true },
+    "constraints": { "type": "object", "additionalProperties": true },
+    "outputs": { "type": "object", "additionalProperties": true },
+    "assumptions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/evidence_item" }
+    },
+    "derived_facts": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/evidence_item" }
+    },
+    "missing_information": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["key", "reason"],
+        "properties": {
+          "key": { "type": "string" },
+          "reason": { "type": "string" }
+        }
+      }
+    },
+    "questions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["question_id", "category", "question"],
+        "properties": {
+          "question_id": { "type": "string" },
+          "category": { "enum": ["must-ask", "default-visible", "derived"] },
+          "question": { "type": "string" }
+        }
+      }
+    },
+    "approvals": { "type": "object", "additionalProperties": true },
+    "provenance": { "type": "array", "items": { "$ref": "#/$defs/evidence_item" } }
+  },
+  "$defs": {
+    "evidence_item": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["evidence_layer", "description"],
+      "properties": {
+        "evidence_layer": {
+          "enum": [
+            "user-provided",
+            "assumption",
+            "computed",
+            "database-verified",
+            "manufacturer-protocol",
+            "published-evidence",
+            "heuristic",
+            "unverified"
+          ]
+        },
+        "description": { "type": "string" }
+      }
+    },
+    "sequence_source": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["source_id", "source_type", "sha256"],
+      "properties": {
+        "source_id": { "type": "string" },
+        "source_type": {
+          "enum": [
+            "user-file",
+            "database-record",
+            "deterministic-transform",
+            "manual-sequence"
+          ]
+        },
+        "source_path": { "type": "string" },
+        "accession": { "type": ["string", "null"] },
+        "sha256": { "type": "string", "minLength": 16 },
+        "interval_0based": {
+          "type": "array", "items": { "type": "integer" },
+          "minItems": 2, "maxItems": 2
+        },
+        "strand": { "type": "integer", "enum": [1, -1] },
+        "transformations": {
+          "type": "array", "items": { "type": "string" }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,244 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:snapgene-dna-design:schema:reaction-profile-v0.8",
+  "title": "Reaction profile v0.8",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "fragment_id",
+    "length",
+    "gc_percent",
+    "provenance"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "0.8.0"
+    },
+    "fragment_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "template_type": {
+      "type": "string"
+    },
+    "length": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "topology": {
+      "enum": [
+        "linear",
+        "circular"
+      ]
+    },
+    "gc_percent": {
+      "type": "number"
+    },
+    "gc_5prime_40": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "gc_3prime_40": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "max_local_gc_window_40": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "homopolymer_runs": {
+      "type": "array"
+    },
+    "predicted_difficulty": {
+      "type": "string"
+    },
+    "high_fidelity_required": {
+      "type": "string"
+    },
+    "five_prime_tail": {
+      "type": "string"
+    },
+    "assembly_method": {
+      "type": "string"
+    },
+    "specificity_checked": {
+      "type": "boolean"
+    },
+    "provenance": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/provenance"
+      }
+    }
+  },
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_type",
+        "name",
+        "role",
+        "status"
+      ],
+      "properties": {
+        "source_type": {
+          "enum": [
+            "software",
+            "prediction-model",
+            "reference-database",
+            "manufacturer-protocol",
+            "public-protocol",
+            "published-paper",
+            "heuristic",
+            "user-input"
+          ]
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "role": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "enum": [
+            "verified",
+            "partial",
+            "unavailable",
+            "unknown",
+            "conflicting",
+            "stale"
+          ]
+        },
+        "url": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uri"
+        },
+        "version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "license": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "verification": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "retrieved_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "provider": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "title": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "catalog_number": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "applicable_to": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "source_type": {
+                "const": "manufacturer-protocol"
+              }
+            },
+            "required": [
+              "source_type"
+            ]
+          },
+          "then": {
+            "required": [
+              "url",
+              "retrieved_at",
+              "version"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "source_type": {
+                "const": "prediction-model"
+              }
+            },
+            "required": [
+              "source_type"
+            ]
+          },
+          "then": {
+            "required": [
+              "version"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "source_type": {
+                "const": "public-protocol"
+              }
+            },
+            "required": [
+              "url",
+              "retrieved_at"
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

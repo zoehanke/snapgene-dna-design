@@ -1,0 +1,11 @@
+# DeepCpf1 weights (third-party model artifacts)
+
+- Source package: CRISPRseek (Bioconductor) inst/extdata/DeepCpf1/real_weights/
+- Model: DeepCpf1, Kim et al., "Deep learning improves prediction of
+  CRISPR-Cpf1 guide RNA activity", Nat Biotechnol 36, 239-241 (2018),
+  DOI 10.1038/nbt.4061.
+- Package license: Artistic License 2.0 (see CRISPRseek LICENSE).
+- Input semantics: 34 bp = 4 bp upstream flank + 4 bp PAM (TTTV) +
+  20 bp gRNA + 6 bp downstream flank.
+- Weights are loaded at runtime by scripts/deepcpf1_model.py; they are
+  never re-trained by this project.

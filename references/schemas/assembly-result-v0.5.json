@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:snapgene-dna-design:schema:assembly-result-v0.5",
+  "title": "Assembly result v0.5",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "method", "experimental", "product_length", "topology", "origins",
+    "fragments", "junctions", "feature_count", "product_sequence"
+  ],
+  "properties": {
+    "method": {"type": "string"},
+    "experimental": {"type": "boolean"},
+    "product_length": {"type": "integer", "minimum": 1},
+    "topology": {"enum": ["linear", "circular"]},
+    "origins": {"type": "array", "items": {"$ref": "#/$defs/origin"}},
+    "fragments": {"type": "array", "items": {"$ref": "#/$defs/fragment"}},
+    "junctions": {"type": "array", "items": {"$ref": "#/$defs/junction"}},
+    "warnings": {"type": "array", "items": {"$ref": "#/$defs/warning"}},
+    "feature_count": {"type": "integer", "minimum": 0},
+    "product_sequence": {"type": "string", "minLength": 1}
+  },
+  "$defs": {
+    "warning": {"type": "string"},
+    "coordinate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["coordinate_system", "value"],
+      "properties": {
+        "coordinate_system": {"const": "1-based-inclusive"},
+        "value": {"type": "integer", "minimum": 1}
+      }
+    },
+    "source_mapping": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_start", "source_end"],
+      "properties": {
+        "source_start": {"type": "integer", "minimum": 1},
+        "source_end": {"type": "integer", "minimum": 1},
+        "product_start": {"type": ["integer", "null"], "minimum": 1},
+        "product_end": {"type": ["integer", "null"], "minimum": 1},
+        "wraps_origin": {"type": "boolean"},
+        "dropped": {"type": "boolean"}
+      }
+    },
+    "contribution_segment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_start", "source_end", "product_start", "product_end"],
+      "properties": {
+        "source_start": {"type": "integer", "minimum": 1},
+        "source_end": {"type": "integer", "minimum": 1},
+        "product_start": {"type": "integer", "minimum": 1},
+        "product_end": {"type": "integer", "minimum": 1}
+      }
+    },
+    "origin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["part", "name", "start", "end", "length",
+                   "contribution_segments", "source_mappings"],
+      "properties": {
+        "part": {"type": "string"},
+        "name": {"type": "string"},
+        "start": {"type": "integer", "minimum": 1},
+        "end": {"type": "integer", "minimum": 1},
+        "length": {"type": "integer", "minimum": 1},
+        "source_start": {"type": "integer", "minimum": 1},
+        "source_end": {"type": "integer", "minimum": 1},
+        "product_start": {"type": "integer", "minimum": 1},
+        "product_end": {"type": "integer", "minimum": 1},
+        "contribution_segments": {
+          "type": "array", "items": {"$ref": "#/$defs/contribution_segment"}
+        },
+        "source_mappings": {
+          "type": "array", "items": {"$ref": "#/$defs/source_mapping"}
+        }
+      }
+    },
+    "fragment_end": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "overhang_sequence", "cut_boundary"],
+      "properties": {
+        "kind": {"enum": ["blunt", "5'-overhang", "3'-overhang"]},
+        "overhang_sequence": {"type": "string"},
+        "cut_boundary": {"type": ["integer", "null"], "minimum": 0},
+        "source_cut_boundary": {"type": ["integer", "null"], "minimum": 0},
+        "homology_sequence": {"type": "string"},
+        "homology_length": {"type": "integer", "minimum": 0}
+      }
+    },
+    "fragment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "sequence", "topology", "left_end", "right_end"],
+      "properties": {
+        "name": {"type": "string"},
+        "sequence": {"type": "string", "minLength": 1},
+        "topology": {"enum": ["linear", "circular"]},
+        "left_end": {"$ref": "#/$defs/fragment_end"},
+        "right_end": {"$ref": "#/$defs/fragment_end"},
+        "source": {"type": ["string", "null"]}
+      }
+    },
+    "junction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["between", "left", "right", "compatibility"],
+      "properties": {
+        "between": {"type": "string"},
+        "left": {"$ref": "#/$defs/fragment_end"},
+        "right": {"$ref": "#/$defs/fragment_end"},
+        "compatibility": {"enum": ["ok", "MISMATCH"]}
+      }
+    }
+  }
+}

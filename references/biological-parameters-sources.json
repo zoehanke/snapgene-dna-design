@@ -1,0 +1,414 @@
+{
+  "schema_version": "0.9.0",
+  "retrieved_at": "2026-08-19",
+  "note": "Every default biological parameter must be listed here with a source; parameters without an entry must not be emitted as defaults.",
+  "parameters": [
+    {
+      "id": "P01",
+      "family": "Tm",
+      "name": "Wallace formula",
+      "default": "2*(A+T)+4*(G+C)",
+      "source": "Wallace et al. 1979, Nucleic Acids Res 6:3543-3558",
+      "source_url": "https://doi.org/10.1093/nar/6.11.3543",
+      "retrieved_at": "2026-08-19",
+      "code_references": [
+        "scripts/validation_crosscheck.py"
+      ],
+      "notes": "short-oligo approximation only; never used as the primary annealing Tm"
+    },
+    {
+      "id": "P02",
+      "family": "Tm",
+      "name": "SantaLucia nearest-neighbour model",
+      "default": "salt-corrected NN parameters via Biopython Tm_NN",
+      "source": "SantaLucia 1998, PNAS 95:1460-1465",
+      "source_url": "https://doi.org/10.1073/pnas.95.4.1460",
+      "retrieved_at": "2026-08-19",
+      "code_references": [
+        "scripts/validation_crosscheck.py",
+        "scripts/design_primers.py"
+      ],
+      "notes": "cross-check formula"
+    },
+    {
+      "id": "P03",
+      "family": "Tm",
+      "name": "Primer3 salt parameters",
+      "default": "Na+ 50 mM, Mg2+ 1.5 mM",
+      "source": "Primer3 manual / primer3-py argdefaults",
+      "source_url": "https://primer3.org/manual.html",
+      "retrieved_at": "2026-08-19",
+      "code_references": [
+        "scripts/primer3_core_backend.py",
+        "scripts/validation_crosscheck.py"
+      ],
+      "notes": "heuristic fallback uses Mg=0 for the Biopython check"
+    },
+    {
+      "id": "P04",
+      "family": "primer-quality",
+      "name": "Primer GC window",
+      "default": "20-80%",
+      "source": "Primer3 official defaults",
+      "source_url": "https://primer3.org/manual.html",
+      "retrieved_at": "2026-08-19",
+      "code_references": [
+        "scripts/primer3_core_backend.py",
+        "scripts/primer_design_engine.py"
+      ],
+      "notes": "slide-retry must NOT relax this without user consent"
+    },
+    {
+      "id": "P05",
+      "family": "primer-quality",
+      "name": "Primer length window",
+      "default": "18-27 bp (CLI legacy default 18-30)",
+      "source": "Primer3 official defaults",
+      "source_url": "https://primer3.org/manual.html",
+      "retrieved_at": "2026-08-19",
+      "code_references": [
+        "scripts/primer_design_engine.py",
+        "scripts/design_primers.py"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "P06",
+      "family": "primer-quality",
+      "name": "Primer Tm window",
+      "default": "target +/-5 C; retries 50-72 C",
+      "source": "Primer3 official defaults",
+      "source_url": "https://primer3.org/manual.html",
+      "retrieved_at": "2026-08-19",
+      "code_references": [
+        "scripts/primer_design_engine.py",
+        "scripts/design_primers.py"
+      ],
+      "notes": "relaxed-tm-retry covers Tm out-of-window only"
+    },
+    {
+      "id": "P07",
+      "family": "primer-quality",
+      "name": "3' GC clamp",
+      "default": "binding 3' terminal base G/C",
+      "source": "Primer3 official documentation",
+      "source_url": "https://primer3.org/manual.html",
+      "retrieved_at": "2026-08-19",
+      "code_references": [
+        "scripts/primer_design_engine.py"
+      ],
+      "notes": "validation warning"
+    },
+    {
+      "id": "P08",
+      "family": "primer-quality",
+      "name": "hairpin/self-dimer thresholds",
+      "default": "hairpin TH 47 C; self-any TH 45 C",
+      "source": "Primer3 official defaults",
+      "source_url": "https://primer3.org/manual.html",
+      "retrieved_at": "2026-08-19",
+      "code_references": [
+        "scripts/primer_design_engine.py"
+      ],
+      "notes": "structural validation thresholds"
+    },
+    {
+      "id": "P09",
+      "family": "primer-quality",
+      "name": "slide-retry boundary and product contract",
+      "default": "5' slide <= min(25, n//4) nt; product n-100..n+100 bp",
+      "source": "release-iteration-requirements.md section 3 (AI B experiments B8/B9)",
+      "source_url": "references/release-iteration-requirements.md",
+      "retrieved_at": "2026-08-19",
+      "code_references": [
+        "scripts/primer3_core_backend.py",
+        "scripts/primer_design_engine.py"
+      ],
+      "notes": "layer 4; GC stays 20-80"
+    },
+    {
+      "id": "P10",
+      "family": "PCR",
+      "name": "annealing temperature strategy",
+      "default": "Q5: lower-primer Tm +3 C (two-step 72 C when calculated value >=72 C); Taq/OneTaq: lower-Tm decrement per product system, optimize by gradient PCR",
+      "source": "NEB Q5 PCR optimization (E0555); NEB Tm Calculator; Taq/OneTaq product protocols",
+      "source_url": "https://www.neb.com/en-us/protocols/pcr-optimization-e0555",
+      "retrieved_at": "2026-08-19",
+      "code_references": [
+        "scripts/pcr_strategy.py"
+      ],
+      "notes": "enzyme-specific, not a single Tm-3 rule; M3 computes Tm"
+    },
+    {
+      "id": "P11",
+      "family": "PCR",
+      "name": "extension time",
+      "default": "20-30 s/kb; implementation uses conservative 30 s/kb",
+      "source": "NEB Q5 protocol M0491",
+      "source_url": "https://www.neb.com/en/protocols/pcr-using-q5-high-fidelity-dna-polymerase-m0491",
+      "retrieved_at": "2026-08-19",
+      "code_references": [
+        "scripts/pcr_strategy.py"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "P12",
+      "family": "PCR",
+      "name": "high-GC template policy",
+      "default": "GC > 70% -> Q5 + High GC Enhancer (or 3% DMSO)",
+      "source": "NEB GC-rich template FAQ",
+      "source_url": "https://www.neb.com/en/faqs/pcr-amplification-of-gc-rich-templates",
+      "retrieved_at": "2026-08-19",
+      "code_references": [
+        "scripts/pcr_strategy.py"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "P13",
+      "family": "PCR",
+      "name": "AT-rich template policy",
+      "default": "GC < 30% -> high-fidelity polymerase and lower annealing temperature",
+      "source": "NEB Q5 protocol / PCR optimization guideline",
+      "source_url": "https://www.neb.com/en/protocols/pcr-using-q5-high-fidelity-dna-polymerase-m0491",
+      "retrieved_at": "2026-08-19",
+      "code_references": [
+        "scripts/pcr_strategy.py"
+      ],
+      "notes": "optional 1 M betaine is reported as lab-practice with NEB review note"
+    },
+    {
+      "id": "P14",
+      "family": "PCR",
+      "name": "long-template policy",
+      "default": ">10 kb -> PrimeSTAR GXL or Q5 long-range plan",
+      "source": "Takara PrimeSTAR GXL product page",
+      "source_url": "https://www.takarabio.com/products/pcr/all-enzymes-and-accessories/primestar-series/primestar-gxl-dna-polymerase",
+      "retrieved_at": "2026-08-19",
+      "code_references": [
+        "scripts/pcr_strategy.py",
+        "rules/feasibility_rules.json"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "P15",
+      "family": "assembly",
+      "name": "overlap length window",
+      "default": "15-40 bp",
+      "source": "IDT primer design guidance; Gibson et al. 2009",
+      "source_url": "https://beta.idtdna.com/page/support-and-education/decoded-plus/how-to-design-primers-and-probes-for-pcr-and-qpcr/",
+      "retrieved_at": "2026-08-19",
+      "code_references": [
+        "planning/planner.py",
+        "rules/feasibility_rules.json"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "P16",
+      "family": "assembly",
+      "name": "overlap GC window",
+      "default": "30-70%",
+      "source": "IDT primer design guidance",
+      "source_url": "https://beta.idtdna.com/page/support-and-education/decoded-plus/how-to-design-primers-and-probes-for-pcr-and-qpcr/",
+      "retrieved_at": "2026-08-19",
+      "code_references": [
+        "planning/planner.py",
+        "rules/feasibility_rules.json"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "P17",
+      "family": "assembly",
+      "name": "Gibson fragment count",
+      "default": "recommended 4-5; warn above 5",
+      "source": "Gibson et al. 2009, Nat Methods 6:343-345",
+      "source_url": "https://doi.org/10.1038/nmeth.1318",
+      "retrieved_at": "2026-08-19",
+      "code_references": [
+        "rules/feasibility_rules.json"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "P18",
+      "family": "assembly",
+      "name": "Golden Gate fragment count",
+      "default": "up to 8 fragments",
+      "source": "Engler et al. 2008, PLoS One 3:e3647",
+      "source_url": "https://doi.org/10.1371/journal.pone.0003647",
+      "retrieved_at": "2026-08-19",
+      "code_references": [
+        "rules/feasibility_rules.json"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "P19",
+      "family": "assembly",
+      "name": "Type IIS internal-site escape",
+      "default": "switch BsaI/BsmBI/Esp3I/BbsI or fall back to Gibson",
+      "source": "Engler 2008; NEB Golden Gate Assembly",
+      "source_url": "https://international.neb.com/applications/cloning-and-synthetic-biology/golden-gate-assembly",
+      "retrieved_at": "2026-08-19",
+      "code_references": [
+        "planning/planner.py",
+        "rules/feasibility_rules.json"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "P20",
+      "family": "restriction",
+      "name": "restriction-site protective bases",
+      "default": "per-enzyme 5' protective base table",
+      "source": "NEB Cleavage Close to the End of DNA Fragments",
+      "source_url": "https://www.neb.com/en/faqs/cleavage-close-to-the-end-of-dna-fragments",
+      "retrieved_at": "2026-08-19",
+      "code_references": [
+        "scripts/design_primers.py"
+      ],
+      "notes": "PROTECTIVE_BASES / SITE_SEQS"
+    },
+    {
+      "id": "P21",
+      "family": "restriction",
+      "name": "restriction site dual cross-check",
+      "default": "Bio.Restriction vs direct motif scan (both orientations)",
+      "source": "Bio.Restriction; NEBcutter",
+      "source_url": "https://nc3.neb.com/NEBcutter/",
+      "retrieved_at": "2026-08-19",
+      "code_references": [
+        "scripts/sg_common.py",
+        "scripts/validation_crosscheck.py"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "P22",
+      "family": "off-target",
+      "name": "SpCas9 on-target score model",
+      "default": "Azimuth V3 model weights (Doench 2016)",
+      "source": "Doench et al. 2016, Nat Biotechnol 34:184-191",
+      "source_url": "https://doi.org/10.1038/nbt.3437",
+      "retrieved_at": "2026-08-19",
+      "code_references": [
+        "scripts/azimuth_backend.py",
+        "third_party/azimuth/"
+      ],
+      "notes": "species warning: not validated in yeast"
+    },
+    {
+      "id": "P23",
+      "family": "off-target",
+      "name": "AsCas12a on-target score model",
+      "default": "DeepCpf1 sequence + chromatin weights (Kim 2018)",
+      "source": "Kim et al. 2018, Nat Biotechnol 36:239-241",
+      "source_url": "https://doi.org/10.1038/nbt.4061",
+      "retrieved_at": "2026-08-19",
+      "code_references": [
+        "scripts/deepcpf1_model.py",
+        "third_party/deepcpf1/"
+      ],
+      "notes": "chromatin model requires feature context"
+    },
+    {
+      "id": "P24",
+      "family": "off-target",
+      "name": "genome-wide off-target search engine",
+      "default": "Cas-OFFinder v2.4.1 / v3.0.0b3 with explicit bulge semantics",
+      "source": "Bae et al. 2014, Bioinformatics 30:1473-1475; Cas-OFFinder GitHub",
+      "source_url": "https://github.com/snugel/cas-offinder",
+      "retrieved_at": "2026-08-19",
+      "code_references": [
+        "scripts/cas_offinder_adapter.py"
+      ],
+      "notes": "v3 marked experimental_backend with production_ready=false"
+    },
+    {
+      "id": "P25",
+      "family": "off-target",
+      "name": "on-target species applicability warning",
+      "default": "Azimuth/DeepCpf1 not validated in yeast; LbCas12a refuses on-target models",
+      "source": "Doench 2016 / Kim 2018 papers",
+      "source_url": "https://doi.org/10.1038/nbt.3437",
+      "retrieved_at": "2026-08-19",
+      "code_references": [
+        "scripts/guide_scoring.py",
+        "scripts/azimuth_backend.py",
+        "scripts/deepcpf1_model.py"
+      ],
+      "notes": "user-facing warning, not a numeric default"
+    },
+    {
+      "id": "P26",
+      "family": "feasibility",
+      "name": "M2 feasibility rule thresholds",
+      "default": "10 rules in rules/feasibility_rules.json",
+      "source": "Gibson 2009 / Engler 2008 / IDT / NEB / Primer3 (per-rule source field)",
+      "source_url": "https://doi.org/10.1038/nmeth.1318",
+      "retrieved_at": "2026-08-19",
+      "code_references": [
+        "rules/feasibility_rules.json",
+        "rules/engine.py"
+      ],
+      "notes": "every rule carries source text"
+    },
+    {
+      "id": "P27",
+      "family": "feasibility",
+      "name": "construct size warning",
+      "default": ">20 kb -> electroporation note (warn only)",
+      "source": "Sambrook & Russell, Molecular Cloning; laboratory consensus",
+      "source_url": "https://www.cshlpress.com/default.tpl?cart=1615984732196908370&fromlink=T&linkaction=full&linksortby=oop_title&--eqSKUdatarq=918",
+      "retrieved_at": "2026-08-19",
+      "code_references": [
+        "rules/feasibility_rules.json"
+      ],
+      "notes": "lab consensus is warn-level, not error-level"
+    },
+    {
+      "id": "P28",
+      "family": "primer-quality",
+      "name": "Primer3 overhang scoring semantics",
+      "default": "SEQUENCE_OVERHANG_LEFT/RIGHT; binding-only retry when tails cause rejection",
+      "source": "Primer3 official documentation",
+      "source_url": "https://primer3.org/manual.html",
+      "retrieved_at": "2026-08-19",
+      "code_references": [
+        "scripts/primer3_core_backend.py",
+        "scripts/primer_design_engine.py"
+      ],
+      "notes": "tail structural QC reattached post-design and reported in validation"
+    },
+    {
+      "id": "P29",
+      "family": "assembly",
+      "name": "fusion reading-frame check",
+      "default": "junction frame offset mod 3 == 0",
+      "source": "M1 design contract; Gibson assembly practice",
+      "source_url": "https://doi.org/10.1038/nmeth.1318",
+      "retrieved_at": "2026-08-19",
+      "code_references": [
+        "planning/planner.py"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "P30",
+      "family": "PCR",
+      "name": "polymerase selection",
+      "default": "cloning -> Q5; verification/colony-PCR -> OneTaq",
+      "source": "NEB DNA polymerase selection chart",
+      "source_url": "https://www.neb.com/en/tools-and-resources/selection-charts/dna-polymerase-selection-chart",
+      "retrieved_at": "2026-08-19",
+      "code_references": [
+        "scripts/pcr_strategy.py"
+      ],
+      "notes": ""
+    }
+  ]
+}

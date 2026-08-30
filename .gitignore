@@ -1,0 +1,39 @@
+# Python caches and local environments
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+.coverage
+coverage.xml
+htmlcov/
+.pytest_cache/
+
+# Generated outputs and local evidence
+reports/
+release/
+output/
+audit/
+artifacts/
+tmp_*/
+*.log
+*.zip
+
+# User and restricted sequence data
+user_rules/rules.json
+user_rules/pending.json
+*.dna
+*.gb
+*.gbk
+*.fa
+*.fasta
+
+# Explicitly allow synthetic fixtures tracked in this repository
+!fixtures/rich/*.gb
+!fixtures/synthetic/**
+
+# Local IDE and OS files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

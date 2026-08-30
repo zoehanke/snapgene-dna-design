@@ -1,0 +1,497 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:snapgene-dna-design:schema:offtarget-result-v0.8",
+  "title": "Off-target result v0.8",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "reference_genome",
+    "provenance"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "0.8.0"
+    },
+    "status": {
+      "enum": [
+        "complete",
+        "incomplete",
+        "unavailable",
+        "failed",
+        "stale"
+      ]
+    },
+    "reference_genome": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fasta_sha256",
+        "status"
+      ],
+      "properties": {
+        "species": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "strain": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "assembly": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "fasta_path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "fasta_sha256": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
+        "annotation_path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "annotation_sha256": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sequence_count": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "total_length": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "status": {
+          "enum": [
+            "ready",
+            "incomplete",
+            "failed",
+            "stale",
+            "unbound"
+          ]
+        },
+        "reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "index_time": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "backend_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "hits": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/offtarget_hit"
+      }
+    },
+    "provenance": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/provenance"
+      }
+    },
+    "backend_version": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "search_parameters": {
+      "type": "object"
+    },
+    "returncode": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "reason": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "detail": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "experimental_backend": {
+      "type": "boolean"
+    },
+    "production_ready": {
+      "type": "boolean"
+    },
+    "backend_warning": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "$defs": {
+    "offtarget_hit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "chromosome",
+        "start",
+        "end",
+        "strand",
+        "sequence",
+        "mismatches",
+        "pam",
+        "annotation"
+      ],
+      "properties": {
+        "chromosome": {
+          "type": "string"
+        },
+        "start": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "end": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "strand": {
+          "enum": [
+            "+",
+            "-"
+          ]
+        },
+        "sequence": {
+          "type": "string",
+          "minLength": 1
+        },
+        "mismatches": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "mismatch_positions": {
+          "type": "array",
+          "items": {
+            "type": "integer"
+          }
+        },
+        "pam": {
+          "type": "string",
+          "minLength": 1
+        },
+        "bulge_type": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "annotation": {
+          "$ref": "#/$defs/annotation"
+        },
+        "bulge_size": {
+          "type": [
+            "integer"
+          ]
+        },
+        "query_guide_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "query_sequence": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "annotation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "feature_type",
+        "feature_name",
+        "is_target_gene",
+        "is_additional_perfect_match"
+      ],
+      "properties": {
+        "feature_type": {
+          "enum": [
+            "CDS",
+            "gene",
+            "promoter",
+            "tRNA",
+            "rRNA",
+            "ncRNA",
+            "intergenic",
+            "unknown"
+          ]
+        },
+        "feature_name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "is_target_gene": {
+          "type": "boolean"
+        },
+        "is_additional_perfect_match": {
+          "type": "boolean"
+        },
+        "overlapping_features": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/feature_overlap"
+          }
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_type",
+        "name",
+        "role",
+        "status"
+      ],
+      "properties": {
+        "source_type": {
+          "enum": [
+            "software",
+            "prediction-model",
+            "reference-database",
+            "manufacturer-protocol",
+            "public-protocol",
+            "published-paper",
+            "heuristic",
+            "user-input"
+          ]
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "role": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "enum": [
+            "verified",
+            "partial",
+            "unavailable",
+            "unknown",
+            "conflicting",
+            "stale"
+          ]
+        },
+        "url": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uri"
+        },
+        "version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "license": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "verification": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "retrieved_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "provider": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "title": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "catalog_number": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "applicable_to": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "source_type": {
+                "const": "manufacturer-protocol"
+              }
+            },
+            "required": [
+              "source_type"
+            ]
+          },
+          "then": {
+            "required": [
+              "url",
+              "retrieved_at",
+              "version"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "source_type": {
+                "const": "prediction-model"
+              }
+            },
+            "required": [
+              "source_type"
+            ]
+          },
+          "then": {
+            "required": [
+              "version"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "source_type": {
+                "const": "public-protocol"
+              }
+            },
+            "required": [
+              "url",
+              "retrieved_at"
+            ]
+          }
+        }
+      ]
+    },
+    "feature_overlap": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "feature_type",
+        "feature_name",
+        "feature_strand",
+        "feature_start",
+        "feature_end",
+        "wraps_origin",
+        "orientation_to_hit"
+      ],
+      "properties": {
+        "feature_type": {
+          "type": "string"
+        },
+        "feature_name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "feature_strand": {
+          "enum": [
+            "+",
+            "-",
+            "."
+          ]
+        },
+        "feature_start": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "feature_end": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "wraps_origin": {
+          "type": "boolean"
+        },
+        "orientation_to_hit": {
+          "enum": [
+            "same",
+            "opposite",
+            "unknown"
+          ]
+        }
+      }
+    }
+  }
+}

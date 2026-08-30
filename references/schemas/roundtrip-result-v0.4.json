@@ -1,0 +1,32 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.invalid/snapgene-dna-design/roundtrip-result-v0.4.json",
+  "title": "Roundtrip result v0.4",
+  "type": "object",
+  "required": [
+    "passed", "core_passed", "strict_passed", "strict", "lossless",
+    "delivery_grade", "source_format", "export_format",
+    "internal_roundtrip", "official_snapgene_roundtrip", "warnings"
+  ],
+  "properties": {
+    "passed": {"type": "boolean"},
+    "core_passed": {"type": "boolean"},
+    "strict_passed": {"type": "boolean"},
+    "strict": {"type": "boolean"},
+    "lossless": {"type": "boolean"},
+    "delivery_grade": {
+      "enum": [
+        "lossless",
+        "core-compatible",
+        "core-compatible-with-safe-differences",
+        "core-compatible-with-important-differences",
+        "failed"
+      ]
+    },
+    "source_format": {"type": "string"},
+    "export_format": {"type": "string"},
+    "internal_roundtrip": {"type": "object"},
+    "official_snapgene_roundtrip": {"type": "object"},
+    "warnings": {"type": "array", "items": {"type": "string"}}
+  }
+}

@@ -1,0 +1,23 @@
+LOCUS       rich_fwd_cds              12 bp    DNA     linear   UNK 01-JAN-1980
+DEFINITION  rich fixture rich_fwd_cds.
+ACCESSION   rich_fwd_cds
+VERSION     rich_fwd_cds
+KEYWORDS    .
+SOURCE      .
+  ORGANISM  .
+            .
+FEATURES             Location/Qualifiers
+     CDS             1..9
+                     /label="cds_fwd"
+                     /gene="cds_fwd"
+                     /codon_start=1
+                     /transl_table=11
+                     /translation="MAK"
+                     /note="forward CDS"
+                     /note="orf 1"
+                     /db_xref="UniProtKB:P00001"
+                     /db_xref="GeneID:12345"
+                     /EC_number="2.7.1.1"
+ORIGIN
+        1 atggctaaat aa
+//

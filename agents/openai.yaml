@@ -1,0 +1,7 @@
+interface:
+  display_name: "SnapGene DNA Design"
+  short_description: "分析、设计并验证 SnapGene 兼容 DNA 构建"
+  default_prompt: "Use $snapgene-dna-design (v0.9.0) to analyze or design this construct. Treat natural-language experience as a candidate only: validate the declarative schema, require explicit confirmation before persistence, and never allow check/eval expressions. A block experience rule cannot be overridden by acknowledgement. For real primer design, prefer design_primers.py --require-primer3 and report design_engine.verification; never present heuristic fallback as Primer3-verified. Before file delivery, run validate_construct.py, snapgene_compatibility.py, and export_delivery_bundle.py."
+
+policy:
+  allow_implicit_invocation: true

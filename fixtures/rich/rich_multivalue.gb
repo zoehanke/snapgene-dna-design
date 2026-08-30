@@ -1,0 +1,25 @@
+LOCUS       rich_multivalue           12 bp    DNA     linear   UNK 01-JAN-1980
+DEFINITION  rich fixture rich_multivalue.
+ACCESSION   rich_multivalue
+VERSION     rich_multivalue
+KEYWORDS    .
+SOURCE      .
+  ORGANISM  .
+            .
+FEATURES             Location/Qualifiers
+     CDS             1..9
+                     /label="multi_cds"
+                     /gene="multi"
+                     /gene="multigene"
+                     /note="value one"
+                     /note="value two"
+                     /note="value three"
+                     /note="value four"
+                     /db_xref="a:1"
+                     /db_xref="b:2"
+                     /db_xref="c:3"
+                     /synonym="syn1"
+                     /synonym="syn2"
+ORIGIN
+        1 atggctaaat aa
+//

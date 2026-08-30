@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:snapgene-dna-design:schema:common-envelope-v0.5",
+  "title": "Common JSON envelope v0.5",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "ok",
+    "command",
+    "data",
+    "warnings"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "0.5.0"
+    },
+    "ok": {
+      "type": "boolean"
+    },
+    "command": {
+      "type": "string"
+    },
+    "data": {
+      "type": [
+        "object",
+        "array",
+        "null"
+      ]
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/warning"
+      }
+    },
+    "error": {
+      "$ref": "#/$defs/structured_error"
+    }
+  },
+  "if": {
+    "properties": {
+      "ok": {
+        "const": false
+      }
+    }
+  },
+  "then": {
+    "required": [
+      "error"
+    ],
+    "properties": {
+      "data": {
+        "const": null
+      }
+    }
+  },
+  "else": {
+    "not": {
+      "required": [
+        "error"
+      ]
+    }
+  },
+  "$defs": {
+    "warning": {
+      "type": "string"
+    },
+    "structured_error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "message"
+      ],
+      "properties": {
+        "code": {
+          "type": "string",
+          "minLength": 1
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1
+        },
+        "details": {}
+      }
+    }
+  },
+  "additionalProperties": false
+}

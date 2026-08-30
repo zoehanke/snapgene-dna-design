@@ -1,0 +1,283 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:snapgene-dna-design:schema:crispr-design-report-v0.8",
+  "title": "CRISPR design report v0.8",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "task_summary",
+    "inputs",
+    "nuclease",
+    "guide_candidates",
+    "on_target",
+    "off_target",
+    "reaction_profiles",
+    "protocol_recommendation",
+    "sequence_upload",
+    "unfinished_analysis",
+    "limitations",
+    "human_review_required",
+    "provenance"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "0.8.0"
+    },
+    "task_summary": {
+      "type": "string"
+    },
+    "inputs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/input_record"
+      }
+    },
+    "nuclease": {
+      "type": "string"
+    },
+    "guide_candidates": {
+      "type": "array"
+    },
+    "on_target": {
+      "type": "object"
+    },
+    "off_target": {
+      "type": "object"
+    },
+    "reaction_profiles": {
+      "type": "array"
+    },
+    "protocol_recommendation": {
+      "type": "object"
+    },
+    "sequence_upload": {
+      "type": "object"
+    },
+    "unfinished_analysis": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "limitations": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "human_review_required": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "provenance": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/provenance"
+      }
+    },
+    "status": {
+      "enum": [
+        "complete",
+        "partial",
+        "failed",
+        "unavailable"
+      ]
+    },
+    "partial_reasons": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "output_files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    }
+  },
+  "$defs": {
+    "input_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "sha256": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "size": {
+          "type": "integer"
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_type",
+        "name",
+        "role",
+        "status"
+      ],
+      "properties": {
+        "source_type": {
+          "enum": [
+            "software",
+            "prediction-model",
+            "reference-database",
+            "manufacturer-protocol",
+            "public-protocol",
+            "published-paper",
+            "heuristic",
+            "user-input"
+          ]
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "role": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "enum": [
+            "verified",
+            "partial",
+            "unavailable",
+            "unknown",
+            "conflicting",
+            "stale"
+          ]
+        },
+        "url": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uri"
+        },
+        "version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "license": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "verification": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "retrieved_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "provider": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "title": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "catalog_number": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "applicable_to": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "source_type": {
+                "const": "manufacturer-protocol"
+              }
+            },
+            "required": [
+              "source_type"
+            ]
+          },
+          "then": {
+            "required": [
+              "url",
+              "retrieved_at",
+              "version"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "source_type": {
+                "const": "prediction-model"
+              }
+            },
+            "required": [
+              "source_type"
+            ]
+          },
+          "then": {
+            "required": [
+              "version"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "source_type": {
+                "const": "public-protocol"
+              }
+            },
+            "required": [
+              "url",
+              "retrieved_at"
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

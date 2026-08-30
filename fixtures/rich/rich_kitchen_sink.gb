@@ -1,0 +1,27 @@
+LOCUS       rich_kitchen_sink         48 bp    DNA     circular UNK 01-JAN-1980
+DEFINITION  rich fixture rich_kitchen_sink.
+ACCESSION   rich_kitchen_sink
+VERSION     rich_kitchen_sink
+KEYWORDS    .
+SOURCE      .
+  ORGANISM  .
+            .
+FEATURES             Location/Qualifiers
+     CDS             1..12
+                     /label="sink_cds"
+                     /gene="sink_cds"
+                     /codon_start=1
+                     /transl_table=11
+                     /translation="MAK*"
+     promoter        complement(20..25)
+                     /label="sink_promoter"
+                     /note="reverse"
+                     /note="σ70"
+     misc_feature    join(45..48,1..3)
+                     /label="sink_cross_origin"
+                     /note="引物设计验证 fixture · café Σ DNA π 质粒"
+                     /note="multi"
+                     /note="values"
+ORIGIN
+        1 atggctaaat aattttcccg ggaaaatata atggggaaac ccgggttt
+//

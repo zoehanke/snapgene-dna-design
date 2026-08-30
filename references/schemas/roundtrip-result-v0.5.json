@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:snapgene-dna-design:schema:roundtrip-result-v0.5",
+  "title": "Roundtrip result v0.5",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "passed", "core_passed", "strict_passed", "strict", "lossless",
+    "delivery_grade", "source_format", "export_format",
+    "internal_roundtrip", "official_snapgene_roundtrip", "warnings"
+  ],
+  "properties": {
+    "passed": {"type": "boolean"},
+    "core_passed": {"type": "boolean"},
+    "strict_passed": {"type": "boolean"},
+    "strict": {"type": "boolean"},
+    "lossless": {"type": "boolean"},
+    "delivery_grade": {
+      "enum": [
+        "lossless",
+        "core-compatible",
+        "core-compatible-with-safe-differences",
+        "core-compatible-with-important-differences",
+        "failed"
+      ]
+    },
+    "source_format": {"type": "string"},
+    "export_format": {"type": "string"},
+    "internal_roundtrip": {"$ref": "#/$defs/roundtrip_comparison"},
+    "official_snapgene_roundtrip": {
+      "oneOf": [
+        {"$ref": "#/$defs/roundtrip_comparison"},
+        {"$ref": "#/$defs/skipped_roundtrip"}
+      ]
+    },
+    "warnings": {"type": "array", "items": {"$ref": "#/$defs/warning"}}
+  },
+  "$defs": {
+    "warning": {"type": "string"},
+    "roundtrip_difference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["feature"],
+      "properties": {
+        "feature": {"type": "string"},
+        "location": {"type": "string"},
+        "missing_keys": {"type": "array", "items": {"type": "string"}},
+        "unexpected_keys": {"type": "array", "items": {"type": "string"}},
+        "changed": {"type": "object"},
+        "important": {"type": "boolean"},
+        "missing_feature": {"type": "boolean"},
+        "unexpected_feature": {"type": "boolean"}
+      }
+    },
+    "roundtrip_comparison": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["passed", "sequence_equal", "topology_equal",
+                   "features_equal", "qualifiers_equal",
+                   "qualifier_differences"],
+      "properties": {
+        "passed": {"type": "boolean"},
+        "sequence_equal": {"type": "boolean"},
+        "topology_equal": {"type": "boolean"},
+        "features_equal": {"type": "boolean"},
+        "qualifiers_equal": {"type": "boolean"},
+        "qualifier_differences": {
+          "type": "array", "items": {"$ref": "#/$defs/roundtrip_difference"}
+        },
+        "qualifier_risk": {"enum": ["safe", "important", "none"]},
+        "expected_feature_count": {"type": "integer", "minimum": 0},
+        "observed_feature_count": {"type": "integer", "minimum": 0},
+        "parser_warnings": {"type": "array", "items": {"type": "string"}},
+        "parser_warning_code": {"type": "array", "items": {"type": "string"}},
+        "status": {"type": "string"},
+        "executable": {"type": "string"},
+        "target_format": {"type": "string"}
+      }
+    },
+    "skipped_roundtrip": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status"],
+      "properties": {
+        "status": {"const": "skipped"},
+        "passed": {"type": "null"}
+      }
+    }
+  }
+}

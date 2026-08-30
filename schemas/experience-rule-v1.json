@@ -1,0 +1,153 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:snapgene-dna-design:experience-rule-v1",
+  "title": "SnapGene DNA Design Experience Rule v1",
+  "type": "object",
+  "required": ["schema_version", "id", "name", "status", "scope", "trigger", "when", "action", "source"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "id": {"type": "string", "pattern": "^[a-z0-9._-]+$"},
+    "name": {"type": "string", "minLength": 1},
+    "version": {"type": "integer", "minimum": 1},
+    "status": {"enum": ["active", "disabled", "deleted", "pending", "invalid", "superseded"]},
+    "scope": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {"enum": ["session", "project", "global", "builtin"]},
+        "project_id": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": false
+    },
+    "trigger": {"enum": [
+      "assembly_feasibility",
+      "before_protocol_recommendation",
+      "before_pcr_plan",
+      "before_validation_primer_design",
+      "before_primer_design",
+      "after_primer_design",
+      "after_pcr_plan",
+      "before_method_selection",
+      "after_validation_plan",
+      "before_culture_plan",
+      "before_delivery"
+    ]},
+    "when": {"$ref": "#/$defs/condition"},
+    "action": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {"enum": ["ask", "warn", "warn_and_confirm", "block", "set_default"]},
+        "message": {"type": "string"},
+        "value": {}
+      },
+      "additionalProperties": false
+    },
+    "source": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {"type": "string"},
+        "original_text": {"type": "string"},
+        "description": {"type": "string"},
+        "text": {"type": "string"},
+        "source_id": {"type": "string"},
+        "url": {"type": "string"},
+        "accession": {"type": "string"},
+        "retrieved_at": {"type": "string"},
+        "version": {"type": "string"},
+        "verification": {}
+      },
+      "not": {"anyOf": [{"required": ["check"]}, {"required": ["eval"]}]},
+      "additionalProperties": true
+    },
+    "constraint": {"type": "string"},
+    "created_at": {"type": "string"},
+    "updated_at": {"type": "string"},
+    "sha256": {"type": "string", "pattern": "^[A-Fa-f0-9]{64}$"},
+    "confirmation": {"type": "object"},
+    "requested_status": {"enum": ["active", "disabled", "deleted"]}
+  },
+  "not": {"anyOf": [{"required": ["check"]}, {"required": ["eval"]}]},
+  "additionalProperties": false,
+  "$defs": {
+    "condition": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["all"],
+          "properties": {
+            "all": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/condition"}}
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["any"],
+          "properties": {
+            "any": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/condition"}}
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["not"],
+          "properties": {
+            "not": {"$ref": "#/$defs/condition"}
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["field", "operator"],
+          "properties": {
+            "field": {
+              "enum": [
+                "method", "fragment_count", "internal_site_count",
+                "min_overlap_length", "max_overlap_length", "min_overlap_gc",
+                "max_overlap_gc", "max_fragment_length", "total_length",
+                "any_primer_tm_outside_52_72", "any_primer_strong_structure",
+                "primer.role", "primer.request_explicit", "primer.user_supplied",
+                "primer.binding_length_min", "primer.binding_length_max",
+                "primer.binding_gc_min", "primer.binding_gc_max",
+                "primer.three_prime_last5_gc_max", "primer.max_homopolymer_length",
+                "primer.tm_difference_c", "primer.dimer_detected",
+                "primer.hairpin_detected", "primer.specificity_status",
+                "primer.has_5p_nonbinding_tail", "primer.tail_binds_initial_template",
+                "primer.tm_basis",
+                "pcr.type", "pcr.amplicon_bp", "pcr.purpose",
+                "pcr.product_downstream_use", "pcr.template_gc_percent",
+                "pcr.previous_failure", "pcr.primer_final_concentration_um",
+                "pcr.special_system", "pcr.template_type",
+                "pcr.template_dam_methylated", "pcr.parental_template_removed",
+                "pcr.direct_downstream_use", "pcr.additive_compatibility_confirmed",
+                "protocol.polymerase_known", "protocol.template_type_known",
+                "protocol.methylation_sensitive_enzyme", "protocol.host_strain_known",
+                "validation.objective", "validation.colony_pcr_positive",
+                "validation.evidence_level", "validation.uncut_control_planned",
+                "validation.min_band_separation_percent",
+                "validation.min_visible_fragment_bp", "validation.junction_count",
+                "validation.junctions_covered", "validation.clone_count",
+                "validation.special_region_verified",
+                "sanger.provider_requirements_known",
+                "assembly.insert_fragment_count", "assembly.product_or_kit_known",
+                "assembly.overlap_outside_product_guidance",
+                "assembly.min_fragment_length",
+                "source.repository_record", "source.full_sequence_verified",
+                "sequence.special_region_present",
+                "sequence.instability_feature_present",
+                "sequence.max_homopolymer_length",
+                "culture.host_strain_known", "culture.temperature_known",
+                "delivery.formal", "delivery.specificity_checked",
+                "delivery.has_unverified_regions"
+              ]
+            },
+            "operator": {"enum": ["eq", "neq", "gt", "gte", "lt", "lte", "in", "not_in", "exists"]},
+            "value": {}
+          },
+          "additionalProperties": false
+        }
+      ]
+    }
+  }
+}

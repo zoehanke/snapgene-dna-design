@@ -1,0 +1,21 @@
+# Optional external engines (v0.8.0-dev3)
+# primer3-py is one way to obtain primer3_core. The skill discovers the
+# bundled executable as a file and runs it in a child process; it never imports
+# primer3-py's native Python extension. Primer3/primer3-py are GPL-2.0-or-later
+# and are NOT bundled in this MIT package.
+primer3-py>=2.3.0
+
+# v0.8.0-dev3 real on-target models
+# Azimuth V3 (Doench-2016): converted featurization code + saved pickles are
+# bundled under third_party/azimuth (BSD).
+numpy>=1.24
+pandas>=2.0
+matplotlib>=3.7
+scikit-learn>=1.2
+# DeepCpf1 (Kim 2018): published Keras weights are bundled under
+# third_party/deepcpf1 (Artistic-2.0) and evaluated with PyTorch.
+torch>=2.0
+h5py>=3.8
+
+# Cas-OFFinder is an external BSD-3-Clause binary; install it separately and
+# pass --cas-offinder or put cas-offinder on PATH.

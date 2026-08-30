@@ -1,0 +1,122 @@
+{
+  "schema_version": "1.0.0",
+  "description": "Clarification rules for the v0.9.0-dev1 DesignSpec agent. must-ask = changes the construction direction; default-visible = safe default shown to user; derived = program-computed and must never be asked as if missing.",
+  "rules": [
+    {
+      "rule_id": "clarify-backbone-file",
+      "category": "must-ask",
+      "field": "objective.backbone_source",
+      "question": "哪个文件是骨架/载体（backbone）？",
+      "when": {"objective.type": {"in": ["assembly", "feature-replacement", "promoter-replacement", "resistance-replacement", "fusion-tag", "gibson-insert", "golden-gate"]}}
+    },
+    {
+      "rule_id": "clarify-target-feature",
+      "category": "must-ask",
+      "field": "target.feature_name",
+      "question": "要替换/提取的 feature 是哪一个？同名 feature 请给出坐标。",
+      "when": {"objective.type": {"in": ["feature-replacement", "promoter-replacement", "resistance-replacement", "fusion-tag", "gibson-insert"]}}
+    },
+    {
+      "rule_id": "clarify-host",
+      "category": "must-ask",
+      "field": "host.organism",
+      "question": "最终宿主/表达体系是什么（例如 E. coli、酿酒酵母、哺乳动物细胞）？",
+      "when": {"objective.type": {"in": ["assembly", "feature-replacement", "promoter-replacement", "resistance-replacement", "fusion-tag", "gibson-insert", "golden-gate", "crispr-hdr-donor"]}}
+    },
+    {
+      "rule_id": "clarify-upload-permission",
+      "category": "must-ask",
+      "field": "approvals.sequence_upload",
+      "question": "是否允许把任何序列上传到外部在线服务（如 BLAST/CRISPOR）？默认不允许。",
+      "when": {"objective.type": {"exists": true}}
+    },
+    {
+      "rule_id": "clarify-method-preference",
+      "category": "must-ask",
+      "field": "constraints.method",
+      "question": "是否有必须使用的构建方法或限制酶（没有则回答 none）？",
+      "when": {"objective.type": {"exists": true}}
+    },
+    {
+      "rule_id": "default-output-formats",
+      "category": "default-visible",
+      "field": "outputs.formats",
+      "default_value": ["gb", "fasta", "dna"],
+      "question": "默认输出 GenBank、FASTA 与 SnapGene 兼容 .dna；.dna 不安全时自动降级并说明。",
+      "when": {"objective.type": {"exists": true}}
+    },
+    {
+      "rule_id": "default-polymerase",
+      "category": "default-visible",
+      "field": "constraints.polymerase_preference",
+      "default_value": "Q5 High-Fidelity DNA Polymerase (high-fidelity default)",
+      "question": "默认优先高保真聚合酶（Q5）；验证用途可选 OneTaq。",
+      "when": {"objective.type": {"exists": true}}
+    },
+    {
+      "rule_id": "default-two-plans",
+      "category": "default-visible",
+      "field": "constraints.plan_count",
+      "default_value": 2,
+      "question": "默认给出一个主方案与一个备选方案。",
+      "when": {"objective.type": {"exists": true}}
+    },
+    {
+      "rule_id": "default-fasta-linear",
+      "category": "default-visible",
+      "field": "host.default_topology_note",
+      "default_value": "bare FASTA defaults to linear",
+      "question": "裸 FASTA/序列默认按线性处理；环状需要显式 topology。",
+      "when": {"objective.type": {"exists": true}}
+    },
+    {
+      "rule_id": "derived-length",
+      "category": "derived",
+      "field": "derived_facts.length",
+      "question": "序列长度由程序计算，不追问。",
+      "when": {"objective.type": {"exists": true}}
+    },
+    {
+      "rule_id": "derived-gc",
+      "category": "derived",
+      "field": "derived_facts.gc_percent",
+      "question": "GC 含量由程序计算，不追问。",
+      "when": {"objective.type": {"exists": true}}
+    },
+    {
+      "rule_id": "derived-topology",
+      "category": "derived",
+      "field": "derived_facts.topology",
+      "question": "拓扑由文件 metadata 推导，不追问。",
+      "when": {"objective.type": {"exists": true}}
+    },
+    {
+      "rule_id": "derived-feature-coords",
+      "category": "derived",
+      "field": "derived_facts.feature_coordinates",
+      "question": "feature 坐标/链由文件解析计算，不追问。",
+      "when": {"objective.type": {"exists": true}}
+    },
+    {
+      "rule_id": "derived-enzyme-sites",
+      "category": "derived",
+      "field": "derived_facts.enzyme_sites",
+      "question": "酶切位点由 find_sites/restriction_hits 计算，不追问。",
+      "when": {"objective.type": {"exists": true}}
+    },
+    {
+      "rule_id": "derived-overlaps",
+      "category": "derived",
+      "field": "derived_facts.overlap",
+      "question": "overlap 由规划器算法计算，不追问。",
+      "when": {"objective.type": {"exists": true}}
+    },
+    {
+      "rule_id": "derived-product-length",
+      "category": "derived",
+      "field": "derived_facts.product_length",
+      "question": "产物长度由构建模型计算，不追问。",
+      "when": {"objective.type": {"exists": true}}
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.invalid/snapgene-dna-design/common-envelope-v0.4.json",
+  "title": "Common JSON envelope v0.4",
+  "type": "object",
+  "required": ["schema_version", "ok", "command", "data", "warnings"],
+  "properties": {
+    "schema_version": {"const": "0.4.0"},
+    "ok": {"type": "boolean"},
+    "command": {"type": "string"},
+    "data": {"type": ["object", "array", "null"]},
+    "warnings": {"type": "array", "items": {"type": "string"}},
+    "error": {
+      "type": "object",
+      "required": ["code", "message"],
+      "properties": {
+        "code": {"type": "string"},
+        "message": {"type": "string"},
+        "details": {}
+      }
+    }
+  },
+  "if": {"properties": {"ok": {"const": false}}},
+  "then": {"required": ["error"]}
+}

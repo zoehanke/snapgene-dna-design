@@ -1,0 +1,1720 @@
+{
+  "schema_version": "1.0.0",
+  "rules": [
+    {
+      "schema_version": "1.0.0",
+      "id": "primer.validation.confirm-before-design",
+      "name": "验证引物设计前确认",
+      "version": 1,
+      "status": "active",
+      "scope": {
+        "type": "global"
+      },
+      "trigger": "before_validation_primer_design",
+      "when": {
+        "all": [
+          {
+            "field": "primer.role",
+            "operator": "eq",
+            "value": "validation"
+          },
+          {
+            "field": "primer.request_explicit",
+            "operator": "eq",
+            "value": false
+          }
+        ]
+      },
+      "action": {
+        "type": "ask",
+        "message": "当构建方案需要验证引物，而用户尚未明确要求重新设计时，先询问用户是否已有验证引物；只有用户明确要求后才设计新引物。"
+      },
+      "source": {
+        "type": "preloaded",
+        "source_id": "E-01",
+        "description": "人工审核确认的可编辑预存经验；用户可以修改、停用或删除",
+        "original_text": "当构建方案需要验证引物，而用户尚未明确要求重新设计时，先询问用户是否已有验证引物；只有用户明确要求后才设计新引物。",
+        "text": "用户真实纠错；v0.9.0-rc1 当前预存规则",
+        "verification": {
+          "human_reviewed": true,
+          "review_decision": "接受",
+          "reviewed_at": "2026-08-26",
+          "independent_source_verification": false,
+          "source_boundary": "本轮仅记录人工规则审核通过；来源线索未逐条独立复核"
+        },
+        "category": "交互授权",
+        "trigger_scene": "准备设计验证引物之前",
+        "threshold": "无数值阈值",
+        "continue_policy": "用户确认后可继续",
+        "scope_exceptions": "适用于验证/鉴定引物；用户已经明确要求重新设计时不触发。",
+        "review_focus": "是否需要区分“已有但未提供”“没有”“暂时跳过”三种回答。"
+      },
+      "updated_at": "2026-08-26"
+    },
+    {
+      "schema_version": "1.0.0",
+      "id": "pcr.colony.preferred-amplicon-length",
+      "name": "菌落 PCR 推荐产物长度",
+      "version": 1,
+      "status": "active",
+      "scope": {
+        "type": "global"
+      },
+      "trigger": "after_pcr_plan",
+      "when": {
+        "all": [
+          {
+            "field": "pcr.type",
+            "operator": "in",
+            "value": [
+              "colony",
+              "boiled_colony"
+            ]
+          },
+          {
+            "field": "pcr.amplicon_bp",
+            "operator": "gt",
+            "value": 1000
+          }
+        ]
+      },
+      "action": {
+        "type": "warn_and_confirm",
+        "message": "菌落或煮菌 PCR 预计产物超过 1000 bp 时，显示实际长度，提醒其超过经验性推荐值，并询问用户调整验证位点还是确认继续；不得静默继续，也不得绝对禁止。"
+      },
+      "source": {
+        "type": "preloaded",
+        "source_id": "E-02",
+        "description": "人工审核确认的可编辑预存经验；用户可以修改、停用或删除",
+        "original_text": "菌落或煮菌 PCR 预计产物超过 1000 bp 时，显示实际长度，提醒其超过经验性推荐值，并询问用户调整验证位点还是确认继续；不得静默继续，也不得绝对禁止。",
+        "text": "用户实验经验；不是统一文献硬上限",
+        "verification": {
+          "human_reviewed": true,
+          "review_decision": "接受",
+          "reviewed_at": "2026-08-26",
+          "independent_source_verification": false,
+          "source_boundary": "本轮仅记录人工规则审核通过；来源线索未逐条独立复核"
+        },
+        "category": "菌落PCR",
+        "trigger_scene": "菌落/煮菌PCR方案生成后",
+        "threshold": ">1000 bp 触发；1000 bp 不触发",
+        "continue_policy": "允许用户确认后继续",
+        "scope_exceptions": "仅用于菌落PCR和煮菌PCR；不是所有PCR的上限。",
+        "review_focus": "1000 bp是否保留；是否需要增加“明显过长”的第二级提醒。"
+      },
+      "updated_at": "2026-08-26"
+    },
+    {
+      "schema_version": "1.0.0",
+      "id": "protocol.required-inputs.confirm",
+      "name": "具体反应参数前确认体系信息",
+      "version": 1,
+      "status": "active",
+      "scope": {
+        "type": "global"
+      },
+      "trigger": "before_protocol_recommendation",
+      "when": {
+        "any": [
+          {
+            "any": [
+              {
+                "field": "protocol.polymerase_known",
+                "operator": "exists",
+                "value": false
+              },
+              {
+                "field": "protocol.polymerase_known",
+                "operator": "eq",
+                "value": false
+              }
+            ]
+          },
+          {
+            "any": [
+              {
+                "field": "protocol.template_type_known",
+                "operator": "exists",
+                "value": false
+              },
+              {
+                "field": "protocol.template_type_known",
+                "operator": "eq",
+                "value": false
+              }
+            ]
+          },
+          {
+            "all": [
+              {
+                "field": "protocol.methylation_sensitive_enzyme",
+                "operator": "eq",
+                "value": true
+              },
+              {
+                "any": [
+                  {
+                    "field": "protocol.host_strain_known",
+                    "operator": "exists",
+                    "value": false
+                  },
+                  {
+                    "field": "protocol.host_strain_known",
+                    "operator": "eq",
+                    "value": false
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "action": {
+        "type": "ask",
+        "message": "在给出依赖退火温度、延伸时间或PCR产物末端类型的具体方案前，先确认聚合酶品牌型号和模板类型；涉及甲基化敏感酶时再确认宿主菌株。信息不足时只给条件范围，不给唯一固定数值。"
+      },
+      "source": {
+        "type": "preloaded",
+        "source_id": "C-01",
+        "description": "人工审核确认的可编辑预存经验；用户可以修改、停用或删除",
+        "original_text": "在给出依赖退火温度、延伸时间或PCR产物末端类型的具体方案前，先确认聚合酶品牌型号和模板类型；涉及甲基化敏感酶时再确认宿主菌株。信息不足时只给条件范围，不给唯一固定数值。",
+        "text": "NEB/Thermo/Takara官方协议；链接见原始材料（未复核）",
+        "verification": {
+          "human_reviewed": true,
+          "review_decision": "接受",
+          "reviewed_at": "2026-08-26",
+          "independent_source_verification": false,
+          "source_boundary": "本轮仅记录人工规则审核通过；来源线索未逐条独立复核"
+        },
+        "category": "方案前询问",
+        "trigger_scene": "生成PCR/酶切相关反应条件前",
+        "threshold": "缺少酶型号或模板类型",
+        "continue_policy": "补充信息后继续",
+        "scope_exceptions": "宿主菌株只在甲基化等确实相关时询问，避免所有PCR都过度追问。",
+        "review_focus": "应该强制询问哪些字段；怎样避免简单任务中问题过多。"
+      },
+      "updated_at": "2026-08-26"
+    },
+    {
+      "schema_version": "1.0.0",
+      "id": "pcr.high-fidelity-purpose.prompt",
+      "name": "高保真用途下确认聚合酶",
+      "version": 1,
+      "status": "active",
+      "scope": {
+        "type": "global"
+      },
+      "trigger": "before_pcr_plan",
+      "when": {
+        "field": "pcr.purpose",
+        "operator": "in",
+        "value": [
+          "site_directed_mutagenesis",
+          "protein_expression",
+          "formal_cloning",
+          "sequencing",
+          "high_fidelity"
+        ]
+      },
+      "action": {
+        "type": "ask",
+        "message": "当PCR产物将用于点突变、蛋白表达、正式克隆或序列保真要求较高的用途时，提醒优先考虑高保真聚合酶；若用户已有固定聚合酶或仅做快速筛选，应先询问而不是自动替换。"
+      },
+      "source": {
+        "type": "preloaded",
+        "source_id": "C-02",
+        "description": "人工审核确认的可编辑预存经验；用户可以修改、停用或删除",
+        "original_text": "当PCR产物将用于点突变、蛋白表达、正式克隆或序列保真要求较高的用途时，提醒优先考虑高保真聚合酶；若用户已有固定聚合酶或仅做快速筛选，应先询问而不是自动替换。",
+        "text": "NEB Polymerase Fidelity；DOI:10.1371/journal.pone.0169774（未复核）",
+        "verification": {
+          "human_reviewed": true,
+          "review_decision": "接受",
+          "reviewed_at": "2026-08-26",
+          "independent_source_verification": false,
+          "source_boundary": "本轮仅记录人工规则审核通过；来源线索未逐条独立复核"
+        },
+        "category": "聚合酶选择",
+        "trigger_scene": "选择PCR聚合酶时",
+        "threshold": "用途=高保真需求",
+        "continue_policy": "用户可选择继续使用现有酶",
+        "scope_exceptions": "不适用于只做快速存在性筛选的菌落PCR。",
+        "review_focus": "“高保真需求”的场景是否完整；是否应默认选择而不是提醒。"
+      },
+      "updated_at": "2026-08-26"
+    },
+    {
+      "schema_version": "1.0.0",
+      "id": "pcr.high-gc-or-failure.additive-check",
+      "name": "高 GC 或失败 PCR 的添加剂复核",
+      "version": 1,
+      "status": "active",
+      "scope": {
+        "type": "global"
+      },
+      "trigger": "after_pcr_plan",
+      "when": {
+        "any": [
+          {
+            "field": "pcr.template_gc_percent",
+            "operator": "gt",
+            "value": 75
+          },
+          {
+            "field": "pcr.previous_failure",
+            "operator": "eq",
+            "value": true
+          }
+        ]
+      },
+      "action": {
+        "type": "warn_and_confirm",
+        "message": "检测到高GC模板或常规PCR失败时，提醒根据所用聚合酶选择兼容的GC增强剂或DMSO，并同步调整退火条件；不得把某产品的添加剂和浓度套用到其他聚合酶。"
+      },
+      "source": {
+        "type": "preloaded",
+        "source_id": "C-03",
+        "description": "人工审核确认的可编辑预存经验；用户可以修改、停用或删除",
+        "original_text": "检测到高GC模板或常规PCR失败时，提醒根据所用聚合酶选择兼容的GC增强剂或DMSO，并同步调整退火条件；不得把某产品的添加剂和浓度套用到其他聚合酶。",
+        "text": "Thermo SuperFi II、NEB Phusion/Q5官方协议（未复核）",
+        "verification": {
+          "human_reviewed": true,
+          "review_decision": "接受",
+          "reviewed_at": "2026-08-26",
+          "independent_source_verification": false,
+          "source_boundary": "本轮仅记录人工规则审核通过；来源线索未逐条独立复核"
+        },
+        "category": "高GC PCR",
+        "trigger_scene": "PCR方案生成或失败排查时",
+        "threshold": "候选阈值：GC>75%，或已有失败记录",
+        "continue_policy": "用户确认产品和添加剂后继续",
+        "scope_exceptions": "不同酶差异大：SuperFi、Phusion和Q5的处理方式不同。",
+        "review_focus": "GC阈值是否设为>75%；首次设计是否提醒，还是失败后才提醒。"
+      },
+      "updated_at": "2026-08-26"
+    },
+    {
+      "schema_version": "1.0.0",
+      "id": "pcr.primer-concentration.high-warning",
+      "name": "PCR 单条引物浓度过高提醒",
+      "version": 1,
+      "status": "active",
+      "scope": {
+        "type": "global"
+      },
+      "trigger": "after_pcr_plan",
+      "when": {
+        "field": "pcr.primer_final_concentration_um",
+        "operator": "gt",
+        "value": 1
+      },
+      "action": {
+        "type": "warn",
+        "message": "PCR方案中的单条引物终浓度超过 1 µM 时，提醒可能增加错配和非特异扩增，并建议核对对应聚合酶协议；不要自动改动用户输入。"
+      },
+      "source": {
+        "type": "preloaded",
+        "source_id": "C-04",
+        "description": "人工审核确认的可编辑预存经验；用户可以修改、停用或删除",
+        "original_text": "PCR方案中的单条引物终浓度超过 1 µM 时，提醒可能增加错配和非特异扩增，并建议核对对应聚合酶协议；不要自动改动用户输入。",
+        "text": "NEB/Thermo/Takara官方协议（未复核）",
+        "verification": {
+          "human_reviewed": true,
+          "review_decision": "接受",
+          "reviewed_at": "2026-08-26",
+          "independent_source_verification": false,
+          "source_boundary": "本轮仅记录人工规则审核通过；来源线索未逐条独立复核"
+        },
+        "category": "PCR体系",
+        "trigger_scene": "生成或检查PCR反应体系时",
+        "threshold": ">1 µM",
+        "continue_policy": "允许用户保留",
+        "scope_exceptions": "简并引物、多重PCR和特殊体系可能例外。",
+        "review_focus": "1 µM是否适合作为跨产品提醒线；是否只在未注明特殊体系时触发。"
+      },
+      "updated_at": "2026-08-26"
+    },
+    {
+      "schema_version": "1.0.0",
+      "id": "pcr.colony.sample-handling-reminder",
+      "name": "菌落 PCR 取样提醒",
+      "version": 1,
+      "status": "active",
+      "scope": {
+        "type": "global"
+      },
+      "trigger": "after_pcr_plan",
+      "when": {
+        "field": "pcr.type",
+        "operator": "in",
+        "value": [
+          "colony",
+          "boiled_colony"
+        ]
+      },
+      "action": {
+        "type": "warn",
+        "message": "菌落PCR取样时提醒使用新鲜单菌落、避免挑取过多菌体和带入琼脂；菌量过多或琼脂污染应作为常见失败原因提示。"
+      },
+      "source": {
+        "type": "preloaded",
+        "source_id": "C-05",
+        "description": "人工审核确认的可编辑预存经验；用户可以修改、停用或删除",
+        "original_text": "菌落PCR取样时提醒使用新鲜单菌落、避免挑取过多菌体和带入琼脂；菌量过多或琼脂污染应作为常见失败原因提示。",
+        "text": "NEB Colony PCR应用资料（未复核）",
+        "verification": {
+          "human_reviewed": true,
+          "review_decision": "接受",
+          "reviewed_at": "2026-08-26",
+          "independent_source_verification": false,
+          "source_boundary": "本轮仅记录人工规则审核通过；来源线索未逐条独立复核"
+        },
+        "category": "菌落PCR",
+        "trigger_scene": "生成菌落PCR操作建议时",
+        "threshold": "无统一数值阈值",
+        "continue_policy": "不阻止",
+        "scope_exceptions": "适用于直接挑菌或煮菌模板；具体取样量随菌种和体系变化。",
+        "review_focus": "是否值得预存；能否形成可检测触发，还是只能作为知识提示。"
+      },
+      "updated_at": "2026-08-26"
+    },
+    {
+      "schema_version": "1.0.0",
+      "id": "pcr.colony.polymerase-by-downstream-use",
+      "name": "菌落 PCR 按后续用途选择体系",
+      "version": 1,
+      "status": "active",
+      "scope": {
+        "type": "global"
+      },
+      "trigger": "before_pcr_plan",
+      "when": {
+        "field": "pcr.type",
+        "operator": "in",
+        "value": [
+          "colony",
+          "boiled_colony"
+        ]
+      },
+      "action": {
+        "type": "ask",
+        "message": "常规菌落PCR初筛时，建议优先考虑耐杂质、速度较快的Taq/OneTaq类体系；如果PCR产物后续直接用于克隆、表达或测序，则询问用户是否改用高保真体系或先提取质粒。"
+      },
+      "source": {
+        "type": "preloaded",
+        "source_id": "C-06",
+        "description": "人工审核确认的可编辑预存经验；用户可以修改、停用或删除",
+        "original_text": "常规菌落PCR初筛时，建议优先考虑耐杂质、速度较快的Taq/OneTaq类体系；如果PCR产物后续直接用于克隆、表达或测序，则询问用户是否改用高保真体系或先提取质粒。",
+        "text": "NEB Colony PCR应用说明（未复核）",
+        "verification": {
+          "human_reviewed": true,
+          "review_decision": "接受",
+          "reviewed_at": "2026-08-26",
+          "independent_source_verification": false,
+          "source_boundary": "本轮仅记录人工规则审核通过；来源线索未逐条独立复核"
+        },
+        "category": "菌落PCR",
+        "trigger_scene": "选择菌落PCR体系时",
+        "threshold": "用途=快速初筛或后续正式使用",
+        "continue_policy": "用户决定",
+        "scope_exceptions": "不能把具体品牌设成全局默认；酵母等宿主需要单独验证。",
+        "review_focus": "“高保真酶更不耐杂质”是否过度泛化；是否只保留用途询问。"
+      },
+      "updated_at": "2026-08-26"
+    },
+    {
+      "schema_version": "1.0.0",
+      "id": "validation.orientation-primer-logic",
+      "name": "插入方向鉴定引物逻辑",
+      "version": 1,
+      "status": "active",
+      "scope": {
+        "type": "global"
+      },
+      "trigger": "before_primer_design",
+      "when": {
+        "field": "validation.objective",
+        "operator": "eq",
+        "value": "insert_orientation"
+      },
+      "action": {
+        "type": "warn",
+        "message": "当菌落PCR的目标是判断插入方向时，优先建议使用一条骨架侧翼引物和一条插入内部引物，使正确方向产生可判读的特异条带；如果现有方案采用其他组合，应解释其方向判定逻辑。"
+      },
+      "source": {
+        "type": "preloaded",
+        "source_id": "C-07",
+        "description": "人工审核确认的可编辑预存经验；用户可以修改、停用或删除",
+        "original_text": "当菌落PCR的目标是判断插入方向时，优先建议使用一条骨架侧翼引物和一条插入内部引物，使正确方向产生可判读的特异条带；如果现有方案采用其他组合，应解释其方向判定逻辑。",
+        "text": "Addgene Plasmids 101: Colony PCR；https://blog.addgene.org/plasmids-101-colony-pcr",
+        "verification": {
+          "human_reviewed": true,
+          "review_decision": "接受",
+          "reviewed_at": "2026-08-26",
+          "independent_source_verification": false,
+          "source_boundary": "本轮仅记录人工规则审核通过；来源线索未逐条独立复核"
+        },
+        "category": "菌落PCR",
+        "trigger_scene": "设计方向鉴定PCR时",
+        "threshold": "目标=判定插入方向",
+        "continue_policy": "允许其他可证明方向的方案",
+        "scope_exceptions": "仅判断“有无插入”时不适用。",
+        "review_focus": "是否应写成“优先建议”而不是“必须”；哪些替代方案可接受。"
+      },
+      "updated_at": "2026-08-26"
+    },
+    {
+      "schema_version": "1.0.0",
+      "id": "validation.colony-pcr-positive-evidence-limit",
+      "name": "菌落 PCR 阳性的证据边界",
+      "version": 1,
+      "status": "active",
+      "scope": {
+        "type": "global"
+      },
+      "trigger": "after_validation_plan",
+      "when": {
+        "field": "validation.colony_pcr_positive",
+        "operator": "eq",
+        "value": true
+      },
+      "action": {
+        "type": "warn",
+        "message": "菌落PCR出现预期大小条带只作为初筛阳性，不代表插入方向、接缝和序列均无误；正式交付时应提醒用户选择Sanger、全质粒测序或其他等价方法确认关键区域。"
+      },
+      "source": {
+        "type": "preloaded",
+        "source_id": "C-08",
+        "description": "人工审核确认的可编辑预存经验；用户可以修改、停用或删除",
+        "original_text": "菌落PCR出现预期大小条带只作为初筛阳性，不代表插入方向、接缝和序列均无误；正式交付时应提醒用户选择Sanger、全质粒测序或其他等价方法确认关键区域。",
+        "text": "Addgene验证流程（未复核）",
+        "verification": {
+          "human_reviewed": true,
+          "review_decision": "接受",
+          "reviewed_at": "2026-08-26",
+          "independent_source_verification": false,
+          "source_boundary": "本轮仅记录人工规则审核通过；来源线索未逐条独立复核"
+        },
+        "category": "克隆验证",
+        "trigger_scene": "解释菌落PCR结果或生成验证计划时",
+        "threshold": "菌落PCR=阳性",
+        "continue_policy": "允许用户暂时只做初筛，但必须标注证据等级",
+        "scope_exceptions": "是否必须测序取决于实验用途和风险。",
+        "review_focus": "是否所有克隆都必须测序；什么情况可由其他证据替代。"
+      },
+      "updated_at": "2026-08-26"
+    },
+    {
+      "schema_version": "1.0.0",
+      "id": "primer.binding-length-window",
+      "name": "引物结合区长度窗口提醒",
+      "version": 1,
+      "status": "active",
+      "scope": {
+        "type": "global"
+      },
+      "trigger": "after_primer_design",
+      "when": {
+        "any": [
+          {
+            "field": "primer.binding_length_min",
+            "operator": "lt",
+            "value": 18
+          },
+          {
+            "field": "primer.binding_length_max",
+            "operator": "gt",
+            "value": 30
+          }
+        ]
+      },
+      "action": {
+        "type": "warn",
+        "message": "普通PCR引物建议优先在18–30 nt范围内；短于15 nt或长于40 nt时发出明显警告，并展示采用该窗口的来源，不直接阻止设计。"
+      },
+      "source": {
+        "type": "preloaded",
+        "source_id": "C-09",
+        "description": "人工审核确认的可编辑预存经验；用户可以修改、停用或删除",
+        "original_text": "普通PCR引物建议优先在18–30 nt范围内；短于15 nt或长于40 nt时发出明显警告，并展示采用该窗口的来源，不直接阻止设计。",
+        "text": "IDT/NEB/Addgene/Primer3候选来源（未复核）",
+        "verification": {
+          "human_reviewed": true,
+          "review_decision": "接受",
+          "reviewed_at": "2026-08-26",
+          "independent_source_verification": false,
+          "source_boundary": "本轮仅记录人工规则审核通过；来源线索未逐条独立复核"
+        },
+        "category": "引物基础QC",
+        "trigger_scene": "设计或检查引物时",
+        "threshold": "推荐18–30 nt；<15或>40 nt明显警告",
+        "continue_policy": "允许用户确认后继续",
+        "scope_exceptions": "qPCR、测序、简并引物和带长5'尾的完整寡核苷酸应分别判断结合区。",
+        "review_focus": "18–30和15–40两个窗口是否合理；应检查结合区还是完整引物。"
+      },
+      "updated_at": "2026-08-26"
+    },
+    {
+      "schema_version": "1.0.0",
+      "id": "primer.binding-gc-window",
+      "name": "引物结合区 GC 范围提醒",
+      "version": 1,
+      "status": "active",
+      "scope": {
+        "type": "global"
+      },
+      "trigger": "after_primer_design",
+      "when": {
+        "any": [
+          {
+            "field": "primer.binding_gc_min",
+            "operator": "lt",
+            "value": 35
+          },
+          {
+            "field": "primer.binding_gc_max",
+            "operator": "gt",
+            "value": 65
+          }
+        ]
+      },
+      "action": {
+        "type": "warn",
+        "message": "引物结合区GC含量超出35–65%时警告，并把40–60%显示为常见优选范围；不要因为超出范围自动拒绝候选。"
+      },
+      "source": {
+        "type": "preloaded",
+        "source_id": "C-10",
+        "description": "人工审核确认的可编辑预存经验；用户可以修改、停用或删除",
+        "original_text": "引物结合区GC含量超出35–65%时警告，并把40–60%显示为常见优选范围；不要因为超出范围自动拒绝候选。",
+        "text": "IDT/NEB/Addgene候选来源（未复核）",
+        "verification": {
+          "human_reviewed": true,
+          "review_decision": "接受",
+          "reviewed_at": "2026-08-26",
+          "independent_source_verification": false,
+          "source_boundary": "本轮仅记录人工规则审核通过；来源线索未逐条独立复核"
+        },
+        "category": "引物基础QC",
+        "trigger_scene": "设计或检查引物时",
+        "threshold": "警告范围<35%或>65%；优选40–60%",
+        "continue_policy": "允许继续",
+        "scope_exceptions": "高AT、高GC模板可能无法满足；5'尾不计入结合区GC。",
+        "review_focus": "采用35–65还是40–60作为主范围；是否需要按用途区分。"
+      },
+      "updated_at": "2026-08-26"
+    },
+    {
+      "schema_version": "1.0.0",
+      "id": "primer.three-prime-gc-and-polyx",
+      "name": "引物 3' GC 与连续碱基提醒",
+      "version": 1,
+      "status": "active",
+      "scope": {
+        "type": "global"
+      },
+      "trigger": "after_primer_design",
+      "when": {
+        "any": [
+          {
+            "field": "primer.three_prime_last5_gc_max",
+            "operator": "gt",
+            "value": 3
+          },
+          {
+            "field": "primer.max_homopolymer_length",
+            "operator": "gte",
+            "value": 4
+          }
+        ]
+      },
+      "action": {
+        "type": "warn",
+        "message": "引物3'端最后5个碱基通常建议含1–2个G/C；末端G/C过多或全长出现4个及以上连续相同碱基时提醒可能增加非特异、滑移或合成问题。"
+      },
+      "source": {
+        "type": "preloaded",
+        "source_id": "C-11",
+        "description": "人工审核确认的可编辑预存经验；用户可以修改、停用或删除",
+        "original_text": "引物3'端最后5个碱基通常建议含1–2个G/C；末端G/C过多或全长出现4个及以上连续相同碱基时提醒可能增加非特异、滑移或合成问题。",
+        "text": "IDT/Addgene/Primer-BLAST候选来源（未复核）",
+        "verification": {
+          "human_reviewed": true,
+          "review_decision": "接受",
+          "reviewed_at": "2026-08-26",
+          "independent_source_verification": false,
+          "source_boundary": "本轮仅记录人工规则审核通过；来源线索未逐条独立复核"
+        },
+        "category": "引物基础QC",
+        "trigger_scene": "设计或检查引物时",
+        "threshold": "3'末5 nt建议1–2个G/C；>3个G/C或Poly-X≥4时提醒",
+        "continue_policy": "允许继续",
+        "scope_exceptions": "特殊模板可能无法满足；不同来源对连续碱基阈值不完全一致。",
+        "review_focus": "GC clamp和Poly-X是否应拆成两条；≥4是否过严。"
+      },
+      "updated_at": "2026-08-26"
+    },
+    {
+      "schema_version": "1.0.0",
+      "id": "primer.pair-tm-difference-by-purpose",
+      "name": "按用途检查引物对 Tm 差",
+      "version": 1,
+      "status": "active",
+      "scope": {
+        "type": "global"
+      },
+      "trigger": "after_primer_design",
+      "when": {
+        "any": [
+          {
+            "all": [
+              {
+                "field": "primer.role",
+                "operator": "in",
+                "value": [
+                  "qPCR",
+                  "qpcr"
+                ]
+              },
+              {
+                "field": "primer.tm_difference_c",
+                "operator": "gt",
+                "value": 2
+              }
+            ]
+          },
+          {
+            "all": [
+              {
+                "field": "primer.role",
+                "operator": "not_in",
+                "value": [
+                  "qPCR",
+                  "qpcr"
+                ]
+              },
+              {
+                "field": "primer.tm_difference_c",
+                "operator": "gt",
+                "value": 5
+              }
+            ]
+          }
+        ]
+      },
+      "action": {
+        "type": "warn",
+        "message": "引物对Tm差应按用途分别提醒：qPCR候选差值超过2°C时警告，普通PCR候选差值超过5°C时警告；不得用同一阈值覆盖所有用途。"
+      },
+      "source": {
+        "type": "preloaded",
+        "source_id": "C-12",
+        "description": "人工审核确认的可编辑预存经验；用户可以修改、停用或删除",
+        "original_text": "引物对Tm差应按用途分别提醒：qPCR候选差值超过2°C时警告，普通PCR候选差值超过5°C时警告；不得用同一阈值覆盖所有用途。",
+        "text": "IDT/Thermo/Addgene候选来源（未复核）",
+        "verification": {
+          "human_reviewed": true,
+          "review_decision": "接受",
+          "reviewed_at": "2026-08-26",
+          "independent_source_verification": false,
+          "source_boundary": "本轮仅记录人工规则审核通过；来源线索未逐条独立复核"
+        },
+        "category": "引物配对QC",
+        "trigger_scene": "引物对生成后",
+        "threshold": "qPCR ΔTm>2°C；普通PCR ΔTm>5°C",
+        "continue_policy": "允许用户确认或重新设计",
+        "scope_exceptions": "必须在同一算法、盐和浓度条件下比较Tm。",
+        "review_focus": "2°C和5°C是否可靠；是否应绑定具体聚合酶和计算器。"
+      },
+      "updated_at": "2026-08-26"
+    },
+    {
+      "schema_version": "1.0.0",
+      "id": "primer.dimer-three-prime-risk",
+      "name": "引物二聚体 3' 风险提醒",
+      "version": 1,
+      "status": "active",
+      "scope": {
+        "type": "global"
+      },
+      "trigger": "after_primer_design",
+      "when": {
+        "field": "primer.dimer_detected",
+        "operator": "eq",
+        "value": true
+      },
+      "action": {
+        "type": "warn",
+        "message": "计算到自二聚体或异二聚体时，重点检查可延伸的3'端互补。候选材料提出“整体ΔG≤−9 kcal/mol”或“3'端ΔG≤−5 kcal/mol”作为警告线；在阈值统一前只展示数值和风险，不作硬阻断。"
+      },
+      "source": {
+        "type": "preloaded",
+        "source_id": "C-13",
+        "description": "人工审核确认的可编辑预存经验；用户可以修改、停用或删除",
+        "original_text": "计算到自二聚体或异二聚体时，重点检查可延伸的3'端互补。候选材料提出“整体ΔG≤−9 kcal/mol”或“3'端ΔG≤−5 kcal/mol”作为警告线；在阈值统一前只展示数值和风险，不作硬阻断。",
+        "text": "IDT OligoAnalyzer、Primer3手册（未复核）",
+        "verification": {
+          "human_reviewed": true,
+          "review_decision": "接受",
+          "reviewed_at": "2026-08-26",
+          "independent_source_verification": false,
+          "source_boundary": "本轮仅记录人工规则审核通过；来源线索未逐条独立复核"
+        },
+        "category": "引物二级结构",
+        "trigger_scene": "引物设计完成后",
+        "threshold": "候选阈值：整体≤−9；3'端≤−5 kcal/mol",
+        "continue_policy": "允许人工复核后继续",
+        "scope_exceptions": "Primer3热力学指标与OligoAnalyzer ΔG不能直接互换。",
+        "review_focus": "阈值相互冲突；必须确认算法、温度和盐条件后才能预存。"
+      },
+      "updated_at": "2026-08-26"
+    },
+    {
+      "schema_version": "1.0.0",
+      "id": "primer.hairpin-three-prime-risk",
+      "name": "引物 3' 发夹风险提醒",
+      "version": 1,
+      "status": "active",
+      "scope": {
+        "type": "global"
+      },
+      "trigger": "after_primer_design",
+      "when": {
+        "field": "primer.hairpin_detected",
+        "operator": "eq",
+        "value": true
+      },
+      "action": {
+        "type": "warn",
+        "message": "引物3'端形成稳定发夹时提醒可能阻碍模板退火。候选材料提出ΔG≤−2 kcal/mol或发夹Tm≥45°C作为警告线；在来源核实和适用条件明确前不得设成硬门禁。"
+      },
+      "source": {
+        "type": "preloaded",
+        "source_id": "C-14",
+        "description": "人工审核确认的可编辑预存经验；用户可以修改、停用或删除",
+        "original_text": "引物3'端形成稳定发夹时提醒可能阻碍模板退火。候选材料提出ΔG≤−2 kcal/mol或发夹Tm≥45°C作为警告线；在来源核实和适用条件明确前不得设成硬门禁。",
+        "text": "IDT/Primer3候选来源（未复核）",
+        "verification": {
+          "human_reviewed": true,
+          "review_decision": "接受",
+          "reviewed_at": "2026-08-26",
+          "independent_source_verification": false,
+          "source_boundary": "本轮仅记录人工规则审核通过；来源线索未逐条独立复核"
+        },
+        "category": "引物二级结构",
+        "trigger_scene": "引物设计完成后",
+        "threshold": "候选阈值：ΔG≤−2 kcal/mol或hairpin Tm≥45°C",
+        "continue_policy": "允许人工复核后继续",
+        "scope_exceptions": "需区分发夹位置、退火温度和完整带尾引物。",
+        "review_focus": "−2 kcal/mol可能过严；是否改用与实际退火温度相关的指标。"
+      },
+      "updated_at": "2026-08-26"
+    },
+    {
+      "schema_version": "1.0.0",
+      "id": "primer.formal-delivery-specificity",
+      "name": "正式交付前检查引物特异性",
+      "version": 1,
+      "status": "active",
+      "scope": {
+        "type": "global"
+      },
+      "trigger": "before_delivery",
+      "when": {
+        "all": [
+          {
+            "field": "delivery.formal",
+            "operator": "eq",
+            "value": true
+          },
+          {
+            "field": "primer.role",
+            "operator": "in",
+            "value": [
+              "validation",
+              "sequencing"
+            ]
+          },
+          {
+            "field": "primer.specificity_status",
+            "operator": "in",
+            "value": [
+              "unchecked",
+              "multiple_hits",
+              "reference_mismatch"
+            ]
+          }
+        ]
+      },
+      "action": {
+        "type": "warn_and_confirm",
+        "message": "正式交付验证引物或测序引物前，提醒进行模板内或参考基因组内的电子特异性检查；本地分析优先，若需要把序列发送到在线Primer-BLAST等服务，必须单独询问并取得上传同意。"
+      },
+      "source": {
+        "type": "preloaded",
+        "source_id": "C-15",
+        "description": "人工审核确认的可编辑预存经验；用户可以修改、停用或删除",
+        "original_text": "正式交付验证引物或测序引物前，提醒进行模板内或参考基因组内的电子特异性检查；本地分析优先，若需要把序列发送到在线Primer-BLAST等服务，必须单独询问并取得上传同意。",
+        "text": "Primer-BLAST论文；https://pmc.ncbi.nlm.nih.gov/articles/PMC3412702/",
+        "verification": {
+          "human_reviewed": true,
+          "review_decision": "接受",
+          "reviewed_at": "2026-08-26",
+          "independent_source_verification": false,
+          "source_boundary": "本轮仅记录人工规则审核通过；来源线索未逐条独立复核"
+        },
+        "category": "引物特异性",
+        "trigger_scene": "正式交付引物前",
+        "threshold": "未完成特异性检查或发现多个候选结合位点",
+        "continue_policy": "用户可选择离线检查或暂不完成，但交付状态必须标明",
+        "scope_exceptions": "数据库和参考基因组必须与宿主/菌株匹配。",
+        "review_focus": "“未检查就不能交付”是否过强；隐私同意和离线替代如何表达。"
+      },
+      "updated_at": "2026-08-26"
+    },
+    {
+      "schema_version": "1.0.0",
+      "id": "primer.sanger-clear-read-region",
+      "name": "Sanger 关键位点与读段覆盖提醒",
+      "version": 1,
+      "status": "active",
+      "scope": {
+        "type": "global"
+      },
+      "trigger": "before_primer_design",
+      "when": {
+        "field": "primer.role",
+        "operator": "eq",
+        "value": "sequencing"
+      },
+      "action": {
+        "type": "warn",
+        "message": "设计Sanger验证引物时，优先将关键位点放在读段的清晰区，并在目标过长时建议增加步移引物。候选材料给出的上游距离包括30–100、50–150和50–300 nt，有效读长包括500–800和300–900 bp，应由真人确定正式口径。"
+      },
+      "source": {
+        "type": "preloaded",
+        "source_id": "C-16",
+        "description": "人工审核确认的可编辑预存经验；用户可以修改、停用或删除",
+        "original_text": "设计Sanger验证引物时，优先将关键位点放在读段的清晰区，并在目标过长时建议增加步移引物。候选材料给出的上游距离包括30–100、50–150和50–300 nt，有效读长包括500–800和300–900 bp，应由真人确定正式口径。",
+        "text": "Addgene Sequence Analysis；Cornell BRC Sanger指南（未复核）",
+        "verification": {
+          "human_reviewed": true,
+          "review_decision": "接受",
+          "reviewed_at": "2026-08-26",
+          "independent_source_verification": false,
+          "source_boundary": "本轮仅记录人工规则审核通过；来源线索未逐条独立复核"
+        },
+        "category": "Sanger测序",
+        "trigger_scene": "设计测序引物或覆盖计划时",
+        "threshold": "距离候选30–100/50–150/50–300 nt；读长候选500–800/300–900 bp",
+        "continue_policy": "允许按测序服务商要求调整",
+        "scope_exceptions": "测序平台、模板质量和服务商条件不同。",
+        "review_focus": "多个范围冲突；应采用哪个默认值，还是只要求读取服务商规范。"
+      },
+      "updated_at": "2026-08-26"
+    },
+    {
+      "schema_version": "1.0.0",
+      "id": "primer.qpcr-amplicon-and-exon-guidance",
+      "name": "qPCR 扩增子与跨外显子建议",
+      "version": 1,
+      "status": "active",
+      "scope": {
+        "type": "global"
+      },
+      "trigger": "before_primer_design",
+      "when": {
+        "field": "primer.role",
+        "operator": "in",
+        "value": [
+          "qPCR",
+          "qpcr"
+        ]
+      },
+      "action": {
+        "type": "warn",
+        "message": "设计qPCR引物时，可将70–150 bp作为优选扩增子范围；真核表达分析优先考虑跨外显子接头或跨内含子设计以减少基因组DNA干扰，并在报告中说明特异性证据。"
+      },
+      "source": {
+        "type": "preloaded",
+        "source_id": "C-17",
+        "description": "人工审核确认的可编辑预存经验；用户可以修改、停用或删除",
+        "original_text": "设计qPCR引物时，可将70–150 bp作为优选扩增子范围；真核表达分析优先考虑跨外显子接头或跨内含子设计以减少基因组DNA干扰，并在报告中说明特异性证据。",
+        "text": "MIQE、IDT候选来源（未复核）",
+        "verification": {
+          "human_reviewed": true,
+          "review_decision": "接受",
+          "reviewed_at": "2026-08-26",
+          "independent_source_verification": false,
+          "source_boundary": "本轮仅记录人工规则审核通过；来源线索未逐条独立复核"
+        },
+        "category": "qPCR",
+        "trigger_scene": "qPCR引物设计时",
+        "threshold": "优选扩增子70–150 bp",
+        "continue_policy": "允许按试剂、靶标和实验设计调整",
+        "scope_exceptions": "不适用于普通PCR；无内含子基因或基因组定量另行处理。",
+        "review_focus": "70–150 bp是否过窄；跨外显子是否应是默认建议而非强要求。"
+      },
+      "updated_at": "2026-08-26"
+    },
+    {
+      "schema_version": "1.0.0",
+      "id": "assembly.multiple-inserts.ask-method-constraints",
+      "name": "多插入片段先询问方法条件",
+      "version": 1,
+      "status": "active",
+      "scope": {
+        "type": "global"
+      },
+      "trigger": "before_method_selection",
+      "when": {
+        "field": "assembly.insert_fragment_count",
+        "operator": "gt",
+        "value": 1
+      },
+      "action": {
+        "type": "ask",
+        "message": "当需要组装多个插入片段时，先询问用户可用试剂、酶和偏好，再比较Gibson/NEBuilder、Golden Gate和传统连接；不得仅按片段数静默替用户选择方法。"
+      },
+      "source": {
+        "type": "preloaded",
+        "source_id": "C-18",
+        "description": "人工审核确认的可编辑预存经验；用户可以修改、停用或删除",
+        "original_text": "当需要组装多个插入片段时，先询问用户可用试剂、酶和偏好，再比较Gibson/NEBuilder、Golden Gate和传统连接；不得仅按片段数静默替用户选择方法。",
+        "text": "NEB方法选择候选来源（未复核）",
+        "verification": {
+          "human_reviewed": true,
+          "review_decision": "接受",
+          "reviewed_at": "2026-08-26",
+          "independent_source_verification": false,
+          "source_boundary": "本轮仅记录人工规则审核通过；来源线索未逐条独立复核"
+        },
+        "category": "组装规划",
+        "trigger_scene": "多片段构建方法选择前",
+        "threshold": "插入片段数>1",
+        "continue_policy": "获得实验室条件后继续",
+        "scope_exceptions": "如果用户已经明确指定方法则只做可行性检查。",
+        "review_focus": "是否每次都询问；可否在用户未指定时先给比较结果再询问。"
+      },
+      "updated_at": "2026-08-26"
+    },
+    {
+      "schema_version": "1.0.0",
+      "id": "assembly.gibson-overlap-product-guidance",
+      "name": "Gibson overlap 绑定产品和片段数",
+      "version": 1,
+      "status": "active",
+      "scope": {
+        "type": "global"
+      },
+      "trigger": "assembly_feasibility",
+      "when": {
+        "all": [
+          {
+            "field": "method",
+            "operator": "in",
+            "value": [
+              "gibson",
+              "nebuilder",
+              "nebuilder_hifi"
+            ]
+          },
+          {
+            "any": [
+              {
+                "any": [
+                  {
+                    "field": "assembly.product_or_kit_known",
+                    "operator": "exists",
+                    "value": false
+                  },
+                  {
+                    "field": "assembly.product_or_kit_known",
+                    "operator": "eq",
+                    "value": false
+                  }
+                ]
+              },
+              {
+                "field": "assembly.overlap_outside_product_guidance",
+                "operator": "eq",
+                "value": true
+              }
+            ]
+          }
+        ]
+      },
+      "action": {
+        "type": "warn_and_confirm",
+        "message": "Gibson/NEBuilder overlap应随片段数和序列组成调整，而不是固定为20 bp。候选建议：2–3片段用15–25或15–30 bp且Tm≥48°C；4–6片段用20–30、25–40甚至20–80 bp。超过所选产品建议范围时警告并显示来源。"
+      },
+      "source": {
+        "type": "preloaded",
+        "source_id": "C-19",
+        "description": "人工审核确认的可编辑预存经验；用户可以修改、停用或删除",
+        "original_text": "Gibson/NEBuilder overlap应随片段数和序列组成调整，而不是固定为20 bp。候选建议：2–3片段用15–25或15–30 bp且Tm≥48°C；4–6片段用20–30、25–40甚至20–80 bp。超过所选产品建议范围时警告并显示来源。",
+        "text": "NEB Gibson/NEBuilder；https://www.neb.com/en-us/protocols/2012/09/25/gibson-assembly-master-mix-assembly",
+        "verification": {
+          "human_reviewed": true,
+          "review_decision": "接受",
+          "reviewed_at": "2026-08-26",
+          "independent_source_verification": false,
+          "source_boundary": "本轮仅记录人工规则审核通过；来源线索未逐条独立复核"
+        },
+        "category": "Gibson",
+        "trigger_scene": "设计Gibson overlap时",
+        "threshold": "候选范围存在冲突；Tm候选≥48°C",
+        "continue_policy": "用户可按具体试剂盒调整",
+        "scope_exceptions": "必须绑定产品、片段数和GC；不能形成一个无条件全局数字。",
+        "review_focus": "范围冲突明显；应预存“询问产品并按协议”还是预存具体分档。"
+      },
+      "updated_at": "2026-08-26"
+    },
+    {
+      "schema_version": "1.0.0",
+      "id": "assembly.gibson-many-fragments-warning",
+      "name": "Gibson 多片段复杂度提醒",
+      "version": 1,
+      "status": "active",
+      "scope": {
+        "type": "global"
+      },
+      "trigger": "assembly_feasibility",
+      "when": {
+        "all": [
+          {
+            "field": "method",
+            "operator": "in",
+            "value": [
+              "gibson",
+              "nebuilder",
+              "nebuilder_hifi"
+            ]
+          },
+          {
+            "field": "fragment_count",
+            "operator": "gte",
+            "value": 4
+          }
+        ]
+      },
+      "action": {
+        "type": "warn_and_confirm",
+        "message": "Gibson片段数达到4个及以上时提醒多片段组装难度上升并核对孵育和总摩尔量；超过5–6个片段时建议考虑拆分组装、增加筛选克隆数或采用备选方法，但不设绝对禁止。"
+      },
+      "source": {
+        "type": "preloaded",
+        "source_id": "C-20",
+        "description": "人工审核确认的可编辑预存经验；用户可以修改、停用或删除",
+        "original_text": "Gibson片段数达到4个及以上时提醒多片段组装难度上升并核对孵育和总摩尔量；超过5–6个片段时建议考虑拆分组装、增加筛选克隆数或采用备选方法，但不设绝对禁止。",
+        "text": "NEB官方协议、Addgene经验（未复核）",
+        "verification": {
+          "human_reviewed": true,
+          "review_decision": "接受",
+          "reviewed_at": "2026-08-26",
+          "independent_source_verification": false,
+          "source_boundary": "本轮仅记录人工规则审核通过；来源线索未逐条独立复核"
+        },
+        "category": "Gibson",
+        "trigger_scene": "Gibson多片段规划时",
+        "threshold": "候选：≥4提醒；>5或6加强警告",
+        "continue_policy": "用户可继续",
+        "scope_exceptions": "具体成功率依赖试剂、片段质量和overlap设计。",
+        "review_focus": "4、5、6哪个阈值合适；是否与产品能力宣传冲突。"
+      },
+      "updated_at": "2026-08-26"
+    },
+    {
+      "schema_version": "1.0.0",
+      "id": "assembly.gibson-short-fragment-warning",
+      "name": "Gibson 短独立片段提醒",
+      "version": 1,
+      "status": "active",
+      "scope": {
+        "type": "global"
+      },
+      "trigger": "assembly_feasibility",
+      "when": {
+        "all": [
+          {
+            "field": "method",
+            "operator": "in",
+            "value": [
+              "gibson",
+              "nebuilder",
+              "nebuilder_hifi"
+            ]
+          },
+          {
+            "field": "assembly.min_fragment_length",
+            "operator": "lt",
+            "value": 200
+          }
+        ]
+      },
+      "action": {
+        "type": "warn_and_confirm",
+        "message": "Gibson体系包含小于200 bp、尤其小于100 bp的独立片段时，提醒可能出现回收困难或外切酶过度降解，并建议核对具体试剂、提高小片段摩尔比例、预拼接或改用其他方法。"
+      },
+      "source": {
+        "type": "preloaded",
+        "source_id": "C-21",
+        "description": "人工审核确认的可编辑预存经验；用户可以修改、停用或删除",
+        "original_text": "Gibson体系包含小于200 bp、尤其小于100 bp的独立片段时，提醒可能出现回收困难或外切酶过度降解，并建议核对具体试剂、提高小片段摩尔比例、预拼接或改用其他方法。",
+        "text": "Addgene Gibson、NEB候选资料（未复核）",
+        "verification": {
+          "human_reviewed": true,
+          "review_decision": "接受",
+          "reviewed_at": "2026-08-26",
+          "independent_source_verification": false,
+          "source_boundary": "本轮仅记录人工规则审核通过；来源线索未逐条独立复核"
+        },
+        "category": "Gibson",
+        "trigger_scene": "Gibson片段检查时",
+        "threshold": "<200 bp提醒；<100 bp加强提醒",
+        "continue_policy": "用户可按具体试剂经验继续",
+        "scope_exceptions": "改良HiFi体系可能更耐受；不能把风险写成必然失败。",
+        "review_focus": "200 bp是否可靠；“5倍摩尔量”是否应进入经验规则。"
+      },
+      "updated_at": "2026-08-26"
+    },
+    {
+      "schema_version": "1.0.0",
+      "id": "assembly.golden-gate-many-fragments-warning",
+      "name": "Golden Gate 超过十片段提醒",
+      "version": 1,
+      "status": "active",
+      "scope": {
+        "type": "global"
+      },
+      "trigger": "assembly_feasibility",
+      "when": {
+        "all": [
+          {
+            "field": "method",
+            "operator": "eq",
+            "value": "golden_gate"
+          },
+          {
+            "field": "fragment_count",
+            "operator": "gt",
+            "value": 10
+          }
+        ]
+      },
+      "action": {
+        "type": "warn_and_confirm",
+        "message": "Golden Gate一步组装片段数超过10时，提醒复杂度和筛选压力可能上升，并同时显示不同来源的差异；不把10设为硬上限，也不因厂商展示50+片段就声称当前设计高成功率。"
+      },
+      "source": {
+        "type": "preloaded",
+        "source_id": "C-22",
+        "description": "人工审核确认的可编辑预存经验；用户可以修改、停用或删除",
+        "original_text": "Golden Gate一步组装片段数超过10时，提醒复杂度和筛选压力可能上升，并同时显示不同来源的差异；不把10设为硬上限，也不因厂商展示50+片段就声称当前设计高成功率。",
+        "text": "Addgene/Golden Gate原始论文/NEB资料（未复核）",
+        "verification": {
+          "human_reviewed": true,
+          "review_decision": "接受",
+          "reviewed_at": "2026-08-26",
+          "independent_source_verification": false,
+          "source_boundary": "本轮仅记录人工规则审核通过；来源线索未逐条独立复核"
+        },
+        "category": "Golden Gate",
+        "trigger_scene": "Golden Gate多片段规划时",
+        "threshold": ">10片段",
+        "continue_policy": "允许继续",
+        "scope_exceptions": "效率高度依赖overhang组合、DNA质量、试剂和循环程序。",
+        "review_focus": "10是否值得作为经验提醒线；是否应改成按连接保真度评分触发。"
+      },
+      "updated_at": "2026-08-26"
+    },
+    {
+      "schema_version": "1.0.0",
+      "id": "validation.diagnostic-digest-resolvability",
+      "name": "诊断酶切对照与分辨率提醒",
+      "version": 1,
+      "status": "active",
+      "scope": {
+        "type": "global"
+      },
+      "trigger": "after_validation_plan",
+      "when": {
+        "any": [
+          {
+            "any": [
+              {
+                "field": "validation.uncut_control_planned",
+                "operator": "exists",
+                "value": false
+              },
+              {
+                "field": "validation.uncut_control_planned",
+                "operator": "eq",
+                "value": false
+              }
+            ]
+          },
+          {
+            "field": "validation.min_band_separation_percent",
+            "operator": "lt",
+            "value": 10
+          },
+          {
+            "field": "validation.min_visible_fragment_bp",
+            "operator": "lt",
+            "value": 150
+          }
+        ]
+      },
+      "action": {
+        "type": "warn",
+        "message": "制定诊断酶切方案时，建议包含未酶切对照，并优先选择能产生明显可分辨条带的组合；若关键条带预计重叠或产生难以观察的微小片段，应提醒更换酶组合或检测方法。"
+      },
+      "source": {
+        "type": "preloaded",
+        "source_id": "C-23",
+        "description": "人工审核确认的可编辑预存经验；用户可以修改、停用或删除",
+        "original_text": "制定诊断酶切方案时，建议包含未酶切对照，并优先选择能产生明显可分辨条带的组合；若关键条带预计重叠或产生难以观察的微小片段，应提醒更换酶组合或检测方法。",
+        "text": "Addgene Diagnostic Digest；https://www.addgene.org/protocols/diagnostic-digest/",
+        "verification": {
+          "human_reviewed": true,
+          "review_decision": "接受",
+          "reviewed_at": "2026-08-26",
+          "independent_source_verification": false,
+          "source_boundary": "本轮仅记录人工规则审核通过；来源线索未逐条独立复核"
+        },
+        "category": "诊断酶切",
+        "trigger_scene": "生成克隆验证方案时",
+        "threshold": "候选提醒线：条带差<10%或1–5 kb内差<150 bp；微小片段<150 bp",
+        "continue_policy": "用户可按胶浓度、PAGE或高分辨平台调整",
+        "scope_exceptions": "分辨率取决于胶浓度、片段区间和设备。",
+        "review_focus": "未切对照是否每次都需要；10%/150 bp阈值是否可靠。"
+      },
+      "updated_at": "2026-08-26"
+    },
+    {
+      "schema_version": "1.0.0",
+      "id": "validation.cover-all-assembly-junctions",
+      "name": "多片段组装接缝覆盖提醒",
+      "version": 1,
+      "status": "active",
+      "scope": {
+        "type": "global"
+      },
+      "trigger": "after_validation_plan",
+      "when": {
+        "all": [
+          {
+            "field": "validation.junction_count",
+            "operator": "gt",
+            "value": 0
+          },
+          {
+            "any": [
+              {
+                "field": "validation.junctions_covered",
+                "operator": "exists",
+                "value": false
+              },
+              {
+                "field": "validation.junctions_covered",
+                "operator": "eq",
+                "value": false
+              }
+            ]
+          }
+        ]
+      },
+      "action": {
+        "type": "warn",
+        "message": "多片段组装的验证计划应优先覆盖每个组装接缝；仅凭诊断酶切不足以排除接缝处的单碱基错误。用户若不做接缝测序，应在交付报告中标明未验证区域。"
+      },
+      "source": {
+        "type": "preloaded",
+        "source_id": "C-24",
+        "description": "人工审核确认的可编辑预存经验；用户可以修改、停用或删除",
+        "original_text": "多片段组装的验证计划应优先覆盖每个组装接缝；仅凭诊断酶切不足以排除接缝处的单碱基错误。用户若不做接缝测序，应在交付报告中标明未验证区域。",
+        "text": "Addgene候选验证指南（未复核）",
+        "verification": {
+          "human_reviewed": true,
+          "review_decision": "接受",
+          "reviewed_at": "2026-08-26",
+          "independent_source_verification": false,
+          "source_boundary": "本轮仅记录人工规则审核通过；来源线索未逐条独立复核"
+        },
+        "category": "组装验证",
+        "trigger_scene": "生成多片段构建验证计划时",
+        "threshold": "存在一个或多个组装接缝",
+        "continue_policy": "允许用户接受未验证状态",
+        "scope_exceptions": "可使用Sanger、全质粒测序或其他等价证据。",
+        "review_focus": "是否所有接缝都必须覆盖；探索性构建与正式交付是否分级。"
+      },
+      "updated_at": "2026-08-26"
+    },
+    {
+      "schema_version": "1.0.0",
+      "id": "validation.clone-count-range",
+      "name": "独立克隆筛选数量建议",
+      "version": 1,
+      "status": "active",
+      "scope": {
+        "type": "global"
+      },
+      "trigger": "after_validation_plan",
+      "when": {
+        "any": [
+          {
+            "field": "validation.clone_count",
+            "operator": "exists",
+            "value": false
+          },
+          {
+            "field": "validation.clone_count",
+            "operator": "lt",
+            "value": 3
+          },
+          {
+            "field": "validation.clone_count",
+            "operator": "gt",
+            "value": 10
+          }
+        ]
+      },
+      "action": {
+        "type": "ask",
+        "message": "常规克隆验证可建议挑取3–10个独立克隆；背景菌落越多、组装越复杂或阳性率越不确定时建议多挑。涉及成本与确定性的取舍时询问用户，不强制固定数量。"
+      },
+      "source": {
+        "type": "preloaded",
+        "source_id": "C-25",
+        "description": "人工审核确认的可编辑预存经验；用户可以修改、停用或删除",
+        "original_text": "常规克隆验证可建议挑取3–10个独立克隆；背景菌落越多、组装越复杂或阳性率越不确定时建议多挑。涉及成本与确定性的取舍时询问用户，不强制固定数量。",
+        "text": "Addgene Subcloning；https://www.addgene.org/protocols/subcloning/",
+        "verification": {
+          "human_reviewed": true,
+          "review_decision": "接受",
+          "reviewed_at": "2026-08-26",
+          "independent_source_verification": false,
+          "source_boundary": "本轮仅记录人工规则审核通过；来源线索未逐条独立复核"
+        },
+        "category": "克隆筛选",
+        "trigger_scene": "生成挑克隆和验证计划时",
+        "threshold": "候选范围3–10个",
+        "continue_policy": "用户可修改",
+        "scope_exceptions": "高通量筛选、阳性筛选标记或成熟标准体系可能例外。",
+        "review_focus": "3–10是否有充分依据；能否根据预计阳性率计算而不是固定范围。"
+      },
+      "updated_at": "2026-08-26"
+    },
+    {
+      "schema_version": "1.0.0",
+      "id": "source.repository-sequence-verification-boundary",
+      "name": "公共质粒库序列验证边界",
+      "version": 1,
+      "status": "active",
+      "scope": {
+        "type": "global"
+      },
+      "trigger": "before_delivery",
+      "when": {
+        "all": [
+          {
+            "field": "source.repository_record",
+            "operator": "eq",
+            "value": true
+          },
+          {
+            "any": [
+              {
+                "field": "source.full_sequence_verified",
+                "operator": "exists",
+                "value": false
+              },
+              {
+                "field": "source.full_sequence_verified",
+                "operator": "eq",
+                "value": false
+              }
+            ]
+          }
+        ]
+      },
+      "action": {
+        "type": "warn",
+        "message": "来自Addgene或其他质粒库的序列不能默认视为整条质粒均已实验证实；对实验关键区域，应提醒用户核对供应方QC范围，并根据用途决定是否自行测序确认。"
+      },
+      "source": {
+        "type": "preloaded",
+        "source_id": "C-26",
+        "description": "人工审核确认的可编辑预存经验；用户可以修改、停用或删除",
+        "original_text": "来自Addgene或其他质粒库的序列不能默认视为整条质粒均已实验证实；对实验关键区域，应提醒用户核对供应方QC范围，并根据用途决定是否自行测序确认。",
+        "text": "Addgene Sequence Analysis/QC说明（未复核）",
+        "verification": {
+          "human_reviewed": true,
+          "review_decision": "接受",
+          "reviewed_at": "2026-08-26",
+          "independent_source_verification": false,
+          "source_boundary": "本轮仅记录人工规则审核通过；来源线索未逐条独立复核"
+        },
+        "category": "来源与验证",
+        "trigger_scene": "导入外部质粒并用于正式设计时",
+        "threshold": "来源记录未声明全序列验证",
+        "continue_policy": "用户可接受来源不确定性，但报告必须标明",
+        "scope_exceptions": "不能把“未全长测序”误写成“序列错误”。",
+        "review_focus": "这更像交付溯源规则还是用户经验；是否适合作为可删除预存规则。"
+      },
+      "updated_at": "2026-08-26"
+    },
+    {
+      "schema_version": "1.0.0",
+      "id": "validation.special-region-evidence",
+      "name": "高 GC、重复或低质量区域补验",
+      "version": 1,
+      "status": "active",
+      "scope": {
+        "type": "global"
+      },
+      "trigger": "after_validation_plan",
+      "when": {
+        "all": [
+          {
+            "field": "sequence.special_region_present",
+            "operator": "eq",
+            "value": true
+          },
+          {
+            "any": [
+              {
+                "field": "validation.special_region_verified",
+                "operator": "exists",
+                "value": false
+              },
+              {
+                "field": "validation.special_region_verified",
+                "operator": "eq",
+                "value": false
+              }
+            ]
+          }
+        ]
+      },
+      "action": {
+        "type": "warn_and_confirm",
+        "message": "检测到高GC区、长重复区或测序低质量区时，提醒单一验证方法可能不足，并建议针对性Sanger、限制酶切或全质粒测序；交付时区分已验证区与推断区。"
+      },
+      "source": {
+        "type": "preloaded",
+        "source_id": "C-27",
+        "description": "人工审核确认的可编辑预存经验；用户可以修改、停用或删除",
+        "original_text": "检测到高GC区、长重复区或测序低质量区时，提醒单一验证方法可能不足，并建议针对性Sanger、限制酶切或全质粒测序；交付时区分已验证区与推断区。",
+        "text": "Addgene QC/Sequence Analysis候选来源（未复核）",
+        "verification": {
+          "human_reviewed": true,
+          "review_decision": "接受",
+          "reviewed_at": "2026-08-26",
+          "independent_source_verification": false,
+          "source_boundary": "本轮仅记录人工规则审核通过；来源线索未逐条独立复核"
+        },
+        "category": "特殊区域验证",
+        "trigger_scene": "生成验证计划或解释测序结果时",
+        "threshold": "存在高GC、重复或低质量区域",
+        "continue_policy": "用户选择是否补验",
+        "scope_exceptions": "应根据实际测序平台和区域性质选择方法。",
+        "review_focus": "哪些序列特征足以触发；是否属于系统报告要求而非经验规则。"
+      },
+      "updated_at": "2026-08-26"
+    },
+    {
+      "schema_version": "1.0.0",
+      "id": "culture.unstable-plasmid-host-and-temperature",
+      "name": "不稳定质粒的宿主和温度询问",
+      "version": 1,
+      "status": "active",
+      "scope": {
+        "type": "global"
+      },
+      "trigger": "before_culture_plan",
+      "when": {
+        "field": "sequence.instability_feature_present",
+        "operator": "eq",
+        "value": true
+      },
+      "action": {
+        "type": "ask",
+        "message": "发现长重复、反向重复或已知不稳定插入时，提醒询问宿主菌株和培养温度，并可建议使用重组缺陷稳定菌株及较低培养温度；不要自动指定品牌或菌株。"
+      },
+      "source": {
+        "type": "preloaded",
+        "source_id": "C-28",
+        "description": "人工审核确认的可编辑预存经验；用户可以修改、停用或删除",
+        "original_text": "发现长重复、反向重复或已知不稳定插入时，提醒询问宿主菌株和培养温度，并可建议使用重组缺陷稳定菌株及较低培养温度；不要自动指定品牌或菌株。",
+        "text": "NEB Stable产品资料（未复核）",
+        "verification": {
+          "human_reviewed": true,
+          "review_decision": "接受",
+          "reviewed_at": "2026-08-26",
+          "independent_source_verification": false,
+          "source_boundary": "本轮仅记录人工规则审核通过；来源线索未逐条独立复核"
+        },
+        "category": "质粒稳定性",
+        "trigger_scene": "规划质粒扩增和培养时",
+        "threshold": "存在重复/不稳定元件",
+        "continue_policy": "用户按实验室菌株决定",
+        "scope_exceptions": "不同构建和菌株差异很大；30°C只是候选经验。",
+        "review_focus": "“30°C”和recA缺陷宿主是否值得预存；触发所需重复长度如何定义。"
+      },
+      "updated_at": "2026-08-26"
+    },
+    {
+      "schema_version": "1.0.0",
+      "id": "sequence.homopolymer-stability-warning",
+      "name": "较长同聚物稳定性提醒",
+      "version": 1,
+      "status": "active",
+      "scope": {
+        "type": "global"
+      },
+      "trigger": "before_delivery",
+      "when": {
+        "field": "sequence.max_homopolymer_length",
+        "operator": "gte",
+        "value": 5
+      },
+      "action": {
+        "type": "warn",
+        "message": "检测到较长同聚物序列时，提醒在大肠杆菌传播或扩增过程中可能发生滑移和移码，并建议对关键区域重新测序。候选材料提出连续5–6个相同碱基作为提醒线。"
+      },
+      "source": {
+        "type": "preloaded",
+        "source_id": "C-29",
+        "description": "人工审核确认的可编辑预存经验；用户可以修改、停用或删除",
+        "original_text": "检测到较长同聚物序列时，提醒在大肠杆菌传播或扩增过程中可能发生滑移和移码，并建议对关键区域重新测序。候选材料提出连续5–6个相同碱基作为提醒线。",
+        "text": "NEB Golden Gate资料中的预克隆模块提示（未复核）",
+        "verification": {
+          "human_reviewed": true,
+          "review_decision": "接受",
+          "reviewed_at": "2026-08-26",
+          "independent_source_verification": false,
+          "source_boundary": "本轮仅记录人工规则审核通过；来源线索未逐条独立复核"
+        },
+        "category": "质粒稳定性",
+        "trigger_scene": "质粒稳定性评估或正式交付前",
+        "threshold": "候选阈值：同聚物长度≥5–6 nt",
+        "continue_policy": "允许继续但标记风险",
+        "scope_exceptions": "不同碱基、宿主和序列环境风险不同。",
+        "review_focus": "5–6 nt很可能过于敏感；是否应只针对编码区和更长同聚物。"
+      },
+      "updated_at": "2026-08-26"
+    },
+    {
+      "schema_version": "1.0.0",
+      "id": "pcr.plasmid-template-dpni-background",
+      "name": "质粒模板 PCR 的母本背景提醒",
+      "version": 1,
+      "status": "active",
+      "scope": {
+        "type": "global"
+      },
+      "trigger": "after_pcr_plan",
+      "when": {
+        "all": [
+          {
+            "field": "pcr.template_type",
+            "operator": "eq",
+            "value": "plasmid"
+          },
+          {
+            "field": "pcr.template_dam_methylated",
+            "operator": "eq",
+            "value": true
+          },
+          {
+            "field": "pcr.parental_template_removed",
+            "operator": "eq",
+            "value": false
+          },
+          {
+            "field": "pcr.direct_downstream_use",
+            "operator": "eq",
+            "value": true
+          }
+        ]
+      },
+      "action": {
+        "type": "warn_and_confirm",
+        "message": "当模板为常规dam+大肠杆菌来源的环状质粒，PCR产物将不经胶回收而直接用于组装或转化时，提醒考虑DpnI消化以降低母本质粒背景；如果已纯化、模板不受DpnI作用或流程不适用，则不触发。"
+      },
+      "source": {
+        "type": "preloaded",
+        "source_id": "C-30",
+        "description": "人工审核确认的可编辑预存经验；用户可以修改、停用或删除",
+        "original_text": "当模板为常规dam+大肠杆菌来源的环状质粒，PCR产物将不经胶回收而直接用于组装或转化时，提醒考虑DpnI消化以降低母本质粒背景；如果已纯化、模板不受DpnI作用或流程不适用，则不触发。",
+        "text": "DpnI官方协议候选来源（未复核）",
+        "verification": {
+          "human_reviewed": true,
+          "review_decision": "接受",
+          "reviewed_at": "2026-08-26",
+          "independent_source_verification": false,
+          "source_boundary": "本轮仅记录人工规则审核通过；来源线索未逐条独立复核"
+        },
+        "category": "质粒模板PCR",
+        "trigger_scene": "质粒模板PCR之后、组装或转化之前",
+        "threshold": "候选条件：dam+环状质粒模板且未充分去除母本",
+        "continue_policy": "用户确认流程后继续",
+        "scope_exceptions": "不是所有质粒PCR都需要DpnI；消化条件应读取具体协议。",
+        "review_focus": "应按“是否残留母本”而不是“是否胶回收”触发；是否属于产品流程参数。"
+      },
+      "updated_at": "2026-08-26"
+    },
+    {
+      "schema_version": "1.0.0",
+      "id": "primer.nonbinding-tail-tm-separation",
+      "name": "5' 非模板结合尾的 Tm 分区",
+      "version": 1,
+      "status": "active",
+      "scope": {
+        "type": "global"
+      },
+      "trigger": "after_primer_design",
+      "when": {
+        "all": [
+          {
+            "field": "primer.has_5p_nonbinding_tail",
+            "operator": "eq",
+            "value": true
+          },
+          {
+            "field": "primer.tail_binds_initial_template",
+            "operator": "eq",
+            "value": false
+          }
+        ]
+      },
+      "action": {
+        "type": "warn",
+        "message": "当 PCR 引物含有 5′ 同源臂、接头、限制性位点或其他非模板结合尾序列时，先把引物明确拆分为 5′ 尾序列与 3′ 模板结合区。若 5′ 尾序列在首轮扩增时不与原始模板配对，则 PCR 引物-模板退火 Tm 只按实际配对的 3′ 模板结合区计算，并根据所选聚合酶、缓冲液和厂家算法/协议确定退火温度；不得因完整引物更长或“全长 Tm 更高”而自动提高退火温度。"
+      },
+      "source": {
+        "type": "preloaded",
+        "source_id": "C-31",
+        "description": "人工审核确认的可编辑预存经验；用户可以修改、停用或删除",
+        "original_text": "当 PCR 引物含有 5′ 同源臂、接头、限制性位点或其他非模板结合尾序列时，先把引物明确拆分为 5′ 尾序列与 3′ 模板结合区。若 5′ 尾序列在首轮扩增时不与原始模板配对，则 PCR 引物-模板退火 Tm 只按实际配对的 3′ 模板结合区计算，并根据所选聚合酶、缓冲液和厂家算法/协议确定退火温度；不得因完整引物更长或“全长 Tm 更高”而自动提高退火温度。",
+        "text": "Primer3 Manual—SEQUENCE_OVERHANG_LEFT/RIGHT: https://primer3.org/manual.html ; IDT FAQ—Tm of primers with non-complementary overhangs: https://www.idtdna.com/pages/support/faqs/when-calculating-the-tm-of-my-oligo-should-i-only-use-the-bases-which-are-complementary-to-my-target-or-should-i-also-include-any-sticky-overhangs-on-the-primer- ; NEBuilder Assembly Tool: https://nebuilder.neb.com/",
+        "verification": {
+          "human_reviewed": true,
+          "review_decision": "修改后接受",
+          "reviewed_at": "2026-08-26",
+          "independent_source_verification": true,
+          "source_boundary": "Primer3/IDT/NEBuilder 一手来源已核验"
+        },
+        "category": "组装引物/PCR",
+        "trigger_scene": "设计含 5′ 非模板结合尾序列的 PCR/组装引物，并计算 Tm 或选择退火温度时",
+        "threshold": "触发条件：5′ 尾序列在首轮不与原始模板配对；Tm/Ta 按实际 3′ 模板结合区及具体 PCR 体系计算",
+        "continue_policy": "完成分区并按所选聚合酶协议复核后可继续",
+        "scope_exceptions": "适用于 Gibson/NEBuilder、Golden Gate 接头、标签或限制性位点等 5′ 非互补尾。若所谓“同源臂”实际也与起始模板配对，则相应配对部分应计入。完整引物仍须用于发夹、自二聚体、异二聚体等结构检查；Gibson overlap 的组装 Tm 与 PCR 退火 Tm 应分开报告。",
+        "review_focus": "原句“即引物的 Tm 值可以偏高”容易误导：不计入非配对尾序列，不等于允许主动提高退火温度。Primer3 明确用 3′ 模板结合区计算 Tm/GC，但把 5′ overhang 纳入发夹和二聚体等结构评估。核心分区计算应同时固化在引物引擎中，经验规则只负责提醒与透明展示。",
+        "review_note": "已按权威一手说明补全。作为预存经验时允许用户修改/停用的是提醒方式；“模板结合区 Tm 与全长结构检查分离”不应因用户删除经验规则而从系统计算中消失。"
+      },
+      "updated_at": "2026-08-26"
+    }
+  ]
+}

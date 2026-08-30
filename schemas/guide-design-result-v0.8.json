@@ -1,0 +1,399 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:snapgene-dna-design:schema:guide-design-result-v0.8",
+  "title": "Guide design result v0.8",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "nuclease",
+    "candidate_count",
+    "candidates",
+    "provenance"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "0.8.0"
+    },
+    "nuclease": {
+      "type": "string",
+      "minLength": 1
+    },
+    "candidate_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "candidates": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/guide_candidate"
+      }
+    },
+    "provenance": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/provenance"
+      }
+    },
+    "source": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "topology": {
+      "enum": [
+        "linear",
+        "circular"
+      ]
+    },
+    "generated_at": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "$defs": {
+    "guide_candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "nuclease",
+        "strand",
+        "protospacer_sequence",
+        "pam_sequence",
+        "pam_pattern",
+        "pam_side",
+        "coordinates",
+        "provenance"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "nuclease": {
+          "type": "string",
+          "minLength": 1
+        },
+        "strand": {
+          "enum": [
+            "forward",
+            "reverse"
+          ]
+        },
+        "protospacer_sequence": {
+          "type": "string",
+          "minLength": 1
+        },
+        "pam_sequence": {
+          "type": "string",
+          "minLength": 1
+        },
+        "pam_pattern": {
+          "type": "string",
+          "minLength": 1
+        },
+        "pam_side": {
+          "enum": [
+            "5prime",
+            "3prime"
+          ]
+        },
+        "coordinates": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "coordinate_system",
+            "protospacer_start",
+            "protospacer_end",
+            "pam_start",
+            "pam_end",
+            "wraps_origin"
+          ],
+          "properties": {
+            "coordinate_system": {
+              "enum": [
+                "0-based-half-open",
+                "0-based-half-open-reference-axis"
+              ]
+            },
+            "protospacer_start": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "protospacer_end": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "pam_start": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "pam_end": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "wraps_origin": {
+              "type": "boolean"
+            },
+            "axis": {
+              "type": "string"
+            },
+            "strand": {
+              "type": "string"
+            },
+            "protospacer_segments": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/segment"
+              }
+            },
+            "pam_segments": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/segment"
+              }
+            },
+            "user_coordinates_1based_inclusive": {
+              "$ref": "#/$defs/user_coordinates"
+            }
+          }
+        },
+        "warning": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "provenance": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/provenance"
+          }
+        },
+        "protospacer_reference_sequence": {
+          "type": "string",
+          "minLength": 1
+        },
+        "context_sequences": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "azimuth_30mer": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "deepcpf1_34mer": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_type",
+        "name",
+        "role",
+        "status"
+      ],
+      "properties": {
+        "source_type": {
+          "enum": [
+            "software",
+            "prediction-model",
+            "reference-database",
+            "manufacturer-protocol",
+            "public-protocol",
+            "published-paper",
+            "heuristic",
+            "user-input"
+          ]
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "role": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "enum": [
+            "verified",
+            "partial",
+            "unavailable",
+            "unknown",
+            "conflicting",
+            "stale"
+          ]
+        },
+        "url": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uri"
+        },
+        "version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "license": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "verification": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "retrieved_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "provider": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "title": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "catalog_number": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "applicable_to": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "source_type": {
+                "const": "manufacturer-protocol"
+              }
+            },
+            "required": [
+              "source_type"
+            ]
+          },
+          "then": {
+            "required": [
+              "url",
+              "retrieved_at",
+              "version"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "source_type": {
+                "const": "prediction-model"
+              }
+            },
+            "required": [
+              "source_type"
+            ]
+          },
+          "then": {
+            "required": [
+              "version"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "source_type": {
+                "const": "public-protocol"
+              }
+            },
+            "required": [
+              "url",
+              "retrieved_at"
+            ]
+          }
+        }
+      ]
+    },
+    "segment": {
+      "type": "array",
+      "prefixItems": [
+        {
+          "type": "integer",
+          "minimum": 0
+        },
+        {
+          "type": "integer",
+          "minimum": 0
+        }
+      ],
+      "items": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "user_coordinates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protospacer_segments",
+        "pam_segments"
+      ],
+      "properties": {
+        "protospacer_segments": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/segment"
+          }
+        },
+        "pam_segments": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/segment"
+          }
+        }
+      }
+    }
+  }
+}

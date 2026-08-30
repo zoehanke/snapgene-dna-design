@@ -1,0 +1,17 @@
+LOCUS       rich_unicode              12 bp    DNA     linear   UNK 01-JAN-1980
+DEFINITION  rich fixture rich_unicode.
+ACCESSION   rich_unicode
+VERSION     rich_unicode
+KEYWORDS    .
+SOURCE      .
+  ORGANISM  .
+            .
+FEATURES             Location/Qualifiers
+     gene            1..12
+                     /label="基因_α"
+                     /gene="基因_α"
+                     /note="引物设计验证 fixture · café Σ DNA π 质粒"
+                     /note="second note line"
+ORIGIN
+        1 atggctaaat aa
+//

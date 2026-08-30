@@ -1,0 +1,82 @@
+{
+  "schema_version": "1.0.0",
+  "rules": [
+    {
+      "id": "overlap-fragment-count", "name": "Overlap 组装片段数量", "constraint": "overlap assembly fragment count",
+      "version": 1, "status": "active", "scope": {"type": "builtin"}, "trigger": "assembly_feasibility",
+      "when": {"all": [{"field": "method", "operator": "eq", "value": "overlap"}, {"field": "fragment_count", "operator": "gt", "value": 3}]},
+      "action": {"type": "block", "message": "改用 Gibson Assembly（片段数 4-5 推荐）或分步 overlap 组装"},
+      "source": {"type": "published-evidence", "description": "Gibson et al. 2009, Nat Methods, DOI 10.1038/nmeth.1318; IDT primer design guidance"}
+    },
+    {
+      "id": "gibson-fragment-count", "name": "Gibson 组装片段数量", "constraint": "Gibson assembly fragment count",
+      "version": 1, "status": "active", "scope": {"type": "builtin"}, "trigger": "assembly_feasibility",
+      "when": {"all": [{"field": "method", "operator": "eq", "value": "gibson"}, {"field": "fragment_count", "operator": "gt", "value": 5}]},
+      "action": {"type": "warn", "message": "片段数 >5 建议分步 Gibson 或改用 Golden Gate（模块化，≤8 段可做）"},
+      "source": {"type": "published-evidence", "description": "Gibson et al. 2009, Nat Methods; Engler et al. 2008, PLoS One, DOI 10.1371/journal.pone.0003647"}
+    },
+    {
+      "id": "golden-gate-fragment-count", "name": "Golden Gate 片段数量", "constraint": "Golden Gate fragment count",
+      "version": 1, "status": "active", "scope": {"type": "builtin"}, "trigger": "assembly_feasibility",
+      "when": {"all": [{"field": "method", "operator": "eq", "value": "golden_gate"}, {"field": "fragment_count", "operator": "gt", "value": 8}]},
+      "action": {"type": "warn", "message": "片段数 >8 建议分步组装或验证筛选方案"},
+      "source": {"type": "published-evidence", "description": "Engler et al. 2008, PLoS One, DOI 10.1371/journal.pone.0003647"}
+    },
+    {
+      "id": "golden-gate-internal-site", "name": "Golden Gate 内部位点", "constraint": "Type IIS enzyme must not occur inside any fragment",
+      "version": 1, "status": "active", "scope": {"type": "builtin"}, "trigger": "assembly_feasibility",
+      "when": {"all": [{"field": "method", "operator": "eq", "value": "golden_gate"}, {"field": "internal_site_count", "operator": "gt", "value": 0}]},
+      "action": {"type": "block", "message": "换酶（BsaI/BsmBI/Esp3I/BbsI）或改用 Gibson/overlap，或改变切割策略"},
+      "source": {"type": "published-evidence", "description": "Engler et al. 2008, PLoS One; NEB Golden Gate documentation"}
+    },
+    {
+      "id": "overlap-hard-floor", "name": "Overlap 生物学硬下限", "constraint": "hard biological overlap floor",
+      "version": 1, "status": "active", "scope": {"type": "builtin"}, "trigger": "assembly_feasibility",
+      "when": {"all": [{"field": "method", "operator": "in", "value": ["overlap", "gibson"]}, {"field": "min_overlap_length", "operator": "lt", "value": 12}]},
+      "action": {"type": "block", "message": "overlap <12 bp 不进入正式执行；增加到至少 12 bp，并优先使用 15-30 bp"},
+      "source": {"type": "manufacturer-protocol", "description": "NEBuilder shortest-overlap FAQ; NEBuilder HiFi protocol"}
+    },
+    {
+      "id": "overlap-length", "name": "Overlap 推荐长度", "constraint": "overlap length",
+      "version": 1, "status": "active", "scope": {"type": "builtin"}, "trigger": "assembly_feasibility",
+      "when": {"all": [{"field": "method", "operator": "in", "value": ["overlap", "gibson"]}, {"any": [{"field": "min_overlap_length", "operator": "lt", "value": 15}, {"field": "max_overlap_length", "operator": "gt", "value": 40}]}]},
+      "action": {"type": "warn", "message": "15-30 bp 为常规目标；12-14 bp 仅在特定 GC/产品证据下条件性使用，>40 bp 需复核"},
+      "source": {"type": "manufacturer-protocol", "description": "NEBuilder HiFi protocol and shortest-overlap FAQ; Gibson et al. 2009"}
+    },
+    {
+      "id": "overlap-gc", "name": "Overlap GC 范围", "constraint": "overlap GC content",
+      "version": 1, "status": "active", "scope": {"type": "builtin"}, "trigger": "assembly_feasibility",
+      "when": {"all": [{"field": "method", "operator": "in", "value": ["overlap", "gibson"]}, {"any": [{"field": "min_overlap_gc", "operator": "lt", "value": 30}, {"field": "max_overlap_gc", "operator": "gt", "value": 70}]}]},
+      "action": {"type": "warn", "message": "选择 GC 30-70% 的 overlap 窗口，高 GC 区使用 M4 高 GC 策略"},
+      "source": {"type": "manufacturer-guidance", "description": "IDT primer design guidance; NEB GC-rich guidance"}
+    },
+    {
+      "id": "pcr-length", "name": "PCR 片段长度", "constraint": "PCR fragment length",
+      "version": 1, "status": "active", "scope": {"type": "builtin"}, "trigger": "assembly_feasibility",
+      "when": {"field": "max_fragment_length", "operator": "gt", "value": 10000},
+      "action": {"type": "warn", "message": ">10 kb 建议改用 Gibson 或长片段聚合酶（Q5/PrimeSTAR GXL）"},
+      "source": {"type": "manufacturer-protocol", "description": "NEB Q5 documentation; Takara PrimeSTAR GXL documentation"}
+    },
+    {
+      "id": "construct-size", "name": "构建体总长度", "constraint": "total construct size",
+      "version": 1, "status": "active", "scope": {"type": "builtin"}, "trigger": "assembly_feasibility",
+      "when": {"field": "total_length", "operator": "gt", "value": 20000},
+      "action": {"type": "warn", "message": "构建体 >20 kb 建议电转化并增加筛选压力"},
+      "source": {"type": "experimental-heuristic", "description": "Sambrook, Molecular Cloning; laboratory consensus"}
+    },
+    {
+      "id": "primer-tm", "name": "引物 Tm 范围", "constraint": "primer Tm",
+      "version": 1, "status": "active", "scope": {"type": "builtin"}, "trigger": "assembly_feasibility",
+      "when": {"field": "any_primer_tm_outside_52_72", "operator": "eq", "value": true},
+      "action": {"type": "block", "message": "重新设计引物使 Tm 位于 52-72 C"},
+      "source": {"type": "internal-validation", "description": "SnapGene DNA Design validation window 52-72 C; Primer3 defaults 57/60/63"}
+    },
+    {
+      "id": "primer-structure", "name": "引物二级结构", "constraint": "primer hairpin/dimer",
+      "version": 1, "status": "active", "scope": {"type": "builtin"}, "trigger": "assembly_feasibility",
+      "when": {"field": "any_primer_strong_structure", "operator": "eq", "value": true},
+      "action": {"type": "block", "message": "重新选择引物或降低尾巴，消除强发夹/二聚体"},
+      "source": {"type": "manufacturer-guidance", "description": "Primer3 official documentation; IDT OligoAnalyzer guidance"}
+    }
+  ]
+}

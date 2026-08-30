@@ -1,0 +1,16 @@
+LOCUS       rich_join                 20 bp    DNA     linear   UNK 01-JAN-1980
+DEFINITION  rich fixture rich_join.
+ACCESSION   rich_join
+VERSION     rich_join
+KEYWORDS    .
+SOURCE      .
+  ORGANISM  .
+            .
+FEATURES             Location/Qualifiers
+     misc_feature    join(1..4,5..10,11..16)
+                     /label="join_feat"
+                     /note="compound join"
+                     /note="three parts"
+ORIGIN
+        1 aaaacccccc ggggggtttt
+//

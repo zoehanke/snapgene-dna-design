@@ -1,0 +1,880 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "$id": "construction-task-v1",
+  "title": "ConstructionTask v1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "task_id",
+    "revision",
+    "task_kind",
+    "sources",
+    "operation",
+    "target",
+    "product",
+    "method_constraints",
+    "approvals",
+    "assumptions",
+    "provenance"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "construction-task-v1"
+    },
+    "task_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "mode": {
+      "type": "string",
+      "enum": [
+        "exploration",
+        "formal"
+      ]
+    },
+    "task_kind": {
+      "type": "string",
+      "minLength": 1
+    },
+    "raw_request": {
+      "type": "string"
+    },
+    "sources": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "source_id",
+          "path",
+          "role",
+          "evidence"
+        ],
+        "properties": {
+          "source_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "template",
+              "backbone",
+              "insert",
+              "replacement",
+              "donor_component",
+              "entry",
+              "destination",
+              "reference"
+            ]
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "topology": {
+            "type": "string",
+            "enum": [
+              "linear",
+              "circular"
+            ]
+          },
+          "annotation_status": {
+            "type": "string",
+            "enum": [
+              "reviewed",
+              "unreviewed",
+              "ambiguous",
+              "missing"
+            ]
+          },
+          "evidence": {
+            "type": "object",
+            "required": [
+              "source_evidence_class"
+            ],
+            "properties": {
+              "source_evidence_class": {
+                "type": "string",
+                "enum": [
+                  "user-provided",
+                  "public-record",
+                  "internal-fixture",
+                  "synthetic-fixture",
+                  "heuristic"
+                ]
+              },
+              "accession": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "version": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "citation": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "retrieved_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "operation": {
+      "type": "object"
+    },
+    "target": {
+      "type": "object",
+      "properties": {
+        "source_id": {
+          "type": "string"
+        },
+        "selection": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "feature",
+                "interval",
+                "boundary"
+              ]
+            },
+            "feature_id": {
+              "type": "string"
+            },
+            "feature_name": {
+              "type": "string"
+            },
+            "interval_0based": {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              },
+              "minItems": 2,
+              "maxItems": 2
+            },
+            "boundary_0based": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "strand": {
+              "type": "integer",
+              "enum": [
+                -1,
+                0,
+                1
+              ]
+            },
+            "resolution_status": {
+              "type": "string",
+              "enum": [
+                "resolved",
+                "unresolved"
+              ]
+            },
+            "resolution_evidence": {
+              "type": "array"
+            }
+          },
+          "required": [
+            "kind",
+            "resolution_status"
+          ]
+        }
+      }
+    },
+    "product": {
+      "type": "object",
+      "required": [
+        "topology",
+        "formats"
+      ],
+      "properties": {
+        "topology": {
+          "type": "string",
+          "enum": [
+            "linear",
+            "circular"
+          ]
+        },
+        "required_components": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "forbidden_components": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "expected_length": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "formats": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "gb",
+              "fasta",
+              "dna"
+            ]
+          }
+        },
+        "name": {
+          "type": "string"
+        }
+      }
+    },
+    "method_constraints": {
+      "type": "object"
+    },
+    "approvals": {
+      "type": "object"
+    },
+    "assumptions": {
+      "type": "array"
+    },
+    "provenance": {
+      "type": "array"
+    },
+    "host": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "definitions": {
+    "interval": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {
+        "type": "integer",
+        "minimum": 0
+      }
+    },
+    "homology_arms": {
+      "type": "object",
+      "properties": {
+        "left_arm": {
+          "type": "string"
+        },
+        "right_arm": {
+          "type": "string"
+        }
+      }
+    },
+    "op_component_amplification": {
+      "type": "object",
+      "properties": {
+        "homology_arms": {
+          "$ref": "#/definitions/homology_arms"
+        }
+      },
+      "additionalProperties": true
+    },
+    "op_plasmid_replace": {
+      "type": "object",
+      "properties": {
+        "replace": {
+          "type": "object",
+          "properties": {
+            "interval_0based": {
+              "$ref": "#/definitions/interval"
+            },
+            "replacement_source_id": {
+              "type": "string"
+            },
+            "replacement_interval_0based": {
+              "$ref": "#/definitions/interval"
+            }
+          },
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    },
+    "op_plasmid_insert": {
+      "type": "object",
+      "properties": {
+        "insert": {
+          "type": "object",
+          "properties": {
+            "boundary_0based": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "insert_source_id": {
+              "type": "string"
+            },
+            "interval_0based": {
+              "$ref": "#/definitions/interval"
+            }
+          },
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    },
+    "op_point_mutation": {
+      "type": "object",
+      "properties": {
+        "mutations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "position_1based": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "ref": {
+                "type": "string"
+              },
+              "alt": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": true
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "op_overlap_assembly": {
+      "type": "object",
+      "properties": {
+        "fragments": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "properties": {
+              "source_id": {
+                "type": "string"
+              },
+              "interval_0based": {
+                "$ref": "#/definitions/interval"
+              },
+              "order": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "strand": {
+                "type": "integer",
+                "enum": [
+                  -1,
+                  1
+                ]
+              }
+            },
+            "additionalProperties": true
+          }
+        },
+        "overlap_length": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "additionalProperties": true
+    },
+    "op_protein_fusion": {
+      "type": "object",
+      "properties": {
+        "partner5": {
+          "type": "object",
+          "properties": {
+            "source_id": {
+              "type": "string"
+            },
+            "interval_0based": {
+              "$ref": "#/definitions/interval"
+            },
+            "strand": {
+              "type": "integer",
+              "enum": [
+                -1,
+                1
+              ]
+            }
+          },
+          "additionalProperties": true
+        },
+        "partner3": {
+          "type": "object",
+          "properties": {
+            "source_id": {
+              "type": "string"
+            },
+            "interval_0based": {
+              "$ref": "#/definitions/interval"
+            },
+            "strand": {
+              "type": "integer",
+              "enum": [
+                -1,
+                1
+              ]
+            }
+          },
+          "additionalProperties": true
+        },
+        "linker": {
+          "type": "object",
+          "properties": {
+            "dna": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        },
+        "stop_policy": {
+          "type": "string",
+          "enum": [
+            "stop",
+            "no-stop"
+          ]
+        },
+        "translation_table": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "additionalProperties": true
+    },
+    "op_integration_donor": {
+      "type": "object",
+      "properties": {
+        "homology_arms": {
+          "$ref": "#/definitions/homology_arms"
+        },
+        "locus": {
+          "type": "object",
+          "properties": {
+            "source_id": {
+              "type": "string"
+            },
+            "interval_0based": {
+              "$ref": "#/definitions/interval"
+            },
+            "strand": {
+              "type": "integer",
+              "enum": [
+                -1,
+                1
+              ]
+            }
+          },
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    },
+    "op_gateway_recombination": {
+      "type": "object",
+      "properties": {
+        "reaction": {
+          "type": "string",
+          "enum": [
+            "bp",
+            "lr"
+          ]
+        },
+        "entry_source_id": {
+          "type": "string"
+        },
+        "destination_source_id": {
+          "type": "string"
+        },
+        "donor_vector_source_id": {
+          "type": "string"
+        },
+        "stop_policy": {
+          "type": "string",
+          "enum": [
+            "stop",
+            "no-stop"
+          ]
+        }
+      },
+      "additionalProperties": true
+    },
+    "op_restriction_ligation": {
+      "type": "object",
+      "properties": {
+        "vector_source_id": {
+          "type": "string"
+        },
+        "insert_source_id": {
+          "type": "string"
+        },
+        "vector_enzymes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "insert_enzymes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "insert_interval_0based": {
+          "$ref": "#/definitions/interval"
+        },
+        "orientation": {
+          "type": "string",
+          "enum": [
+            "forward",
+            "reverse"
+          ]
+        }
+      },
+      "additionalProperties": true
+    },
+    "op_hierarchical_assembly": {
+      "type": "object",
+      "properties": {
+        "stages": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "properties": {
+              "stage_id": {
+                "type": "string"
+              },
+              "fragments": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "source_id": {
+                      "type": "string"
+                    },
+                    "stage_id": {
+                      "type": "string"
+                    },
+                    "interval_0based": {
+                      "$ref": "#/definitions/interval"
+                    },
+                    "order": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "strand": {
+                      "type": "integer",
+                      "enum": [
+                        -1,
+                        1
+                      ]
+                    }
+                  },
+                  "additionalProperties": true
+                }
+              },
+              "overlap_length": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "product_topology": {
+                "type": "string",
+                "enum": [
+                  "linear",
+                  "circular"
+                ]
+              }
+            },
+            "additionalProperties": true
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "op_crispr_editing": {
+      "type": "object",
+      "properties": {
+        "nuclease": {
+          "type": "string"
+        },
+        "target_interval_0based": {
+          "$ref": "#/definitions/interval"
+        },
+        "guide_strategy": {
+          "type": "object",
+          "properties": {
+            "pam": {
+              "type": "string"
+            },
+            "window_0based": {
+              "$ref": "#/definitions/interval"
+            }
+          },
+          "additionalProperties": true
+        },
+        "donor_strategy": {
+          "type": "object",
+          "properties": {
+            "donor_source_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "replacement_interval_0based": {
+              "$ref": "#/definitions/interval"
+            },
+            "homology_arms": {
+              "$ref": "#/definitions/homology_arms"
+            }
+          },
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "task_kind": {
+            "const": "component_amplification"
+          }
+        },
+        "required": [
+          "task_kind"
+        ]
+      },
+      "then": {
+        "properties": {
+          "operation": {
+            "$ref": "#/definitions/op_component_amplification"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "task_kind": {
+            "const": "plasmid_replace"
+          }
+        },
+        "required": [
+          "task_kind"
+        ]
+      },
+      "then": {
+        "properties": {
+          "operation": {
+            "$ref": "#/definitions/op_plasmid_replace"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "task_kind": {
+            "const": "plasmid_insert"
+          }
+        },
+        "required": [
+          "task_kind"
+        ]
+      },
+      "then": {
+        "properties": {
+          "operation": {
+            "$ref": "#/definitions/op_plasmid_insert"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "task_kind": {
+            "const": "point_mutation"
+          }
+        },
+        "required": [
+          "task_kind"
+        ]
+      },
+      "then": {
+        "properties": {
+          "operation": {
+            "$ref": "#/definitions/op_point_mutation"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "task_kind": {
+            "const": "overlap_assembly"
+          }
+        },
+        "required": [
+          "task_kind"
+        ]
+      },
+      "then": {
+        "properties": {
+          "operation": {
+            "$ref": "#/definitions/op_overlap_assembly"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "task_kind": {
+            "const": "protein_fusion"
+          }
+        },
+        "required": [
+          "task_kind"
+        ]
+      },
+      "then": {
+        "properties": {
+          "operation": {
+            "$ref": "#/definitions/op_protein_fusion"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "task_kind": {
+            "const": "integration_donor"
+          }
+        },
+        "required": [
+          "task_kind"
+        ]
+      },
+      "then": {
+        "properties": {
+          "operation": {
+            "$ref": "#/definitions/op_integration_donor"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "task_kind": {
+            "const": "gateway_recombination"
+          }
+        },
+        "required": [
+          "task_kind"
+        ]
+      },
+      "then": {
+        "properties": {
+          "operation": {
+            "$ref": "#/definitions/op_gateway_recombination"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "task_kind": {
+            "const": "restriction_ligation"
+          }
+        },
+        "required": [
+          "task_kind"
+        ]
+      },
+      "then": {
+        "properties": {
+          "operation": {
+            "$ref": "#/definitions/op_restriction_ligation"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "task_kind": {
+            "const": "hierarchical_assembly"
+          }
+        },
+        "required": [
+          "task_kind"
+        ]
+      },
+      "then": {
+        "properties": {
+          "operation": {
+            "$ref": "#/definitions/op_hierarchical_assembly"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "task_kind": {
+            "const": "crispr_editing"
+          }
+        },
+        "required": [
+          "task_kind"
+        ]
+      },
+      "then": {
+        "properties": {
+          "operation": {
+            "$ref": "#/definitions/op_crispr_editing"
+          }
+        }
+      }
+    }
+  ],
+  "additionalProperties": false
+}

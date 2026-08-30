@@ -1,0 +1,122 @@
+{
+  "schema_version": "0.8.0",
+  "nucleases": [
+    {
+      "id": "spcas9-wt",
+      "display_name": "SpCas9",
+      "family": "Cas9",
+      "variant": "wild-type",
+      "spacer_lengths": [
+        20
+      ],
+      "pam_patterns": [
+        "NGG"
+      ],
+      "pam_side": "3prime",
+      "target_molecule": "DNA",
+      "cut_geometry": {
+        "type": "predominantly_blunt_or_near_blunt",
+        "reference_coordinates": "3 bp upstream of PAM; cut boundaries must be represented explicitly in candidate output when available"
+      },
+      "on_target_models": [
+        {
+          "name": "Doench-2016",
+          "allowed": true,
+          "validated_contexts": [
+            "human cell line training data"
+          ],
+          "warnings": [
+            "not specifically validated for yeast"
+          ],
+          "implementation": "Azimuth V3 (Doench et al. 2016)"
+        }
+      ],
+      "off_target_models": [
+        {
+          "name": "CFD",
+          "allowed": true
+        }
+      ],
+      "references": [
+        {
+          "title": "Optimized sgRNA design to maximize activity and minimize off-target effects of CRISPR-Cas9",
+          "doi": "10.1038/nbt.3437",
+          "url": "https://doi.org/10.1038/nbt.3437"
+        }
+      ]
+    },
+    {
+      "id": "ascas12a-wt",
+      "display_name": "AsCas12a",
+      "family": "Cas12a",
+      "variant": "wild-type",
+      "spacer_lengths": [
+        23
+      ],
+      "pam_patterns": [
+        "TTTV"
+      ],
+      "pam_side": "5prime",
+      "target_molecule": "DNA",
+      "cut_geometry": {
+        "type": "staggered_cut",
+        "reference_coordinates": "cut coordinates must be stated explicitly per candidate; registry does not imply exact offsets"
+      },
+      "on_target_models": [
+        {
+          "name": "DeepCpf1",
+          "allowed": true,
+          "validated_contexts": [
+            "AsCas12a training data"
+          ],
+          "warnings": [
+            "applies to AsCas12a, NOT automatically to LbCas12a",
+            "not specifically validated for yeast"
+          ],
+          "implementation": "Kim et al. 2018, 34bp context (CRISPRseek weights)"
+        }
+      ],
+      "off_target_models": [
+        {
+          "name": "CFD",
+          "allowed": false,
+          "reason": "Cas9-derived model; do not apply to Cas12a without review"
+        }
+      ],
+      "references": [
+        {
+          "title": "Deep learning improves prediction of CRISPR-Cpf1 guide RNA activity",
+          "doi": "10.1038/nbt.4061",
+          "url": "https://doi.org/10.1038/nbt.4061"
+        }
+      ]
+    },
+    {
+      "id": "lbcas12a-wt",
+      "display_name": "LbCas12a",
+      "family": "Cas12a",
+      "variant": "wild-type",
+      "spacer_lengths": [
+        23
+      ],
+      "pam_patterns": [
+        "TTTV"
+      ],
+      "pam_side": "5prime",
+      "target_molecule": "DNA",
+      "cut_geometry": {
+        "type": "staggered_cut",
+        "reference_coordinates": "must be stated explicitly per candidate"
+      },
+      "on_target_models": [],
+      "off_target_models": [
+        {
+          "name": "CFD",
+          "allowed": false,
+          "reason": "Cas9-derived model; do not apply to Cas12a without review"
+        }
+      ],
+      "references": []
+    }
+  ]
+}

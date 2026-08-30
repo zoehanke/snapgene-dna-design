@@ -1,0 +1,14 @@
+# Azimuth (Doench 2016 / Rule Set 2) model artifacts
+
+- Source package: Azimuth 2.0 (Microsoft Research), converted from Python 2
+  with lib2to3; only the featurization modules and the saved V3 model
+  pickles are redistributed here.
+- Model: Doench et al., "Optimized sgRNA design to maximize activity and
+  minimize off-target effects of CRISPR-Cas9", Nat Biotechnol 34, 184-191
+  (2016), DOI 10.1038/nbt.3437.
+- License: BSD (see Azimuth package metadata).
+- Input semantics: 30 bp = 4 bp upstream flank + 20 bp protospacer +
+  3 bp NGG PAM + 3 bp downstream flank.
+- The saved GradientBoostingRegressor pickle is loaded by
+  scripts/azimuth_backend.py through a compatibility unpickler (the pickle
+  was produced by scikit-learn 0.17-era Python 2 code).
