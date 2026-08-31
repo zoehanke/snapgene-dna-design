@@ -84,12 +84,14 @@ class RichFixtureRoundTripTests(unittest.TestCase):
     def test_unicode_and_multivalue_qualifiers_survive_export(self):
         from Bio import SeqIO
         fixture = FIXTURES / "rich_unicode.gb"
-        record = SeqIO.read(str(fixture), "genbank")
+        with open(fixture, "r", encoding="utf-8") as fh:
+            record = SeqIO.read(fh, "genbank")
         feature = next(f for f in record.features)
         self.assertIn("引物设计", feature.qualifiers["note"][0])
 
         multi = FIXTURES / "rich_multivalue.gb"
-        record = SeqIO.read(str(multi), "genbank")
+        with open(multi, "r", encoding="utf-8") as fh:
+            record = SeqIO.read(fh, "genbank")
         feature = next(f for f in record.features)
         self.assertEqual(len(feature.qualifiers["note"]), 4)
         self.assertEqual(len(feature.qualifiers["db_xref"]), 3)

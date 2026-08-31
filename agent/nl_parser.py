@@ -94,25 +94,16 @@ def _file_role_candidates(text, file_summaries):
                           "explicit": True})
             break
     if not roles and file_summaries:
-        names = list(file_summaries.values())
-        if len(names) == 1:
-            roles.append({"role": "backbone", "path": names[0]["path"],
-                          "basis": "single-file-default",
-                          "explicit": False})
-        elif len(names) >= 2:
-            for idx, summary in enumerate(names):
-                nm = _lower(summary["name"])
-                if "backbone" in nm or "vector" in nm or "载体" in nm or \
-                        "plasmid" in nm and idx == 0:
-                    roles.append({"role": "backbone",
-                                  "path": summary["path"],
-                                  "basis": "name-role-heuristic",
-                                  "explicit": False})
-                else:
-                    roles.append({"role": "insert-%d" % idx,
-                                  "path": summary["path"],
-                                  "basis": "name-role-heuristic",
-                                  "explicit": False})
+        for path, summary in file_summaries.items():
+            nm = _lower(summary.get("name") or "")
+            if nm and nm in low:
+                # Named reference in user text
+                roles.append({
+                    "role": "backbone" if ("骨架" in low or "backbone" in low or "载体" in low) else "insert",
+                    "path": path,
+                    "basis": "named-reference",
+                    "explicit": True,
+                })
     return roles
 
 

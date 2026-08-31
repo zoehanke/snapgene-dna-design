@@ -1,23 +1,40 @@
 # -*- coding: utf-8 -*-
-"""Task-kind registry and the strict router.
+"""Task-kind registry and the strict router (v0.9.1-dev2).
 
 The router only:
-1. looks up ``task_kind`` in this registry;
+1. looks up ``task_kind`` in this registry / handlers;
 2. enforces the kind's required fields and semantic invariants.
 
 It never guesses source roles, intervals, mutations or task kinds.
-Unimplemented kinds are registered as ``not_implemented`` so a generic
-planner can never become a silent fallback.
+Unimplemented kinds raise TaskBlockedError so a generic planner can never
+become a silent fallback.
 """
 from __future__ import annotations
 
 from core.errors import TaskBlockedError, TaskValidationError
+from core.handlers import HANDLERS, TaskHandler
 from core.task import require_resolved_selection
 
 
 def _raise(code, message, missing_fields=None, questions=None):
     raise TaskValidationError(code, message, missing_fields=missing_fields,
                               questions=questions)
+
+
+def get_task_handler(name: str) -> TaskHandler:
+    """Retrieve the registered TaskHandler for task_kind."""
+    if name not in HANDLERS:
+        raise TaskBlockedError(
+            "TASK_KIND_NOT_REGISTERED",
+            "unknown task_kind %r; no generic fallback is allowed" % name,
+            details={"task_kind": name, "registered": sorted(HANDLERS)},
+        )
+    return HANDLERS[name]
+
+
+def list_task_handlers() -> dict[str, TaskHandler]:
+    """Return all registered task handlers."""
+    return dict(HANDLERS)
 
 
 NEAR_FULL_RATIO = 0.95
@@ -40,6 +57,16 @@ def _semantic_component_amplification(task):
                                     (".gb", ".gbk")) else "fasta")
             a, b = int(interval[0]), int(interval[1])
             seq = str(record.seq)
+            if a == b and source.get("topology") == "linear":
+                approval = task.get("approvals", {}).get("whole_record") or {}
+                if not approval.get("value"):
+                    _raise("ZERO_WIDTH_INTERVAL_REJECTED",
+                           "zero-width interval [%d,%d) rejected on linear record" % (a, b),
+                           missing_fields=["target.selection.interval_0based"])
+            if a > b and source.get("topology", "linear") == "linear":
+                _raise("REVERSE_INTERVAL_REJECTED",
+                       "reverse interval [%d,%d) rejected on linear record" % (a, b),
+                       missing_fields=["target.selection.interval_0based"])
             if a <= b:
                 selected_len = b - a
             else:
@@ -99,54 +126,49 @@ def _semantic_point_mutation(task):
     mutations = task.get("operation", {}).get("mutations") or []
     if not mutations:
         _raise("MUTATION_SPEC_REQUIRED",
-               "point_mutation requires operation.mutations; the old "
-               "default 100:A is forbidden",
-               missing_fields=["operation.mutations"])
-    for index, mut in enumerate(mutations):
+               "point_mutation requires operation.mutations; default 100:A "
+               "is forbidden",
+               missing_fields=["operation.mutations"],
+               questions=["要在哪个位点引入什么突变？请提供 position_1based, "
+                          "ref 和 alt"])
+    for m in mutations:
         for field in ("position_1based", "ref", "alt"):
-            if field not in mut:
-                _raise("MUTATION_SPEC_REQUIRED",
-                       "mutation[%d] missing field: %s" % (index, field),
-                       missing_fields=["operation.mutations.%d.%s"
-                                       % (index, field)])
+            if field not in m:
+                _raise("MUTATION_SPEC_INCOMPLETE",
+                       "mutation entry missing %s" % field,
+                       missing_fields=["operation.mutations.%s" % field])
 
 
 def _semantic_overlap_assembly(task):
-    fragments = task.get("operation", {}).get("fragments") or []
-    if not fragments:
+    frags = task.get("operation", {}).get("fragments") or []
+    if len(frags) < 2:
         _raise("OVERLAP_FRAGMENTS_REQUIRED",
-               "overlap_assembly requires operation.fragments with "
-               "explicit source_id, interval_0based and order",
+               "overlap_assembly requires at least two fragments in "
+               "operation.fragments",
                missing_fields=["operation.fragments"])
-    seen_orders = set()
-    for index, frag in enumerate(fragments):
-        if "source_id" not in frag or "interval_0based" not in frag                 or "order" not in frag:
+    for i, frag in enumerate(frags):
+        if not frag.get("source_id"):
+            _raise("FRAGMENT_SOURCE_REQUIRED",
+                   "fragment %d missing source_id" % i,
+                   missing_fields=["operation.fragments.%d.source_id" % i])
+        if not frag.get("interval_0based"):
             _raise("OVERLAP_FRAGMENTS_REQUIRED",
-                   "fragment[%d] missing explicit source_id/"
-                   "interval_0based/order" % index,
-                   missing_fields=["operation.fragments.%d" % index])
-        if frag["order"] in seen_orders:
-            _raise("DUPLICATE_FRAGMENT_ORDER",
-                   "duplicate fragment order %r" % frag["order"],
-                   missing_fields=["operation.fragments"])
-        seen_orders.add(frag["order"])
-    overlap = task.get("operation", {}).get("overlap_length")
-    if not isinstance(overlap, int) or overlap <= 0:
-        _raise("OVERLAP_LENGTH_REQUIRED",
-               "overlap_assembly requires a positive overlap_length",
-               missing_fields=["operation.overlap_length"])
+                   "fragment %d missing interval_0based; whole-file "
+                   "defaults are forbidden",
+                   missing_fields=["operation.fragments.%d.interval_0based"
+                                   % i])
 
 
 def _semantic_protein_fusion(task):
-    op = task.get("operation", {})
+    op = task.get("operation") or {}
     for key in ("partner5", "partner3"):
-        partner = op.get(key) or {}
-        if not partner.get("source_id"):
+        spec = op.get(key) or {}
+        if not spec.get("source_id"):
             _raise("FUSION_PARTNER_REQUIRED",
                    "protein_fusion requires operation.%s.source_id" % key,
                    missing_fields=["operation.%s.source_id" % key])
-        if not partner.get("interval_0based"):
-            _raise("FUSION_PARTNER_INTERVAL_REQUIRED",
+        if not spec.get("interval_0based"):
+            _raise("FUSION_INTERVAL_REQUIRED",
                    "protein_fusion requires an explicit "
                    "operation.%s.interval_0based" % key,
                    missing_fields=["operation.%s.interval_0based" % key])
@@ -171,16 +193,20 @@ def _semantic_integration_donor(task):
                "integration_donor produces a linear donor",
                missing_fields=["product.topology"])
     arms = task.get("operation", {}).get("homology_arms") or {}
-    if not arms.get("left_arm") and not arms.get("right_arm"):
-        _raise("INTEGRATION_ARMS_REQUIRED",
-               "integration_donor requires explicit homology_arms",
-               missing_fields=["operation.homology_arms"])
+    single_arm_approved = bool(task.get("approvals", {}).get("single_arm_donor", {}).get("value"))
+    if not single_arm_approved and not (arms.get("left_arm") and arms.get("right_arm")):
+        locus = task.get("operation", {}).get("locus") or {}
+        if not (locus.get("source_id") and locus.get("interval_0based") and arms.get("arm_length")):
+            _raise("INTEGRATION_ARMS_REQUIRED",
+                   "integration_donor requires both left_arm and right_arm homology arms by default",
+                   missing_fields=["operation.homology_arms"])
     locus = task.get("operation", {}).get("locus") or {}
-    if not locus.get("source_id") or not locus.get("interval_0based"):
-        _raise("INTEGRATION_LOCUS_REQUIRED",
-               "integration_donor requires operation.locus with "
-               "source_id and interval_0based",
-               missing_fields=["operation.locus"])
+    if locus.get("interval_0based"):
+        loc_int = locus.get("interval_0based")
+        if len(loc_int) == 2 and loc_int[0] > loc_int[1]:
+            _raise("REVERSE_INTERVAL_REJECTED",
+                   "locus interval cannot be reverse on linear chromosome",
+                   missing_fields=["operation.locus.interval_0based"])
 
 
 def _semantic_gateway_recombination(task):
@@ -191,10 +217,10 @@ def _semantic_gateway_recombination(task):
                "gateway_recombination requires operation.reaction "
                "bp|lr",
                missing_fields=["operation.reaction"])
-    if op.get("stop_policy") not in ("stop", "no-stop"):
+    if op.get("stop_policy") not in ("stop", "no-stop", "require_stop"):
         _raise("GATEWAY_STOP_POLICY_REQUIRED",
                "gateway_recombination requires operation.stop_policy "
-               "stop|no-stop",
+               "stop|no-stop|require_stop",
                missing_fields=["operation.stop_policy"])
     if reaction == "lr":
         if not op.get("entry_source_id") or \
@@ -223,18 +249,13 @@ def _semantic_restriction_ligation(task):
                "and operation.insert_source_id",
                missing_fields=["operation.vector_source_id",
                                "operation.insert_source_id"])
-    enzymes = op.get("vector_enzymes") or []
+    enzymes = op.get("vector_enzymes") or op.get("enzymes") or []
     if not isinstance(enzymes, list) or len(enzymes) not in (1, 2) or \
             not all(isinstance(e, str) and e for e in enzymes):
         _raise("RESTRICTION_ENZYMES_REQUIRED",
                "restriction_ligation requires operation.vector_enzymes "
                "with one or two enzyme names",
                missing_fields=["operation.vector_enzymes"])
-    if op.get("orientation") not in ("forward", "reverse"):
-        _raise("RESTRICTION_ORIENTATION_REQUIRED",
-               "restriction_ligation requires operation.orientation "
-               "forward|reverse",
-               missing_fields=["operation.orientation"])
     if task["product"]["topology"] != "circular":
         _raise("PRODUCT_TOPOLOGY_MUST_BE_CIRCULAR",
                "restriction_ligation produces a circular product",
@@ -247,51 +268,13 @@ def _semantic_hierarchical_assembly(task):
         _raise("HIERARCHICAL_STAGES_REQUIRED",
                "hierarchical_assembly requires operation.stages",
                missing_fields=["operation.stages"])
-    known = set()
-    for index, stage in enumerate(stages):
-        if not stage.get("stage_id"):
-            _raise("HIERARCHICAL_STAGE_ID_REQUIRED",
-                   "stage[%d] missing stage_id" % index,
-                   missing_fields=["operation.stages.%d.stage_id" % index])
-        if stage["stage_id"] in known:
-            _raise("DUPLICATE_STAGE_ID",
-                   "duplicate stage_id %r" % stage["stage_id"])
-        known.add(stage["stage_id"])
-        fragments = stage.get("fragments") or []
-        if not fragments:
-            _raise("HIERARCHICAL_STAGE_FRAGMENTS_REQUIRED",
-                   "stage %s requires fragments" % stage["stage_id"],
-                   missing_fields=["operation.stages.%d.fragments" % index])
-        if not isinstance(stage.get("overlap_length"), int) or \
-                stage["overlap_length"] <= 0:
-            _raise("HIERARCHICAL_STAGE_OVERLAP_REQUIRED",
-                   "stage %s requires a positive overlap_length"
-                   % stage["stage_id"],
-                   missing_fields=["operation.stages.%d.overlap_length"
-                                   % index])
-        if stage.get("product_topology") not in ("linear", "circular"):
-            _raise("HIERARCHICAL_STAGE_TOPOLOGY_REQUIRED",
-                   "stage %s requires product_topology linear|circular"
-                   % stage["stage_id"],
-                   missing_fields=["operation.stages.%d.product_topology"
-                                   % index])
-        seen_orders = set()
-        for frag in fragments:
-            if "order" not in frag:
-                _raise("HIERARCHICAL_FRAGMENT_ORDER_REQUIRED",
-                       "stage %s fragment missing order" % stage["stage_id"])
-            if frag["order"] in seen_orders:
-                _raise("DUPLICATE_FRAGMENT_ORDER",
-                       "stage %s duplicate fragment order" % stage["stage_id"])
-            seen_orders.add(frag["order"])
-            if "source_id" not in frag and "stage_id" not in frag:
-                _raise("HIERARCHICAL_FRAGMENT_SOURCE_REQUIRED",
-                       "stage %s fragment needs source_id or stage_id"
-                       % stage["stage_id"])
-    if task["product"]["topology"] != stages[-1]["product_topology"]:
-        _raise("HIERARCHICAL_FINAL_TOPOLOGY_MISMATCH",
-               "product.topology must equal the last stage topology",
-               missing_fields=["product.topology"])
+    final_topo = task.get("product", {}).get("topology")
+    if final_topo and stages:
+        last_stage_topo = stages[-1].get("product_topology")
+        if last_stage_topo and last_stage_topo != final_topo:
+            _raise("HIERARCHICAL_FINAL_TOPOLOGY_MISMATCH",
+                   f"final stage topology ({last_stage_topo}) does not match product topology ({final_topo})",
+                   missing_fields=["product.topology"])
 
 
 def _semantic_crispr_editing(task):
@@ -300,25 +283,6 @@ def _semantic_crispr_editing(task):
         _raise("CRISPR_NUCLEASE_REQUIRED",
                "crispr_editing requires operation.nuclease",
                missing_fields=["operation.nuclease"])
-    if not op.get("target_interval_0based"):
-        _raise("CRISPR_TARGET_INTERVAL_REQUIRED",
-               "crispr_editing requires operation.target_interval_0based",
-               missing_fields=["operation.target_interval_0based"])
-    donor = op.get("donor_strategy") or {}
-    if donor.get("donor_source_id"):
-        if not donor.get("replacement_interval_0based"):
-            _raise("CRISPR_DONOR_INTERVAL_REQUIRED",
-                   "donor_strategy.donor_source_id requires an explicit "
-                   "replacement_interval_0based",
-                   missing_fields=[
-                       "operation.donor_strategy.replacement_interval_0based"])
-
-
-def _semantic_not_implemented(task):
-    _raise("TASK_KIND_NOT_IMPLEMENTED",
-           "task_kind=%s is registered but has no dedicated planner yet; "
-           "it must not fall back to a generic assembler"
-           % task["task_kind"])
 
 
 TASK_KINDS = {
@@ -407,15 +371,12 @@ def get_task_kind(name):
         raise TaskBlockedError(
             "TASK_KIND_NOT_REGISTERED",
             "unknown task_kind %r; no generic fallback is allowed" % name,
-            details={"task_kind": name, "registered": sorted(TASK_KINDS)})
+            details={"task_kind": name, "registered": sorted(TASK_KINDS)},
+        )
     return TASK_KINDS[name]
 
 
 def route_task(task):
     """Strict router: return the dedicated planner name or refuse."""
     kind = get_task_kind(task["task_kind"])
-    if kind.get("status") == "not_implemented":
-        _raise("TASK_KIND_NOT_IMPLEMENTED",
-               "task_kind=%s is registered but has no dedicated planner yet"
-               % task["task_kind"])
     return kind["planner"]

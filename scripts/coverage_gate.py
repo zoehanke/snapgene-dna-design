@@ -145,8 +145,7 @@ def _coveragerc(target_dir):
         "    %s\n"
         "    %s\n"
         "    %s\n"
-        "    %s\n"
-        "concurrency = multiprocessing\n" % (
+        "    %s\n" % (
             SCRIPTS, ROOT / "planning", ROOT / "rules",
             ROOT / "design", ROOT / "agent"),
         encoding="utf-8",
@@ -262,7 +261,9 @@ def main(argv=None):
                 # every child startup and can exceed the step timeout.
                 step_env.pop("COVERAGE_PROCESS_START", None)
                 step_env.pop("COVERAGE_FILE", None)
+            print(f"[coverage_gate] Starting step: {name}...", flush=True)
             completed = _run(cmd, cwd=cwd, env=step_env, timeout=1800)
+            print(f"[coverage_gate] Step {name} finished (rc={completed.returncode})", flush=True)
             step_results[name] = {
                 "returncode": completed.returncode,
                 "stdout_tail": (completed.stdout or "")[-400:],

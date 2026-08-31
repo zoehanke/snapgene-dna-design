@@ -26,10 +26,8 @@ EXCLUDE_PREFIXES = (
     "reports/",
     "__pycache__/",
     "tmp_",
-)
-EXCLUDE_PREFIXES = (
-    "reports/",
-    "__pycache__/",
+    ".git/",
+    ".pytest_cache/",
 )
 
 ACADEMIC_ONLY_PATHS = (
