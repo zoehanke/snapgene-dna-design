@@ -81,17 +81,19 @@
 
 ---
 
-## 阶段二：黄金实验 SOP 配方库 (Tier 2: Standard Recipes) [当前待办]
-> **目标**：为常规高频流程提供开箱即用的标准实验 SOP 配方。常规任务走 SOP 规避 AI“突发奇想/丢三落四”，复杂任务可下潜到 Tier 1 灵活拆解。
+## 阶段二：黄金实验 SOP 配方库 (Tier 2: Standard Recipes) [已完成]
+> **目标**：为常规高频流程提供开箱即用的标准实验 SOP 配方。常规任务走 SOP 规避 AI“突发奇想/丢三落四”，复杂任务可下潜到 Tier 1 灵活拆解。每条配方均在代码与输出中带有严格的权威文献来源与经典手册出处。
 
-- [ ] **2.1 CRISPR HDR 供体标准配方 (`recipe_crispr_hdr_donor`)**:
-  - 封装规范：标准同源臂长度（ssODN 40~60 bp，质粒 500~800 bp）；自动寻找切点残留 PAM 并调用 `get_codon_synonyms` 施加高频同义突变阻断二次切割；支持非编码区/Seed区突变降级策略。
-- [ ] **2.2 Gibson / In-Fusion 组装引物与片段标准配方 (`recipe_gibson_assembly`)**:
-  - 封装规范：标准 20~25 bp 重叠臂挂载；结合核心 Tm 稳定在 60±2°C；正反引物 $\Delta Tm \le 2^\circ\text{C}$；自动跑引物二聚体初筛。
-- [ ] **2.3 Type IIS Golden Gate 多片段一锅法标准配方 (`recipe_golden_gate`)**:
-  - 封装规范：BsaI/BsmBI 4-bp 正交粘端自动校验；无缝环状组装产物验证与识别位点清除核验。
-- [ ] **2.4 传统双酶切定向克隆标准配方 (`recipe_restriction_cloning`)**:
-  - 封装规范：载体双切、插入片段双切、粘端配对、去磷酸化提醒与方向性连接。
+- [x] **2.1 CRISPR HDR 供体标准配方 (`recipe_crispr_hdr_donor`)**:
+  - 封装规范：标准同源臂长度（ssODN 40~60 bp，质粒 500~800 bp）；自动寻找切点残留 PAM 并调用 `get_codon_synonyms` 施加高频同义突变阻断二次切割；支持非编码区/Seed区突变降级策略；明确标注 Ran et al. 2013 Nature Protocols 与 Paquet et al. 2016 Nature 来源。
+- [x] **2.2 Gibson / In-Fusion 组装引物与片段标准配方 (`recipe_gibson_assembly`)**:
+  - 封装规范：标准 20~25 bp 重叠臂挂载；结合核心 Tm 稳定在 60±2°C；正反引物 $\Delta Tm \le 2^\circ\text{C}$；自动跑引物二聚体初筛；短片段 (<200 bp) 防 T5 嚼毁预警；明确标注 Gibson et al. 2009 Nature Methods 与 NEB #E2621 来源。
+- [x] **2.3 Type IIS Golden Gate 多片段一锅法标准配方 (`recipe_golden_gate`)**:
+  - 封装规范：BsaI/BsmBI 4-bp 正交粘端自动校验；无缝环状组装产物验证与识别位点清除核验；明确标注 Engler et al. 2008 PLoS ONE 与 Potapov et al. 2018 ACS Synth Biol 来源。
+- [x] **2.4 传统双酶切定向克隆标准配方 (`recipe_restriction_cloning`)**:
+  - 封装规范：载体双切、插入片段双切、粘端配对、去磷酸化提醒与方向性连接；严格挂载 NEB 5' 保护碱基与 DpnI 质粒模板消除提醒；明确标注 Sambrook 《分子克隆实验指南》第 4 版与 NEB 技术手册来源。
+- [x] **2.5 权威来源文档与检索接口**:
+  - 创建 `references/authoritative_sop_sources.md`，提供统一的文献、经典手册与规则映射；暴露 `get_recipe_sources` 与 `GET_RECIPE_DEFINITIONS` 接口。
 
 ---
 

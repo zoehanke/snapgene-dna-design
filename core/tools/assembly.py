@@ -110,14 +110,17 @@ def simulate_overlap_assembly(
     }
 
 
-def _hit_end_sequences(seq: str, hit: dict) -> tuple[str, str, str]:
-    kind = hit["overhang_type"]
-    ov_seq = hit.get("overhang_sequence", "")
-    if kind == "5prime":
-        return kind, ov_seq, ""
-    elif kind == "3prime":
-        return kind, "", ov_seq
-    return "blunt", "", ""
+def _hit_end_sequences(seq: str, hit: dict) -> tuple[str, str]:
+    t = hit.get("top_cut_boundary_0based", 0)
+    b = hit.get("bottom_cut_boundary_0based", 0)
+    if t == b:
+        return "blunt", ""
+    kind = "5'-overhang" if t < b else "3'-overhang"
+    ov_seq = hit.get("overhang_sequence")
+    if not ov_seq:
+        ov_seq = seq[min(t, b) : max(t, b)]
+
+    return kind, ov_seq
 
 
 def simulate_digest_ligation(
@@ -195,8 +198,8 @@ def simulate_digest_ligation(
     ins_frag = iseq[i1:i2]
     backbone = vseq[:t1] + vseq[t2:]
 
-    l_kind, l_ov, _ = _hit_end_sequences(vseq, vector_hits[1])
-    r_kind, _, r_ov = _hit_end_sequences(vseq, vector_hits[0])
+    l_kind, l_ov = _hit_end_sequences(vseq, vector_hits[1])
+    r_kind, r_ov = _hit_end_sequences(vseq, vector_hits[0])
     backbone_frag = AssemblyFragment(
         "vector", backbone, topology="linear",
         left_end=overhang_end(l_kind, l_ov, 0, source_cut_boundary=t2),
@@ -204,8 +207,8 @@ def simulate_digest_ligation(
         source=vec_rec.id,
     )
 
-    il_kind, il_ov, _ = _hit_end_sequences(iseq, insert_hits[0])
-    ir_kind, _, ir_ov = _hit_end_sequences(iseq, insert_hits[1])
+    il_kind, il_ov = _hit_end_sequences(iseq, insert_hits[0])
+    ir_kind, ir_ov = _hit_end_sequences(iseq, insert_hits[1])
     insert_frag = AssemblyFragment(
         "insert", ins_frag, topology="linear",
         left_end=overhang_end(il_kind, il_ov, 0, source_cut_boundary=i1),

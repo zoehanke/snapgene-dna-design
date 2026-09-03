@@ -18,11 +18,20 @@ from Bio.SeqRecord import SeqRecord
 def _load_record(file_path_or_record: str | pathlib.Path | SeqRecord) -> SeqRecord:
     if isinstance(file_path_or_record, SeqRecord):
         return file_path_or_record
-    p = pathlib.Path(file_path_or_record)
-    if not p.exists():
-        raise FileNotFoundError(f"Sequence file not found: {p}")
-    from core.task import read_record
-    return read_record(p)
+    if isinstance(file_path_or_record, (str, pathlib.Path)):
+        try:
+            p = pathlib.Path(file_path_or_record)
+            if p.exists() and p.is_file():
+                from core.task import read_record
+                return read_record(p)
+        except (OSError, ValueError):
+            pass
+        s = str(file_path_or_record).strip().upper()
+        if s and all(c in "ACGTNWSMKRYBDHV \r\n\t" for c in s):
+            clean_seq = "".join(s.split())
+            return SeqRecord(Seq(clean_seq), id="custom_sequence", annotations={"topology": "circular"})
+        raise FileNotFoundError(f"Sequence file not found: {file_path_or_record}")
+    raise TypeError(f"Unsupported record type: {type(file_path_or_record)}")
 
 
 def inspect_dna(file_path_or_record: str | pathlib.Path | SeqRecord) -> dict[str, Any]:
