@@ -8,7 +8,13 @@ and cloning, fuse proteins in-frame, and export native SnapGene (.dna) files.
 """
 from __future__ import annotations
 
-from core.tools.amplification import calc_primer_tm, design_overhang_primers, simulate_pcr
+from core.tools.amplification import (
+    anneal_oligos,
+    calc_primer_tm,
+    check_primer_dimers,
+    design_overhang_primers,
+    simulate_pcr,
+)
 from core.tools.assembly import (
     simulate_digest_ligation,
     simulate_golden_gate,
@@ -17,6 +23,7 @@ from core.tools.assembly import (
 from core.tools.crispr import (
     design_crispr_grna,
     design_hdr_donor,
+    extract_homology_arms,
     prepare_grna_oligos,
 )
 from core.tools.feature_ops import (
@@ -36,15 +43,20 @@ from core.tools.inspection import (
 )
 from core.tools.restriction import (
     check_overhang_compatibility,
+    digest_sequence,
+    digest_type_iis,
+    fill_or_chew_overhang,
     find_restriction_sites,
 )
 from core.tools.sequence_ops import (
     check_reading_frame,
     extract_subsequence,
     mutate_sequence,
+    strip_terminal_codons,
 )
 from core.tools.snapgene_io import export_snapgene, open_in_snapgene
 from core.tools.translation import (
+    get_codon_synonyms,
     reverse_complement,
     silent_mutation_remove_site,
     translate_dna,
@@ -55,12 +67,18 @@ __all__ = [
     "summarize_backbone",
     "find_open_reading_frames",
     "find_restriction_sites",
+    "digest_sequence",
+    "digest_type_iis",
+    "fill_or_chew_overhang",
     "check_overhang_compatibility",
     "extract_subsequence",
     "check_reading_frame",
     "mutate_sequence",
+    "strip_terminal_codons",
     "calc_primer_tm",
+    "check_primer_dimers",
     "design_overhang_primers",
+    "anneal_oligos",
     "simulate_pcr",
     "simulate_overlap_assembly",
     "simulate_digest_ligation",
@@ -68,11 +86,13 @@ __all__ = [
     "design_crispr_grna",
     "prepare_grna_oligos",
     "design_hdr_donor",
+    "extract_homology_arms",
     "get_feature",
     "annotate_feature",
     "migrate_features_after_assembly",
     "reverse_complement",
     "translate_dna",
+    "get_codon_synonyms",
     "silent_mutation_remove_site",
     "fuse_in_frame",
     "get_standard_element",
@@ -399,6 +419,109 @@ def GET_TOOL_DEFINITIONS() -> list[dict]:
                     "grna_seq": {"type": "string", "description": "Optional sgRNA sequence to identify and silently mutate PAM."},
                 },
                 "required": ["target_seq_or_file", "cut_position_0based", "edit_dna"],
+            },
+        },
+        {
+            "name": "strip_terminal_codons",
+            "description": "Strip start codon (ATG) or stop codons (TAA/TAG/TGA) from a CDS before in-frame fusion or tag engineering.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "cds_seq": {"type": "string", "description": "Nucleotide CDS sequence."},
+                    "strip_start": {"type": "boolean", "default": False, "description": "Whether to strip first 3 bp if ATG."},
+                    "strip_stop": {"type": "boolean", "default": False, "description": "Whether to strip last 3 bp if stop codon."},
+                },
+                "required": ["cds_seq"],
+            },
+        },
+        {
+            "name": "get_codon_synonyms",
+            "description": "Retrieve all synonymous codons translating to the same amino acid under the specified genetic code table.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "codon": {"type": "string", "description": "3-nucleotide codon triplet (e.g. 'CTG')."},
+                    "table": {"type": "integer", "default": 1, "description": "NCBI genetic code table ID (1 = standard)."},
+                },
+                "required": ["codon"],
+            },
+        },
+        {
+            "name": "check_primer_dimers",
+            "description": "Check for primer-dimer cross-hybridization (heterodimer) or self-dimerization (homodimer), especially at 3' ends.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "primer1": {"type": "string", "description": "Forward primer sequence."},
+                    "primer2": {"type": "string", "description": "Optional reverse primer sequence (checks heterodimer if provided)."},
+                },
+                "required": ["primer1"],
+            },
+        },
+        {
+            "name": "anneal_oligos",
+            "description": "Simulate in-vitro annealing of two single-stranded oligos, returning the duplex core and 5'/3' sticky overhangs on each end.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "top_oligo": {"type": "string", "description": "Top strand oligo sequence (5' to 3')."},
+                    "bottom_oligo": {"type": "string", "description": "Bottom strand oligo sequence (5' to 3')."},
+                },
+                "required": ["top_oligo", "bottom_oligo"],
+            },
+        },
+        {
+            "name": "digest_sequence",
+            "description": "Digest a sequence with a restriction endonuclease, returning cleaved fragments and their sticky/blunt overhang geometries.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "seq": {"type": "string", "description": "DNA sequence to digest."},
+                    "enzyme": {"type": "string", "description": "Restriction enzyme name (e.g. 'EcoRI', 'BamHI')."},
+                    "circular": {"type": "boolean", "default": False, "description": "Whether molecule is circular."},
+                },
+                "required": ["seq", "enzyme"],
+            },
+        },
+        {
+            "name": "digest_type_iis",
+            "description": "Digest a single fragment flanked by Type IIS restriction sites (e.g. BsaI, BsmBI), stripping the recognition sites and returning the insert core with its 4-bp cohesive overhangs.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "fragment_seq": {"type": "string", "description": "Fragment sequence flanked by inward-facing Type IIS sites."},
+                    "enzyme": {"type": "string", "default": "BsaI", "description": "Type IIS enzyme name."},
+                },
+                "required": ["fragment_seq"],
+            },
+        },
+        {
+            "name": "fill_or_chew_overhang",
+            "description": "Simulate enzymatic end-repair (Klenow / T4 DNA Polymerase) to blunt sticky ends via 5' fill-in or 3' chew-back.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "seq": {"type": "string", "description": "Double-stranded sequence core."},
+                    "left_overhang": {"type": "string", "default": "", "description": "Left single-stranded overhang."},
+                    "right_overhang": {"type": "string", "default": "", "description": "Right single-stranded overhang."},
+                    "overhang_type": {"type": "string", "default": "5prime", "description": "'5prime' or '3prime'."},
+                    "action": {"type": "string", "default": "fill_in", "enum": ["fill_in", "chew_back"], "description": "Repair action."},
+                },
+                "required": ["seq"],
+            },
+        },
+        {
+            "name": "extract_homology_arms",
+            "description": "Extract left and right homology arms centered at a genomic cut or insertion site for HDR donor template design.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "target_seq_or_file": {"type": "string", "description": "Target genomic sequence or file path."},
+                    "cut_position_0based": {"type": "integer", "description": "0-based coordinate of cut site."},
+                    "left_arm_length": {"type": "integer", "default": 50, "description": "Left arm length."},
+                    "right_arm_length": {"type": "integer", "default": 50, "description": "Right arm length."},
+                },
+                "required": ["target_seq_or_file", "cut_position_0based"],
             },
         },
     ]

@@ -344,8 +344,83 @@ class AtomicToolsTests(unittest.TestCase):
         self.assertEqual(len(res["left_homology_arm"]), 40)
         self.assertEqual(len(res["right_homology_arm"]), 40)
 
+    def test_strip_terminal_codons(self):
+        from core.tools import strip_terminal_codons
+        cds = "ATGGCCAAATAA"
+        # Strip both start and stop
+        res = strip_terminal_codons(cds, strip_start=True, strip_stop=True)
+        self.assertEqual(res["sequence"], "GCCAAA")
+        self.assertTrue(res["start_stripped"])
+        self.assertTrue(res["stop_stripped"])
+
+    def test_get_codon_synonyms(self):
+        from core.tools import get_codon_synonyms
+        res = get_codon_synonyms("CTG")
+        self.assertEqual(res["amino_acid"], "L")
+        self.assertIn("CTA", res["synonymous_codons"])
+        self.assertIn("TTG", res["synonymous_codons"])
+        self.assertEqual(res["synonym_count"], 5)
+
+    def test_check_primer_dimers(self):
+        from core.tools import check_primer_dimers
+        # Primers with complementary 3' ends: ...GGCC and ...GGCC
+        fwd = "ATGCATGCATGCGGCC"
+        rev = "TTTTCCCCAAAAGGCC"
+        res = check_primer_dimers(fwd, rev)
+        self.assertTrue(res["high_dimer_risk"])
+        self.assertGreaterEqual(res["max_3prime_complementarity"], 4)
+
+    def test_anneal_oligos(self):
+        from core.tools import anneal_oligos
+        # Top has 5' CACC overhang, Bottom has 5' AAAC overhang
+        # Core is 20 bp: GCTGATCGATCGATCGATCA
+        # top: CACC + GCTGATCGATCGATCGATCA
+        # bot: AAAC + TGATCGATCGATCGATCAGC
+        core = "GCTGATCGATCGATCGATCA"
+        core_rc = "TGATCGATCGATCGATCAGC"
+        top = "CACC" + core
+        bot = "AAAC" + core_rc
+        res = anneal_oligos(top, bot)
+        self.assertEqual(res["duplex_core_sequence"], core)
+        self.assertEqual(res["left_overhang"]["sequence"], "CACC")
+        self.assertEqual(res["right_overhang"]["sequence"], "AAAC")
+
+    def test_digest_sequence(self):
+        from core.tools import digest_sequence
+        seq = "AAAAAGAATTCCCCCGGATCCAAAAA"
+        # EcoRI (GAATTC) cuts at 7 (after G)
+        # BamHI (GGATCC) cuts at 18 (after G)
+        res = digest_sequence(seq, "EcoRI", circular=False)
+        self.assertEqual(res["cut_count"], 1)
+        self.assertEqual(res["fragment_count"], 2)
+        self.assertEqual(res["fragments"][0]["right_overhang"], "AATT")
+
+    def test_digest_type_iis(self):
+        from core.tools import digest_type_iis
+        # BsaI cuts outside recognition
+        f = "GGTCTC" + "A" + "TGCA" + "AAAAAA" + "ATGA" + "A" + "GAGACC"
+        res = digest_type_iis(f, enzyme="BsaI")
+        self.assertEqual(res["left_overhang"], "TGCA")
+        self.assertEqual(res["right_overhang"], "ATGA")
+        self.assertNotIn("GGTCTC", res["insert_core"])
+
+    def test_fill_or_chew_overhang(self):
+        from core.tools import fill_or_chew_overhang
+        # Fill in 5' AATT overhang
+        res = fill_or_chew_overhang("CCCC", left_overhang="AATT", overhang_type="5prime", action="fill_in")
+        self.assertEqual(res["end_type"], "blunt")
+        self.assertTrue(res["blunted_sequence"].startswith("AATT"))
+
+    def test_extract_homology_arms(self):
+        from core.tools import extract_homology_arms
+        seq = "A" * 60 + "C" * 60
+        res = extract_homology_arms(seq, cut_position_0based=60, left_arm_length=30, right_arm_length=30)
+        self.assertEqual(res["left_homology_arm"], "A" * 30)
+        self.assertEqual(res["right_homology_arm"], "C" * 30)
+
 
 if __name__ == "__main__":
     unittest.main()
+
 
 

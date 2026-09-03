@@ -167,3 +167,168 @@ def check_overhang_compatibility(
         "overhang2_rc": o2_rc,
         "message": "Sticky ends are complementary and ligatable" if is_compat else f"Sticky ends do not match: {o1} vs {o2_rc}",
     }
+
+
+def digest_sequence(
+    seq: str,
+    enzyme: str,
+    circular: bool = False,
+) -> dict[str, Any]:
+    """Digest a DNA sequence with a restriction endonuclease, returning cleaved fragments and their end geometries."""
+    from scripts.sg_common import get_enzyme, restriction_hits
+
+    enz = get_enzyme(enzyme)
+    s = str(seq).strip().upper()
+    hits = restriction_hits(Seq(s), enz, circular=circular)
+
+    if not hits:
+        return {
+            "enzyme": enzyme,
+            "cut_count": 0,
+            "fragments": [{"fragment_index": 0, "sequence": s, "length": len(s), "left_end": "blunt", "right_end": "blunt"}],
+        }
+
+    # Sort cuts
+    cuts = sorted(hits, key=lambda h: h["top_cut_boundary_0based"])
+    n = len(s)
+    frags = []
+
+    def _overhang_info(h, dna_str):
+        if not h:
+            return "", "blunt"
+        t = h.get("top_cut_boundary_0based", 0)
+        b = h.get("bottom_cut_boundary_0based", 0)
+        if t == b:
+            return "", "blunt"
+        ov = dna_str[min(t, b) : max(t, b)]
+        ov_type = "5prime" if t < b else "3prime"
+        return ov, ov_type
+
+    if not circular:
+        # Linear cuts produce len(cuts) + 1 fragments
+        boundaries = [0] + [c["top_cut_boundary_0based"] for c in cuts] + [n]
+        for i in range(len(boundaries) - 1):
+            sub = s[boundaries[i] : boundaries[i + 1]]
+            l_hit = cuts[i - 1] if i > 0 else None
+            r_hit = cuts[i] if i < len(cuts) else None
+            l_ov, l_geom = _overhang_info(l_hit, s)
+            r_ov, r_geom = _overhang_info(r_hit, s)
+
+            frags.append({
+                "fragment_index": i,
+                "sequence": sub,
+                "length": len(sub),
+                "left_overhang": l_ov,
+                "left_geometry": l_geom,
+                "right_overhang": r_ov,
+                "right_geometry": r_geom,
+            })
+    else:
+        # Circular cuts produce len(cuts) fragments
+        b_coords = [c["top_cut_boundary_0based"] for c in cuts]
+        num_cuts = len(b_coords)
+        for i in range(num_cuts):
+            start_b = b_coords[i]
+            end_b = b_coords[(i + 1) % num_cuts]
+            sub = s[start_b:end_b] if end_b > start_b else (s[start_b:] + s[:end_b])
+            l_hit = cuts[i]
+            r_hit = cuts[(i + 1) % num_cuts]
+            l_ov, l_geom = _overhang_info(l_hit, s)
+            r_ov, r_geom = _overhang_info(r_hit, s)
+
+            frags.append({
+                "fragment_index": i,
+                "sequence": sub,
+                "length": len(sub),
+                "left_overhang": l_ov,
+                "left_geometry": l_geom,
+                "right_overhang": r_ov,
+                "right_geometry": r_geom,
+            })
+
+    return {
+        "enzyme": enzyme,
+        "cut_count": len(hits),
+        "fragment_count": len(frags),
+        "fragments": frags,
+    }
+
+
+def digest_type_iis(
+    fragment_seq: str,
+    enzyme: str = "BsaI",
+) -> dict[str, Any]:
+    """Perform single-fragment Type IIS digestion (e.g. BsaI, BsmBI), stripping recognition sites and liberating cohesive overhangs."""
+    from scripts.sg_common import get_enzyme, restriction_hits
+
+    enz = get_enzyme(enzyme)
+    s = str(fragment_seq).strip().upper()
+    hits = restriction_hits(Seq(s), enz, circular=False)
+
+    if len(hits) < 2:
+        raise ValueError(f"Type IIS fragment must have at least 2 flanking sites; found {len(hits)}")
+
+    hits.sort(key=lambda h: h["recognition_start0"])
+    h_left, h_right = hits[0], hits[-1]
+
+    t_left = h_left["top_cut_boundary_0based"]
+    b_left = h_left["bottom_cut_boundary_0based"]
+    t_right = h_right["top_cut_boundary_0based"]
+    b_right = h_right["bottom_cut_boundary_0based"]
+
+    left_cut = min(t_left, b_left)
+    left_cut_max = max(t_left, b_left)
+    left_ov = s[left_cut:left_cut_max]
+
+    right_cut = min(t_right, b_right)
+    right_cut_max = max(t_right, b_right)
+    right_ov = s[right_cut:right_cut_max]
+
+    insert_core = s[left_cut:right_cut_max]
+
+    return {
+        "original_sequence": s,
+        "insert_core": insert_core,
+        "insert_length": len(insert_core),
+        "left_overhang": left_ov,
+        "right_overhang": right_ov,
+        "enzyme": enzyme,
+        "stripped_5prime_site": s[:left_cut],
+        "stripped_3prime_site": s[right_cut_max:],
+    }
+
+
+def fill_or_chew_overhang(
+    seq: str,
+    left_overhang: str = "",
+    right_overhang: str = "",
+    overhang_type: str = "5prime",
+    action: str = "fill_in",
+) -> dict[str, Any]:
+    """Simulate enzymatic end-repair (Klenow / T4 DNA Polymerase) to blunt DNA sticky ends.
+
+    action="fill_in": Fills in 5' overhangs with complementary nucleotides.
+    action="chew_back": Uses 3'->5' exonuclease activity to remove 3' single-stranded overhangs.
+    """
+    s = str(seq).strip().upper()
+    left_ov = str(left_overhang).strip().upper()
+    right_ov = str(right_overhang).strip().upper()
+    act = str(action).lower()
+    ov_type = str(overhang_type).lower()
+
+    if act == "fill_in" and "5" in ov_type:
+        # Fill in 5' overhangs: adds complementary strand bases to sequence
+        blunted = left_ov + s + str(Seq(right_ov).reverse_complement())
+    elif act == "chew_back" and "3" in ov_type:
+        # Chew back 3' overhang: removes the single-stranded tail
+        blunted = s
+    else:
+        blunted = s
+
+    return {
+        "original_length": len(s),
+        "blunted_sequence": blunted,
+        "blunted_length": len(blunted),
+        "action_applied": act,
+        "end_type": "blunt",
+    }

@@ -302,3 +302,150 @@ def design_overhang_primers(
         "binding_core_delta_tm": delta_tm,
         "delta_tm_warning": delta_tm > 3.0,
     }
+
+
+def check_primer_dimers(
+    primer1: str,
+    primer2: str | None = None,
+) -> dict[str, Any]:
+    """Check for primer-dimer (heterodimer) or self-dimer (homodimer) base-pairing.
+
+    Scans for complementary alignments between the two primers, specifically flagging
+    3' end complementarity which causes catastrophic primer-dimer artifacts in PCR.
+    """
+    p1 = str(primer1).strip().upper()
+    p2 = str(primer2).strip().upper() if primer2 else p1
+    is_self = (primer2 is None or primer1 == primer2)
+
+    # Convert primer2 to its complement so we can search for direct matching substrings
+    comp_map = str.maketrans("ACGT", "TGCA")
+    p2_comp = p2.translate(comp_map)
+
+    # Scan all relative shifts between p1 and p2_comp (in antiparallel direction)
+    max_continuous_match = 0
+    max_3prime_match = 0
+    best_alignment = ""
+
+    # Reverse p2_comp so 3' of p1 aligns against 3' of p2
+    p2_rev_comp = p2_comp[::-1]
+
+    n1, n2 = len(p1), len(p2_rev_comp)
+    for shift in range(-n2 + 1, n1):
+        match_len = 0
+        cur_3prime = 0
+        for i in range(n1):
+            j = i - shift
+            if 0 <= j < n2:
+                if p1[i] == p2_rev_comp[j]:
+                    match_len += 1
+                    # Check if this match touches the 3' end of p1 (i == n1 - 1) or p2 (j == 0)
+                    if i == n1 - 1 or j == 0:
+                        cur_3prime = max(cur_3prime, match_len)
+                else:
+                    match_len = 0
+            else:
+                match_len = 0
+        max_continuous_match = max(max_continuous_match, match_len)
+        max_3prime_match = max(max_3prime_match, cur_3prime)
+
+    warnings = []
+    if max_3prime_match >= 4:
+        warnings.append(
+            f"Severe 3'-end complementarity ({max_3prime_match} bp): high risk of primer-dimer amplification in PCR"
+        )
+    elif max_3prime_match >= 3:
+        warnings.append(f"Moderate 3'-end complementarity ({max_3prime_match} bp)")
+
+    if max_continuous_match >= 7:
+        warnings.append(f"Internal complementarity ({max_continuous_match} bp): possible competitive annealing")
+
+    return {
+        "analysis_type": "homodimer" if is_self else "heterodimer",
+        "primer1_length": n1,
+        "primer2_length": n2,
+        "max_continuous_complementarity": max_continuous_match,
+        "max_3prime_complementarity": max_3prime_match,
+        "high_dimer_risk": (max_3prime_match >= 4),
+        "warnings": warnings,
+    }
+
+
+def anneal_oligos(
+    top_oligo: str,
+    bottom_oligo: str,
+) -> dict[str, Any]:
+    """Simulate in-vitro annealing of two single-stranded oligos into a double-stranded duplex with sticky overhangs.
+
+    Used for CRISPR sgRNA/shRNA vector cloning, adapter generation, and linker cassette assembly.
+    """
+    top = str(top_oligo).strip().upper()
+    bot = str(bottom_oligo).strip().upper()
+
+    # The bottom oligo is written 5' to 3'. Its reverse complement pairs with the top oligo (5' to 3').
+    bot_rc = str(Seq(bot).reverse_complement())
+
+    # Find where bot_rc aligns inside top or vice versa
+    # Case 1: bot_rc is inside top (e.g. top has 5' and/or 3' overhangs)
+    # Case 2: top is inside bot_rc (e.g. bottom has 5' and/or 3' overhangs)
+    # Standard heuristic: find maximal overlap
+    best_overlap = 0
+    best_offset = 0  # offset of bot_rc relative to top
+
+    n_top = len(top)
+    n_bot = len(bot_rc)
+
+    for offset in range(-n_bot + 1, n_top):
+        overlap = 0
+        mismatch = 0
+        for i in range(n_top):
+            j = i - offset
+            if 0 <= j < n_bot:
+                if top[i] == bot_rc[j]:
+                    overlap += 1
+                else:
+                    mismatch += 1
+        if mismatch == 0 and overlap > best_overlap:
+            best_overlap = overlap
+            best_offset = offset
+
+    if best_overlap == 0:
+        raise ValueError("The two oligos share no complementary duplex region!")
+
+    # Calculate overhangs
+    # If offset > 0: top extends to the left of bot_rc -> 5' overhang on top strand!
+    # If offset < 0: bot_rc extends to the left of top -> bottom strand 5' overhang! (since bot 5' is at the right of bot_rc)
+    left_top_overhang = top[:max(0, best_offset)]
+    right_top_overhang = top[best_offset + n_bot:] if (best_offset + n_bot < n_top) else ""
+
+    # Bot strand 5' overhang is at the 3' end of bot (left of bot_rc)
+    left_bot_overhang = bot_rc[:max(0, -best_offset)]
+    right_bot_overhang = bot_rc[n_top - best_offset:] if (n_top - best_offset < n_bot) else ""
+
+    # Format into standard biological representation:
+    # 5' overhang on left:
+    left_5prime_ov = left_top_overhang if left_top_overhang else str(Seq(left_bot_overhang).reverse_complement())
+    left_type = "5prime_top" if left_top_overhang else ("5prime_bottom" if left_bot_overhang else "blunt")
+
+    # 5' overhang on right:
+    # Bottom strand 5' end is right of bot_rc (reverse complement to get bottom strand 5' to 3' sequence)
+    right_5prime_ov = str(Seq(right_bot_overhang).reverse_complement()) if right_bot_overhang else right_top_overhang
+    right_type = "5prime_bottom" if right_bot_overhang else ("5prime_top" if right_top_overhang else "blunt")
+
+    duplex_seq = top[max(0, best_offset) : min(n_top, best_offset + n_bot)]
+
+    return {
+        "top_oligo": top,
+        "bottom_oligo": bot,
+        "duplex_core_sequence": duplex_seq,
+        "duplex_core_length": len(duplex_seq),
+        "left_overhang": {
+            "sequence": left_5prime_ov,
+            "length": len(left_5prime_ov),
+            "geometry": left_type,
+        },
+        "right_overhang": {
+            "sequence": right_5prime_ov,
+            "length": len(right_5prime_ov),
+            "geometry": right_type,
+        },
+    }

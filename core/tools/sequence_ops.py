@@ -154,3 +154,41 @@ def mutate_sequence(
         "mutations_count": len(applied),
         "applied_mutations": list(reversed(applied)),
     }
+
+
+def strip_terminal_codons(
+    cds_seq: str,
+    strip_start: bool = False,
+    strip_stop: bool = False,
+) -> dict[str, Any]:
+    """Strip terminal start (ATG) or stop (TAA/TAG/TGA) codons from a coding sequence.
+
+    Args:
+        cds_seq: Nucleotide CDS sequence.
+        strip_start: If True and sequence starts with ATG, strip first 3 bp.
+        strip_stop: If True and sequence ends with TAA/TAG/TGA, strip last 3 bp.
+
+    Returns:
+        dict with modified sequence, original/new length, and stripped flags.
+    """
+    seq = str(cds_seq).strip().upper()
+    n = len(seq)
+    start_stripped = False
+    stop_stripped = False
+
+    if strip_start and seq.startswith("ATG"):
+        seq = seq[3:]
+        start_stripped = True
+
+    STOP_CODONS = {"TAA", "TAG", "TGA"}
+    if strip_stop and len(seq) >= 3 and seq[-3:] in STOP_CODONS:
+        seq = seq[:-3]
+        stop_stripped = True
+
+    return {
+        "sequence": seq,
+        "original_length": n,
+        "new_length": len(seq),
+        "start_stripped": start_stripped,
+        "stop_stripped": stop_stripped,
+    }

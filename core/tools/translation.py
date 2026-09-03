@@ -129,3 +129,39 @@ def silent_mutation_remove_site(
         "remaining_cut_count": len(final_hits),
         "identical_translation": (orig_aa == new_aa),
     }
+
+
+def get_codon_synonyms(codon: str, table: int = 1) -> dict[str, Any]:
+    """Return all synonymous codons that translate to the same amino acid under specified genetic code.
+
+    Args:
+        codon: 3-base nucleotide triplet (e.g. 'CTG', 'GAA').
+        table: NCBI genetic code table ID (default: 1 standard).
+
+    Returns:
+        dict with amino_acid, original_codon, synonymous_codons list, and codon count.
+    """
+    c = str(codon).strip().upper()
+    if len(c) != 3:
+        raise ValueError(f"Codon must be exactly 3 nucleotides, got '{codon}'")
+
+    codon_table = CodonTable.unambiguous_dna_by_id[table]
+    forward_table = codon_table.forward_table
+    stop_codons = codon_table.stop_codons
+
+    if c in stop_codons:
+        aa = "*"
+        synonyms = [s for s in stop_codons if s != c]
+    else:
+        aa = forward_table.get(c)
+        if not aa:
+            raise ValueError(f"Unrecognized codon '{codon}' in translation table {table}")
+        synonyms = [cod for cod, trans_aa in forward_table.items() if trans_aa == aa and cod != c]
+
+    return {
+        "original_codon": c,
+        "amino_acid": aa,
+        "synonymous_codons": sorted(synonyms),
+        "synonym_count": len(synonyms),
+        "is_stop_codon": (aa == "*"),
+    }

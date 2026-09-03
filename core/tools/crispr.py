@@ -299,3 +299,36 @@ def design_hdr_donor(
         "pam_silenced_in_donor": pam_silenced,
         "silencing_details": silencing_details,
     }
+
+
+def extract_homology_arms(
+    target_seq_or_file: str | pathlib.Path | SeqRecord,
+    cut_position_0based: int,
+    left_arm_length: int = 50,
+    right_arm_length: int = 50,
+) -> dict[str, Any]:
+    """Extract left and right homology arms centered at a target cut/insertion site."""
+    if isinstance(target_seq_or_file, SeqRecord):
+        seq = str(target_seq_or_file.seq).upper()
+    elif isinstance(target_seq_or_file, (str, pathlib.Path)) and pathlib.Path(target_seq_or_file).exists():
+        rec = _load_record(target_seq_or_file)
+        seq = str(rec.seq).upper()
+    else:
+        seq = str(target_seq_or_file).upper()
+
+    n = len(seq)
+    s_left = max(0, cut_position_0based - left_arm_length)
+    e_right = min(n, cut_position_0based + right_arm_length)
+
+    left_arm = seq[s_left:cut_position_0based]
+    right_arm = seq[cut_position_0based:e_right]
+
+    return {
+        "cut_position_0based": cut_position_0based,
+        "left_homology_arm": left_arm,
+        "left_arm_interval": [s_left, cut_position_0based],
+        "left_arm_length": len(left_arm),
+        "right_homology_arm": right_arm,
+        "right_arm_interval": [cut_position_0based, e_right],
+        "right_arm_length": len(right_arm),
+    }
