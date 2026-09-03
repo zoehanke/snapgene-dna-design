@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from core.handlers.base import TaskHandler
 from core.handlers.component_amplification import ComponentAmplificationHandler
+from core.handlers.composite_pipeline import CompositePipelineHandler
 from core.handlers.crispr_editing import CrisprEditingHandler
 from core.handlers.gateway_recombination import GatewayRecombinationHandler
 from core.handlers.hierarchical_assembly import HierarchicalAssemblyHandler
@@ -27,6 +28,8 @@ HANDLERS: dict[str, TaskHandler] = {
     "restriction_ligation": RestrictionLigationHandler(),
     "hierarchical_assembly": HierarchicalAssemblyHandler(),
     "crispr_editing": CrisprEditingHandler(),
+    "composite_pipeline": CompositePipelineHandler(),
+    "pipeline": CompositePipelineHandler(),
 }
 
 __all__ = [
@@ -43,4 +46,5 @@ __all__ = [
     "RestrictionLigationHandler",
     "HierarchicalAssemblyHandler",
     "CrisprEditingHandler",
+    "CompositePipelineHandler",
 ]

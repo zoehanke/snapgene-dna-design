@@ -5,10 +5,10 @@
 ---
 
 ## 阶段零：拆除老架构四大桎梏 (Dismantle Shackles)
-- [ ] **0.1 废黜 11 个单任务孤岛计划器** (`core/handlers/*.plan` & `core/runtime_plan.py`)：打破必须套进单一单步模板的死锁，规划权还给大模型。
-- [ ] **0.2 废弃关键词与正则暴力提取器** (`agent/nl_parser.py`)：彻底删除假智能的子串匹配，意图理解 100% 交由大模型。
-- [ ] **0.3 解绑单任务硬编码路由器** (`core/registry.py`)：支持大模型自主编排的多步复合流水线（Composite Pipeline）。
-- [ ] **0.4 替换形式主义会话编排器** (`agent/orchestrator.py` 旧逻辑)：转向极简的 ReAct Tool-Calling 闭环，生物学歧义直接精准反问。
+- [x] **0.1 废黜 11 个单任务孤岛计划器** (`core/handlers/*.plan` & `core/runtime_plan.py`)：打破必须套进单一单步模板的死锁，引入通用的多步复合流水线 (`composite_pipeline`)，规划权彻底交还给大模型。
+- [x] **0.2 废弃关键词与正则暴力提取器** (`agent/nl_parser.py`)：彻底剥离假智能的子串猜测，将意图理解与规划提示词 (`build_agent_planning_prompt`) 交付给大模型。
+- [x] **0.3 解绑单任务硬编码路由器** (`core/registry.py`)：`core/registry.py` 注册通用的 `composite_pipeline` 处理器，打破 11 种任务类型的狭隘分类限制。
+- [x] **0.4 替换形式主义会话编排器** (`agent/orchestrator.py` 旧逻辑)：引入现代化极简 ReAct 工具闭环 (`agent/pipeline_agent.py`)，由大模型自主编排、原子工具执行、三层验证直至 SnapGene 权威交付。
 
 ---
 

@@ -8,7 +8,12 @@ from __future__ import annotations
 
 import hashlib
 import pathlib
+import sys
 from typing import Any
+
+_SCRIPTS_DIR = str(pathlib.Path(__file__).resolve().parents[2] / "scripts")
+if _SCRIPTS_DIR not in sys.path:
+    sys.path.insert(0, _SCRIPTS_DIR)
 
 from Bio import SeqIO
 from Bio.Seq import Seq

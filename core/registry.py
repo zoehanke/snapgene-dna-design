@@ -285,7 +285,29 @@ def _semantic_crispr_editing(task):
                missing_fields=["operation.nuclease"])
 
 
+def _semantic_composite_pipeline(task):
+    pipe = task.get("pipeline")
+    if not pipe or not pipe.get("steps"):
+        _raise("PIPELINE_STEPS_REQUIRED",
+               "composite_pipeline requires a non-empty pipeline.steps list",
+               missing_fields=["pipeline.steps"])
+
+
 TASK_KINDS = {
+    "composite_pipeline": {
+        "planner": "composite_pipeline",
+        "maturity": "validated",
+        "required_fields": ["pipeline.steps"],
+        "missing_code": "PIPELINE_STEPS_REQUIRED",
+        "semantic_checks": _semantic_composite_pipeline,
+    },
+    "pipeline": {
+        "planner": "composite_pipeline",
+        "maturity": "validated",
+        "required_fields": ["pipeline.steps"],
+        "missing_code": "PIPELINE_STEPS_REQUIRED",
+        "semantic_checks": _semantic_composite_pipeline,
+    },
     "component_amplification": {
         "planner": "component_amplification",
         "maturity": "validated",

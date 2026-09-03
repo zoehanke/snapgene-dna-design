@@ -360,7 +360,9 @@ class Orchestrator:
             backbone = backbone_role.get("path")
         elif spec.get("approvals", {}).get("clarify-backbone-file", {}).get("value"):
             ans = spec.get("approvals", {}).get("clarify-backbone-file", {}).get("value")
-            backbone = ans if ans in files else None
+            backbone = ans if ans in files else (files[0] if (files and spec.get("mode") == "exploration") else None)
+        elif spec.get("mode") == "exploration":
+            backbone = files[0] if files else None
         else:
             backbone = None
 
@@ -380,7 +382,7 @@ class Orchestrator:
                 spec_entry["feature"] = feature
             elif obj.get("interval"):
                 spec_entry["interval"] = obj["interval"]
-            elif whole_approved:
+            elif whole_approved or spec.get("mode") == "exploration":
                 spec_entry["interval"] = [0, int(lengths.get(path, 0) or 0)]
             else:
                 raise DesignSpecError(

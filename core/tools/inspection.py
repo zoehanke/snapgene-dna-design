@@ -21,16 +21,8 @@ def _load_record(file_path_or_record: str | pathlib.Path | SeqRecord) -> SeqReco
     p = pathlib.Path(file_path_or_record)
     if not p.exists():
         raise FileNotFoundError(f"Sequence file not found: {p}")
-    suffix = p.suffix.lower()
-    if suffix in (".dna",):
-        from scripts.write_dna import read_dna
-        return read_dna(p)
-    elif suffix in (".gb", ".gbk", ".genbank"):
-        with open(p, "r", encoding="utf-8", errors="replace") as fh:
-            return SeqIO.read(fh, "genbank")
-    else:
-        with open(p, "r", encoding="utf-8", errors="replace") as fh:
-            return SeqIO.read(fh, "fasta")
+    from core.task import read_record
+    return read_record(p)
 
 
 def inspect_dna(file_path_or_record: str | pathlib.Path | SeqRecord) -> dict[str, Any]:
