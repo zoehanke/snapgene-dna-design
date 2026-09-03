@@ -310,7 +310,42 @@ class AtomicToolsTests(unittest.TestCase):
         self.assertNotIn("GGTCTC", res["product_sequence"])
         self.assertNotIn("GAGACC", res["product_sequence"])
 
+    def test_crispr_grna_and_oligos(self):
+        from core.tools import design_crispr_grna, prepare_grna_oligos
+        # Target with SpCas9 site (20 nt spacer + TGG)
+        target = "A" * 30 + "GCTGATCGATCGATCGATCA" + "TGG" + "C" * 30
+        guides = design_crispr_grna(target, nuclease="SpCas9")
+        self.assertGreater(len(guides), 0)
+        g0 = guides[0]
+        self.assertEqual(g0["pam"], "TGG")
+        self.assertEqual(len(g0["spacer"]), 20)
+        self.assertFalse(g0["has_poly_t"])
+
+        # Prepare oligos for pX458 (BbsI)
+        oligos = prepare_grna_oligos(g0["spacer"], vector_type="BbsI")
+        self.assertTrue(oligos["forward_oligo"]["sequence"].startswith("CACC"))
+        self.assertTrue(oligos["reverse_oligo"]["sequence"].startswith("AAAC"))
+
+    def test_crispr_hdr_donor_design(self):
+        from core.tools import design_hdr_donor
+        # Cut position at bp 50
+        target = "A" * 50 + "T" * 50
+        res = design_hdr_donor(
+            target_seq_or_file=target,
+            cut_position_0based=50,
+            edit_dna="GAATTC",
+            left_arm_length=40,
+            right_arm_length=40,
+            grna_seq="A" * 20,
+            grna_strand=1,
+        )
+        self.assertEqual(res["donor_type"], "ssODN")
+        self.assertIn("GAATTC", res["donor_sequence"])
+        self.assertEqual(len(res["left_homology_arm"]), 40)
+        self.assertEqual(len(res["right_homology_arm"]), 40)
+
 
 if __name__ == "__main__":
     unittest.main()
+
 

@@ -31,8 +31,10 @@ from core.tools import (
     reverse_complement,
     silent_mutation_remove_site,
     simulate_digest_ligation,
+    simulate_golden_gate,
     simulate_overlap_assembly,
     simulate_pcr,
+    design_hdr_donor,
     translate_dna,
 )
 
@@ -122,6 +124,23 @@ def run_pipeline_steps(steps: list[dict], sources_map: dict[str, str]) -> tuple[
                 orientation=params.get("orientation", "forward"),
             )
             out_seq = res["product_sequence"]
+        elif tool == "simulate_golden_gate":
+            res = simulate_golden_gate(
+                fragments=params["fragments"],
+                enzyme=params.get("enzyme", "BsaI"),
+                circular=params.get("circular", True),
+            )
+            out_seq = res["product_sequence"]
+        elif tool == "design_hdr_donor":
+            res = design_hdr_donor(
+                target_seq_or_file=params["target"],
+                cut_position_0based=params["cut_position"],
+                edit_dna=params["edit_dna"],
+                left_arm_length=params.get("left_arm_length", 50),
+                right_arm_length=params.get("right_arm_length", 50),
+                grna_seq=params.get("grna_seq", ""),
+            )
+            out_seq = res["donor_sequence"]
         elif tool == "reverse_complement":
             out_seq = reverse_complement(params["seq"])
             res = {"sequence": out_seq}

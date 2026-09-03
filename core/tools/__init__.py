@@ -14,6 +14,11 @@ from core.tools.assembly import (
     simulate_golden_gate,
     simulate_overlap_assembly,
 )
+from core.tools.crispr import (
+    design_crispr_grna,
+    design_hdr_donor,
+    prepare_grna_oligos,
+)
 from core.tools.feature_ops import (
     annotate_feature,
     get_feature,
@@ -60,6 +65,9 @@ __all__ = [
     "simulate_overlap_assembly",
     "simulate_digest_ligation",
     "simulate_golden_gate",
+    "design_crispr_grna",
+    "prepare_grna_oligos",
+    "design_hdr_donor",
     "get_feature",
     "annotate_feature",
     "migrate_features_after_assembly",
@@ -349,6 +357,48 @@ def GET_TOOL_DEFINITIONS() -> list[dict]:
                     "file_path": {"type": "string", "description": "Path to the .dna or .gb file."},
                 },
                 "required": ["file_path"],
+            },
+        },
+        {
+            "name": "design_crispr_grna",
+            "description": "Scan a target gene or genomic locus for candidate CRISPR sgRNA target sites with PAM recognition, GC content evaluation, and Pol III poly-T termination checks.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "target_seq_or_file": {"type": "string", "description": "Target DNA sequence or file path."},
+                    "nuclease": {"type": "string", "enum": ["SpCas9", "AsCas12a"], "default": "SpCas9"},
+                    "start": {"type": "integer", "description": "Optional 0-based start coordinate."},
+                    "end": {"type": "integer", "description": "Optional 0-based end coordinate."},
+                },
+                "required": ["target_seq_or_file"],
+            },
+        },
+        {
+            "name": "prepare_grna_oligos",
+            "description": "Generate top and bottom forward/reverse cloning oligos with sticky overhangs for sgRNA vectors (e.g. BbsI-digested pX458/pX459 or BsmBI-digested lentiCRISPR), adding a 5' G if needed for human U6 promoter initiation.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "spacer_seq": {"type": "string", "description": "20-nt spacer guide sequence."},
+                    "vector_type": {"type": "string", "default": "BbsI", "description": "Cloning vector type or enzyme ('BbsI', 'BsmBI', 'pX458')."},
+                },
+                "required": ["spacer_seq"],
+            },
+        },
+        {
+            "name": "design_hdr_donor",
+            "description": "Design a Homology-Directed Repair (HDR) donor template (ssODN or double-stranded plasmid arms) with automated synonymous PAM mutation to prevent Cas re-cleavage.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "target_seq_or_file": {"type": "string", "description": "Target genomic sequence or file."},
+                    "cut_position_0based": {"type": "integer", "description": "0-based Cas cut position coordinate."},
+                    "edit_dna": {"type": "string", "description": "Mutation, insertion, or deletion DNA sequence."},
+                    "left_arm_length": {"type": "integer", "default": 50, "description": "Left homology arm length."},
+                    "right_arm_length": {"type": "integer", "default": 50, "description": "Right homology arm length."},
+                    "grna_seq": {"type": "string", "description": "Optional sgRNA sequence to identify and silently mutate PAM."},
+                },
+                "required": ["target_seq_or_file", "cut_position_0based", "edit_dna"],
             },
         },
     ]
