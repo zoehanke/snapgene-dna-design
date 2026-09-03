@@ -42,11 +42,19 @@ def _find_primer_binding(
         found_this_len = False
         for pos in range(max_idx):
             sub = search_seq[pos : pos + len(core)]
+            raw_end = pos + len(core)
+            if not circular:
+                start_c = pos
+                end_c = raw_end
+            else:
+                start_c = pos % n
+                end_c = raw_end if raw_end <= n else (raw_end % n)
+
             if sub == core:
                 hits.append({
                     "strand": 1,
-                    "template_start_0based": pos % n,
-                    "template_end_0based": (pos + len(core)) % n,
+                    "template_start_0based": start_c,
+                    "template_end_0based": end_c,
                     "binding_core_length": core_len,
                     "tail_5prime": tail,
                     "tail_length": len(tail),
@@ -55,8 +63,8 @@ def _find_primer_binding(
             elif sub == core_rc:
                 hits.append({
                     "strand": -1,
-                    "template_start_0based": pos % n,
-                    "template_end_0based": (pos + len(core)) % n,
+                    "template_start_0based": start_c,
+                    "template_end_0based": end_c,
                     "binding_core_length": core_len,
                     "tail_5prime": tail,
                     "tail_length": len(tail),

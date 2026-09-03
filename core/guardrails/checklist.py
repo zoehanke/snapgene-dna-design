@@ -384,12 +384,13 @@ def quick_biological_sanity_check(
     primers: list[str] | tuple[str, str] | None = None,
     topology: str = "linear",
     check_secondary_structure: bool = False,
+    is_cds: bool = True,
 ) -> dict[str, Any]:
     """Lightweight objective factual scan to assist the agent in catching obvious biological glitches.
 
     Reports purely objective numbers and facts without heavy policy blocking:
-    - BIO-01: Reading frame & premature stop codons
-    - BIO-02: Terminal stop codon presence
+    - BIO-01: Reading frame & premature stop codons (applicable when is_cds=True)
+    - BIO-02: Terminal stop codon presence (applicable when is_cds=True)
     - BIO-03: Internal restriction site conflicts
     - BIO-05: CRISPR donor in vivo recleavage risk
     - BIO-06: RNA Pol III (U6) poly-T transcription abort
@@ -454,12 +455,14 @@ def quick_biological_sanity_check(
 
     # Summary of objective issues found
     issues_found = []
-    if not rf_result["is_multiple_of_three"]:
-        issues_found.append("BIO-01: CDS sequence length is not a multiple of 3 (frameshift).")
-    if rf_result["has_premature_stop"]:
-        issues_found.append(f"BIO-01: Detected {len(rf_result['premature_stop_positions'])} premature stop codon(s).")
-    if not rf_result["terminal_stop"]:
-        issues_found.append("BIO-02: No canonical terminal stop codon (TAA/TAG/TGA) at sequence 3' end.")
+    if is_cds:
+        if not rf_result["is_multiple_of_three"]:
+            issues_found.append("BIO-01: CDS sequence length is not a multiple of 3 (frameshift).")
+        if rf_result["has_premature_stop"]:
+            issues_found.append(f"BIO-01: Detected {len(rf_result['premature_stop_positions'])} premature stop codon(s).")
+        if not rf_result["terminal_stop"]:
+            issues_found.append("BIO-02: No canonical terminal stop codon (TAA/TAG/TGA) at sequence 3' end.")
+
     if enzyme_conflicts:
         issues_found.append(f"BIO-03: Internal restriction cut conflict detected for: {[e['enzyme'] for e in enzyme_conflicts]}.")
     if crispr_recleavage and crispr_recleavage["recleavage_risk"]:

@@ -133,7 +133,8 @@
 
 ---
 
-## 阶段六：真实科研复合案例端到端实操验证 (E2E Benchmark) [待办]
-- [ ] **6.1 复合案例 A (Gibson)**：载体双酶切 + PCR 引入 C 端 6xHis 标签与同源臂 + Gibson 组装 + 特征迁移。
-- [ ] **6.2 复合案例 B (CRISPR HDR)**：基因组靶点扫描 + sgRNA 退火引物 + HDR 供体设计 (含 PAM 同义沉默)。
-- [ ] **6.3 桌面真机验收**：导出原生 `.dna` 并在 Windows 桌面调起 `SnapGene.exe` 验收质粒图谱。
+## 阶段六：真实科研复合案例端到端实操验证 (E2E Benchmark) [已完成]
+- [x] ~~**6.1 复合案例 A (Gibson)**：载体双酶切 + PCR 引入 C 端 6xHis 标签与同源臂 + Gibson 组装 + 特征迁移。~~
+- [x] ~~**6.2 复合案例 B (CRISPR HDR)**：基因组靶点扫描 + sgRNA 退火引物 + HDR 供体设计 (含 PAM 同义沉默)。~~
+- [x] ~~**6.3 桌面真机验收**：导出原生 `.dna` 并在 Windows 桌面调起 `SnapGene.exe` 验收质粒图谱。~~
+
