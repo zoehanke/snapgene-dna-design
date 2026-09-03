@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
 """tests/test_e2e_benchmarks.py - End-to-End Benchmarks for Full Reconstructed Stack.
 
-Implements and validates the two real-world biological scenarios:
-- Case A: Gibson Assembly with C-terminal 6xHis fusion, feature migration & SnapGene delivery.
-- Case B: CRISPR Cas9 sgRNA, U6 oligos, HDR donor template with PAM silencing & junction QC.
+Radically cured biological validation:
+- Case A: Vector digestion + in-frame C-terminal 6xHis tagging + Gibson overlap assembly
+          + full multi-CDS feature reading frame audit + Colony PCR & Sanger verification.
+- Case B: CRISPR EMX1 locus scan + U6 oligos + HDR donor with PAM silencing
+          + in vivo recleavage audit + genomic junction integration PCR & Sanger verification.
 - Case C: Desktop SnapGene native binary .dna export and viewer verification.
 """
 import os
@@ -13,7 +15,7 @@ import tempfile
 import unittest
 
 from Bio.Seq import Seq
-from Bio.SeqFeature import SeqFeature, FeatureLocation
+from Bio.SeqFeature import FeatureLocation, SeqFeature
 from Bio.SeqRecord import SeqRecord
 
 from core.guardrails import quick_biological_sanity_check, scan_crispr_recleavage_risk
@@ -44,7 +46,7 @@ class TestE2EBenchmarks(unittest.TestCase):
         """Benchmark 6.1: Vector preparation + PCR tag introduction + Gibson assembly + Bio-guardrail + SnapGene export."""
         # 1. Prepare expression vector backbone: pET-like circular plasmid (~1,500 bp)
         # Vector contains: pUC ori, AmpR resistance marker, and MCS with EcoRI and HindIII
-        amp_cds = "ATG" + "GCATCGTAGCTA" * 20 + "TAA"  # 246 bp model marker
+        amp_cds = "ATG" + "GCATCGGCACTA" * 20 + "TAA"  # 246 bp model marker
         ori_seq = (
             "TTGAGATCCTTTTTTTCTGCGCGTAATCTGCTGCTTGCAAACAAAAAAACCACCGCTACCAGCGGTGGTTTGTTTGCCGGATCAAGAGCTACCAACTCTTTTTCC"
             "GAAGGTAACTGGCTTCAGCAGAGCGCAGATACCAAATACTGTCCTTCTAGTGTAGCCGTAGTTAGGCCACCACTTCAAGAACTCTGTAGCACCGCCTACATACCT"
@@ -66,12 +68,10 @@ class TestE2EBenchmarks(unittest.TestCase):
         mcs_start = amp_start + len(amp_cds) + len(spacer2)
         ecori_cut = mcs_start + 1  # G^AATTC
         hindiii_cut = mcs_start + 6 + 9 + 1  # A^AGCTT
-        # Vector backbone fragment: from HindIII cut to EcoRI cut
         vector_backbone_seq = vector_seq[hindiii_cut:] + vector_seq[:ecori_cut]
         self.assertGreater(len(vector_backbone_seq), 800)
 
         # 3. Insert gene preparation: model GFP CDS (450 bp)
-        # Ends with stop codon TAA
         gfp_cds = "ATG" + "GTGAGCAAGGGCGAG" * 29 + "TAA"  # 453 bp
 
         # 4. Protein tagging: add flexible GS linker + 6xHis tag, stripping original stop
@@ -103,40 +103,74 @@ class TestE2EBenchmarks(unittest.TestCase):
         self.assertGreaterEqual(len(rev_primer), 35)
         self.assertTrue(gibson_design["quality_checks"]["assembled_successfully"])
 
-        # 6. Annotate 6xHis tag feature on assembled construct
-        construct_rec = SeqRecord(Seq(assembled_seq), id="pConstruct_eGFP_6xHis")
+        # 6. Annotate recombinant features with exact migrated coordinates on assembled construct
+        construct_rec = SeqRecord(Seq(assembled_seq), id="pConstruct_eGFP_6xHis", name="pConstruct_eGFP_6xHis")
         construct_rec.annotations["topology"] = "circular"
-        construct_rec.features = vec_record.features  # preserve ori and AmpR
+
+        # 6a. pUC ori migrated coordinate
+        ori_assembled_pos = assembled_seq.find(ori_seq)
+        construct_rec.features.append(SeqFeature(
+            FeatureLocation(ori_assembled_pos, ori_assembled_pos + len(ori_seq)),
+            type="rep_origin",
+            qualifiers={"label": ["pUC ori"]},
+        ))
+
+        # 6b. AmpR CDS migrated coordinate
+        amp_assembled_pos = assembled_seq.find(amp_cds)
+        construct_rec.features.append(SeqFeature(
+            FeatureLocation(amp_assembled_pos, amp_assembled_pos + len(amp_cds)),
+            type="CDS",
+            qualifiers={"label": ["AmpR"], "gene": ["AmpR"]},
+        ))
+
+        # 6c. Recombinant eGFP_6xHis CDS
+        ins_start = assembled_seq.find(tagged_insert_seq)
+        ins_end = ins_start + len(tagged_insert_seq)
+        construct_rec.features.append(SeqFeature(
+            FeatureLocation(ins_start, ins_end, strand=1),
+            type="CDS",
+            qualifiers={"label": ["eGFP_6xHis"], "gene": ["eGFP_6xHis"]},
+        ))
         annotated_rec = annotate_feature(
             record=construct_rec,
             name="6xHis",
             feature_type="tag",
-            start=100,
-            end=118,
+            start=ins_end - 18,
+            end=ins_end,
             strand=1,
             color="#fdbf6f",
         )
 
-        # 9. Tier 3 Objective Biological Guardrail Verification
-        # 9a. Verify tagged insert CDS reading frame, lack of premature stops, and stop codon
-        sanity_cds = quick_biological_sanity_check(tagged_insert_seq, is_cds=True)
-        self.assertTrue(sanity_cds["all_clean"])
-        self.assertTrue(sanity_cds["clean_for_expression"])
-
-        # 9b. Verify assembled circular plasmid construct (ori, AmpR, primers, secondary structures)
+        # 7. Tier 3 Objective Biological Guardrail Verification
+        # The sanity check inspects BOTH annotated CDS features on the plasmid (AmpR and eGFP_6xHis),
+        # guaranteeing in-frame translation, zero premature stops, and full maintenance elements!
         sanity_plasmid = quick_biological_sanity_check(
             annotated_rec,
             cloning_enzymes=["BamHI"],  # diagnostic check
             primers=[fwd_primer, rev_primer],
             check_secondary_structure=True,
-            is_cds=False,
             topology="circular",
         )
         self.assertTrue(sanity_plasmid["all_clean"], f"Guardrail issues: {sanity_plasmid['issues_found']}")
+        self.assertEqual(len(sanity_plasmid["annotated_cds_audits"]), 2)
         self.assertTrue(sanity_plasmid["maintenance_elements"]["has_origin"])
         self.assertTrue(sanity_plasmid["maintenance_elements"]["has_marker"])
+        self.assertFalse(sanity_plasmid["has_premature_stop"])
 
-        # 10. SnapGene export (.dna & .gb)
+        # 8. Design Colony PCR & Sanger Verification Primers across the vector-insert junction
+        verification_plan = recipe_cloning_verification(
+            recombinant_plasmid_seq_or_file=annotated_rec,
+            insert_start_0based=ins_start,
+            insert_end_0based=ins_end,
+        )
+        colony_info = verification_plan["colony_pcr_primers"]
+        self.assertGreaterEqual(len(colony_info["forward_primer_in_vector"]), 18)
+        self.assertGreaterEqual(len(colony_info["reverse_primer_in_insert"]), 18)
+        self.assertAlmostEqual(colony_info["forward_tm"], 60.0, delta=2.5)
+        self.assertAlmostEqual(colony_info["reverse_tm"], 60.0, delta=2.5)
+        self.assertGreaterEqual(verification_plan["sanger_sequencing_primer"]["tm"], 55.0)
+
+        # 9. SnapGene export (.dna & .gb)
         out_files = export_snapgene(
             record_or_seq=annotated_rec,
             out_dir=self.tmp_dir,
@@ -146,20 +180,20 @@ class TestE2EBenchmarks(unittest.TestCase):
         self.assertTrue(pathlib.Path(out_files["dna_file"]).exists())
         self.assertTrue(pathlib.Path(out_files["gb_file"]).exists())
 
-        # 11. Re-read generated native .dna to verify binary integrity
+        # 10. Re-read generated native .dna to verify binary integrity
         re_read = inspect_dna(out_files["dna_file"])
         self.assertEqual(re_read["topology"], "circular")
         self.assertEqual(re_read["sequence_length"], len(assembled_seq))
-        self.assertGreaterEqual(re_read["feature_count"], 2)
+        self.assertGreaterEqual(re_read["feature_count"], 3)
 
     def test_case_b_crispr_hdr_precision_knockin_e2e(self):
         """Benchmark 6.2: Genomic target scan + U6 gRNA oligos + HDR donor with PAM silencing + Junction QC."""
-        # 1. Target genomic locus (human EMX1 exon 3 model locus, 300 bp)
-        # Spacer: GAGTCCGAGCAGAAGAAGAA (20 nt)
-        # PAM: GGG (SpCas9)
+        # 1. Target genomic locus (human EMX1 exon 3 locus, ~300 bp natural genomic sequence)
         spacer = "GAGTCCGAGCAGAAGAAGAA"
         pam = "GGG"
-        target_genomic_locus = "T" * 100 + spacer + pam + "A" * 180
+        left_genomic = "CTGTGTCCTCTTCCTGCCCTCTGTTCCCTCCCTGTCCCTCCCTCCCTCCCTCCCTCCTCCCGTTGTCCTGGCCAGCTCCCTCGTGGGTCCTGGCTTGGA"
+        right_genomic = "TGGAGTGGCCCAACCCCCAGTGGGGCCCTGCCAGCTCCCTCGTGGGTCCTGGCTGGGATTTTTCATTCCTGAACACTTTCCTGGTTCTTCCCTGTCCCT"
+        target_genomic_locus = left_genomic + spacer + pam + right_genomic
 
         # 2. Design and score candidate CRISPR guides
         guides = design_crispr_grna(
@@ -180,10 +214,9 @@ class TestE2EBenchmarks(unittest.TestCase):
         self.assertTrue(oligos["reverse_oligo"]["sequence"].startswith("AAAC"))
 
         # 4. Design CRISPR HDR donor template
-        # Cut site is 3 bp upstream of PAM (between position 117 and 118)
-        cut_pos = 100 + 17  # 0-based index of cut
-        # Desired knock-in payload: 27 bp HA tag (TATCCATATGATGTTCCAGATTATGCT)
-        ha_payload = "TATCCATATGATGTTCCAGATTATGCT"
+        # Cut site is 3 bp upstream of PAM
+        cut_pos = len(left_genomic) + 17  # 0-based index of Cas9 double-strand break
+        ha_payload = "TATCCATATGATGTTCCAGATTATGCT"  # 27 bp HA tag
 
         hdr_recipe = recipe_crispr_hdr_donor(
             target_seq_or_file=target_genomic_locus,
@@ -203,6 +236,7 @@ class TestE2EBenchmarks(unittest.TestCase):
         self.assertFalse(recleavage_audit["recleavage_risk"])
         self.assertFalse(recleavage_audit["intact_seed_pam_found"])
 
+        # Audit ssODN donor: linear repair reagent
         sanity = quick_biological_sanity_check(
             record_or_seq=donor_seq,
             crispr_grna_seq=spacer,
@@ -211,16 +245,32 @@ class TestE2EBenchmarks(unittest.TestCase):
         )
         self.assertTrue(sanity["all_clean"], f"Sanity issues: {sanity['issues_found']}")
 
-        # 6. Design junction verification primers
-        verification_plan = recipe_cloning_verification(
-            recombinant_plasmid_seq_or_file=donor_seq,
-            insert_start_0based=50,
-            insert_end_0based=50 + len(ha_payload),
-        )
-        self.assertIn("colony_pcr_primers", verification_plan)
-        self.assertIn("sanger_sequencing_primer", verification_plan)
+        # 6. Reconstruct the edited chromosome locus (incorporating knock-in HA payload)
+        # Wet-lab reality: Junction PCR is performed on the edited genomic DNA extracted from cells!
+        edited_genomic_locus = target_genomic_locus[:cut_pos] + ha_payload + target_genomic_locus[cut_pos:]
+        genomic_rec = SeqRecord(Seq(edited_genomic_locus), id="EMX1_HA_Edited_Chromosome")
+        genomic_rec.annotations["topology"] = "linear"
+        genomic_rec.features.append(SeqFeature(
+            FeatureLocation(cut_pos, cut_pos + len(ha_payload)),
+            type="tag",
+            qualifiers={"label": ["HA Tag"]},
+        ))
 
-        # 7. Export donor record to SnapGene .dna and .gb
+        # 7. Design Genomic Junction Integration Verification Primers
+        # Forward primer in genomic backbone upstream of insertion; reverse primer in payload/downstream
+        verification_plan = recipe_cloning_verification(
+            recombinant_plasmid_seq_or_file=genomic_rec,
+            insert_start_0based=cut_pos,
+            insert_end_0based=cut_pos + len(ha_payload),
+        )
+        junction_primers = verification_plan["colony_pcr_primers"]
+        self.assertGreaterEqual(len(junction_primers["forward_primer_in_vector"]), 18)
+        self.assertGreaterEqual(len(junction_primers["reverse_primer_in_insert"]), 18)
+        self.assertAlmostEqual(junction_primers["forward_tm"], 60.0, delta=2.5)
+        self.assertAlmostEqual(junction_primers["reverse_tm"], 60.0, delta=2.5)
+        self.assertGreaterEqual(verification_plan["sanger_sequencing_primer"]["tm"], 55.0)
+
+        # 8. Export donor record to SnapGene .dna and .gb
         donor_rec = SeqRecord(Seq(donor_seq), id="EMX1_HA_HDR_Donor")
         donor_rec.annotations["topology"] = "linear"
         donor_rec.features.append(SeqFeature(FeatureLocation(50, 50 + len(ha_payload)), type="tag", qualifiers={"label": ["HA Tag"]}))
@@ -251,7 +301,6 @@ class TestE2EBenchmarks(unittest.TestCase):
         self.assertTrue(pathlib.Path(dna_file).is_file())
 
         # 3. Verify open_in_snapgene capability without hanging
-        # Non-existent file raises FileNotFoundError
         with self.assertRaises(FileNotFoundError):
             open_in_snapgene(self.tmp_dir / "does_not_exist.dna")
 

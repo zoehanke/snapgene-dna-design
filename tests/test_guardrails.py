@@ -194,5 +194,46 @@ class TestBiologicalGuardrails(unittest.TestCase):
         self.assertEqual(len(res["issues_found"]), 0)
 
 
+    def test_plasmid_with_annotated_cds_features(self):
+        """Radical cure test: sanity check audits every individual annotated CDS feature in a plasmid."""
+        # 1. Valid plasmid with 2 in-frame CDS features and an origin of replication
+        amp_cds = "ATG" + "GCA" * 30 + "TAA"  # 96 bp
+        gfp_cds = "ATG" + "GTGAGCAAGGGC" * 15 + "TAA"  # 186 bp
+        ori = "TTGAGATC" + "AGCTTGAC" * 10
+        spacer = "TAGTAATGA"  # contains non-coding stops in frame 1!
+        
+        plasmid_seq = ori + spacer + amp_cds + spacer + gfp_cds + spacer
+        rec = SeqRecord(Seq(plasmid_seq), id="pGoodPlasmid")
+        rec.annotations["topology"] = "circular"
+        rec.features.append(SeqFeature(FeatureLocation(0, len(ori)), type="rep_origin", qualifiers={"label": ["pUC ori"]}))
+        
+        amp_s = len(ori) + len(spacer)
+        amp_e = amp_s + len(amp_cds)
+        rec.features.append(SeqFeature(FeatureLocation(amp_s, amp_e), type="CDS", qualifiers={"label": ["AmpR"]}))
+        
+        gfp_s = amp_e + len(spacer)
+        gfp_e = gfp_s + len(gfp_cds)
+        rec.features.append(SeqFeature(FeatureLocation(gfp_s, gfp_e), type="CDS", qualifiers={"label": ["eGFP"]}))
+
+        res = quick_biological_sanity_check(rec, topology="circular")
+        self.assertTrue(res["all_clean"], f"Issues found: {res['issues_found']}")
+        self.assertEqual(len(res["annotated_cds_audits"]), 2)
+        self.assertTrue(all(a["is_multiple_of_three"] for a in res["annotated_cds_audits"]))
+
+        # 2. Plasmid where eGFP has a 1-bp frameshift (deletion of 1 base)
+        gfp_bad = gfp_cds[:-1]  # 185 bp (frameshift!)
+        plasmid_bad = ori + spacer + amp_cds + spacer + gfp_bad + spacer
+        rec_bad = SeqRecord(Seq(plasmid_bad), id="pBadPlasmid")
+        rec_bad.annotations["topology"] = "circular"
+        rec_bad.features.append(SeqFeature(FeatureLocation(0, len(ori)), type="rep_origin", qualifiers={"label": ["pUC ori"]}))
+        rec_bad.features.append(SeqFeature(FeatureLocation(amp_s, amp_e), type="CDS", qualifiers={"label": ["AmpR"]}))
+        rec_bad.features.append(SeqFeature(FeatureLocation(gfp_s, gfp_s + len(gfp_bad)), type="CDS", qualifiers={"label": ["eGFP"]}))
+
+        res_bad = quick_biological_sanity_check(rec_bad, topology="circular")
+        self.assertFalse(res_bad["all_clean"])
+        self.assertTrue(any("eGFP" in issue and "frameshift" in issue for issue in res_bad["issues_found"]))
+
+
 if __name__ == "__main__":
     unittest.main()
+

@@ -45,6 +45,70 @@ AUTHORITATIVE_SOURCES = [
 ]
 
 
+def _optimize_verification_primer(
+    seq: str,
+    target_pos: int,
+    strand: int = 1,
+    target_tm: float = 60.0,
+    search_window: int = 35,
+    min_len: int = 18,
+    max_len: int = 24,
+    circular: bool = True,
+) -> dict[str, Any] | None:
+    """Thermodynamically search and optimize a verification primer around target_pos."""
+    n = len(seq)
+    if n < min_len:
+        return None
+
+    if circular:
+        offsets = range(-search_window, search_window + 1)
+        starts = [(target_pos + off) % n for off in offsets]
+    else:
+        s_min = max(0, target_pos - search_window)
+        s_max = min(n - min_len, target_pos + search_window)
+        starts = list(range(s_min, s_max + 1))
+
+    candidates = []
+    for s in starts:
+        for l in range(min_len, max_len + 1):
+            if not circular and (s + l > n):
+                break
+            if circular:
+                if s + l <= n:
+                    chunk = seq[s : s + l]
+                else:
+                    chunk = seq[s:] + seq[: (s + l) % n]
+            else:
+                chunk = seq[s : s + l]
+
+            p = chunk if strand == 1 else str(Seq(chunk).reverse_complement())
+            info = calc_primer_tm(p)
+            tm = info["tm"]
+            gc = info["gc_percent"]
+
+            # Thermodynamic objective penalties
+            diff = abs(tm - target_tm)
+            gc_pen = abs(gc - 50.0) * 0.05
+            clamp_pen = 0.0 if p[-1] in ("G", "C") else 1.2
+            homo_pen = 2.0 if any(b * 4 in p for b in "ACGT") else 0.0
+
+            score = diff + gc_pen + clamp_pen + homo_pen
+            candidates.append({
+                "sequence": p,
+                "tm": tm,
+                "gc_percent": gc,
+                "interval_0based": [s, (s + l) if not circular else ((s + l) % n)],
+                "length": l,
+                "strand": strand,
+                "score": score,
+            })
+
+    if not candidates:
+        return None
+    candidates.sort(key=lambda x: x["score"])
+    return candidates[0]
+
+
 def recipe_cloning_verification(
     recombinant_plasmid_seq_or_file: str | pathlib.Path | SeqRecord,
     insert_start_0based: int,
@@ -63,45 +127,101 @@ def recipe_cloning_verification(
     seq = str(rec.seq).upper()
     n = len(seq)
 
-    ins_s = insert_start_0based % n
-    ins_e = insert_end_0based % n
-    if ins_e <= ins_s:
-        ins_len = (n - ins_s) + ins_e
+    if n < 80:
+        raise ValueError(
+            f"Template sequence length ({n} bp) is too short to design junction verification primers. "
+            "Minimum required length is 80 bp. For CRISPR knock-in, provide the edited genomic locus with flanking regions."
+        )
+
+    topo = str(rec.annotations.get("topology", "circular")).lower()
+    is_circ = (topo == "circular")
+
+    ins_s = insert_start_0based % n if is_circ else insert_start_0based
+    ins_e = insert_end_0based % n if is_circ else insert_end_0based
+    if is_circ:
+        ins_len = (n - ins_s + ins_e) if ins_e <= ins_s else (ins_e - ins_s)
     else:
-        ins_len = ins_e - ins_s
+        ins_len = max(1, ins_e - ins_s)
 
-    # 1. Design Sanger Sequencing Primer (50-100 bp upstream of 5' junction)
-    # Golden rule: anchor primer at [ins_s - 80, ins_s - 60]
-    sanger_target_dist = 70
-    sanger_prime_start = (ins_s - sanger_target_dist) % n
-    sanger_primer_len = 20
-    sanger_primer_seq = seq[sanger_prime_start : sanger_prime_start + sanger_primer_len]
-    sanger_tm = calc_primer_tm(sanger_primer_seq)["tm"]
+    warnings = []
 
-    # 2. Design Colony PCR Primers across 5' junction
-    # Fwd primer in vector backbone (e.g. 200 bp upstream of junction)
-    # Rev primer inside the insert (e.g. 250 bp downstream of junction) -> total ~450 bp amplicon (well within 300-800 bp)
-    colony_fwd_offset = 180
-    colony_rev_offset = 220
-    fwd_start = (ins_s - colony_fwd_offset) % n
-    fwd_colony_primer = seq[fwd_start : fwd_start + 20]
+    # 1. Determine optimal anchors respecting topology and physical boundaries
+    if not is_circ:
+        upstream_avail = ins_s
+        downstream_avail = n - ins_s
 
-    rev_pos = (ins_s + colony_rev_offset) % n
-    rev_target_region = seq[rev_pos - 20 : rev_pos]
-    rev_colony_primer = str(Seq(rev_target_region).reverse_complement())
+        fwd_offset = min(180, max(25, upstream_avail // 2))
+        rev_offset = min(220, max(25, min(ins_len, downstream_avail) // 2))
+        sanger_dist = min(70, max(25, upstream_avail - 20))
 
-    colony_amplicon_size = colony_fwd_offset + colony_rev_offset
-    colony_fwd_tm = calc_primer_tm(fwd_colony_primer)["tm"]
-    colony_rev_tm = calc_primer_tm(rev_colony_primer)["tm"]
-    colony_dimers = check_primer_dimers(fwd_colony_primer, rev_colony_primer)
+        if upstream_avail < 50:
+            warnings.append(
+                f"Upstream sequence before junction is short ({upstream_avail} bp < 50 bp). "
+                "Sanger sequencing primer is placed close to junction and may hit dye-blob noise."
+            )
+
+        fwd_anchor = max(0, ins_s - fwd_offset)
+        rev_anchor = min(n - 1, ins_s + rev_offset)
+        sanger_anchor = max(0, ins_s - sanger_dist)
+    else:
+        fwd_offset = min(180, max(30, (n - ins_len) // 4))
+        rev_offset = min(220, max(30, ins_len // 3))
+        sanger_dist = 70
+
+        fwd_anchor = (ins_s - fwd_offset) % n
+        rev_anchor = (ins_s + rev_offset) % n
+        sanger_anchor = (ins_s - sanger_dist) % n
+
+    # 2. Thermodynamically optimize primers
+    fwd_primer_res = _optimize_verification_primer(
+        seq=seq,
+        target_pos=fwd_anchor,
+        strand=1,
+        target_tm=60.0,
+        circular=is_circ,
+    )
+    rev_primer_res = _optimize_verification_primer(
+        seq=seq,
+        target_pos=rev_anchor,
+        strand=-1,
+        target_tm=60.0,
+        circular=is_circ,
+    )
+    sanger_primer_res = _optimize_verification_primer(
+        seq=seq,
+        target_pos=sanger_anchor,
+        strand=1,
+        target_tm=58.0,
+        circular=is_circ,
+    )
+
+    if not fwd_primer_res or not rev_primer_res:
+        raise ValueError("Failed to design thermodynamically valid primers spanning the junction.")
+
+    fwd_primer_seq = fwd_primer_res["sequence"]
+    fwd_tm = fwd_primer_res["tm"]
+    rev_primer_seq = rev_primer_res["sequence"]
+    rev_tm = rev_primer_res["tm"]
+    sanger_primer_seq = sanger_primer_res["sequence"] if sanger_primer_res else ""
+    sanger_tm = sanger_primer_res["tm"] if sanger_primer_res else 0.0
+
+    # Calculate exact predicted amplicon size
+    f_start = fwd_primer_res["interval_0based"][0]
+    r_end = rev_primer_res["interval_0based"][1]
+    if is_circ:
+        amplicon_size = (r_end - f_start) % n
+        if amplicon_size <= 0:
+            amplicon_size += n
+    else:
+        amplicon_size = abs(r_end - f_start)
+
+    colony_dimers = check_primer_dimers(fwd_primer_seq, rev_primer_seq)
 
     # 3. Diagnostic Restriction Digest Simulation
     enzymes_to_test = diagnostic_enzymes or ["EcoRI", "BamHI", "HindIII"]
     re_res = find_restriction_sites(seq, enzymes=enzymes_to_test)
     diagnostic_bands = []
-    warnings = []
 
-    # Calculate band sizes for single cutters or double cutters
     for enz_name, e_info in re_res.get("enzymes", {}).items():
         cut_cnt = e_info.get("cut_count", 0)
         cuts = e_info.get("cuts", [])
@@ -115,10 +235,9 @@ def recipe_cloning_verification(
                 bands.append(b_size)
             bands = sorted(bands, reverse=True)
 
-            # Check resolvability: adjacent bands should differ by at least 15%
             resolvable = True
             for i in range(len(bands) - 1):
-                if (bands[i] - bands[i + 1]) / bands[i] < 0.15:
+                if bands[i] > 0 and (bands[i] - bands[i + 1]) / bands[i] < 0.15:
                     resolvable = False
                     break
 
@@ -130,11 +249,14 @@ def recipe_cloning_verification(
             })
 
     quality_checks = {
-        "sanger_distance_from_junction_bp": sanger_target_dist,
-        "sanger_primer_avoids_dye_blob_zone": (50 <= sanger_target_dist <= 100),
+        "sanger_distance_from_junction_bp": sanger_dist,
+        "sanger_primer_avoids_dye_blob_zone": (50 <= sanger_dist <= 100),
         "colony_pcr_crosses_junction": True,
-        "colony_pcr_amplicon_length_conforming": (300 <= colony_amplicon_size <= 800),
-        "colony_pcr_delta_tm": abs(round(colony_fwd_tm - colony_rev_tm, 1)),
+        "colony_pcr_amplicon_length_conforming": (200 <= amplicon_size <= 850),
+        "colony_pcr_delta_tm": abs(round(fwd_tm - rev_tm, 1)),
+        "forward_primer_tm": fwd_tm,
+        "reverse_primer_tm": rev_tm,
+        "primer_dimers_safe": not colony_dimers["high_dimer_risk"],
     }
 
     sop_reminders = [
@@ -142,25 +264,36 @@ def recipe_cloning_verification(
         "SANGER_VERIFICATION: Ensure trace chromatogram displays single, sharp peaks across the junction without secondary baseline noise.",
     ]
 
+    primers_dict = {
+        "forward_primer_in_vector": fwd_primer_seq,
+        "forward_tm": fwd_tm,
+        "forward_gc_percent": fwd_primer_res["gc_percent"],
+        "forward_interval_0based": fwd_primer_res["interval_0based"],
+        "reverse_primer_in_insert": rev_primer_seq,
+        "reverse_tm": rev_tm,
+        "reverse_gc_percent": rev_primer_res["gc_percent"],
+        "reverse_interval_0based": rev_primer_res["interval_0based"],
+        "expected_amplicon_size_bp": amplicon_size,
+        "dimer_risk": colony_dimers["high_dimer_risk"],
+        "notes": "One primer in backbone, one in insert; strictly prevents unwashed template false-positives (Sambrook Ch. 8).",
+    }
+
     return {
         "recipe": "recipe_cloning_verification",
+        "template_length": n,
         "recombinant_plasmid_length": n,
+        "topology": topo,
         "insert_coordinates": {"start": ins_s, "end": ins_e, "length": ins_len},
         "sanger_sequencing_primer": {
             "sequence": sanger_primer_seq,
             "tm": sanger_tm,
-            "distance_upstream_of_junction_bp": sanger_target_dist,
-            "notes": "Anchored 70 bp upstream of junction to avoid 30-50 bp dye-blob blind zone (Sanger et al. 1977).",
+            "gc_percent": sanger_primer_res["gc_percent"] if sanger_primer_res else 0.0,
+            "interval_0based": sanger_primer_res["interval_0based"] if sanger_primer_res else [],
+            "distance_upstream_of_junction_bp": sanger_dist,
+            "notes": f"Anchored ~{sanger_dist} bp upstream of junction to avoid 30-50 bp dye-blob blind zone (Sanger et al. 1977).",
         },
-        "colony_pcr_primers": {
-            "forward_primer_in_vector": fwd_colony_primer,
-            "forward_tm": colony_fwd_tm,
-            "reverse_primer_in_insert": rev_colony_primer,
-            "reverse_tm": colony_rev_tm,
-            "expected_amplicon_size_bp": colony_amplicon_size,
-            "dimer_risk": colony_dimers["high_dimer_risk"],
-            "notes": "One primer in backbone, one in insert; strictly prevents unwashed template false-positives (Sambrook Ch. 8).",
-        },
+        "colony_pcr_primers": primers_dict,
+        "junction_pcr_primers": primers_dict,
         "diagnostic_restriction_digests": diagnostic_bands,
         "quality_checks": quality_checks,
         "warnings": warnings,

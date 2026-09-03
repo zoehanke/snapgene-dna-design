@@ -407,7 +407,46 @@ def quick_biological_sanity_check(
         rec_top = topology.lower()
 
     # 1. Reading Frame & Stop Codons (BIO-01 & BIO-02)
-    rf_result = check_reading_frame(seq_str, start_offset=cds_start_offset)
+    # Principled Molecular Model:
+    # A) If record_or_seq has annotated CDS features (e.g. recombinant plasmid):
+    #    Every individual annotated CDS must be verified for reading frame,
+    #    absence of internal premature stops, and proper terminal stop codon.
+    # B) If no annotated CDS features are present:
+    #    Evaluate the sequence as a single CDS if is_cds is True.
+    annotated_cds_audits = []
+    cds_features = []
+    if isinstance(record_or_seq, SeqRecord):
+        cds_features = [
+            f for f in getattr(record_or_seq, "features", [])
+            if str(f.type).lower() in ("cds", "gene")
+        ]
+
+    rf_result = None
+    if cds_features:
+        for f in cds_features:
+            s0 = int(f.location.start)
+            e0 = int(f.location.end)
+            strand = int(f.location.strand or 1)
+            if e0 >= s0:
+                cds_raw = seq_str[s0:e0]
+            else:
+                cds_raw = seq_str[s0:] + seq_str[:e0]
+            cds_dna = str(Seq(cds_raw).reverse_complement()) if strand == -1 else cds_raw
+            name = f.qualifiers.get("label", f.qualifiers.get("gene", [f.type]))[0]
+
+            rf = check_reading_frame(cds_dna, start_offset=0)
+            annotated_cds_audits.append({
+                "name": name,
+                "interval_0based": [s0, e0],
+                "strand": strand,
+                "length_bp": len(cds_dna),
+                "is_multiple_of_three": rf["is_multiple_of_three"],
+                "has_premature_stop": rf["has_premature_stop"],
+                "premature_stop_positions": rf["premature_stop_positions"],
+                "terminal_stop": rf["terminal_stop"],
+            })
+    elif is_cds:
+        rf_result = check_reading_frame(seq_str, start_offset=cds_start_offset)
 
     # 2. Restriction Enzyme Conflicts (BIO-03)
     enzyme_conflicts = []
@@ -455,7 +494,17 @@ def quick_biological_sanity_check(
 
     # Summary of objective issues found
     issues_found = []
-    if is_cds:
+    if annotated_cds_audits:
+        for audit in annotated_cds_audits:
+            name = audit["name"]
+            coords = f"{audit['interval_0based'][0]}..{audit['interval_0based'][1]}"
+            if not audit["is_multiple_of_three"]:
+                issues_found.append(f"BIO-01: Annotated CDS '{name}' ({coords}) length {audit['length_bp']} bp is not a multiple of 3 (frameshift).")
+            if audit["has_premature_stop"]:
+                issues_found.append(f"BIO-01: Annotated CDS '{name}' ({coords}) contains {len(audit['premature_stop_positions'])} premature stop codon(s).")
+            if not audit["terminal_stop"]:
+                issues_found.append(f"BIO-02: Annotated CDS '{name}' ({coords}) does not end with a canonical stop codon (TAA/TAG/TGA).")
+    elif rf_result is not None:
         if not rf_result["is_multiple_of_three"]:
             issues_found.append("BIO-01: CDS sequence length is not a multiple of 3 (frameshift).")
         if rf_result["has_premature_stop"]:
@@ -478,22 +527,50 @@ def quick_biological_sanity_check(
     if sec_struct_check and sec_struct_check["has_severe_secondary_structure"]:
         issues_found.append("BIO-10: Detected long inverted repeat (>=14 bp) or extreme GC cluster; high risk of in vivo spontaneous deletion or vendor synthesis rejection.")
 
-    clean_for_expression = (
-        rf_result["is_multiple_of_three"]
-        and not rf_result["has_premature_stop"]
-        and rf_result["terminal_stop"]
-        and len(enzyme_conflicts) == 0
-    )
+    if annotated_cds_audits:
+        clean_for_expression = all(
+            a["is_multiple_of_three"] and not a["has_premature_stop"] and a["terminal_stop"]
+            for a in annotated_cds_audits
+        ) and len(enzyme_conflicts) == 0
+    elif rf_result is not None:
+        clean_for_expression = (
+            rf_result["is_multiple_of_three"]
+            and not rf_result["has_premature_stop"]
+            and rf_result["terminal_stop"]
+            and len(enzyme_conflicts) == 0
+        )
+    else:
+        clean_for_expression = len(enzyme_conflicts) == 0
+
+    if annotated_cds_audits:
+        is_m3 = all(a["is_multiple_of_three"] for a in annotated_cds_audits)
+        has_stop = any(a["has_premature_stop"] for a in annotated_cds_audits)
+        premature_stops = [pos for a in annotated_cds_audits for pos in a["premature_stop_positions"]]
+        term_stop = all(a["terminal_stop"] for a in annotated_cds_audits)
+        preview = f"Audited {len(annotated_cds_audits)} annotated CDS(s): {', '.join(a['name'] for a in annotated_cds_audits)}"
+    elif rf_result is not None:
+        is_m3 = rf_result["is_multiple_of_three"]
+        has_stop = rf_result["has_premature_stop"]
+        premature_stops = rf_result["premature_stop_positions"]
+        term_stop = rf_result["terminal_stop"]
+        preview = rf_result["translation"][:50] + ("..." if len(rf_result["translation"]) > 50 else "")
+    else:
+        is_m3 = True
+        has_stop = False
+        premature_stops = []
+        term_stop = True
+        preview = "Non-coding sequence"
 
     all_clean = len(issues_found) == 0
 
     return {
         "sequence_length": len(seq_str),
-        "is_multiple_of_three": rf_result["is_multiple_of_three"],
-        "has_premature_stop": rf_result["has_premature_stop"],
-        "premature_stop_positions": rf_result["premature_stop_positions"],
-        "terminal_stop_present": rf_result["terminal_stop"],
-        "translation_preview": rf_result["translation"][:50] + ("..." if len(rf_result["translation"]) > 50 else ""),
+        "is_multiple_of_three": is_m3,
+        "has_premature_stop": has_stop,
+        "premature_stop_positions": premature_stops,
+        "terminal_stop_present": term_stop,
+        "translation_preview": preview,
+        "annotated_cds_audits": annotated_cds_audits,
         "internal_enzyme_conflicts": enzyme_conflicts,
         "crispr_recleavage": crispr_recleavage,
         "u6_pol3_termination": u6_check,

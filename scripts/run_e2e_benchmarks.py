@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
 """scripts/run_e2e_benchmarks.py - Command-line runner for Scientific Composite Benchmarks.
 
-Executes:
+Radically cured biological validation:
 1. Scenario A: In-frame Gibson Assembly fusion cloning with C-terminal 6xHis tag,
-   feature preservation, Tier 3 bio-guardrail audit, and native SnapGene export.
-2. Scenario B: CRISPR Cas9 sgRNA design, U6 cloning oligos, HDR donor template
-   with automated synonymous PAM silencing, junction verification primers, and Tier 3 audit.
+   exact physical coordinate feature migration, full multi-CDS reading frame audit,
+   Colony PCR & Sanger verification primer design, and native SnapGene export.
+2. Scenario B: CRISPR Cas9 EMX1 locus sgRNA design, U6 cloning oligos, HDR donor
+   with automated synonymous PAM silencing, in vivo recleavage audit, genomic
+   integration junction PCR & Sanger verification, and native SnapGene export.
 3. Desktop Integration: Checks native binary .dna generation and SnapGene viewer path.
 
 Usage:
@@ -47,8 +49,8 @@ def run_scenario_a(out_dir: pathlib.Path) -> dict:
     print("=" * 70)
 
     # 1. Prepare expression vector backbone: pET-like plasmid (~1,500 bp)
-    print("[1/6] Building expression vector backbone (pUC ori + AmpR marker)...")
-    amp_cds = "ATG" + "GCATCGTAGCTA" * 20 + "TAA"  # 246 bp model marker
+    print("[1/7] Building expression vector backbone (pUC ori + AmpR marker)...")
+    amp_cds = "ATG" + "GCATCGGCACTA" * 20 + "TAA"  # 246 bp model marker (zero internal stops)
     ori_seq = (
         "TTGAGATCCTTTTTTTCTGCGCGTAATCTGCTGCTTGCAAACAAAAAAACCACCGCTACCAGCGGTGGTTTGTTTGCCGGATCAAGAGCTACCAACTCTTTTTCC"
         "GAAGGTAACTGGCTTCAGCAGAGCGCAGATACCAAATACTGTCCTTCTAGTGTAGCCGTAGTTAGGCCACCACTTCAAGAACTCTGTAGCACCGCCTACATACCT"
@@ -74,7 +76,7 @@ def run_scenario_a(out_dir: pathlib.Path) -> dict:
     print(f"      Vector linearized: backbone length = {len(vector_backbone_seq)} bp")
 
     # 2. Protein Tagging: C-terminal 6xHis fusion with flexible GS linker
-    print("[2/6] Tagging target gene: appending flexible (G4S)2 linker + 6xHis tag (stripping stop)...")
+    print("[2/7] Tagging target gene: appending flexible (G4S)2 linker + 6xHis tag (stripping stop)...")
     gfp_cds = "ATG" + "GTGAGCAAGGGCGAG" * 29 + "TAA"  # 453 bp
     tag_recipe = recipe_protein_tagging(
         target_cds_seq_or_file=gfp_cds,
@@ -87,7 +89,7 @@ def run_scenario_a(out_dir: pathlib.Path) -> dict:
     print(f"      Tagged CDS length = {len(tagged_insert_seq)} bp, in-frame = {tag_recipe['quality_checks']['in_frame_fusion']}")
 
     # 3. Gibson overlap primer design and overlap assembly simulation
-    print("[3/6] Designing Gibson overlap primers (22 bp homology) & assembling construct...")
+    print("[3/7] Designing Gibson overlap primers (22 bp homology) & assembling construct...")
     gibson_design = recipe_gibson_assembly(
         vector_linear_seq=vector_backbone_seq,
         insert_template_seq=tagged_insert_seq,
@@ -103,39 +105,71 @@ def run_scenario_a(out_dir: pathlib.Path) -> dict:
     print(f"      Reverse primer (5' overhang + binding): {rev_primer}")
     print(f"      Assembled circular construct size = {len(assembled_seq)} bp")
 
-    # 4. Feature migration and annotation
-    print("[4/6] Migrating backbone features and annotating recombinant 6xHis tag...")
+    # 4. Feature migration and annotation with exact physical coordinates
+    print("[4/7] Migrating backbone features and annotating recombinant eGFP_6xHis CDS...")
     construct_rec = SeqRecord(Seq(assembled_seq), id="pET_eGFP_6xHis", name="pET_eGFP_6xHis")
     construct_rec.annotations["topology"] = "circular"
-    construct_rec.features = list(vec_record.features)
+
+    ori_pos = assembled_seq.find(ori_seq)
+    construct_rec.features.append(SeqFeature(
+        FeatureLocation(ori_pos, ori_pos + len(ori_seq)),
+        type="rep_origin",
+        qualifiers={"label": ["pUC ori"]},
+    ))
+    amp_pos = assembled_seq.find(amp_cds)
+    construct_rec.features.append(SeqFeature(
+        FeatureLocation(amp_pos, amp_pos + len(amp_cds)),
+        type="CDS",
+        qualifiers={"label": ["AmpR"], "gene": ["AmpR"]},
+    ))
+    ins_start = assembled_seq.find(tagged_insert_seq)
+    ins_end = ins_start + len(tagged_insert_seq)
+    construct_rec.features.append(SeqFeature(
+        FeatureLocation(ins_start, ins_end, strand=1),
+        type="CDS",
+        qualifiers={"label": ["eGFP_6xHis"], "gene": ["eGFP_6xHis"]},
+    ))
     annotated_rec = annotate_feature(
         record=construct_rec,
         name="6xHis",
         feature_type="tag",
-        start=len(vector_backbone_seq) + len(tagged_insert_seq) - 18,
-        end=len(vector_backbone_seq) + len(tagged_insert_seq),
+        start=ins_end - 18,
+        end=ins_end,
         strand=1,
         color="#fdbf6f",
     )
 
-    # 5. Tier 3 Objective Biological Guardrail Verification
-    print("[5/6] Executing Tier 3 First-Principles Biological Guardrail Audit...")
-    sanity_cds = quick_biological_sanity_check(tagged_insert_seq, is_cds=True)
+    # 5. Tier 3 Objective Biological Guardrail Verification (Auditing ALL plasmid CDSs)
+    print("[5/7] Executing Tier 3 First-Principles Biological Guardrail Audit...")
     sanity_plasmid = quick_biological_sanity_check(
         annotated_rec,
         cloning_enzymes=["BamHI"],
         primers=[fwd_primer, rev_primer],
         check_secondary_structure=True,
-        is_cds=False,
         topology="circular",
     )
-    print(f"      Insert CDS guardrail audit: {'PASS (Clean)' if sanity_cds['all_clean'] else 'FAILED'}")
-    print(f"      Plasmid replicon (ori): {sanity_plasmid['maintenance_elements']['has_origin']}")
-    print(f"      Selectable marker:      {sanity_plasmid['maintenance_elements']['has_marker']}")
-    print(f"      Full construct audit:   {'PASS (Clean)' if sanity_plasmid['all_clean'] else 'ISSUES FOUND'}")
+    print(f"      Audited annotated CDS features: {[a['name'] for a in sanity_plasmid['annotated_cds_audits']]}")
+    print(f"      All CDSs in-frame & clean:     {sanity_plasmid['clean_for_expression']}")
+    print(f"      Plasmid replicon (ori):        {sanity_plasmid['maintenance_elements']['has_origin']}")
+    print(f"      Selectable marker:             {sanity_plasmid['maintenance_elements']['has_marker']}")
+    print(f"      Full construct audit:          {'PASS (Clean)' if sanity_plasmid['all_clean'] else 'ISSUES FOUND'}")
 
-    # 6. SnapGene Export
-    print("[6/6] Exporting native SnapGene .dna and GenBank .gb...")
+    # 6. Design Colony PCR & Sanger Verification Primers across vector-insert junction
+    print("[6/7] Designing Colony PCR & Sanger verification primers (Sambrook Ch. 8)...")
+    verification_plan = recipe_cloning_verification(
+        recombinant_plasmid_seq_or_file=annotated_rec,
+        insert_start_0based=ins_start,
+        insert_end_0based=ins_end,
+    )
+    colony_info = verification_plan["colony_pcr_primers"]
+    sanger_info = verification_plan["sanger_sequencing_primer"]
+    print(f"      Colony PCR Fwd (vector): {colony_info['forward_primer_in_vector']} (Tm: {colony_info['forward_tm']}°C, GC: {colony_info['forward_gc_percent']}%)")
+    print(f"      Colony PCR Rev (insert): {colony_info['reverse_primer_in_insert']} (Tm: {colony_info['reverse_tm']}°C, GC: {colony_info['reverse_gc_percent']}%)")
+    print(f"      Expected amplicon size:  {colony_info['expected_amplicon_size_bp']} bp (Junction-spanning)")
+    print(f"      Sanger sequencing:       {sanger_info['sequence']} (Tm: {sanger_info['tm']}°C, {sanger_info['distance_upstream_of_junction_bp']} bp upstream)")
+
+    # 7. SnapGene Export
+    print("[7/7] Exporting native SnapGene .dna and GenBank .gb...")
     out_files = export_snapgene(
         record_or_seq=annotated_rec,
         out_dir=out_dir,
@@ -145,7 +179,6 @@ def run_scenario_a(out_dir: pathlib.Path) -> dict:
     print(f"      SnapGene DNA file: {out_files['dna_file']}")
     print(f"      GenBank GB file:   {out_files['gb_file']}")
 
-    # Verification re-read
     inspection = inspect_dna(out_files["dna_file"])
     print(f"      Re-read verification: length = {inspection['sequence_length']} bp, topology = {inspection['topology']}, features = {inspection['feature_count']}")
 
@@ -154,7 +187,8 @@ def run_scenario_a(out_dir: pathlib.Path) -> dict:
         "status": "SUCCESS",
         "construct_length": len(assembled_seq),
         "files": out_files,
-        "guardrail_clean": sanity_cds["all_clean"] and sanity_plasmid["all_clean"],
+        "guardrail_clean": sanity_plasmid["all_clean"],
+        "verification": verification_plan,
     }
 
 
@@ -164,14 +198,16 @@ def run_scenario_b(out_dir: pathlib.Path) -> dict:
     print("=" * 70)
 
     # 1. Target genomic locus (human EMX1 exon 3 target site)
-    print("[1/5] Loading target genomic locus (EMX1 model locus)...")
+    print("[1/6] Loading target genomic locus (human EMX1 exon 3 model locus)...")
     spacer = "GAGTCCGAGCAGAAGAAGAA"
     pam = "GGG"
-    target_genomic_locus = "T" * 80 + "CTAGCAGCTAGCA" + spacer + pam + "GCTAGCTAGCTA" + "A" * 80
+    left_genomic = "CTGTGTCCTCTTCCTGCCCTCTGTTCCCTCCCTGTCCCTCCCTCCCTCCCTCCCTCCTCCCGTTGTCCTGGCCAGCTCCCTCGTGGGTCCTGGCTTGGA"
+    right_genomic = "TGGAGTGGCCCAACCCCCAGTGGGGCCCTGCCAGCTCCCTCGTGGGTCCTGGCTGGGATTTTTCATTCCTGAACACTTTCCTGGTTCTTCCCTGTCCCT"
+    target_genomic_locus = left_genomic + spacer + pam + right_genomic
     print(f"      Target locus size = {len(target_genomic_locus)} bp, SpCas9 spacer = {spacer} ({pam})")
 
     # 2. CRISPR sgRNA scan & U6 golden gate oligos
-    print("[2/5] Designing candidate sgRNAs & preparing U6 cloning oligos (BbsI)...")
+    print("[2/6] Designing candidate sgRNAs & preparing U6 cloning oligos (BbsI)...")
     guides = design_crispr_grna(target_seq_or_file=target_genomic_locus, nuclease="SpCas9")
     oligos = prepare_grna_oligos(spacer_seq=spacer, vector_type="BbsI")
     print(f"      Selected Guide: {guides[0]['spacer']} (Quality Score: {guides[0]['quality_score']})")
@@ -179,8 +215,8 @@ def run_scenario_b(out_dir: pathlib.Path) -> dict:
     print(f"      Bottom oligo (5' AAAC overhang): {oligos['reverse_oligo']['sequence']}")
 
     # 3. HDR donor template design with automated synonymous PAM silencing
-    print("[3/5] Designing CRISPR HDR donor repair template with PAM mutation...")
-    cut_pos = 80 + 13 + 17  # 3 bp upstream of PAM
+    print("[3/6] Designing CRISPR HDR donor repair template with PAM mutation...")
+    cut_pos = len(left_genomic) + 17  # 3 bp upstream of PAM
     ha_payload = "TATCCATATGATGTTCCAGATTATGCT"  # 27 bp HA tag
     hdr_recipe = recipe_crispr_hdr_donor(
         target_seq_or_file=target_genomic_locus,
@@ -195,24 +231,42 @@ def run_scenario_b(out_dir: pathlib.Path) -> dict:
     print(f"      PAM silenced: {hdr_recipe['pam_silenced']} ({hdr_recipe['pam_silencing_details']})")
 
     # 4. Tier 3 First-Principles Guardrail: Cas9 re-cleavage audit
-    print("[4/5] Auditing in vivo Cas9 re-cleavage risk...")
+    print("[4/6] Auditing in vivo Cas9 re-cleavage risk...")
     recleavage_audit = scan_crispr_recleavage_risk(donor_seq=donor_seq, grna_seq=spacer)
-    sanity = quick_biological_sanity_check(
+    sanity_donor = quick_biological_sanity_check(
         record_or_seq=donor_seq,
         crispr_grna_seq=spacer,
         topology="linear",
         is_cds=False,
     )
     print(f"      Cas9 re-cleavage risk: {recleavage_audit['recleavage_risk']} (intact seed/PAM found: {recleavage_audit['intact_seed_pam_found']})")
-    print(f"      Guardrail clean:       {'PASS (Clean)' if sanity['all_clean'] else 'ISSUES FOUND'}")
+    print(f"      Guardrail clean:       {'PASS (Clean)' if sanity_donor['all_clean'] else 'ISSUES FOUND'}")
 
-    # 5. Junction Verification Primers & Export
-    print("[5/5] Designing junction verification primers & exporting construct...")
+    # 5. Reconstruct edited genomic chromosome locus & design Junction Integration QC Primers
+    print("[5/6] Designing Genomic Junction Integration Verification Primers (Ran et al. 2013)...")
+    edited_genomic_locus = target_genomic_locus[:cut_pos] + ha_payload + target_genomic_locus[cut_pos:]
+    genomic_rec = SeqRecord(Seq(edited_genomic_locus), id="EMX1_HA_Edited_Chromosome")
+    genomic_rec.annotations["topology"] = "linear"
+    genomic_rec.features.append(SeqFeature(
+        FeatureLocation(cut_pos, cut_pos + len(ha_payload)),
+        type="tag",
+        qualifiers={"label": ["HA Tag"]},
+    ))
+
     verification_plan = recipe_cloning_verification(
-        recombinant_plasmid_seq_or_file=donor_seq,
-        insert_start_0based=50,
-        insert_end_0based=50 + len(ha_payload),
+        recombinant_plasmid_seq_or_file=genomic_rec,
+        insert_start_0based=cut_pos,
+        insert_end_0based=cut_pos + len(ha_payload),
     )
+    junction_info = verification_plan["colony_pcr_primers"]
+    sanger_info = verification_plan["sanger_sequencing_primer"]
+    print(f"      Genomic Junction Fwd:    {junction_info['forward_primer_in_vector']} (Tm: {junction_info['forward_tm']}°C, GC: {junction_info['forward_gc_percent']}%)")
+    print(f"      Genomic Junction Rev:    {junction_info['reverse_primer_in_insert']} (Tm: {junction_info['reverse_tm']}°C, GC: {junction_info['reverse_gc_percent']}%)")
+    print(f"      Expected amplicon size:  {junction_info['expected_amplicon_size_bp']} bp")
+    print(f"      Sanger sequencing:       {sanger_info['sequence']} (Tm: {sanger_info['tm']}°C, {sanger_info['distance_upstream_of_junction_bp']} bp upstream)")
+
+    # 6. SnapGene Export
+    print("[6/6] Exporting HDR donor construct to SnapGene .dna and GenBank .gb...")
     donor_rec = SeqRecord(Seq(donor_seq), id="EMX1_HA_Donor", name="EMX1_HA_Donor")
     donor_rec.annotations["topology"] = "linear"
     donor_rec.features.append(SeqFeature(FeatureLocation(50, 50 + len(ha_payload)), type="tag", qualifiers={"label": ["HA Tag"]}))
@@ -223,10 +277,6 @@ def run_scenario_b(out_dir: pathlib.Path) -> dict:
         filename_base="scenario_b_crispr_hdr_ha_tag",
         topology="linear",
     )
-    colony_info = verification_plan["colony_pcr_primers"]
-    print(f"      Colony PCR Fwd (vector): {colony_info['forward_primer_in_vector']} (Tm: {colony_info['forward_tm']}°C)")
-    print(f"      Colony PCR Rev (insert): {colony_info['reverse_primer_in_insert']} (Tm: {colony_info['reverse_tm']}°C)")
-    print(f"      Sanger sequencing:       {verification_plan['sanger_sequencing_primer']['sequence']}")
     print(f"      SnapGene DNA file:       {out_files['dna_file']}")
 
     return {
@@ -236,7 +286,8 @@ def run_scenario_b(out_dir: pathlib.Path) -> dict:
         "files": out_files,
         "pam_silenced": hdr_recipe["pam_silenced"],
         "recleavage_risk": recleavage_audit["recleavage_risk"],
-        "guardrail_clean": sanity["all_clean"],
+        "guardrail_clean": sanity_donor["all_clean"],
+        "verification": verification_plan,
     }
 
 
