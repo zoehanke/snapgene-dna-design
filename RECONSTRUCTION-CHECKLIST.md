@@ -92,7 +92,13 @@
   - 封装规范：BsaI/BsmBI 4-bp 正交粘端自动校验；无缝环状组装产物验证与识别位点清除核验；明确标注 Engler et al. 2008 PLoS ONE 与 Potapov et al. 2018 ACS Synth Biol 来源。
 - [x] **2.4 传统双酶切定向克隆标准配方 (`recipe_restriction_cloning`)**:
   - 封装规范：载体双切、插入片段双切、粘端配对、去磷酸化提醒与方向性连接；严格挂载 NEB 5' 保护碱基与 DpnI 质粒模板消除提醒；明确标注 Sambrook 《分子克隆实验指南》第 4 版与 NEB 技术手册来源。
-- [x] **2.5 权威来源文档与检索接口**:
+- [x] **2.5 定点突变与密码子工程标准配方 (`recipe_site_directed_mutagenesis`)**:
+  - 封装规范：突变位点居中、两侧 10~15 bp 野生型对称臂；QuikChange 专用 $Tm \ge 78^\circ\text{C}$ 公式核验；3' GC clamp 校验；强制 DpnI 消化甲基化母本质粒提醒；明确标注 Zheng et al. 2004 Nucleic Acids Res 与 Sambrook 4th ed 来源。
+- [x] **2.6 表达标签与融合蛋白工程标准配方 (`recipe_protein_tagging`)**:
+  - 封装规范：C 端融合强制剥离原 CDS 终止密码子；柔性/刚性 Linker 核酸长度严格整除 3；真核 Kozak 共有序列 (`GCCACC`) 前置；特异性内切蛋白酶位点 (TEV/3C) 嵌入；全长在读码框无内部早熟终止；明确标注 Terpe 2003 与 Kozak 1986 来源。
+- [x] **2.7 分子质检与测序引物布局标准配方 (`recipe_cloning_verification`)**:
+  - 封装规范：菌落 PCR 引物必须“一端在骨架、一端在插入片段”（跨接缝，产物 300~800 bp，杜绝假阳性）；Sanger 测序引物强制锚定在接缝上游 50~100 bp（彻底避开前 30~50 bp 荧光盲区）；诊断性限制酶切双带分子量相对差 $\ge 15\%$ 预判；明确标注 Sambrook 4th ed 与 Sanger 1977 来源。
+- [x] **2.8 权威来源文档与检索接口**:
   - 创建 `references/authoritative_sop_sources.md`，提供统一的文献、经典手册与规则映射；暴露 `get_recipe_sources` 与 `GET_RECIPE_DEFINITIONS` 接口。
 
 ---

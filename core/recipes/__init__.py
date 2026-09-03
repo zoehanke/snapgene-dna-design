@@ -10,9 +10,21 @@ from __future__ import annotations
 from core.recipes.crispr_hdr import AUTHORITATIVE_SOURCES as CRISPR_SOURCES, recipe_crispr_hdr_donor
 from core.recipes.gibson import AUTHORITATIVE_SOURCES as GIBSON_SOURCES, recipe_gibson_assembly
 from core.recipes.golden_gate import AUTHORITATIVE_SOURCES as GOLDEN_GATE_SOURCES, recipe_golden_gate
+from core.recipes.mutagenesis import (
+    AUTHORITATIVE_SOURCES as MUTAGENESIS_SOURCES,
+    recipe_site_directed_mutagenesis,
+)
+from core.recipes.protein_tagging import (
+    AUTHORITATIVE_SOURCES as TAGGING_SOURCES,
+    recipe_protein_tagging,
+)
 from core.recipes.restriction_cloning import (
     AUTHORITATIVE_SOURCES as RESTRICTION_SOURCES,
     recipe_restriction_cloning,
+)
+from core.recipes.verification import (
+    AUTHORITATIVE_SOURCES as VERIFICATION_SOURCES,
+    recipe_cloning_verification,
 )
 
 __all__ = [
@@ -20,6 +32,9 @@ __all__ = [
     "recipe_gibson_assembly",
     "recipe_golden_gate",
     "recipe_restriction_cloning",
+    "recipe_site_directed_mutagenesis",
+    "recipe_protein_tagging",
+    "recipe_cloning_verification",
     "get_recipe_sources",
     "GET_RECIPE_DEFINITIONS",
 ]
@@ -29,6 +44,9 @@ ALL_RECIPE_SOURCES = {
     "recipe_gibson_assembly": GIBSON_SOURCES,
     "recipe_golden_gate": GOLDEN_GATE_SOURCES,
     "recipe_restriction_cloning": RESTRICTION_SOURCES,
+    "recipe_site_directed_mutagenesis": MUTAGENESIS_SOURCES,
+    "recipe_protein_tagging": TAGGING_SOURCES,
+    "recipe_cloning_verification": VERIFICATION_SOURCES,
 }
 
 
@@ -98,6 +116,51 @@ def GET_RECIPE_DEFINITIONS() -> list[dict]:
                     "enzyme3": {"type": "string", "default": "BamHI", "description": "3' restriction enzyme."},
                 },
                 "required": ["vector_source", "insert_template", "insert_start", "insert_end"],
+            },
+        },
+        {
+            "name": "recipe_site_directed_mutagenesis",
+            "description": "Standard SOP for QuikChange Site-Directed Mutagenesis (SDM). Enforces centered mutation, QuikChange Tm >= 78°C, and DpnI parental plasmid digestion (Zheng et al. 2004 NAR, Sambrook Ch. 13).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "template_seq_or_file": {"type": "string", "description": "Template plasmid sequence or file."},
+                    "start_0based": {"type": "integer", "description": "0-based start of mutation on template."},
+                    "end_0based": {"type": "integer", "description": "0-based end of mutation on template."},
+                    "alt_seq": {"type": "string", "description": "Replacement mutant nucleotide sequence."},
+                    "target_flank_bp": {"type": "integer", "default": 15, "description": "Flanking base pairs on each side."},
+                },
+                "required": ["template_seq_or_file", "start_0based", "end_0based", "alt_seq"],
+            },
+        },
+        {
+            "name": "recipe_protein_tagging",
+            "description": "Standard SOP for recombinant protein expression, affinity tagging, and endoprotease cleavage cassettes. Enforces stop-codon stripping for C-terminal tags, mod 3 == 0 linker length, and Kozak sequence (Terpe 2003, Kozak 1986).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "target_cds_seq_or_file": {"type": "string", "description": "Target coding DNA sequence (CDS)."},
+                    "tag_name_or_seq": {"type": "string", "default": "6xHis", "description": "Tag name (6xHis, FLAG, HA, Myc, StrepII, GST, MBP, GFP) or DNA sequence."},
+                    "tag_position": {"type": "string", "enum": ["C-terminal", "N-terminal"], "default": "C-terminal", "description": "Position of tag relative to CDS."},
+                    "linker_type": {"type": "string", "default": "flexible_G4S_x2", "description": "Linker identifier or custom DNA sequence."},
+                    "protease_cleavage": {"type": "string", "enum": ["TEV", "PreScission", "Thrombin"], "description": "Optional endoprotease cleavage site."},
+                    "include_kozak": {"type": "boolean", "default": False, "description": "Whether to prepend eukaryotic Kozak consensus (GCCACC)."},
+                },
+                "required": ["target_cds_seq_or_file"],
+            },
+        },
+        {
+            "name": "recipe_cloning_verification",
+            "description": "Standard SOP for cloning quality control: colony PCR primers (vector-insert junction crossing), Sanger sequencing primer layout (avoiding 30-50 bp dye-blob blind zone), and diagnostic restriction digest band prediction (Sambrook Ch. 1 & 8, Sanger 1977).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "recombinant_plasmid_seq_or_file": {"type": "string", "description": "Recombinant plasmid sequence or file."},
+                    "insert_start_0based": {"type": "integer", "description": "0-based start coordinate of insert in recombinant plasmid."},
+                    "insert_end_0based": {"type": "integer", "description": "0-based end coordinate of insert in recombinant plasmid."},
+                    "diagnostic_enzymes": {"type": "array", "items": {"type": "string"}, "description": "List of restriction enzymes to simulate diagnostic digest."},
+                },
+                "required": ["recombinant_plasmid_seq_or_file", "insert_start_0based", "insert_end_0based"],
             },
         },
     ]
