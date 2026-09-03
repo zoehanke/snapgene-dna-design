@@ -10,6 +10,9 @@ factual sanity audit to prevent LLM hallucinations:
 - BIO-05: CRISPR HDR donor in vivo recleavage risk
 - BIO-06: RNA Pol III (U6) transcription poly-T termination abort
 - BIO-07: PCR primer 3' catastrophic cross- and self-dimer risk
+- BIO-08: Circular plasmid replicon & selectable marker presence
+- BIO-09: Host Dam/Dcm methylation restriction cut blockade
+- BIO-10: Extreme long inverted repeats and synthesis complexity
 """
 from __future__ import annotations
 
@@ -68,6 +71,24 @@ FOUNDATIONAL_CHECKLIST = [
         "prompt": "扩增或组装用引物的 3' 核心结合末端是否存在 $\\ge 4$ bp 连续互补，导致严重的二聚体竞争消耗聚合酶与试剂？",
         "tool_to_use": "check_primer_dimers / calc_primer_tm",
     },
+    {
+        "id": "BIO-08-REPLICON_MARKER",
+        "title": "质粒宿主维持要素完整性 (Replicon & Selection Marker Presence)",
+        "prompt": "环状质粒构建产物中，是否至少包含一个功能性复制原点（ori，如 pUC/ColE1）和一个抗性筛选标记（如 AmpR/KanR），确保质粒在宿主菌中能够复制扩增与抗性筛选？",
+        "tool_to_use": "inspect_dna / quick_biological_sanity_check",
+    },
+    {
+        "id": "BIO-09-METHYLATION",
+        "title": "宿主内源甲基化对酶切的完全封闭 (Dam/Dcm Methylation Cut Blockade)",
+        "prompt": "计划使用的限制酶切位点（如 XbaI/ClaI/StuI），是否与大肠杆菌宿主 Dam（GATC）或 Dcm（CCWGG）甲基化识别模体发生重叠，导致质粒提出来后完全无法切开？",
+        "tool_to_use": "find_restriction_sites / quick_biological_sanity_check",
+    },
+    {
+        "id": "BIO-10-HAIRPIN_REPEAT",
+        "title": "极端长回文反向重复与体内自发缺失 (Inverted Repeats & Hairpin Crash)",
+        "prompt": "序列中是否存在连续 $\\ge 14$ bp 的严格反向重复回文结构或极端高 GC 区，导致细菌复制叉停滞、启动 SbcCD 酶切造成体内自发缺失或基因合成拒单？",
+        "tool_to_use": "quick_biological_sanity_check",
+    },
 ]
 
 
@@ -92,16 +113,11 @@ def scan_crispr_recleavage_risk(
             "details": "No gRNA or donor sequence provided to check recleavage risk.",
         }
 
-    # Extract seed (last 10 bp of 20-nt spacer)
     seed = g[-10:] if len(g) >= 10 else g
-    # SpCas9 top strand search: [spacer/seed] + [N][GG]
-    # SpCas9 bottom strand search: [CC][N] + [revcomp(spacer/seed)]
     seed_rc = str(Seq(seed).reverse_complement())
     g_rc = str(Seq(g).reverse_complement())
 
-    # Regex for top strand: seed + .GG
     top_pattern = re.compile(rf"{re.escape(seed)}[ACGT]GG")
-    # Regex for bottom strand: CC[ACGT] + seed_rc
     bottom_pattern = re.compile(rf"CC[ACGT]{re.escape(seed_rc)}")
 
     top_hits = [m.start() for m in top_pattern.finditer(d)]
@@ -154,6 +170,211 @@ def scan_u6_pol3_termination(seq: str) -> dict[str, Any]:
     }
 
 
+def scan_plasmid_maintenance_elements(
+    record_or_seq: SeqRecord | str,
+    topology: str = "linear",
+) -> dict[str, Any]:
+    """Scan circular plasmid for fundamental maintenance elements: origin of replication (ori) and selectable marker."""
+    top = topology.lower()
+    if isinstance(record_or_seq, SeqRecord):
+        top = str(record_or_seq.annotations.get("topology", topology)).lower()
+
+    if top != "circular":
+        return {
+            "applicable": False,
+            "is_circular": False,
+            "has_origin": True,
+            "has_marker": True,
+            "missing_essential_maintenance": False,
+            "details": "Linear fragment or oligo; replication origin and marker check not applicable.",
+        }
+
+    ori_found = []
+    marker_found = []
+
+    ori_keywords = {"ori", "origin", "rep_origin", "puc", "cole1", "colie1", "p15a", "f1", "2micron", "sv40", "sc101", "pt181", "incp"}
+    marker_keywords = {"ampr", "ampicillin", "bla", "kanr", "kanamycin", "neo", "neomycin", "cmr", "cat", "chloramphenicol", "tetr", "tetracycline", "hygr", "hygromycin", "puro", "puromycin", "spec", "spectinomycin", "zeo", "zeocin", "blasticidin", "bsd", "gentamicin"}
+
+    if isinstance(record_or_seq, SeqRecord) and record_or_seq.features:
+        for feat in record_or_seq.features:
+            ftype = feat.type.lower()
+            text_corpus = f"{ftype} "
+            for k, v in feat.qualifiers.items():
+                text_corpus += " ".join(str(x) for x in v).lower() + " "
+
+            if ftype in ("rep_origin", "origin") or any(kw in text_corpus for kw in ori_keywords):
+                label = feat.qualifiers.get("label", [feat.type])[0]
+                if label not in ori_found:
+                    ori_found.append(label)
+
+            if any(kw in text_corpus for kw in marker_keywords):
+                label = feat.qualifiers.get("label", [feat.type])[0]
+                if label not in marker_found:
+                    marker_found.append(label)
+
+    seq_str = str(record_or_seq.seq if isinstance(record_or_seq, SeqRecord) else record_or_seq).upper()
+    if not ori_found:
+        if "TTGAGATCCTTTTTTTCTGCGCG" in seq_str or "AGATTAGCGGATCCT" in seq_str or "GTTTTCCCAGTCACGAC" in seq_str:
+            ori_found.append("Inferred-pUC/ColE1-core")
+
+    has_ori = len(ori_found) > 0
+    has_marker = len(marker_found) > 0
+    missing = (not has_ori) and (not has_marker)
+
+    details = []
+    if not has_ori:
+        details.append("No replication origin (ori) found")
+    else:
+        details.append(f"Replication origin detected: {ori_found}")
+    if not has_marker:
+        details.append("No selectable antibiotic marker found")
+    else:
+        details.append(f"Selectable marker detected: {marker_found}")
+
+    return {
+        "applicable": True,
+        "is_circular": True,
+        "has_origin": has_ori,
+        "has_marker": has_marker,
+        "origins_detected": ori_found,
+        "markers_detected": marker_found,
+        "missing_essential_maintenance": missing,
+        "details": "; ".join(details) + (". Critical: Circular plasmid lacks both ori and selection marker!" if missing else "."),
+    }
+
+
+def scan_methylation_blockade(
+    record_or_seq: SeqRecord | str,
+    cloning_enzymes: list[str] | None = None,
+) -> dict[str, Any]:
+    """Scan if restriction enzyme cut sites overlap with Dam/Dcm methylation motifs, blocking cleavage in E. coli."""
+    if not cloning_enzymes:
+        return {
+            "has_methylation_blockade": False,
+            "blocked_sites": [],
+            "details": "No cloning enzymes specified to check methylation blockade.",
+        }
+
+    seq_str = str(record_or_seq.seq if isinstance(record_or_seq, SeqRecord) else record_or_seq).upper()
+    res = find_restriction_sites(seq_str, enzymes=cloning_enzymes)
+
+    blocked = []
+    for enz_name, details in res.get("enzymes", {}).items():
+        for cut in details.get("cuts", []):
+            warnings = cut.get("methylation_warnings", [])
+            if warnings:
+                blocked.append({
+                    "enzyme": enz_name,
+                    "position_0based": cut.get("recognition_start_0based"),
+                    "strand": cut.get("strand", 1),
+                    "methylation_warnings": warnings,
+                })
+
+    has_blockade = len(blocked) > 0
+    return {
+        "has_methylation_blockade": has_blockade,
+        "blocked_sites": blocked,
+        "blocked_enzymes": list({b["enzyme"] for b in blocked}),
+        "details": (
+            f"Detected {len(blocked)} restriction site(s) completely or partially blocked by prokaryotic Dam/Dcm methylation: {[b['enzyme'] + ' at ' + str(b['position_0based']) for b in blocked]}. Enzyme will fail to cut plasmid isolated from standard DH5a/TOP10 strains."
+            if has_blockade
+            else "No methylation overlaps detected on specified enzymes."
+        ),
+    }
+
+
+def scan_inverted_repeats_and_hairpins(
+    seq: str,
+    min_repeat_len: int = 14,
+    max_distance: int = 500,
+) -> dict[str, Any]:
+    """Scan sequence for long inverted repeats (>=14 bp) and extreme GC clusters that cause in vivo deletion or synthesis failure."""
+    s = str(seq).upper()
+    n = len(s)
+    k = min_repeat_len
+    if n < k * 2:
+        return {
+            "has_severe_secondary_structure": False,
+            "has_inverted_repeats": False,
+            "inverted_repeats": [],
+            "extreme_gc_windows": [],
+            "details": "Sequence too short for long inverted repeats.",
+        }
+
+    # 1. Extreme GC scan (>85% GC in 50 bp window)
+    extreme_gc = []
+    window = 50
+    if n >= window:
+        for i in range(0, n - window + 1, 10):
+            win_seq = s[i:i+window]
+            gc_count = win_seq.count("G") + win_seq.count("C")
+            gc_pct = gc_count / window
+            if gc_pct >= 0.85:
+                extreme_gc.append({
+                    "position_0based": i,
+                    "gc_percent": round(gc_pct * 100, 1),
+                    "sequence": win_seq,
+                })
+
+    # 2. Inverted repeat scan (k-mer hash)
+    kmers: dict[str, list[int]] = {}
+    limit = min(n - k + 1, 8000)
+    for i in range(limit):
+        sub = s[i:i+k]
+        if "N" in sub:
+            continue
+        kmers.setdefault(sub, []).append(i)
+
+    raw_matches = []
+    seen_pairs = set()
+    for i in range(limit):
+        sub = s[i:i+k]
+        rc = str(Seq(sub).reverse_complement())
+        if rc in kmers:
+            for j in kmers[rc]:
+                if j >= i + k and (j - i) <= max_distance:
+                    L = k
+                    while i + L < n and j + L < n:
+                        if str(Seq(s[i:i+L+1]).reverse_complement()) == s[j:j+L+1]:
+                            L += 1
+                        else:
+                            break
+                    if L >= min_repeat_len and (i, j) not in seen_pairs:
+                        seen_pairs.add((i, j))
+                        raw_matches.append({
+                            "pos1": i,
+                            "pos2": j,
+                            "length": L,
+                            "seq1": s[i:i+L],
+                            "seq2": s[j:j+L],
+                        })
+
+    # Filter sub-matches
+    filtered = []
+    for r in sorted(raw_matches, key=lambda x: -x["length"]):
+        p1, p2, l = r["pos1"], r["pos2"], r["length"]
+        if not any(f["pos1"] <= p1 and p1 + l <= f["pos1"] + f["length"] and f["pos2"] <= p2 and p2 + l <= f["pos2"] + f["length"] for f in filtered):
+            filtered.append(r)
+
+    has_repeats = len(filtered) > 0
+    has_gc = len(extreme_gc) > 0
+    has_severe = has_repeats or has_gc
+
+    details = []
+    if has_repeats:
+        details.append(f"Detected {len(filtered)} long inverted repeat(s) (>= {min_repeat_len} bp, max length {filtered[0]['length']} bp). Stalls E. coli replication fork, triggers SbcCD spontaneous deletion, and causes gene synthesis vendor rejection.")
+    if has_gc:
+        details.append(f"Detected {len(extreme_gc)} extreme GC cluster(s) (>= 85% in 50 bp window).")
+
+    return {
+        "has_severe_secondary_structure": has_severe,
+        "has_inverted_repeats": has_repeats,
+        "inverted_repeats": filtered[:5],
+        "extreme_gc_windows": extreme_gc[:3],
+        "details": "; ".join(details) if details else "No severe inverted repeats or extreme GC clusters detected.",
+    }
+
+
 def quick_biological_sanity_check(
     record_or_seq: SeqRecord | str,
     cds_start_offset: int = 0,
@@ -161,6 +382,8 @@ def quick_biological_sanity_check(
     crispr_grna_seq: str = "",
     check_u6_termination: bool = False,
     primers: list[str] | tuple[str, str] | None = None,
+    topology: str = "linear",
+    check_secondary_structure: bool = False,
 ) -> dict[str, Any]:
     """Lightweight objective factual scan to assist the agent in catching obvious biological glitches.
 
@@ -171,11 +394,16 @@ def quick_biological_sanity_check(
     - BIO-05: CRISPR donor in vivo recleavage risk
     - BIO-06: RNA Pol III (U6) poly-T transcription abort
     - BIO-07: PCR primer 3' catastrophic primer-dimers
+    - BIO-08: Circular plasmid replicon & selectable marker presence
+    - BIO-09: Host Dam/Dcm methylation restriction cut blockade
+    - BIO-10: Extreme long inverted repeats and synthesis complexity
     """
     if isinstance(record_or_seq, SeqRecord):
         seq_str = str(record_or_seq.seq).upper()
+        rec_top = str(record_or_seq.annotations.get("topology", topology)).lower()
     else:
         seq_str = str(record_or_seq).upper()
+        rec_top = topology.lower()
 
     # 1. Reading Frame & Stop Codons (BIO-01 & BIO-02)
     rf_result = check_reading_frame(seq_str, start_offset=cds_start_offset)
@@ -184,7 +412,7 @@ def quick_biological_sanity_check(
     enzyme_conflicts = []
     if cloning_enzymes:
         res_sites = find_restriction_sites(seq_str, enzymes=cloning_enzymes)
-        for enz_name, details in res_sites["enzymes"].items():
+        for enz_name, details in res_sites.get("enzymes", {}).items():
             if details["cut_count"] > 0:
                 enzyme_conflicts.append({
                     "enzyme": enz_name,
@@ -199,7 +427,6 @@ def quick_biological_sanity_check(
     ) if crispr_grna_seq else None
 
     # 4. U6 Pol III Termination Check (BIO-06)
-    # Check on seq_str if check_u6_termination is True, or if crispr_grna_seq provided, check crispr_grna_seq
     u6_check = None
     if check_u6_termination:
         u6_check = scan_u6_pol3_termination(seq_str)
@@ -215,6 +442,15 @@ def quick_biological_sanity_check(
             "max_3prime_complementarity": p_check["max_3prime_complementarity"],
             "analysis": p_check,
         }
+
+    # 6. Plasmid Maintenance Elements (BIO-08)
+    maint_check = scan_plasmid_maintenance_elements(record_or_seq, topology=rec_top)
+
+    # 7. Dam/Dcm Methylation Cut Blockade (BIO-09)
+    meth_check = scan_methylation_blockade(record_or_seq, cloning_enzymes=cloning_enzymes) if cloning_enzymes else None
+
+    # 8. Secondary Structure / Inverted Repeats (BIO-10)
+    sec_struct_check = scan_inverted_repeats_and_hairpins(seq_str) if check_secondary_structure else None
 
     # Summary of objective issues found
     issues_found = []
@@ -232,6 +468,12 @@ def quick_biological_sanity_check(
         issues_found.append("BIO-06: Consecutive TTTT detected; will trigger premature Pol III transcription termination in U6 promoter systems.")
     if primer_dimer_res and primer_dimer_res["high_dimer_risk"]:
         issues_found.append(f"BIO-07: Primers exhibit severe 3' complementarity ({primer_dimer_res['max_3prime_complementarity']} bp); high risk of primer-dimer amplification.")
+    if maint_check["applicable"] and maint_check["missing_essential_maintenance"]:
+        issues_found.append("BIO-08: Circular plasmid construct lacks both functional replication origin (ori) and antibiotic selection marker.")
+    if meth_check and meth_check["has_methylation_blockade"]:
+        issues_found.append(f"BIO-09: Specified cloning enzyme(s) {meth_check['blocked_enzymes']} are completely/partially blocked by host Dam/Dcm methylation overlap.")
+    if sec_struct_check and sec_struct_check["has_severe_secondary_structure"]:
+        issues_found.append("BIO-10: Detected long inverted repeat (>=14 bp) or extreme GC cluster; high risk of in vivo spontaneous deletion or vendor synthesis rejection.")
 
     clean_for_expression = (
         rf_result["is_multiple_of_three"]
@@ -253,6 +495,9 @@ def quick_biological_sanity_check(
         "crispr_recleavage": crispr_recleavage,
         "u6_pol3_termination": u6_check,
         "primer_dimer_audit": primer_dimer_res,
+        "maintenance_elements": maint_check,
+        "methylation_blockade": meth_check,
+        "secondary_structure": sec_struct_check,
         "issues_found": issues_found,
         "all_clean": all_clean,
         "clean_for_expression": clean_for_expression,

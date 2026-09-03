@@ -45,7 +45,7 @@ class PipelineAgentTests(unittest.TestCase):
         self.assertIn("plasmidA", str(prompt_data["file_inspections"]))
         self.assertIn("plasmidB", str(prompt_data["file_inspections"]))
         self.assertGreaterEqual(len(prompt_data["available_atomic_tools"]), 10)
-        self.assertEqual(len(prompt_data["foundational_checklist"]), 7)
+        self.assertEqual(len(prompt_data["foundational_checklist"]), 10)
 
     def test_execute_agent_pipeline(self):
         # Define a 2-step composite pipeline

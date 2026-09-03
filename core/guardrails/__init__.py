@@ -7,6 +7,9 @@ from core.guardrails.checklist import (
     get_biological_self_audit_checklist,
     quick_biological_sanity_check,
     scan_crispr_recleavage_risk,
+    scan_inverted_repeats_and_hairpins,
+    scan_methylation_blockade,
+    scan_plasmid_maintenance_elements,
     scan_u6_pol3_termination,
 )
 
@@ -16,4 +19,7 @@ __all__ = [
     "quick_biological_sanity_check",
     "scan_crispr_recleavage_risk",
     "scan_u6_pol3_termination",
+    "scan_plasmid_maintenance_elements",
+    "scan_methylation_blockade",
+    "scan_inverted_repeats_and_hairpins",
 ]

@@ -1,12 +1,19 @@
 # -*- coding: utf-8 -*-
-"""tests/test_guardrails.py - Rigorous unit tests for Tier 3 Biological Guardrails."""
+"""tests/test_guardrails.py - Rigorous unit tests for Tier 3 Biological Guardrails (BIO-01 through BIO-10)."""
 import unittest
+
+from Bio.Seq import Seq
+from Bio.SeqFeature import SeqFeature, FeatureLocation
+from Bio.SeqRecord import SeqRecord
 
 from core.guardrails import (
     FOUNDATIONAL_CHECKLIST,
     get_biological_self_audit_checklist,
     quick_biological_sanity_check,
     scan_crispr_recleavage_risk,
+    scan_inverted_repeats_and_hairpins,
+    scan_methylation_blockade,
+    scan_plasmid_maintenance_elements,
     scan_u6_pol3_termination,
 )
 
@@ -15,7 +22,7 @@ class TestBiologicalGuardrails(unittest.TestCase):
 
     def test_foundational_checklist(self):
         items = get_biological_self_audit_checklist()
-        self.assertEqual(len(items), 7)
+        self.assertEqual(len(items), 10)
         ids = [it["id"] for it in items]
         self.assertIn("BIO-01-FRAME", ids)
         self.assertIn("BIO-02-STOP", ids)
@@ -24,6 +31,9 @@ class TestBiologicalGuardrails(unittest.TestCase):
         self.assertIn("BIO-05-RECLEAVAGE", ids)
         self.assertIn("BIO-06-POL3_TERMINATION", ids)
         self.assertIn("BIO-07-PRIMER_DIMER", ids)
+        self.assertIn("BIO-08-REPLICON_MARKER", ids)
+        self.assertIn("BIO-09-METHYLATION", ids)
+        self.assertIn("BIO-10-HAIRPIN_REPEAT", ids)
 
     def test_bio01_and_bio02_reading_frame(self):
         # 1. Clean CDS: multiple of 3, ATG start, TAA stop, no premature stop
@@ -106,12 +116,79 @@ class TestBiologicalGuardrails(unittest.TestCase):
         res_clean = quick_biological_sanity_check("ATGTAA", primers=[fwd_clean, rev_clean])
         self.assertFalse(res_clean["primer_dimer_audit"]["high_dimer_risk"])
 
+    def test_bio08_plasmid_maintenance_elements(self):
+        # 1. Circular record with both ori and AmpR
+        rec = SeqRecord(Seq("ATGC" * 100), id="pGood")
+        rec.annotations["topology"] = "circular"
+        rec.features.append(SeqFeature(FeatureLocation(0, 100), type="rep_origin", qualifiers={"label": ["pUC ori"]}))
+        rec.features.append(SeqFeature(FeatureLocation(150, 300), type="CDS", qualifiers={"label": ["AmpR"]}))
+
+        res_good = scan_plasmid_maintenance_elements(rec)
+        self.assertTrue(res_good["applicable"])
+        self.assertTrue(res_good["has_origin"])
+        self.assertTrue(res_good["has_marker"])
+        self.assertFalse(res_good["missing_essential_maintenance"])
+
+        # 2. Circular record lacking both ori and marker
+        rec_empty = SeqRecord(Seq("ATGC" * 100), id="pEmpty")
+        rec_empty.annotations["topology"] = "circular"
+        res_bad = scan_plasmid_maintenance_elements(rec_empty)
+        self.assertTrue(res_bad["applicable"])
+        self.assertFalse(res_bad["has_origin"])
+        self.assertFalse(res_bad["has_marker"])
+        self.assertTrue(res_bad["missing_essential_maintenance"])
+
+        # Integrated in quick_biological_sanity_check
+        res_check = quick_biological_sanity_check(rec_empty)
+        self.assertTrue(any("BIO-08" in issue for issue in res_check["issues_found"]))
+
+        # Linear fragment should not be flagged
+        res_linear = quick_biological_sanity_check("ATGC" * 100, topology="linear")
+        self.assertFalse(any("BIO-08" in issue for issue in res_linear["issues_found"]))
+
+    def test_bio09_methylation_blockade(self):
+        # XbaI (TCTAGA) followed immediately by TC forms Dam overlap: TCTAGATC (Dam is GATC)
+        seq_blocked = "AAAA" + "TCTAGATC" + "GGGG"
+        res_blocked = scan_methylation_blockade(seq_blocked, cloning_enzymes=["XbaI"])
+        self.assertTrue(res_blocked["has_methylation_blockade"])
+        self.assertIn("XbaI", res_blocked["blocked_enzymes"])
+
+        # XbaI not followed by TC: TCTAGACC (no Dam overlap)
+        seq_clean = "AAAA" + "TCTAGACC" + "GGGG"
+        res_clean = scan_methylation_blockade(seq_clean, cloning_enzymes=["XbaI"])
+        self.assertFalse(res_clean["has_methylation_blockade"])
+
+        # Integrated in quick_biological_sanity_check
+        res_check = quick_biological_sanity_check(seq_blocked, cloning_enzymes=["XbaI"])
+        self.assertTrue(any("BIO-09" in issue for issue in res_check["issues_found"]))
+
+    def test_bio10_inverted_repeats_and_hairpins(self):
+        # 16-bp inverted repeat forming strong hairpin: CGCGAATTCGCGAATT
+        rep = "CGCGAATTCGCGAATT"
+        rep_rc = str(Seq(rep).reverse_complement())
+        seq_with_repeat = "AAAA" + rep + "TTTTTT" + rep_rc + "GGGG"
+
+        res_rep = scan_inverted_repeats_and_hairpins(seq_with_repeat, min_repeat_len=14)
+        self.assertTrue(res_rep["has_severe_secondary_structure"])
+        self.assertTrue(res_rep["has_inverted_repeats"])
+        self.assertGreaterEqual(res_rep["inverted_repeats"][0]["length"], 14)
+
+        # Clean sequence without long inverted repeats
+        seq_clean = "ATG" + "GCT" * 20 + "TAA"
+        res_clean = scan_inverted_repeats_and_hairpins(seq_clean, min_repeat_len=14)
+        self.assertFalse(res_clean["has_severe_secondary_structure"])
+
+        # Integrated in quick_biological_sanity_check with check_secondary_structure=True
+        res_check = quick_biological_sanity_check(seq_with_repeat, check_secondary_structure=True)
+        self.assertTrue(any("BIO-10" in issue for issue in res_check["issues_found"]))
+
     def test_all_clean_flag(self):
         clean_cds = "ATG" + "GCT" * 10 + "TAA"
         res = quick_biological_sanity_check(
             clean_cds,
             cloning_enzymes=["EcoRI"],
             primers=["ATGCATGCATGCATGCATGC", "TACGTACGTACGTACGTACG"],
+            check_secondary_structure=True,
         )
         self.assertTrue(res["all_clean"])
         self.assertEqual(len(res["issues_found"]), 0)
