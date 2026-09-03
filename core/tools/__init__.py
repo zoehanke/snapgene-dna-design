@@ -26,6 +26,12 @@ from core.tools.crispr import (
     extract_homology_arms,
     prepare_grna_oligos,
 )
+from core.tools.experience_helper import (
+    get_experience_categories,
+    get_experience_rule_by_id,
+    list_all_experience_rules,
+    query_lab_experience,
+)
 from core.tools.feature_ops import (
     annotate_feature,
     get_feature,
@@ -99,6 +105,10 @@ __all__ = [
     "STANDARD_ELEMENTS",
     "export_snapgene",
     "open_in_snapgene",
+    "query_lab_experience",
+    "get_experience_categories",
+    "get_experience_rule_by_id",
+    "list_all_experience_rules",
     "GET_TOOL_DEFINITIONS",
 ]
 
@@ -522,6 +532,18 @@ def GET_TOOL_DEFINITIONS() -> list[dict]:
                     "right_arm_length": {"type": "integer", "default": 50, "description": "Right arm length."},
                 },
                 "required": ["target_seq_or_file", "cut_position_0based"],
+            },
+        },
+        {
+            "name": "query_lab_experience",
+            "description": "Retrieve human-reviewed wet-lab experience rules and practical tips (e.g. Gibson assembly, colony PCR, DpnI digestion, Stbl3, Sanger sequencing, primer dimers).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "default": "", "description": "Keyword search (e.g. 'Gibson', 'DpnI', 'colony PCR', 'Sanger', 'Stbl3', 'dimer')."},
+                    "category": {"type": "string", "default": "", "description": "Optional category filter (e.g. '菌落PCR', 'Gibson', '引物基础QC', '质粒稳定性')."},
+                    "max_results": {"type": "integer", "default": 5, "description": "Maximum number of tips to return."},
+                },
             },
         },
     ]

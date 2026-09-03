@@ -120,10 +120,10 @@
 
 ---
 
-## 阶段四：实验室经验规则库轻量调用 (Tier 4: Experience) [待办]
-- [ ] **4.1 激活 1,721 行现有经验库** (`rules/preloaded_experience_rules.json`)。
-- [ ] **4.2 编写轻量经验检索提取器** (`core/tools/experience_helper.py`):
-  - 提供 `query_lab_experience(topic)` 接口供 Agent 按需调取引物设计、同源臂长、感受态细胞、菌落 PCR 等湿实验经验。
+## 阶段四：实验室经验规则库轻量调用 (Tier 4: Experience) [已完成]
+- [x] ~~**4.1 激活 1,721 行现有经验库** (`rules/preloaded_experience_rules.json`)。~~
+- [x] ~~**4.2 编写轻量经验检索提取器** (`core/tools/experience_helper.py`):~~
+  - ~~提供 `query_lab_experience(query, category)` 接口供 Agent 按需调取引物设计、同源臂长、感受态细胞、菌落 PCR、DpnI 背景消除等 33 条人工审核湿实验经验。~~
 
 ---
 
