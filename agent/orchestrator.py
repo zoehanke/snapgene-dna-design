@@ -358,18 +358,17 @@ class Orchestrator:
         backbone_role = next((r for r in roles if r.get("role") == "backbone"), None)
         if backbone_role:
             backbone = backbone_role.get("path")
-        elif len(files) == 1:
-            backbone = files[0]
         elif spec.get("approvals", {}).get("clarify-backbone-file", {}).get("value"):
             ans = spec.get("approvals", {}).get("clarify-backbone-file", {}).get("value")
-            backbone = ans if ans in files else (files[0] if files else None)
-        elif spec.get("mode") == "exploration":
-            backbone = files[0] if files else None
+            backbone = ans if ans in files else None
         else:
+            backbone = None
+
+        if not backbone or backbone not in files:
             raise DesignSpecError(
                 "INTENT_BACKBONE_UNDEFINED: backbone file is not defined and cannot default to the first file"
             )
-        backbone_index = files.index(backbone) if backbone in files else 0
+        backbone_index = files.index(backbone)
         inserts = []
         whole_approved = bool(spec.get("approvals", {}).get("whole_record", {}).get("value"))
         for idx, path in enumerate(files):
@@ -381,7 +380,7 @@ class Orchestrator:
                 spec_entry["feature"] = feature
             elif obj.get("interval"):
                 spec_entry["interval"] = obj["interval"]
-            elif whole_approved or spec.get("mode") == "exploration":
+            elif whole_approved:
                 spec_entry["interval"] = [0, int(lengths.get(path, 0) or 0)]
             else:
                 raise DesignSpecError(

@@ -117,6 +117,12 @@ def validate_interval(
         return (s0, e0, False)
 
     # s0 > e0: Cross-origin circular interval
+    if not wraps_origin:
+        raise PlanningError(
+            "CROSS_ORIGIN_WRAP_UNSUPPORTED",
+            "cross-origin interval [%d, %d) is invalid when wraps_origin=False" % (s0, e0),
+            missing_fields=["target.selection.interval_0based"],
+        )
     selected_len = (record_len - s0) + e0
     if selected_len >= record_len:
         if not whole_record_approved:

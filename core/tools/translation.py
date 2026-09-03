@@ -1,0 +1,131 @@
+# -*- coding: utf-8 -*-
+"""core/tools/translation.py - Atomic translation, reverse complement, and silent mutation tools.
+
+Provides reverse complementation, 6-frame translation, and synonymous (silent)
+mutagenesis to silence internal restriction enzyme sites without altering protein sequence.
+"""
+from __future__ import annotations
+
+from Bio.Data import CodonTable
+from Bio.Seq import Seq
+
+from scripts.sg_common import get_enzyme, restriction_hits
+
+
+def reverse_complement(seq: str) -> str:
+    """Compute the reverse complement of a DNA nucleotide string."""
+    return str(Seq(str(seq).strip().upper()).reverse_complement())
+
+
+def translate_dna(seq: str, frame: int = 1, table: int = 1) -> str:
+    """Translate DNA sequence into amino acid peptide in specified reading frame (1, 2, 3, -1, -2, -3)."""
+    s = str(seq).strip().upper()
+    if frame < 0:
+        s = str(Seq(s).reverse_complement())
+        shift = abs(frame) - 1
+    else:
+        shift = frame - 1
+
+    sub = s[shift:]
+    rem = len(sub) % 3
+    if rem > 0:
+        sub = sub[:-rem]
+
+    return str(Seq(sub).translate(table=table))
+
+
+def silent_mutation_remove_site(
+    cds_seq: str,
+    enzyme_name: str,
+    frame_offset: int = 0,
+    table: int = 1,
+) -> dict:
+    """Mutate an internal restriction site silently without altering translated amino acid sequence.
+
+    Args:
+        cds_seq: Coding sequence.
+        enzyme_name: Restriction enzyme name (e.g. 'EcoRI', 'BsaI', 'BamHI').
+        frame_offset: 0-based offset of the first base in the reading frame (0, 1, or 2).
+        table: NCBI genetic code table ID (1 = standard).
+
+    Returns:
+        dict with mutated_seq, original_aa, mutated_aa, mutations_applied, and site_removed.
+    """
+    s = list(str(cds_seq).strip().upper())
+    n = len(s)
+    enz = get_enzyme(enzyme_name)
+
+    # Initial translation
+    orig_aa = translate_dna("".join(s), frame=frame_offset + 1, table=table)
+
+    hits = restriction_hits(Seq("".join(s)), enz, circular=False)
+    if not hits:
+        return {
+            "mutated_seq": "".join(s),
+            "site_removed": True,
+            "mutations_applied": [],
+            "message": f"No {enzyme_name} sites found in sequence",
+            "identical_translation": True,
+        }
+
+    mutations_applied = []
+    # Standard codon table dictionary
+    forward_table = CodonTable.unambiguous_dna_by_id[table].forward_table
+
+    for h in hits:
+        site_start = h.get("recognition_start0", h.get("start", 0))
+        site_len = len(str(getattr(enz, "site", "")))
+
+        resolved = False
+        # Try mutating bases within the recognition site
+        for pos in range(site_start, min(site_start + site_len, n)):
+            # Determine codon start for this position
+            codon_idx = (pos - frame_offset) // 3
+            codon_start = frame_offset + codon_idx * 3
+            codon_end = codon_start + 3
+            if codon_end > n:
+                continue
+
+            current_codon = "".join(s[codon_start:codon_end])
+            orig_amino = forward_table.get(current_codon, "*")
+            base_idx_in_codon = pos - codon_start
+
+            for alt in ("A", "C", "G", "T"):
+                if alt == s[pos]:
+                    continue
+                test_codon = list(current_codon)
+                test_codon[base_idx_in_codon] = alt
+                test_codon_str = "".join(test_codon)
+                test_amino = forward_table.get(test_codon_str, "*")
+
+                if test_amino == orig_amino:
+                    # Synonymous! Test if this mutation destroys the restriction site
+                    test_seq = list(s)
+                    test_seq[pos] = alt
+                    remaining_hits = restriction_hits(Seq("".join(test_seq)), enz, circular=False)
+                    if len(remaining_hits) < len(hits):
+                        # Successfully eliminated this hit!
+                        s[pos] = alt
+                        mutations_applied.append({
+                            "position_0based": pos,
+                            "original_base": current_codon[base_idx_in_codon],
+                            "alt_base": alt,
+                            "codon_change": f"{current_codon} -> {test_codon_str}",
+                            "amino_acid": orig_amino,
+                        })
+                        resolved = True
+                        break
+            if resolved:
+                break
+
+    mutated_str = "".join(s)
+    new_aa = translate_dna(mutated_str, frame=frame_offset + 1, table=table)
+    final_hits = restriction_hits(Seq(mutated_str), enz, circular=False)
+
+    return {
+        "mutated_seq": mutated_str,
+        "site_removed": len(final_hits) == 0,
+        "mutations_applied": mutations_applied,
+        "remaining_cut_count": len(final_hits),
+        "identical_translation": (orig_aa == new_aa),
+    }
