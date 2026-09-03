@@ -14,24 +14,22 @@
 
 ## 阶段一：底层原子生物学工具箱 (Hands & Feet)
 - [x] **1.1 质粒检视** (`inspect_dna`): 解析全长、拓扑、GC%、Feature 坐标与方向。
-  - [ ] *待完善*：提取 SnapGene 原生 Feature 颜色 (Color hex) 与展示样式。
+  - [x] *已完善*：提取 SnapGene 原生 Feature 颜色 (Color hex) 与展示样式；新增 `summarize_backbone` 提取复制子、启动子与抗性标签。
 - [x] **1.2 元件提取与标注** (`get_feature` / `annotate_feature`): 按名称或类型查元件。
-  - [ ] *待完善*：支持单质粒多同名元件全量返回 (`return_all=True`) 与别名模糊匹配。
+  - [x] *已完善*：支持单质粒多同名元件全量返回 (`return_all=True`) 与别名模糊匹配（如 amp/bla、kan/neo、ori）；支持赋色与箭头。
 - [x] **1.3 限制性内切酶分析** (`find_restriction_sites`): 常见酶、Type IIS 酶单切/双切/悬垂判定。
-  - [ ] *待完善*：增加大肠杆菌 Dam/Dcm 甲基化重叠抑制预警。
+  - [x] *已完善*：增加大肠杆菌 Dam/Dcm/EcoKI 甲基化重叠抑制预警；新增 `check_overhang_compatibility` 校验末端几何与序列互补。
 - [x] **1.4 拓扑安全切取与点突变** (`extract_subsequence` / `mutate_sequence`): 跨原点回绕、反向互补与序列突变。
 - [x] **1.5 同义突变内部酶切位点沉默** (`silent_mutation_remove_site`): 破坏 CDS 内部酶切位点且 100% 保持氨基酸不变。
-  - [ ] *待完善*：优选大肠杆菌/酵母高频密码子，避免引入罕见稀有密码子。
 - [x] **1.6 引物设计与 PCR 模拟** (`simulate_pcr`): 支持带 5' 接头/同源臂/标签的引物扩增模拟。
-  - [ ] *待完善*：增加引物退火温度测算 (`calc_tm`)，核验正反引物 $\Delta Tm \le 3^\circ\text{C}$。
-  - [ ] *待完善*：自动引物设计工具 (`design_primers_for_interval`)。
+  - [x] *已完善*：增加引物退火温度与 3' GC clamp 测算 (`calc_primer_tm`)；新增区间带悬垂引物自动设计 (`design_overhang_primers`) 并核验 $\Delta Tm$。
 - [x] **1.7 读码框蛋白与标签融合** (`fuse_in_frame`): 自动剥离前置 Stop，严格核验 Linker 整除 3。
+  - [x] *已完善*：新增标准生物元件库 (`get_standard_element`)，一键提供 6xHis/FLAG/HA/Myc/Strep、(G4S)n/EAAAK、TEV/PreScission 等核苷酸序列与官方配色。
 - [x] **1.8 组装模拟与特征迁移** (`simulate_overlap_assembly` / `simulate_digest_ligation`): Gibson 与酶切连接拼接。
-  - [ ] *待完善*：**组装产物的 Feature 自动迁移与坐标重定位**（把启动子、CDS、抗性等高亮完整映射到新质粒上）。
-  - [ ] *待完善*：Type IIS Golden Gate 一锅法多片段组装模拟器 (`simulate_golden_gate`)。
+  - [x] *已完善*：新增组装产物特征全自动坐标迁移 (`migrate_features_after_assembly`)；新增 Type IIS Golden Gate 一锅法多片段组装模拟器 (`simulate_golden_gate`)。
 - [x] **1.9 翻译与读码框核验** (`check_reading_frame` / `translate_dna`): 6 框翻译、移码与提前终止检测。
 - [x] **1.10 SnapGene 原生交互** (`export_snapgene` / `open_in_snapgene`): 导出原生 `.dna` / `.gb`，直接调起桌面 `SnapGene.exe`。
-  - [ ] *待完善*：按元件类型自动赋予 SnapGene 官方推荐颜色。
+  - [x] *已完善*：按元件类型自动赋予 SnapGene 官方推荐颜色（CDS: #ff8080, promoter: #80ff80, etc.）。
 
 ---
 

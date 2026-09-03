@@ -73,3 +73,179 @@ def fuse_in_frame(
         "terminal_stop": rf_audit["terminal_stop"],
         "translation": rf_audit["translation"],
     }
+
+
+STANDARD_ELEMENTS: dict[str, dict[str, Any]] = {
+    # Epitope & affinity tags
+    "6xhis": {
+        "name": "6xHis",
+        "category": "tag",
+        "dna": "CATCATCATCATCATCAT",
+        "aa": "HHHHHH",
+        "description": "Hexahistidine affinity tag for IMAC purification",
+        "color": "#fdbf6f",
+    },
+    "8xhis": {
+        "name": "8xHis",
+        "category": "tag",
+        "dna": "CATCATCATCATCATCATCATCAT",
+        "aa": "HHHHHHHH",
+        "description": "Octahistidine tag for higher stringency IMAC",
+        "color": "#fdbf6f",
+    },
+    "flag": {
+        "name": "FLAG",
+        "category": "tag",
+        "dna": "GACTACAAGGACGACGACGACAAG",
+        "aa": "DYKDDDDK",
+        "description": "FLAG epitope tag (enterokinase cleavable)",
+        "color": "#cab2d6",
+    },
+    "3xflag": {
+        "name": "3xFLAG",
+        "category": "tag",
+        "dna": "GACTACAAAGACCATGACGGTGATTATAAAGATCATGACATCGATTACAAGGATGACGATGACAAG",
+        "aa": "DYKDHDGDYKDHDIDYKDDDDK",
+        "description": "Triple-repeat FLAG tag with higher antibody affinity",
+        "color": "#cab2d6",
+    },
+    "ha": {
+        "name": "HA",
+        "category": "tag",
+        "dna": "TACCCATACGATGTTCCAGATTACGCT",
+        "aa": "YPYDVPDYA",
+        "description": "Influenza hemagglutinin epitope tag",
+        "color": "#b15928",
+    },
+    "myc": {
+        "name": "Myc",
+        "category": "tag",
+        "dna": "GAGCAGAAGCTGATCTCCGAGGAGGACCTG",
+        "aa": "EQKLISEEDL",
+        "description": "c-Myc epitope tag",
+        "color": "#ff7f00",
+    },
+    "v5": {
+        "name": "V5",
+        "category": "tag",
+        "dna": "GGTAAGCCTATCCCTAACCCTCTCCTCGGTCTCGATTCTACG",
+        "aa": "GKPIPNPLLGLDST",
+        "description": "Paramyxovirus V5 epitope tag",
+        "color": "#6a3d9a",
+    },
+    "strep_ii": {
+        "name": "Strep-tag II",
+        "category": "tag",
+        "dna": "TGGAGCCACCCGCAGTTCGAAAAA",
+        "aa": "WSHPQFEK",
+        "description": "Strep-tag II affinity tag for Strep-Tactin resins",
+        "color": "#ffff99",
+    },
+    # Flexible & rigid linkers
+    "g4s_1": {
+        "name": "(G4S)1",
+        "category": "linker",
+        "dna": "GGTGGCGGTGGCTCG",
+        "aa": "GGGGS",
+        "description": "5-amino acid flexible glycine-serine linker",
+        "color": "#b2df8a",
+    },
+    "g4s_2": {
+        "name": "(G4S)2",
+        "category": "linker",
+        "dna": "GGTGGCGGTGGCTCGGGTGGCGGTGGCTCG",
+        "aa": "GGGGSGGGGS",
+        "description": "10-amino acid flexible glycine-serine linker",
+        "color": "#b2df8a",
+    },
+    "g4s_3": {
+        "name": "(G4S)3",
+        "category": "linker",
+        "dna": "GGTGGCGGTGGCTCGGGTGGCGGTGGCTCGGGTGGCGGTGGCTCG",
+        "aa": "GGGGSGGGGSGGGGS",
+        "description": "15-amino acid standard flexible linker",
+        "color": "#b2df8a",
+    },
+    "eaaak_3": {
+        "name": "(EAAAK)3",
+        "category": "linker",
+        "dna": "GAAGCGGCGGCGAAAGAAGCGGCGGCGAAAGAAGCGGCGGCGAAA",
+        "aa": "EAAAKEAAAKEAAAK",
+        "description": "15-amino acid rigid alpha-helical linker",
+        "color": "#33a02c",
+    },
+    # Protease cleavage sites
+    "tev": {
+        "name": "TEV",
+        "category": "protease_site",
+        "dna": "GAGAACCTGTACTTCCAGGGT",
+        "aa": "ENLYFQG",
+        "description": "Tobacco Etch Virus protease cleavage site (cuts between Q and G)",
+        "color": "#fb9a99",
+    },
+    "precission": {
+        "name": "PreScission (3C)",
+        "category": "protease_site",
+        "dna": "CTGGAAGTTCTGTTCCAGGGGCCC",
+        "aa": "LEVLFQGP",
+        "description": "Human rhinovirus 3C protease cleavage site (cuts between Q and G)",
+        "color": "#e31a1c",
+    },
+    "thrombin": {
+        "name": "Thrombin",
+        "category": "protease_site",
+        "dna": "CTGGTGCCGCGCGGCAGC",
+        "aa": "LVPRGS",
+        "description": "Thrombin protease cleavage site (cuts between R and G)",
+        "color": "#a6cee3",
+    },
+}
+
+
+def get_standard_element(name: str) -> dict[str, Any]:
+    """Retrieve nucleotide sequence, amino acid translation, and color of a standard biological part.
+
+    Args:
+        name: Name or alias of standard element (e.g. '6xHis', 'FLAG', 'HA', 'TEV', '(G4S)3', 'EAAAK')
+
+    Returns:
+        dict with name, category, dna, aa, description, color.
+    """
+    clean_name = str(name).strip().lower().replace(" ", "_").replace("-", "_").replace("(", "").replace(")", "")
+
+    # Common aliases
+    alias_map = {
+        "his": "6xhis",
+        "6xhis": "6xhis",
+        "his6": "6xhis",
+        "his_tag": "6xhis",
+        "flag": "flag",
+        "flag_tag": "flag",
+        "3xflag": "3xflag",
+        "ha": "ha",
+        "ha_tag": "ha",
+        "myc": "myc",
+        "myc_tag": "myc",
+        "v5": "v5",
+        "strep": "strep_ii",
+        "streptag": "strep_ii",
+        "strep_tag": "strep_ii",
+        "g4s": "g4s_1",
+        "g4s1": "g4s_1",
+        "g4s2": "g4s_2",
+        "g4s3": "g4s_3",
+        "eaaak": "eaaak_3",
+        "eaaak3": "eaaak_3",
+        "tev": "tev",
+        "precission": "precission",
+        "3c": "precission",
+        "thrombin": "thrombin",
+    }
+
+    key = alias_map.get(clean_name, clean_name)
+    if key in STANDARD_ELEMENTS:
+        return dict(STANDARD_ELEMENTS[key])
+
+    available = list(STANDARD_ELEMENTS.keys())
+    raise ValueError(f"Unknown standard element '{name}'. Available elements: {available}")
+

@@ -20,6 +20,18 @@ from scripts.write_dna import _snapgene_annotated, write_native_dna
 
 SNAPGENE_EXE_PATH = r"D:\SnapGene\SnapGene.exe"
 
+SNAPGENE_DEFAULT_COLORS: dict[str, str] = {
+    "cds": "#ff8080",
+    "gene": "#ff8080",
+    "promoter": "#80ff80",
+    "terminator": "#ff80c0",
+    "rep_origin": "#8080ff",
+    "origin": "#8080ff",
+    "primer_bind": "#ffff80",
+    "tag": "#fdbf6f",
+    "misc_feature": "#c0c0c0",
+}
+
 
 def export_snapgene(
     record_or_seq: SeqRecord | str,
@@ -57,13 +69,18 @@ def export_snapgene(
     if features:
         from core.tools.feature_ops import annotate_feature
         for f in features:
+            ft = f.get("type", "misc_feature")
+            color = f.get("color") or SNAPGENE_DEFAULT_COLORS.get(ft.lower(), "#c0c0c0")
+            s_coord = f.get("start", f.get("interval_0based", [0, 0])[0])
+            e_coord = f.get("end", f.get("interval_0based", [0, 0])[1])
             annotate_feature(
                 rec,
                 name=f.get("name", "feature"),
-                feature_type=f.get("type", "misc_feature"),
-                start=f.get("start", 0),
-                end=f.get("end", 0),
+                feature_type=ft,
+                start=s_coord,
+                end=e_coord,
                 strand=f.get("strand", 1),
+                color=color,
                 qualifiers=f.get("qualifiers"),
             )
 

@@ -161,3 +161,144 @@ def simulate_pcr(
         "reverse_binding": best["r_hit"],
         "topology": "linear",
     }
+
+
+def calc_primer_tm(
+    primer_seq: str,
+    salt_conc_mM: float = 50.0,
+    primer_conc_nM: float = 200.0,
+) -> dict[str, Any]:
+    """Calculate melting temperature (Tm), GC%, length, and 3' GC clamp of a primer.
+
+    Uses nearest-neighbor thermodynamic calculation with salt correction.
+    """
+    from Bio.SeqUtils.MeltingTemp import Tm_NN
+
+    seq = str(primer_seq).strip().upper()
+    n = len(seq)
+    if n == 0:
+        return {"tm": 0.0, "length": 0, "gc_percent": 0.0, "warnings": ["Sequence is empty"]}
+
+    gc_count = seq.count("G") + seq.count("C")
+    gc_pct = round((gc_count / n) * 100.0, 1)
+
+    try:
+        tm_val = Tm_NN(seq, Na=salt_conc_mM, dnac=primer_conc_nM)
+        tm_round = round(float(tm_val), 1)
+    except Exception:
+        # Fallback to standard Wallace rule
+        tm_round = round((seq.count("A") + seq.count("T")) * 2.0 + gc_count * 4.0, 1)
+
+    warnings = []
+    if n < 18:
+        warnings.append("Primer length < 18 bp (risk of non-specific binding)")
+    elif n > 35:
+        warnings.append("Primer length > 35 bp (higher secondary structure propensity)")
+
+    if gc_pct < 40.0:
+        warnings.append(f"Low GC content ({gc_pct}%), recommend 40-60%")
+    elif gc_pct > 60.0:
+        warnings.append(f"High GC content ({gc_pct}%), recommend 40-60%")
+
+    # 3' clamp: check last 5 bases at 3' end
+    tail5 = seq[-5:]
+    tail_gc = tail5.count("G") + tail5.count("C")
+    gc_clamp = (1 <= tail_gc <= 3)
+    if tail_gc == 0:
+        warnings.append("No G/C in last 5 bases at 3' end (weak 3' priming)")
+    elif tail_gc > 3:
+        warnings.append(f"High GC in 3' end ({tail_gc}/5 bases), risk of mispriming")
+
+    return {
+        "sequence": seq,
+        "length": n,
+        "tm": tm_round,
+        "gc_percent": gc_pct,
+        "gc_clamp_ideal": gc_clamp,
+        "gc_in_3prime_5bp": tail_gc,
+        "warnings": warnings,
+    }
+
+
+def design_overhang_primers(
+    template_record_or_seq: str | pathlib.Path | SeqRecord,
+    start: int,
+    end: int,
+    fwd_5prime_overhang: str = "",
+    rev_5prime_overhang: str = "",
+    target_tm: float = 60.0,
+    min_core_len: int = 18,
+    max_core_len: int = 32,
+) -> dict[str, Any]:
+    """Design a forward and reverse primer pair for a template interval with optional 5' overhangs.
+
+    Finds the optimal length binding core closest to target_tm, then attaches 5' overhangs.
+    """
+    if isinstance(template_record_or_seq, SeqRecord):
+        t_seq = str(template_record_or_seq.seq).upper()
+    elif isinstance(template_record_or_seq, (str, pathlib.Path)) and pathlib.Path(template_record_or_seq).exists():
+        rec = _load_record(template_record_or_seq)
+        t_seq = str(rec.seq).upper()
+    else:
+        t_seq = str(template_record_or_seq).upper()
+
+    n = len(t_seq)
+    # Forward primer core starts at 'start' and extends forward
+    best_fwd_core = ""
+    best_fwd_diff = 999.0
+    best_fwd_tm = 0.0
+
+    for l in range(min_core_len, max_core_len + 1):
+        if start + l > n:
+            break
+        core_seq = t_seq[start : start + l]
+        tm_info = calc_primer_tm(core_seq)
+        diff = abs(tm_info["tm"] - target_tm)
+        if diff < best_fwd_diff:
+            best_fwd_diff = diff
+            best_fwd_core = core_seq
+            best_fwd_tm = tm_info["tm"]
+
+    # Reverse primer core ends at 'end' and extends backwards (RC of top strand)
+    best_rev_core = ""
+    best_rev_diff = 999.0
+    best_rev_tm = 0.0
+
+    for l in range(min_core_len, max_core_len + 1):
+        if end - l < 0:
+            break
+        top_rev_segment = t_seq[end - l : end]
+        rev_core_seq = str(Seq(top_rev_segment).reverse_complement())
+        tm_info = calc_primer_tm(rev_core_seq)
+        diff = abs(tm_info["tm"] - target_tm)
+        if diff < best_rev_diff:
+            best_rev_diff = diff
+            best_rev_core = rev_core_seq
+            best_rev_tm = tm_info["tm"]
+
+    fwd_full = fwd_5prime_overhang.upper() + best_fwd_core
+    rev_full = rev_5prime_overhang.upper() + best_rev_core
+
+    delta_tm = round(abs(best_fwd_tm - best_rev_tm), 1)
+
+    return {
+        "target_interval_0based": [start, end],
+        "forward_primer": {
+            "full_sequence": fwd_full,
+            "full_length": len(fwd_full),
+            "binding_core": best_fwd_core,
+            "binding_core_length": len(best_fwd_core),
+            "binding_core_tm": best_fwd_tm,
+            "overhang_5prime": fwd_5prime_overhang.upper(),
+        },
+        "reverse_primer": {
+            "full_sequence": rev_full,
+            "full_length": len(rev_full),
+            "binding_core": best_rev_core,
+            "binding_core_length": len(best_rev_core),
+            "binding_core_tm": best_rev_tm,
+            "overhang_5prime": rev_5prime_overhang.upper(),
+        },
+        "binding_core_delta_tm": delta_tm,
+        "delta_tm_warning": delta_tm > 3.0,
+    }

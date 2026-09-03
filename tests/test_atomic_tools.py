@@ -181,12 +181,136 @@ class AtomicToolsTests(unittest.TestCase):
 
     def test_tool_definitions_schema(self):
         defs = GET_TOOL_DEFINITIONS()
-        self.assertGreaterEqual(len(defs), 12)
+        self.assertGreaterEqual(len(defs), 15)
         for d in defs:
             self.assertIn("name", d)
             self.assertIn("description", d)
             self.assertIn("parameters", d)
 
+    def test_summarize_backbone(self):
+        from core.tools import summarize_backbone
+        f_ori = SeqFeature(FeatureLocation(10, 50, strand=1), type="rep_origin", qualifiers={"label": ["pUC_ori"]})
+        f_amp = SeqFeature(FeatureLocation(60, 150, strand=1), type="CDS", qualifiers={"label": ["AmpR"]})
+        rec = _make_record("A" * 200, "pUC19_mock", "circular", features=(f_ori, f_amp))
+        p = self._write_gb(rec, "pUC19_mock.gb")
+
+        summary = summarize_backbone(p)
+        self.assertEqual(len(summary["origins_of_replication"]), 1)
+        self.assertEqual(summary["origins_of_replication"][0]["name"], "pUC_ori")
+        self.assertEqual(len(summary["selection_markers"]), 1)
+        self.assertIn("Ampicillin", summary["selection_markers"][0]["marker_type"])
+
+    def test_get_feature_aliases_and_return_all(self):
+        f1 = SeqFeature(FeatureLocation(0, 30, strand=1), type="CDS", qualifiers={"gene": ["bla"]})
+        f2 = SeqFeature(FeatureLocation(50, 80, strand=1), type="CDS", qualifiers={"gene": ["ampicillin_res"]})
+        rec = _make_record("C" * 100, "pAmp", "circular", features=(f1, f2))
+        p = self._write_gb(rec, "pAmp.gb")
+
+        # Alias lookup for 'amp' should find 'bla'
+        found = get_feature(p, "amp")
+        self.assertIsNotNone(found)
+        self.assertEqual(found["name"], "bla")
+
+        # return_all=True should return both
+        all_found = get_feature(p, "amp", return_all=True)
+        self.assertEqual(len(all_found), 2)
+
+    def test_migrate_features_after_assembly(self):
+        from core.tools import migrate_features_after_assembly
+        frags = [
+            {
+                "offset_in_product": 0,
+                "length": 100,
+                "strand": 1,
+                "features": [{"name": "promoter", "type": "promoter", "interval_0based": [10, 40], "strand": 1}],
+            },
+            {
+                "offset_in_product": 100,
+                "length": 200,
+                "strand": 1,
+                "features": [{"name": "GFP", "type": "CDS", "interval_0based": [20, 180], "strand": 1}],
+            },
+        ]
+        migrated = migrate_features_after_assembly(frags, total_length=300, circular=True)
+        self.assertEqual(len(migrated), 2)
+        # promoter stays at [10, 40]
+        self.assertEqual(migrated[0]["interval_0based"], [10, 40])
+        # GFP shifted by 100 -> [120, 280]
+        self.assertEqual(migrated[1]["interval_0based"], [120, 280])
+
+    def test_find_restriction_sites_methylation(self):
+        # Sequence containing XbaI (TCTAGA) followed by TC to form Dam methylation motif GATC:
+        # TCTAGATC: XbaI site overlapping Dam GATC!
+        seq = "AAAAAAAAAATCTAGATCAAAAAAAAAA"
+        res = find_restriction_sites(seq, enzymes=["XbaI"], topology="linear")
+        xba_cuts = res["enzymes"]["XbaI"]["cuts"]
+        self.assertEqual(len(xba_cuts), 1)
+        self.assertTrue(len(xba_cuts[0]["methylation_warnings"]) > 0)
+        self.assertIn("dam", xba_cuts[0]["methylation_warnings"][0])
+
+    def test_check_overhang_compatibility(self):
+        from core.tools import check_overhang_compatibility
+        # EcoRI 5' overhang: AATT. Opposite strand 5' overhang must be AATT as well!
+        res = check_overhang_compatibility("AATT", "AATT", type1="5prime", type2="5prime")
+        self.assertTrue(res["compatible"])
+
+        # Mismatched overhangs
+        mismatch = check_overhang_compatibility("AATT", "GGCC", type1="5prime", type2="5prime")
+        self.assertFalse(mismatch["compatible"])
+
+        # Blunt ends
+        blunt = check_overhang_compatibility("", "", type1="blunt", type2="blunt")
+        self.assertTrue(blunt["compatible"])
+
+    def test_calc_primer_tm_and_design_overhang(self):
+        from core.tools import calc_primer_tm, design_overhang_primers
+        tm_res = calc_primer_tm("ATGCGATCGATCGATCGATC")
+        self.assertGreater(tm_res["tm"], 45.0)
+        self.assertEqual(tm_res["length"], 20)
+
+        # Design primers with 20 bp Gibson homology arms
+        template = "ATGCGATCGATCGATC" * 10
+        pair = design_overhang_primers(
+            template,
+            start=10,
+            end=100,
+            fwd_5prime_overhang="GGATCCGATCGATC",
+            rev_5prime_overhang="AAGCTTGATCGATC",
+            target_tm=58.0,
+        )
+        self.assertTrue(pair["forward_primer"]["full_sequence"].startswith("GGATCCGATCGATC"))
+        self.assertTrue(pair["reverse_primer"]["full_sequence"].startswith("AAGCTTGATCGATC"))
+        self.assertLessEqual(pair["binding_core_delta_tm"], 5.0)
+
+    def test_get_standard_element(self):
+        from core.tools import get_standard_element
+        his = get_standard_element("6xHis")
+        self.assertEqual(his["aa"], "HHHHHH")
+        self.assertEqual(his["category"], "tag")
+
+        g4s = get_standard_element("(G4S)3")
+        self.assertEqual(g4s["aa"], "GGGGSGGGGSGGGGS")
+        self.assertEqual(len(g4s["dna"]) % 3, 0)
+
+        tev = get_standard_element("TEV")
+        self.assertEqual(tev["aa"], "ENLYFQG")
+
+    def test_simulate_golden_gate(self):
+        from core.tools import simulate_golden_gate
+        # Fragment 1 flanked by BsaI (GGTCTC + 1bp spacer + 4bp overhang + core + 4bp overhang + 1bp spacer + GAGACC)
+        f1 = "GGTCTC" + "A" + "TGCA" + "A" * 6 + "ATGA" + "A" + "GAGACC"
+        # Fragment 2 (Left overhang ATGA, Right overhang TGCA for circular closure)
+        f2 = "GGTCTC" + "A" + "ATGA" + "C" * 6 + "TGCA" + "A" + "GAGACC"
+
+        res = simulate_golden_gate([f1, f2], enzyme="BsaI", circular=True)
+        self.assertEqual(res["product_topology"], "circular")
+        self.assertEqual(res["fragment_count"], 2)
+        self.assertTrue(all(j["compatible"] for j in res["junctions"]))
+        # No BsaI recognition sites left in the assembled product!
+        self.assertNotIn("GGTCTC", res["product_sequence"])
+        self.assertNotIn("GAGACC", res["product_sequence"])
+
 
 if __name__ == "__main__":
     unittest.main()
+

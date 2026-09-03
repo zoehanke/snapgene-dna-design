@@ -64,6 +64,17 @@ def inspect_dna(file_path_or_record: str | pathlib.Path | SeqRecord) -> dict[str
         if trans_vals:
             translation = trans_vals[0] if isinstance(trans_vals, list) else str(trans_vals)
 
+        # Extract color if present in qualifiers
+        color = ""
+        for cq in ("ApEinfo_fcolor", "color", "label_color", "note"):
+            cval = f.qualifiers.get(cq)
+            if cval and isinstance(cval, list) and str(cval[0]).startswith("#"):
+                color = str(cval[0])
+                break
+            elif cval and str(cval).startswith("#"):
+                color = str(cval)
+                break
+
         features.append({
             "name": name,
             "type": f.type,
@@ -71,6 +82,7 @@ def inspect_dna(file_path_or_record: str | pathlib.Path | SeqRecord) -> dict[str
             "length": end0 - start0 if end0 >= start0 else (n - start0 + end0),
             "strand": strand,
             "translation": translation,
+            "color": color,
             "qualifiers": {k: v for k, v in f.qualifiers.items() if k != "translation"},
         })
 
@@ -82,6 +94,66 @@ def inspect_dna(file_path_or_record: str | pathlib.Path | SeqRecord) -> dict[str
         "sequence_sha256": hashlib.sha256(seq_str.encode("utf-8")).hexdigest().upper(),
         "feature_count": len(features),
         "features": features,
+    }
+
+
+def summarize_backbone(file_path_or_record: str | pathlib.Path | SeqRecord) -> dict[str, Any]:
+    """Identify key vector backbone components: origins, resistance markers, promoters."""
+    ins = inspect_dna(file_path_or_record)
+    origins = []
+    resistances = []
+    promoters = []
+
+    res_keywords = {
+        "amp": "Ampicillin (AmpR / bla)",
+        "bla": "Ampicillin (AmpR / bla)",
+        "kan": "Kanamycin (KanR / aph)",
+        "neo": "Neomycin / Kanamycin (NeoR)",
+        "chlor": "Chloramphenicol (CmR / cat)",
+        "cam": "Chloramphenicol (CmR / cat)",
+        "tet": "Tetracycline (TetR)",
+        "hyg": "Hygromycin B (HygR)",
+        "zeo": "Zeocin (ZeoR / ble)",
+        "spec": "Spectinomycin (SpecR / aadA)",
+        "gent": "Gentamicin (GmR / aac)",
+        "puro": "Puromycin (PuroR)",
+        "bsd": "Blasticidin S (BsdR)",
+    }
+
+    for f in ins.get("features", []):
+        fn = f["name"].lower()
+        ft = f["type"].lower()
+
+        if ft in ("rep_origin", "origin") or "ori" in fn or "origin" in fn:
+            origins.append({
+                "name": f["name"],
+                "interval_0based": f["interval_0based"],
+                "strand": f["strand"],
+            })
+        elif ft in ("promoter",) or "promoter" in fn:
+            promoters.append({
+                "name": f["name"],
+                "interval_0based": f["interval_0based"],
+                "strand": f["strand"],
+            })
+        else:
+            for kw, desc in res_keywords.items():
+                if kw in fn:
+                    resistances.append({
+                        "name": f["name"],
+                        "marker_type": desc,
+                        "interval_0based": f["interval_0based"],
+                        "strand": f["strand"],
+                    })
+                    break
+
+    return {
+        "name": ins["name"],
+        "topology": ins["topology"],
+        "sequence_length": ins["sequence_length"],
+        "origins_of_replication": origins,
+        "selection_markers": resistances,
+        "promoters": promoters,
     }
 
 

@@ -230,3 +230,111 @@ def simulate_digest_ligation(
         "insert_cuts_0based": [i1, i2],
         "junctions": junctions,
     }
+
+
+def simulate_golden_gate(
+    fragments: list[str | dict[str, Any] | pathlib.Path | SeqRecord],
+    enzyme: str = "BsaI",
+    circular: bool = True,
+) -> dict[str, Any]:
+    """Simulate Type IIS Golden Gate one-pot multi-fragment assembly.
+
+    Digests each fragment with the specified Type IIS enzyme (e.g. BsaI, BsmBI, Esp3I),
+    liberating inserts between inward-facing recognition sites with 4-bp sticky overhangs,
+    verifies junction complementarity, and ligates fragments.
+    """
+    from scripts.sg_common import get_enzyme, restriction_hits
+
+    enz = get_enzyme(enzyme)
+    digested_frags = []
+
+    for idx, f in enumerate(fragments):
+        if isinstance(f, SeqRecord):
+            rec = f
+            seq = str(f.seq).upper()
+            fid = f.id or f"frag_{idx+1}"
+        elif isinstance(f, dict):
+            seq = str(f.get("sequence", "")).upper()
+            fid = f.get("id", f"frag_{idx+1}")
+            rec = SeqRecord(Seq(seq), id=fid, name=fid)
+        elif isinstance(f, (str, pathlib.Path)) and pathlib.Path(f).exists():
+            rec = _load_record(f)
+            seq = str(rec.seq).upper()
+            fid = rec.id or f"frag_{idx+1}"
+        else:
+            seq = str(f).upper()
+            fid = f"frag_{idx+1}"
+            rec = SeqRecord(Seq(seq), id=fid, name=fid)
+
+        hits = restriction_hits(seq, enz, circular=False)
+        if len(hits) < 2:
+            raise ValueError(f"Fragment {fid} has {len(hits)} {enzyme} cut sites; expected 2 flanking sites")
+
+        hits.sort(key=lambda h: h["recognition_start0"])
+        h_left, h_right = hits[0], hits[-1]
+
+        t_left = h_left["top_cut_boundary_0based"]
+        b_left = h_left["bottom_cut_boundary_0based"]
+        t_right = h_right["top_cut_boundary_0based"]
+        b_right = h_right["bottom_cut_boundary_0based"]
+
+        left_cut = min(t_left, b_left)
+        left_cut_max = max(t_left, b_left)
+        left_ov = seq[left_cut:left_cut_max]
+
+        right_cut = min(t_right, b_right)
+        right_cut_max = max(t_right, b_right)
+        right_ov = seq[right_cut:right_cut_max]
+
+        insert_core = seq[left_cut:right_cut_max]
+
+        digested_frags.append({
+            "id": fid,
+            "original_length": len(seq),
+            "insert_core": insert_core,
+            "left_overhang": left_ov,
+            "right_overhang": right_ov,
+            "left_cut": left_cut,
+            "right_cut": right_cut_max,
+        })
+
+    num = len(digested_frags)
+    junctions = []
+    for i in range(num if circular else num - 1):
+        curr_frag = digested_frags[i]
+        next_frag = digested_frags[(i + 1) % num]
+        r_ov = curr_frag["right_overhang"]
+        l_ov = next_frag["left_overhang"]
+
+        ov_match = (r_ov == l_ov)
+        junctions.append({
+            "junction_index": i,
+            "from_fragment": curr_frag["id"],
+            "to_fragment": next_frag["id"],
+            "from_overhang": r_ov,
+            "to_overhang": l_ov,
+            "compatible": ov_match,
+        })
+        if not ov_match:
+            raise ValueError(
+                f"Golden Gate overhang mismatch between {curr_frag['id']} ({r_ov}) "
+                f"and {next_frag['id']} ({l_ov})"
+            )
+
+    assembled_parts = []
+    for i, df in enumerate(digested_frags):
+        core = df["insert_core"]
+        ov_len = len(df["right_overhang"])
+        assembled_parts.append(core[:-ov_len] if ov_len > 0 else core)
+
+    prod_seq = "".join(assembled_parts)
+    return {
+        "product_sequence": prod_seq,
+        "product_length": len(prod_seq),
+        "product_sha256": hashlib.sha256(prod_seq.encode("utf-8")).hexdigest().upper(),
+        "product_topology": "circular" if circular else "linear",
+        "enzyme": enzyme,
+        "fragment_count": num,
+        "junctions": junctions,
+        "fragments": digested_frags,
+    }

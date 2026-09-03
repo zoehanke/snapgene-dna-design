@@ -8,32 +8,67 @@ and cloning, fuse proteins in-frame, and export native SnapGene (.dna) files.
 """
 from __future__ import annotations
 
-from core.tools.amplification import simulate_pcr
-from core.tools.assembly import simulate_digest_ligation, simulate_overlap_assembly
-from core.tools.feature_ops import annotate_feature, get_feature
-from core.tools.fusion import fuse_in_frame
-from core.tools.inspection import find_open_reading_frames, inspect_dna
-from core.tools.restriction import find_restriction_sites
-from core.tools.sequence_ops import check_reading_frame, extract_subsequence, mutate_sequence
+from core.tools.amplification import calc_primer_tm, design_overhang_primers, simulate_pcr
+from core.tools.assembly import (
+    simulate_digest_ligation,
+    simulate_golden_gate,
+    simulate_overlap_assembly,
+)
+from core.tools.feature_ops import (
+    annotate_feature,
+    get_feature,
+    migrate_features_after_assembly,
+)
+from core.tools.fusion import (
+    STANDARD_ELEMENTS,
+    fuse_in_frame,
+    get_standard_element,
+)
+from core.tools.inspection import (
+    find_open_reading_frames,
+    inspect_dna,
+    summarize_backbone,
+)
+from core.tools.restriction import (
+    check_overhang_compatibility,
+    find_restriction_sites,
+)
+from core.tools.sequence_ops import (
+    check_reading_frame,
+    extract_subsequence,
+    mutate_sequence,
+)
 from core.tools.snapgene_io import export_snapgene, open_in_snapgene
-from core.tools.translation import reverse_complement, silent_mutation_remove_site, translate_dna
+from core.tools.translation import (
+    reverse_complement,
+    silent_mutation_remove_site,
+    translate_dna,
+)
 
 __all__ = [
     "inspect_dna",
+    "summarize_backbone",
     "find_open_reading_frames",
     "find_restriction_sites",
+    "check_overhang_compatibility",
     "extract_subsequence",
     "check_reading_frame",
     "mutate_sequence",
+    "calc_primer_tm",
+    "design_overhang_primers",
     "simulate_pcr",
     "simulate_overlap_assembly",
     "simulate_digest_ligation",
+    "simulate_golden_gate",
     "get_feature",
     "annotate_feature",
+    "migrate_features_after_assembly",
     "reverse_complement",
     "translate_dna",
     "silent_mutation_remove_site",
     "fuse_in_frame",
+    "get_standard_element",
+    "STANDARD_ELEMENTS",
     "export_snapgene",
     "open_in_snapgene",
     "GET_TOOL_DEFINITIONS",
@@ -58,8 +93,22 @@ def GET_TOOL_DEFINITIONS() -> list[dict]:
             },
         },
         {
+            "name": "summarize_backbone",
+            "description": "Quickly identify key plasmid backbone components: replication origins (e.g. pUC, ColE1), antibiotic selection markers (e.g. AmpR, KanR, CmR), and expression promoters.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "file_path_or_record": {
+                        "type": "string",
+                        "description": "Path to the plasmid file or SeqRecord.",
+                    }
+                },
+                "required": ["file_path_or_record"],
+            },
+        },
+        {
             "name": "get_feature",
-            "description": "Find and extract a specific feature from a plasmid by name (e.g. 'GFP', 'AmpR', 'pCMV') or type ('promoter', 'CDS', 'terminator'), returning its exact sequence, coordinates, and strand.",
+            "description": "Find and extract a specific feature from a plasmid by name, type, or alias (e.g. 'GFP', 'AmpR', 'pCMV', 'bla', 'kan'), returning its exact sequence, coordinates, and strand.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -69,15 +118,20 @@ def GET_TOOL_DEFINITIONS() -> list[dict]:
                     },
                     "name_or_type": {
                         "type": "string",
-                        "description": "Name or type of the feature to find.",
+                        "description": "Name, type, or alias of the feature to find.",
                     },
+                    "return_all": {
+                        "type": "boolean",
+                        "description": "Whether to return all matches as a list (default: false).",
+                        "default": False,
+                    }
                 },
                 "required": ["file_path_or_record", "name_or_type"],
             },
         },
         {
             "name": "find_restriction_sites",
-            "description": "Analyze restriction endonuclease recognition and cleavage sites in a DNA sequence or file. Identifies cut count, unique cutters, overhang geometry (5', 3', blunt), and Type IIS status.",
+            "description": "Analyze restriction endonuclease recognition and cleavage sites in a DNA sequence or file. Identifies cut count, unique cutters, overhang geometry (5', 3', blunt), Type IIS status, and prokaryotic Dam/Dcm methylation overlap warnings.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -100,87 +154,87 @@ def GET_TOOL_DEFINITIONS() -> list[dict]:
             },
         },
         {
-            "name": "extract_subsequence",
-            "description": "Safely extract a specific coordinate interval [start, end) from a sequence or file with topology awareness (circular origin-wrap) and strand orientation (+1 or -1).",
+            "name": "check_overhang_compatibility",
+            "description": "Check whether two DNA sticky/blunt overhangs can ligate together based on end geometry (5', 3', blunt) and Watson-Crick sequence complementarity.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "file_path_or_record": {
-                        "type": "string",
-                        "description": "Path to sequence file or record identifier.",
-                    },
-                    "start": {
-                        "type": "integer",
-                        "description": "0-based start coordinate.",
-                    },
-                    "end": {
-                        "type": "integer",
-                        "description": "0-based half-open end coordinate.",
-                    },
-                    "strand": {
-                        "type": "integer",
-                        "enum": [1, -1],
-                        "description": "+1 for top strand, -1 for reverse complement.",
-                    },
-                    "topology": {
-                        "type": "string",
-                        "enum": ["circular", "linear"],
-                    },
+                    "overhang1": {"type": "string", "description": "Overhang sequence 1."},
+                    "overhang2": {"type": "string", "description": "Overhang sequence 2."},
+                    "type1": {"type": "string", "enum": ["5prime", "3prime", "blunt"], "default": "5prime"},
+                    "type2": {"type": "string", "enum": ["5prime", "3prime", "blunt"], "default": "5prime"},
+                },
+                "required": ["overhang1", "overhang2"],
+            },
+        },
+        {
+            "name": "extract_subsequence",
+            "description": "Topology-aware sequence extraction supporting origin-crossing circular intervals and reverse complement strand extraction.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "file_path_or_record": {"type": "string", "description": "File path or record."},
+                    "start": {"type": "integer", "description": "0-based inclusive start index."},
+                    "end": {"type": "integer", "description": "0-based exclusive end index."},
+                    "strand": {"type": "integer", "enum": [1, -1], "default": 1},
+                    "topology": {"type": "string", "enum": ["circular", "linear"], "default": "linear"},
+                    "wraps_origin": {"type": "boolean", "default": False},
                 },
                 "required": ["file_path_or_record", "start", "end"],
             },
         },
         {
-            "name": "reverse_complement",
-            "description": "Compute the 5'->3' reverse complement of a DNA nucleotide sequence.",
+            "name": "calc_primer_tm",
+            "description": "Calculate exact melting temperature (Tm) with nearest-neighbor thermodynamics and salt correction, GC percentage, and 3' GC clamp status of a PCR primer.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "seq": {"type": "string", "description": "DNA sequence."},
+                    "primer_seq": {"type": "string", "description": "Primer nucleotide sequence."},
+                    "salt_conc_mM": {"type": "number", "default": 50.0, "description": "Na+ concentration in mM."},
+                    "primer_conc_nM": {"type": "number", "default": 200.0, "description": "Primer concentration in nM."},
                 },
-                "required": ["seq"],
+                "required": ["primer_seq"],
             },
         },
         {
-            "name": "translate_dna",
-            "description": "Translate a DNA sequence into amino acid peptide in a specified reading frame (1, 2, 3, -1, -2, -3).",
+            "name": "design_overhang_primers",
+            "description": "Design an optimal forward and reverse primer pair to amplify a target interval with optional 5' overhangs (homology arms, tags, restriction sites) targeting a specific annealing Tm.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "seq": {"type": "string", "description": "DNA sequence."},
-                    "frame": {"type": "integer", "enum": [1, 2, 3, -1, -2, -3], "default": 1},
+                    "template_record_or_seq": {"type": "string", "description": "Template file or sequence."},
+                    "start": {"type": "integer", "description": "0-based start coordinate of target interval."},
+                    "end": {"type": "integer", "description": "0-based end coordinate of target interval."},
+                    "fwd_5prime_overhang": {"type": "string", "default": "", "description": "5' overhang tail for forward primer."},
+                    "rev_5prime_overhang": {"type": "string", "default": "", "description": "5' overhang tail for reverse primer."},
+                    "target_tm": {"type": "number", "default": 60.0, "description": "Target annealing Tm in Celsius."},
                 },
-                "required": ["seq"],
+                "required": ["template_record_or_seq", "start", "end"],
             },
         },
         {
-            "name": "check_reading_frame",
-            "description": "Verify coding sequence reading frame, checking for multiples of 3, premature stop codons, and generating in-silico translation.",
+            "name": "simulate_pcr",
+            "description": "Simulate PCR amplification with forward and reverse primers (including 5' tails with homology arms or restriction sites) on a template sequence.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "dna_seq": {
-                        "type": "string",
-                        "description": "Coding DNA nucleotide sequence.",
-                    },
-                    "start_offset": {
-                        "type": "integer",
-                        "default": 0,
-                        "description": "0-based reading frame offset (0, 1, or 2).",
-                    },
+                    "template_path_or_seq": {"type": "string", "description": "Template file or sequence string."},
+                    "f_primer": {"type": "string", "description": "Forward primer sequence (5' to 3')."},
+                    "r_primer": {"type": "string", "description": "Reverse primer sequence (5' to 3')."},
+                    "topology": {"type": "string", "enum": ["circular", "linear"], "default": "linear"},
                 },
-                "required": ["dna_seq"],
+                "required": ["template_path_or_seq", "f_primer", "r_primer"],
             },
         },
         {
             "name": "fuse_in_frame",
-            "description": "Fuse two protein coding sequences in frame with an optional linker. Automatically strips the 5' partner's stop codon and verifies that the linker and fusion maintain the open reading frame.",
+            "description": "Fuse two protein coding sequences (CDS) in-frame with an optional linker, stripping 5' partner's stop codon and verifying multiple of 3 reading frame.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "partner5_seq": {"type": "string", "description": "5' CDS sequence."},
-                    "partner3_seq": {"type": "string", "description": "3' CDS sequence (e.g. tag or domain)."},
-                    "linker_seq": {"type": "string", "default": "", "description": "Linker DNA sequence (must be multiple of 3)."},
+                    "partner5_seq": {"type": "string", "description": "5' partner CDS sequence."},
+                    "partner3_seq": {"type": "string", "description": "3' partner CDS sequence."},
+                    "linker_seq": {"type": "string", "default": "", "description": "Optional linker sequence (must be multiple of 3)."},
                     "strip_p5_stop": {"type": "boolean", "default": True},
                     "add_terminal_stop": {"type": "boolean", "default": True},
                 },
@@ -188,83 +242,58 @@ def GET_TOOL_DEFINITIONS() -> list[dict]:
             },
         },
         {
-            "name": "silent_mutation_remove_site",
-            "description": "Perform synonymous (silent) single-base mutations within a CDS to eliminate an internal restriction enzyme recognition site while keeping the translated amino acid sequence 100% unchanged.",
+            "name": "get_standard_element",
+            "description": "Retrieve exact nucleotide sequence, translation, and recommended SnapGene color of standard biological parts (epitope tags: 6xHis, FLAG, HA, Myc, Strep; linkers: (G4S)n, (EAAAK)n; proteases: TEV, PreScission).",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "cds_seq": {"type": "string", "description": "Coding DNA sequence."},
-                    "enzyme_name": {"type": "string", "description": "Restriction enzyme to silence (e.g. 'EcoRI', 'BsaI')."},
-                    "frame_offset": {"type": "integer", "default": 0, "description": "Reading frame offset (0, 1, or 2)."},
+                    "name": {"type": "string", "description": "Name of standard part, e.g. '6xHis', 'FLAG', 'HA', 'TEV', '(G4S)3', 'EAAAK'."},
                 },
-                "required": ["cds_seq", "enzyme_name"],
-            },
-        },
-        {
-            "name": "simulate_pcr",
-            "description": "Simulate PCR amplification with forward and reverse primers. Supports primers with 5' non-binding tails (homology arms, restriction tags) and computes the exact amplicon product.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "template_path_or_seq": {
-                        "type": "string",
-                        "description": "Template file path or raw sequence.",
-                    },
-                    "f_primer": {
-                        "type": "string",
-                        "description": "5'->3' forward primer sequence (may include 5' tail).",
-                    },
-                    "r_primer": {
-                        "type": "string",
-                        "description": "5'->3' reverse primer sequence (may include 5' tail).",
-                    },
-                    "topology": {
-                        "type": "string",
-                        "enum": ["circular", "linear"],
-                    },
-                },
-                "required": ["template_path_or_seq", "f_primer", "r_primer"],
+                "required": ["name"],
             },
         },
         {
             "name": "simulate_overlap_assembly",
-            "description": "Simulate Gibson, In-Fusion, or Overlap-PCR assembly of multiple DNA fragments. Checks terminal homologous overlaps and computes circular or linear product.",
+            "description": "Simulate homologous overlap assembly (Gibson Assembly / In-Fusion) of 2 or more overlapping fragments into a circular plasmid or linear construct.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "fragments": {
                         "type": "array",
                         "items": {"type": "string"},
-                        "description": "Ordered list of DNA sequence strings.",
+                        "description": "List of fragment sequences or files.",
                     },
-                    "min_overlap": {
-                        "type": "integer",
-                        "default": 15,
-                        "description": "Minimum required homology overlap in bp.",
+                    "min_overlap": {"type": "integer", "default": 15},
+                    "circular": {"type": "boolean", "default": True},
+                },
+                "required": ["fragments"],
+            },
+        },
+        {
+            "name": "simulate_golden_gate",
+            "description": "Simulate Type IIS Golden Gate one-pot assembly (e.g. with BsaI or BsmBI), cleaving recognition sites and joining cohesive 4-bp sticky overhangs.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "fragments": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "List of DNA fragment sequences or files containing flanking Type IIS sites.",
                     },
-                    "circular": {
-                        "type": "boolean",
-                        "default": True,
-                        "description": "Whether product is circular plasmid.",
-                    },
+                    "enzyme": {"type": "string", "default": "BsaI", "description": "Type IIS enzyme name (e.g. BsaI, BsmBI, Esp3I)."},
+                    "circular": {"type": "boolean", "default": True},
                 },
                 "required": ["fragments"],
             },
         },
         {
             "name": "simulate_digest_ligation",
-            "description": "Simulate sticky-end restriction digestion and directional ligation into a vector backbone.",
+            "description": "Simulate restriction enzyme digestion of vector and insert followed by directional T4 DNA ligase ligation.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "vector_source": {
-                        "type": "string",
-                        "description": "Vector file path.",
-                    },
-                    "insert_source": {
-                        "type": "string",
-                        "description": "Insert file path.",
-                    },
+                    "vector_source": {"type": "string", "description": "Vector plasmid file or record."},
+                    "insert_source": {"type": "string", "description": "Insert file or record."},
                     "vector_enzymes": {
                         "type": "array",
                         "items": {"type": "string"},
@@ -285,8 +314,21 @@ def GET_TOOL_DEFINITIONS() -> list[dict]:
             },
         },
         {
+            "name": "silent_mutation_remove_site",
+            "description": "Introduce synonymous (silent) nucleotide mutations into a coding sequence (CDS) to destroy an unwanted internal restriction site without altering the amino acid translation.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "cds_seq": {"type": "string", "description": "In-frame protein coding sequence (length must be multiple of 3)."},
+                    "enzyme_name": {"type": "string", "description": "Name of restriction enzyme whose site must be eliminated (e.g. 'EcoRI', 'BsaI')."},
+                    "frame_offset": {"type": "integer", "default": 0, "description": "Reading frame offset (0, 1, or 2)."},
+                },
+                "required": ["cds_seq", "enzyme_name"],
+            },
+        },
+        {
             "name": "export_snapgene",
-            "description": "Export the designed construct into native SnapGene .dna and standard GenBank (.gb) files, preserving topology and annotated features.",
+            "description": "Export the designed construct into native SnapGene .dna and standard GenBank (.gb) files, preserving topology, annotations, and official SnapGene color palette.",
             "parameters": {
                 "type": "object",
                 "properties": {

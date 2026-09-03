@@ -7,6 +7,7 @@ cut counts, overhang types (5', 3', blunt), and recognizes Type IIS enzymes.
 from __future__ import annotations
 
 import pathlib
+import re
 from typing import Any
 
 from Bio.Seq import Seq
@@ -69,13 +70,23 @@ def find_restriction_sites(
         raw_hits = restriction_hits(Seq(seq_str), enz, circular=is_circular)
         sites = []
         for h in raw_hits:
-            recog_seq = h.get("site", "")
-            recog_start = h.get("site_start_0based", 0)
+            recog_start = h.get("recognition_start0", h.get("site_start_0based", h.get("start", 1) - 1))
+            recog_seq = h.get("site", str(getattr(enz, "site", "")))
             top_cut = h.get("top_cut_boundary_0based", 0)
             bottom_cut = h.get("bottom_cut_boundary_0based", 0)
             overhang_type = h.get("overhang_type", "blunt")
             overhang_seq = h.get("overhang_sequence", "")
             cuts_within = h.get("cuts_within_sequence", True)
+
+            # Check for prokaryotic Dam/Dcm methylation overlap
+            recog_len = len(recog_seq) if recog_seq else 6
+            blocked_by = []
+            for m_name, m_pat in [("dam", "GATC"), ("dcm", "CC[AT]GG"), ("ecoki", "AAC[ACGT]{6}GTGC")]:
+                for m in re.finditer(m_pat, seq_str):
+                    m_start = m.start()
+                    m_end = m.end()
+                    if not (recog_start + recog_len <= m_start or m_end <= recog_start):
+                        blocked_by.append(f"{m_name} overlap ({m.group(0)} at bp {m_start})")
 
             sites.append({
                 "recognition_start_0based": recog_start,
@@ -86,6 +97,7 @@ def find_restriction_sites(
                 "overhang_sequence": overhang_seq,
                 "cuts_within_sequence": cuts_within,
                 "strand": h.get("strand", 1),
+                "methylation_warnings": blocked_by,
             })
 
         count = len(sites)
@@ -115,4 +127,43 @@ def find_restriction_sites(
         "double_cutters": double_cutters,
         "non_cutters": non_cutters,
         "enzymes": results,
+    }
+
+
+def check_overhang_compatibility(
+    overhang1: str,
+    overhang2: str,
+    type1: str = "5prime",
+    type2: str = "5prime",
+) -> dict[str, Any]:
+    """Check whether two overhangs can ligate (sticky end complementarity or blunt)."""
+    o1 = str(overhang1 or "").strip().upper()
+    o2 = str(overhang2 or "").strip().upper()
+    t1 = str(type1).lower()
+    t2 = str(type2).lower()
+
+    if t1 == "blunt" and t2 == "blunt":
+        return {
+            "compatible": True,
+            "type": "blunt-blunt",
+            "message": "Both ends are blunt; non-directional ligation possible",
+        }
+
+    if t1 != t2:
+        return {
+            "compatible": False,
+            "type": f"{t1}-{t2}",
+            "message": f"End geometry mismatch: {t1} cannot ligate with {t2}",
+        }
+
+    o2_rc = str(Seq(o2).reverse_complement())
+    is_compat = (o1 == o2_rc) and len(o1) > 0
+
+    return {
+        "compatible": is_compat,
+        "type": f"{t1}-{t2}",
+        "overhang1": o1,
+        "overhang2": o2,
+        "overhang2_rc": o2_rc,
+        "message": "Sticky ends are complementary and ligatable" if is_compat else f"Sticky ends do not match: {o1} vs {o2_rc}",
     }
