@@ -6,10 +6,14 @@ from core.guardrails.checklist import (
     FOUNDATIONAL_CHECKLIST,
     get_biological_self_audit_checklist,
     quick_biological_sanity_check,
+    scan_crispr_recleavage_risk,
+    scan_u6_pol3_termination,
 )
 
 __all__ = [
     "FOUNDATIONAL_CHECKLIST",
     "get_biological_self_audit_checklist",
     "quick_biological_sanity_check",
+    "scan_crispr_recleavage_risk",
+    "scan_u6_pol3_termination",
 ]
