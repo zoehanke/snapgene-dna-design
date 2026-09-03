@@ -5,58 +5,62 @@ description: "SnapGene-compatible DNA plasmid design toolkit. Parses .dna/.gb fi
 
 # SnapGene DNA Design
 
-面向合成生物学的质粒与 DNA 构建设计工具链。当前版本：**v0.9.1-dev1（架构恢复开发版）**。
+面向分子克隆与基因编辑的质粒与 DNA 智能设计工具链。当前版本：**v0.9.1-dev2（3+1 分层架构开发版）**。
 
-## 用途与触发条件
+## 核心设计哲学：手脚原子化，流程标准化，底线客观化
 
-当用户需要以下任一任务时使用本 Skill：
+本工具库的核心目标是**为 AI Agent 配备一套完备的生物学“手和脚”**：
+- **AI 负责决策与调度**：拥有足够的科研智商去理解生物学意图、判断实验可行性；
+- **Tier 1 原子工具库（Hands & Feet）**：28 个纯物理/数学操作原语（如酶切、退火、引物二聚体初筛、读码框审计等），不代替 AI 做主观判断；
+- **Tier 2 黄金实验 SOP 配方库（Standard Recipes）**：针对 7 大常规高频湿实验，固化国际权威经典手册与顶刊文献标准，防止 AI“突发奇想”或“丢三落四”；遇到复杂非标准任务时，AI 可自由下潜到 Tier 1 灵活编排；
+- **Tier 3 客观生物学底线清单（Guardrails）**：基于事实对移码、PAM 复切、转录终止等做客观自检，绝不主观死锁。
 
-- 从质粒/模板中扩增一个明确组件（cassette、启动子、CDS、标记盒、线性供体）；
-- 在质粒中插入或替换一个明确区域；
-- 对模板做明确的点突变；
-- 阅读、分析、转换、验证或绘制 SnapGene `.dna` / GenBank `.gb` 文件；
-- 设计引物并模拟 PCR（低层工具，预览级）。
+---
 
-## 核心原则：LLM 负责理解，程序负责计算与闸门
+## 7 大全景黄金实验 SOP 配方库 (`core/recipes/`)
+
+常规实验任务中，AI 应优先调用标准配方以保证设计符合权威实验室标准。所有配方在输出中均携带 `"authoritative_sources"` 学术出处：
+
+| 配方函数 | 核心适用场景 | 权威国际手册出处 | 核心固化规范 |
+| :--- | :--- | :--- | :--- |
+| **`recipe_restriction_cloning`** | 限制性双酶切克隆 | CSHL《分子克隆》第 4 版 & NEB | 5' 挂载 2~6 bp 保护碱基；单切/平端去磷酸化；DpnI 模板消化；摩尔比 1:3~1:5 |
+| **`recipe_gibson_assembly`** | 同源重叠无缝组装 | Gibson 2009 (*Nat Methods*) & NEB | 20~25 bp 重叠臂；Tm $60\pm 2^\circ\text{C}$，$\Delta Tm \le 2^\circ\text{C}$；短片段防嚼毁预警 |
+| **`recipe_golden_gate`** | Type IIS 模块化一锅法 | Engler 2008 (*PLoS ONE*) & Potapov 2018 | 4-bp 粘端严格正交无回文；识别位点朝内并在组装后 100% 剥离 |
+| **`recipe_crispr_hdr_donor`** | CRISPR 靶点与 HDR 供体 | Ran 2013 (*Nat Protoc*) & Paquet 2016 | ssODN 40~60 nt 同源臂；PAM 同义静默突变防体内复切；U6 启动子 5' G 校验 |
+| **`recipe_site_directed_mutagenesis`** | 定点突变与密码子工程 | Zheng 2004 (*NAR*) & QuikChange 手册 | 突变位点居中，两侧对称 10~15 bp 完全匹配翼；$Tm \ge 78^\circ\text{C}$；强制 DpnI 消化母本 |
+| **`recipe_protein_tagging`** | 表达标签与融合蛋白工程 | Terpe 2003 & Kozak 1986 (*Cell*) | C 端融合强制剥离原 CDS 终止；Linker 长度整除 3；真核 Kozak (`GCCACC`) 前置；TEV/3C 蛋白酶切位点 |
+| **`recipe_cloning_verification`** | 分子质检与测序引物布局 | CSHL《分子克隆》第 4 版 & Sanger 1977 | **菌落 PCR 跨接缝**（一端骨架一端插入，防假阳性）；**Sanger 避坑窗**（引物锚定在接缝上游 50~100 bp） |
+
+---
+
+## 28 个 Tier 1 原子生物学工具分类索引 (`core/tools/`)
+
+当面对非标准、探索性或复杂实验时，AI 可直接调用下列原子工具自由组合：
+- **序列检视**：`inspect_dna`, `find_open_reading_frames`
+- **内切酶与末端化学**：`find_restriction_sites`, `digest_sequence`, `digest_type_iis`, `fill_or_chew_overhang`, `check_overhang_compatibility`
+- **引物与热力学**：`calc_primer_tm`, `check_primer_dimers`, `anneal_oligos`, `design_overhang_primers`, `simulate_pcr`
+- **同源与组装模拟**：`simulate_overlap_assembly`, `simulate_golden_gate`, `simulate_digest_ligation`
+- **序列手术与重构**：`mutate_sequence`, `strip_terminal_codons`, `translate_dna`, `check_reading_frame`, `get_codon_synonyms`, `fuse_in_frame`, `get_standard_element`
+- **CRISPR 核心运算**：`design_crispr_grna`, `prepare_grna_oligos`, `extract_homology_arms`
+- **图谱与文件交互**：`read_plasmid_file`, `export_plasmid_file`, `open_in_snapgene`
+
+---
+
+## 核心原则：LLM 负责理解与决策，程序负责精确计算与底线拦截
 
 **LLM 必须做：**
 
-1. 理解自然语言与文件指代；
-2. 区分模板、骨架、组件、供体、插入物和参考序列；
-3. 识别任务类型（扩增、插入、替换、突变等）；
-4. 生成 `ConstructionTask` JSON；
-5. 展示缺失字段、冲突和候选边界，并把用户回答写回 task；
-6. 比较可行方法并解释取舍。
+1. 理解自然语言与生物学实验意图（如启动子替换、点突变、荧光标记融合等）；
+2. 识别任务类型并选择优先走标准 SOP 还是调用原子工具下潜探索；
+3. 核查输出报告中的 quality checks 与警告，向用户清晰解释设计原理与实验提示；
+4. 结合实验场景明确指出所依据的国际权威文献来源。
 
 **LLM 禁止做：**
 
-1. 手写或修改最终 DNA 序列；
-2. 猜测未提供的坐标、边界、方向或突变；
-3. 静默改变任务类型；
-4. 把探索性方案升级为正式方案；
-5. 绕过 planner、validator 或 authoritative gate。
-
-**程序禁止做：**
-
-1. 按文件名、文件顺序或全长区间补默认值；
-2. 默认 mutation（历史 `100:A` 已移除）；
-3. 把 insert 静默变成 replace，或把 component 静默变成 whole record；
-4. 让 experimental 方法产出 authoritative 产物。
-
-## ConstructionTask 入口（正式构建唯一路径）
-
-所有正式构建先由 LLM 生成 `ConstructionTask v1` JSON（schema：`schemas/construction-task-v1.json`），再调用统一 runtime：
-
-```python
-from core import (validate_construction_task, plan, execute,
-                  validate, finalize)
-
-task = validate_construction_task(task_json)   # schema + 语义校验，失败即拒绝
-task, plan = plan(task_json)                    # 专用 planner，字段缺失即拒绝
-execution = execute(task, plan, out_dir)        # 只写 intermediate/
-report = validate(task, plan, execution)        # artifact/computation/goal 三层
-delivery = finalize(task, plan, execution, report, out_dir)  # 唯一 authoritative 出口
-```
+1. 凭空捏造长链 DNA 序列或随意猜测坐标；
+2. 破坏读码框或在融合蛋白中遗漏终止密码子剥离；
+3. 在标准流程中丢弃必要的负控、DpnI 消化提醒或 PAM 静默突变；
+4. 绕过生物学客观自检闸门。
 
 公共 seam 只有这五个函数。`finalize` 只接受 `mode=formal`、用户确认、`verified` 且 `method_maturity=validated` 的构建；失败时不创建 `authoritative/`。
 

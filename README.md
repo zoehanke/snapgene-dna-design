@@ -1,62 +1,30 @@
-# SnapGene DNA Design v0.9.1-dev1
+# SnapGene DNA Design v0.9.1-dev2
 
-SnapGene-compatible DNA design and CRISPR planning toolkit. It reads and
-writes `.dna` / `.gb` / `.fa` / `.embl`, designs PCR primers with a real
-Primer3 process, simulates Gibson / Golden Gate / Gateway / In-Fusion
-assemblies, plans multi-source cloning experiments with a literature-sourced
-feasibility rule engine, scans CRISPR guide candidates, runs real Cas-OFFinder
-off-target searches, and scores SpCas9/AsCas12a guides with published models.
+SnapGene-compatible DNA design, molecular cloning, and CRISPR editing toolkit powered by a **3+1 Tier Architecture**:
+- **Tier 1 (Hands & Feet)**: 28 pure physical and mathematical atomic tools (`core/tools/`) for sequence operations, restriction cutting, annealing, primer design, and in-frame fusion.
+- **Tier 2 (Standard SOP Recipes)**: 7 gold-standard routine recipes (`core/recipes/`) directly grounded in international classic laboratory manuals (*Molecular Cloning* 4th ed., *Nature Protocols*, *Nature Methods*, *ACS Synth Biol*, *NEB*).
+- **Tier 3 (Objective Guardrails)**: Factual sanity checks (`quick_biological_sanity_check`) for reading frames, PAM recleavage, Pol III termination, and primer dimers without subjective deadlocks.
+- **Tier 4 (Lab Experience Rules)**: Auditable, human-reviewed laboratory experience rules for edge-case reminders.
 
-> Status: **development baseline only; not RC and not a formal release**. `VERSION = 0.9.1-dev1`.
-> The baseline has three independent P0 findings: zero-width interval fallback,
-> unused-input component acceptance, and mutable validation/gate state. These
-> are recorded in `docs/development/BASELINE-STATUS.md`. Do not use any
-> simulation output as a wet-lab protocol without human review.
+> Status: **`VERSION = 0.9.1-dev2` (3+1 Tier Architecture Development Baseline)**.
+> All 28 Tier 1 atomic tools and 7 Tier 2 SOP recipes are fully implemented and verified with automated test suites.
+> Academic sources and classical manual citations are registered in `references/authoritative_sop_sources.md`.
 
-This repository is the single canonical development directory. Historical
-worktrees, release packages, audit evidence, and private DNA files stay outside
-this repository. See `D:\codex_project\PROJECT-INDEX.md` and
-`docs/REPOSITORY-STRUCTURE.md` before making changes.
+## 3+1 分层架构与设计哲学 (v0.9.1-dev2)
 
-## v0.9.0-rc1 personal experience-rule chain (historical feature line)
+### 1. 7 大黄金实验 SOP 配方 (`core/recipes/`)
+为高频常规分子克隆与基因编辑提供开箱即用的标准流程，所有配方均严格溯源自国际经典实验手册与顶刊文献：
+- `recipe_restriction_cloning`: 经典限制性双酶切克隆（CSHL《分子克隆》第 4 版 & NEB）
+- `recipe_gibson_assembly`: 同源重叠无缝组装（Gibson 2009 & NEB）
+- `recipe_golden_gate`: Type IIS 一锅法组装（Engler 2008 & Potapov 2018）
+- `recipe_crispr_hdr_donor`: CRISPR sgRNA 与 HDR 供体设计（Ran 2013 & Paquet 2016）
+- `recipe_site_directed_mutagenesis`: QuikChange 定点突变（Zheng 2004 & CSHL Ch. 13）
+- `recipe_protein_tagging`: 表达标签与融合蛋白工程（Terpe 2003 & Kozak 1986）
+- `recipe_cloning_verification`: 分子质检与引物布局（CSHL Ch. 1 & 8, Sanger 1977）
 
-The Agent can turn supported natural-language laboratory experience into a
-non-executable candidate, show a fixed human-readable preview, require explicit
-confirmation, validate the controlled condition grammar, and only then persist
-the rule. Confirmed rules support global/project scope, version history,
-disable/enable, delete/restore, rollback, deterministic evaluation and
-Markdown-list export. The two initial experiences are editable **preloaded
-rules**, not immutable built-ins; deleting one records history and does not
-silently restore it on the next run.
-
-```bash
-python -X utf8 scripts/manage_experience_rules.py --text "以后菌落 PCR 超过 1000 bp 时提醒并询问我" --json
-python -X utf8 scripts/manage_experience_rules.py --text "确认保存" --json
-python -X utf8 scripts/manage_experience_rules.py --text "生成规则清单文件" --out-dir output --json
-python -X utf8 scripts/manage_experience_rules.py --text "删除菌落 PCR 规则" --json
-python -X utf8 scripts/manage_experience_rules.py --text "确认删除" --json
-```
-
-Natural language is only the input surface. The stored truth is declarative
-JSON validated against `schemas/experience-rule-v1.json`; Python `check`
-expressions and `eval` are not accepted. Validation-primer design requires an
-explicit user request, and colony/boiled-colony PCR plans over the applicable
-length threshold return a visible warn-and-confirm hit.
-
-## v0.9.0-dev2 biological audit closure (historical baseline)
-
-This snapshot closes the required biological-technical audit path. Final
-construct files are written only after a method-specific executor returns a
-validated product; a fragment-order preview can never be mislabeled as the
-construct. Golden Gate and digest-ligate use their corresponding sequence
-executors, circular assemblies check the closing junction, and feature
-migration preserves strand/compound locations and qualifiers where the input
-semantics are representable. CRISPR reports expose total/searched/skipped/
-invalid/truncated candidate counts and cannot claim complete coverage after a
-limit is applied. Gene replacement, complete-CDS validation, overlap length,
-PCR input, protocol evidence, codon-table provenance, and output hashes are
-all fail-closed and auditable. `--out-construct` emits synchronized `.gb`,
-`.fa`, native `.dna`, and `.provenance.json` files.
+### 2. 28 个 Tier 1 原子生物学工具 (`core/tools/`)
+纯物理/数学操作原语，供 AI 在遇到复杂非标实验时自由调度编排：
+- 序列检视、限制酶切、末端修整、退火配对、引物二聚体初筛、同义突变推荐、在读框融合等。
 
 ---
 

@@ -5,6 +5,37 @@
 - 读者：需要理解、核查、修改本项目任一技术细节的开发者。
 - 使用约定：本手册所有文件路径均相对仓库根；行号引用为编写时快照，若代码移动以实际文件为准。文中不省略技术细节：每个脚本/模块都说明技术原理、生物原理与引用、实现路径、科学边界与测试。
 
+## v0.9.1-dev2 3+1 分层架构与 7 大黄金实验 SOP 配方库 (当前开发基线)
+
+针对早期由于提示词过度工程化导致的“测试门禁过度堆砌、工具暗藏黑盒决策、AI 丧失灵活度与缺少权威实验标准”的痛点，v0.9.1-dev2 全面实施了 **3+1 分层架构重构**：
+
+### 1. 架构设计哲学
+* **给 AI 配备纯粹的手脚**：工具库（Tier 1）必须彻底原子化，只做客观物理/数学变换（如切断、退火、计算 Tm、翻译、移码核验），绝不替 AI 擅自决定生物学方案。
+* **为高频实验固化 SOP 轨道**：高频常规湿实验走标准配方（Tier 2），通过国际权威经典实验圣经（CSHL《分子克隆》、Nature Protocols、Nature Methods、ACS Synth Biol、NEB）将定量标准（同源臂 40~60 nt、重叠臂 20~25 bp、PAM 同义静默突变、U6 转录 5' G 校验、5' 保护碱基、DpnI 去背景等）固化下来，从根源上杜绝 AI“突发奇想”或“丢三落四”。
+* **保留高级任务自由下潜**：当遇到非编码区突变、复杂多重重叠、罕见宿主等复杂非标情况时，AI 可完全脱离 SOP，自由调度 Tier 1 原子工具进行多步定制编排。
+* **客观底线守门，绝不主观死锁**：底线清单（Tier 3）只针对破坏读码框、未破坏 PAM 导致体内复切、U6 连续 T 转录终止等客观生物学死线进行自检并提示风险。
+
+### 2. 7 大全景黄金实验 SOP 配方库 (`core/recipes/`)
+所有 SOP 均在模块内与输出中嵌入不可磨灭的学术文献出处（`authoritative_sources`）：
+1. **`recipe_restriction_cloning`**：限制性双酶切与定向连接（来源：CSHL《分子克隆实验指南》第 4 版 & NEB 技术手册）。
+2. **`recipe_gibson_assembly`**：同源重叠无缝组装（来源：Gibson et al. 2009 *Nature Methods* & NEB #E2621）。
+3. **`recipe_golden_gate`**：Type IIS 模块化一锅法组装（来源：Engler et al. 2008 *PLoS ONE* & Potapov et al. 2018 *ACS Synth Biol*）。
+4. **`recipe_crispr_hdr_donor`**：CRISPR sgRNA 与 HDR 供体设计（来源：Ran et al. 2013 *Nature Protocols* & Paquet et al. 2016 *Nature*）。
+5. **`recipe_site_directed_mutagenesis`**：定点突变与密码子工程（来源：Zheng et al. 2004 *Nucleic Acids Res* & QuikChange 手册）。
+6. **`recipe_protein_tagging`**：重组蛋白表达与标签工程（来源：Terpe 2003 *Appl Microbiol Biotechnol* & Kozak 1986 *Cell*）。
+7. **`recipe_cloning_verification`**：分子质检、菌落 PCR 与 Sanger 测序引物布局（来源：CSHL《分子克隆》Ch. 1 & 8、Sanger et al. 1977 *PNAS*）。
+
+### 3. 28 个 Tier 1 原子工具矩阵 (`core/tools/`)
+* **检查类**：`inspect_dna`, `find_open_reading_frames`
+* **酶切与末端类**：`find_restriction_sites`, `digest_sequence`, `digest_type_iis`, `fill_or_chew_overhang`, `check_overhang_compatibility`
+* **PCR 与退火类**：`calc_primer_tm`, `check_primer_dimers`, `anneal_oligos`, `design_overhang_primers`, `simulate_pcr`
+* **重组模拟类**：`simulate_overlap_assembly`, `simulate_golden_gate`, `simulate_digest_ligation`
+* **序列手术类**：`mutate_sequence`, `strip_terminal_codons`, `translate_dna`, `check_reading_frame`, `get_codon_synonyms`, `fuse_in_frame`, `get_standard_element`
+* **CRISPR 原语**：`design_crispr_grna`, `prepare_grna_oligos`, `extract_homology_arms`
+* **SnapGene 接口**：`read_plasmid_file`, `export_plasmid_file`, `open_in_snapgene`
+
+---
+
 ## v0.9.0-rc1 经验规则与发布闭环（历史章节；随 v0.9.0 发布）
 
 本版本把个人经验规则纳入可审计的运行链：自然语言只产生候选，
