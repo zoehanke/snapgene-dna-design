@@ -231,11 +231,15 @@ def main():
             sys.exit(1)
         params = json.loads(p_path.read_text(encoding="utf-8"))
     elif args.params:
-        try:
-            params = json.loads(args.params)
-        except Exception:
-            import ast
-            params = ast.literal_eval(args.params)
+        p_path = pathlib.Path(args.params)
+        if p_path.is_file():
+            params = json.loads(p_path.read_text(encoding="utf-8"))
+        else:
+            try:
+                params = json.loads(args.params)
+            except Exception:
+                import ast
+                params = ast.literal_eval(args.params)
 
     try:
         summary = run_recipe_cli(
