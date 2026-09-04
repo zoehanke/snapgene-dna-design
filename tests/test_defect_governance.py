@@ -224,5 +224,79 @@ class TestDefectGovernance(unittest.TestCase):
         )
 
 
+    def test_fill_or_chew_overhang_fidelity(self):
+        """Verify enzymatic end repair blunting for both 5' fill-in and 3' chew-back."""
+        from core.tools.restriction import fill_or_chew_overhang
+
+        # 1. 5' fill-in: 5' AATT overhang filled in
+        res_fill = fill_or_chew_overhang("CCCC", left_overhang="AATT", right_overhang="GGCC", overhang_type="5prime", action="fill_in")
+        self.assertEqual(res_fill["end_type"], "blunt")
+        self.assertEqual(res_fill["blunted_sequence"], "AATTCCCCGGCC")
+
+        # 2. 5' fill-in does not duplicate overhang if already present
+        res_no_dup = fill_or_chew_overhang("AATTCCCCGGCC", left_overhang="AATT", right_overhang="GGCC", overhang_type="5prime", action="fill_in")
+        self.assertEqual(res_no_dup["blunted_sequence"], "AATTCCCCGGCC")
+
+        # 3. 3' chew-back: removes 3' single-stranded tails
+        res_chew = fill_or_chew_overhang("AATTCCCCGGCC", left_overhang="AATT", right_overhang="GGCC", overhang_type="3prime", action="chew_back")
+        self.assertEqual(res_chew["blunted_sequence"], "CCCC")
+
+        # 4. Incompatible action (e.g. 5' chew-back with T4 pol) does not corrupt sequence
+        res_safe = fill_or_chew_overhang("CCCC", left_overhang="AATT", overhang_type="5prime", action="chew_back")
+        self.assertEqual(res_safe["blunted_sequence"], "CCCC")
+
+    def test_golden_gate_and_overhang_compatibility(self):
+        """Verify check_overhang_compatibility handles both Golden Gate top-strand motif and opposite strand annealing."""
+        from core.tools.restriction import check_overhang_compatibility
+
+        # 1. Golden Gate Type IIS top-strand convention: matching 4-bp junctions (e.g. BsaI AATG and AATG)
+        res_gg = check_overhang_compatibility("AATG", "AATG", type1="5prime", type2="5prime")
+        self.assertTrue(res_gg["compatible"], "Identical Golden Gate junction motifs must be compatible")
+
+        # 2. Opposite strand physical extension convention: AATG and CATT (reverse complement)
+        res_opp = check_overhang_compatibility("AATG", "CATT", type1="5prime", type2="5prime")
+        self.assertTrue(res_opp["compatible"], "Reverse complement single-stranded overhangs must be compatible")
+
+        # 3. Mismatched overhangs
+        res_mismatch = check_overhang_compatibility("AATG", "GGCC", type1="5prime", type2="5prime")
+        self.assertFalse(res_mismatch["compatible"])
+
+    def test_extract_homology_arms_circular_wrap(self):
+        """Verify extract_homology_arms wraps around origin on circular plasmids instead of truncating."""
+        from core.tools.crispr import extract_homology_arms
+
+        # Circular plasmid of length 1000 bp, cut site at bp 10 (near origin)
+        plasmid_seq = "A" * 990 + "GGGGGGGGGG"  # last 10 bp are G
+        # Cut at bp 5: left arm of length 30 must wrap around origin to take bases from end
+        res = extract_homology_arms(plasmid_seq, cut_position_0based=5, left_arm_length=30, right_arm_length=30, circular=True)
+        self.assertEqual(res["left_arm_length"], 30, "Left arm must not be truncated on circular plasmid")
+        self.assertEqual(res["right_arm_length"], 30, "Right arm must not be truncated")
+        # Left arm spans bp 975..1000 + 0..5 (25 bp of end + 5 bp of start = 30 bp)
+        self.assertEqual(len(res["left_homology_arm"]), 30)
+
+    def test_c_terminal_tag_cleavage_order(self):
+        """Verify C-terminal tag with protease cleavage places cleavage site adjacent to CDS.
+
+        Order must be CDS + Cleavage + [Linker] + Tag so protease digestion leaves no permanent linker scar on CDS.
+        """
+        target_cds = "ATGGTGAGCAAGGGCGAGTAA"
+        res = recipe_protein_tagging(
+            target_cds_seq_or_file=target_cds,
+            tag_name_or_seq="6xHis",
+            tag_position="C-terminal",
+            linker_type="flexible_G4S_x1",
+            protease_cleavage="TEV",
+            include_kozak=False,
+            terminal_stop_codon="TAA",
+        )
+        product = res["product_sequence"]
+        # TEV DNA: GAAAACCTGTATTTTCAGGGC
+        tev_dna = "GAAAACCTGTATTTTCAGGGC"
+        cds_core = target_cds[:-3]  # stripped stop
+        self.assertTrue(product.startswith(cds_core), "Product must start with Target CDS")
+        idx_cds_end = len(cds_core)
+        self.assertEqual(product.find(tev_dna), idx_cds_end, "TEV cleavage site must immediately follow Target CDS to avoid linker scar")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -33,6 +33,16 @@ def are_restriction_ends_compatible(enz1: Any, enz2: Any) -> bool:
     When ends are compatible, linearized vectors can self-ligate and inserts can integrate
     in either forward or reverse orientation, rendering cloning non-directional.
     """
+    if isinstance(enz1, str):
+        try:
+            enz1 = get_enzyme(enz1)
+        except Exception:
+            pass
+    if isinstance(enz2, str):
+        try:
+            enz2 = get_enzyme(enz2)
+        except Exception:
+            pass
     if enz1 == enz2:
         return True
     ov1 = getattr(enz1, "ovhg", None)

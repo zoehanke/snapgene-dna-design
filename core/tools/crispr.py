@@ -54,60 +54,69 @@ def design_crispr_grna(
     is_cas12 = "cas12" in nuc_lower or "cpf1" in nuc_lower
 
     candidates = []
+    search_seq = (seq + seq[:30]) if circular else seq
 
     if not is_cas12:
         # SpCas9: 20 nt spacer + NGG PAM (3' PAM)
         # Search top strand (+1): [spacer: 20 nt][PAM: .GG]
         pat_top = re.compile(r"(?=([ACGT]{20}[ACGT]GG))")
-        for m in pat_top.finditer(seq):
-            full_hit = m.group(1)
+        for m in pat_top.finditer(search_seq):
             pos = m.start()
+            if pos >= n:
+                break
+            full_hit = m.group(1)
             spacer = full_hit[:20]
             pam = full_hit[20:23]
-            cut_pos = pos + 17  # Cas9 cuts between 17th and 18th base of 20 nt spacer (3 bp upstream of PAM)
+            cut_pos = (pos + 17) % n
 
-            if scan_start <= pos and (pos + 23) <= scan_end:
-                candidates.append(_evaluate_grna_candidate(spacer, pam, pos, pos + 23, 1, cut_pos, n))
+            if (scan_start <= pos and (pos + 23) <= scan_end) or (circular and pos < n):
+                candidates.append(_evaluate_grna_candidate(spacer, pam, pos, (pos + 23) % n, 1, cut_pos, n))
 
         # Search bottom strand (-1): reverse complement of target has NGG PAM
         # Top strand contains CCN + 20 nt spacer_rc: [CCN: 3 nt][spacer_rc: 20 nt]
         pat_bottom = re.compile(r"(?=(CC[ACGT]([ACGT]{20})))")
-        for m in pat_bottom.finditer(seq):
+        for m in pat_bottom.finditer(search_seq):
             pos = m.start()
+            if pos >= n:
+                break
             pam_rc = m.group(1)[:3]
             spacer_rc = m.group(1)[3:23]
             pam = str(Seq(pam_rc).reverse_complement())
             spacer = str(Seq(spacer_rc).reverse_complement())
-            cut_pos = pos + 6  # 3 bp upstream of PAM on bottom strand corresponds to pos+6 on top strand
+            cut_pos = (pos + 6) % n
 
-            if scan_start <= pos and (pos + 23) <= scan_end:
-                candidates.append(_evaluate_grna_candidate(spacer, pam, pos, pos + 23, -1, cut_pos, n))
+            if (scan_start <= pos and (pos + 23) <= scan_end) or (circular and pos < n):
+                candidates.append(_evaluate_grna_candidate(spacer, pam, pos, (pos + 23) % n, -1, cut_pos, n))
     else:
         # AsCas12a: TTTV PAM on 5' end + 23 nt spacer
         # Top strand: [TTT[ACG]: 4 nt][spacer: 23 nt]
         pat_top = re.compile(r"(?=(TTT[ACG]([ACGT]{23})))")
-        for m in pat_top.finditer(seq):
+        for m in pat_top.finditer(search_seq):
             pos = m.start()
+            if pos >= n:
+                break
             pam = m.group(1)[:4]
             spacer = m.group(1)[4:27]
-            cut_pos = pos + 22  # Cas12a cuts staggered downstream (~18-23 nt downstream)
+            cut_pos = (pos + 22) % n
 
-            if scan_start <= pos and (pos + 27) <= scan_end:
-                candidates.append(_evaluate_grna_candidate(spacer, pam, pos, pos + 27, 1, cut_pos, n))
+            if (scan_start <= pos and (pos + 27) <= scan_end) or (circular and pos < n):
+                candidates.append(_evaluate_grna_candidate(spacer, pam, pos, (pos + 27) % n, 1, cut_pos, n))
 
         # Bottom strand: reverse complement has TTTV PAM
         # Top strand contains [spacer_rc: 23 nt][CGT]AAA: 4 nt]
         pat_bottom = re.compile(r"(?=(([ACGT]{23})[CGT]AAA))")
-        for m in pat_bottom.finditer(seq):
+        for m in pat_bottom.finditer(search_seq):
             pos = m.start()
+            if pos >= n:
+                break
             spacer_rc = m.group(1)[:23]
             pam_rc = m.group(1)[23:27]
             pam = str(Seq(pam_rc).reverse_complement())
             spacer = str(Seq(spacer_rc).reverse_complement())
-            cut_pos = pos + 5
+            cut_pos = (pos + 5) % n
 
-            if scan_start <= pos and (pos + 27) <= scan_end:
-                candidates.append(_evaluate_grna_candidate(spacer, pam, pos, pos + 27, -1, cut_pos, n))
+            if (scan_start <= pos and (pos + 27) <= scan_end) or (circular and pos < n):
+                candidates.append(_evaluate_grna_candidate(spacer, pam, pos, (pos + 27) % n, -1, cut_pos, n))
 
     # Sort candidates by objective quality score descending
     candidates.sort(key=lambda c: c["quality_score"], reverse=True)
@@ -307,29 +316,65 @@ def extract_homology_arms(
     cut_position_0based: int,
     left_arm_length: int = 50,
     right_arm_length: int = 50,
+    circular: bool | None = None,
 ) -> dict[str, Any]:
     """Extract left and right homology arms centered at a target cut/insertion site."""
+    topo = None
     if isinstance(target_seq_or_file, SeqRecord):
-        seq = str(target_seq_or_file.seq).upper()
+        rec = target_seq_or_file
+        seq = str(rec.seq).upper()
+        topo = rec.annotations.get("topology")
     elif isinstance(target_seq_or_file, (str, pathlib.Path)) and pathlib.Path(target_seq_or_file).exists():
         rec = _load_record(target_seq_or_file)
         seq = str(rec.seq).upper()
+        topo = rec.annotations.get("topology")
     else:
         seq = str(target_seq_or_file).upper()
 
     n = len(seq)
-    s_left = max(0, cut_position_0based - left_arm_length)
-    e_right = min(n, cut_position_0based + right_arm_length)
+    is_circular = (circular if circular is not None else (topo == "circular"))
+    cut = (cut_position_0based % n) if is_circular and n > 0 else cut_position_0based
+    warnings = []
 
-    left_arm = seq[s_left:cut_position_0based]
-    right_arm = seq[cut_position_0based:e_right]
+    if is_circular and n > 0:
+        # Wrap around origin if needed
+        # Left arm: [cut - left_arm_length, cut)
+        if cut - left_arm_length >= 0:
+            left_arm = seq[cut - left_arm_length : cut]
+            left_interval = [cut - left_arm_length, cut]
+        else:
+            wrap_len = left_arm_length - cut
+            left_arm = seq[n - wrap_len :] + seq[:cut]
+            left_interval = [n - wrap_len, cut]
+
+        # Right arm: [cut, cut + right_arm_length)
+        if cut + right_arm_length <= n:
+            right_arm = seq[cut : cut + right_arm_length]
+            right_interval = [cut, cut + right_arm_length]
+        else:
+            wrap_len = (cut + right_arm_length) - n
+            right_arm = seq[cut:] + seq[:wrap_len]
+            right_interval = [cut, wrap_len]
+    else:
+        s_left = max(0, cut - left_arm_length)
+        e_right = min(n, cut + right_arm_length)
+        if cut - left_arm_length < 0:
+            warnings.append(f"Left homology arm truncated by 5' template boundary (requested {left_arm_length} nt, obtained {cut - s_left} nt)")
+        if cut + right_arm_length > n:
+            warnings.append(f"Right homology arm truncated by 3' template boundary (requested {right_arm_length} nt, obtained {e_right - cut} nt)")
+        left_arm = seq[s_left:cut]
+        right_arm = seq[cut:e_right]
+        left_interval = [s_left, cut]
+        right_interval = [cut, e_right]
 
     return {
-        "cut_position_0based": cut_position_0based,
+        "cut_position_0based": cut,
         "left_homology_arm": left_arm,
-        "left_arm_interval": [s_left, cut_position_0based],
+        "left_arm_interval": left_interval,
         "left_arm_length": len(left_arm),
         "right_homology_arm": right_arm,
-        "right_arm_interval": [cut_position_0based, e_right],
+        "right_arm_interval": right_interval,
         "right_arm_length": len(right_arm),
+        "circular": is_circular,
+        "warnings": warnings,
     }

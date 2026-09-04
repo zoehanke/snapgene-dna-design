@@ -141,12 +141,13 @@ def recipe_protein_tagging(
         if not stop_stripped:
             warnings.append("No canonical stop codon (TAA/TAG/TGA) detected at 3' end of target CDS; proceeding with stripped sequence.")
 
-        # Order: [Kozak] + Target_CDS_core + [Linker] + [Cleavage] + Tag + Stop
+        # Order: [Kozak] + Target_CDS_core + [Cleavage] + [Linker] + Tag + Stop
+        # Placing cleavage adjacent to CDS ensures protease digestion removes both Linker and Tag
         components = [cds_core]
-        if linker_dna:
-            components.append(linker_dna)
         if cleavage_dna:
             components.append(cleavage_dna)
+        if linker_dna:
+            components.append(linker_dna)
         components.append(tag_dna)
 
         # Fuse components in frame

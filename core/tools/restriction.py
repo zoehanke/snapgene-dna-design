@@ -274,8 +274,11 @@ def check_overhang_compatibility(
             "message": f"End geometry mismatch: {t1} cannot ligate with {t2}",
         }
 
-    o2_rc = str(Seq(o2).reverse_complement())
-    is_compat = (o1 == o2_rc) and len(o1) > 0
+    o2_rc = str(Seq(o2).reverse_complement()) if o2 else ""
+    # Compatible if either:
+    # 1. Matching top-strand junction motif (e.g. Golden Gate / Type IIS convention): o1 == o2
+    # 2. Opposing single-stranded extensions (Watson-Crick complementary annealing): o1 == o2_rc
+    is_compat = (o1 == o2 or o1 == o2_rc) and len(o1) > 0
 
     return {
         "compatible": is_compat,
@@ -283,7 +286,7 @@ def check_overhang_compatibility(
         "overhang1": o1,
         "overhang2": o2,
         "overhang2_rc": o2_rc,
-        "message": "Sticky ends are complementary and ligatable" if is_compat else f"Sticky ends do not match: {o1} vs {o2_rc}",
+        "message": "Sticky ends are complementary and ligatable" if is_compat else f"Sticky ends do not match: {o1} vs {o2}",
     }
 
 
@@ -430,12 +433,30 @@ def fill_or_chew_overhang(
     act = str(action).lower()
     ov_type = str(overhang_type).lower()
 
-    if act == "fill_in" and "5" in ov_type:
-        # Fill in 5' overhangs: adds complementary strand bases to sequence
-        blunted = left_ov + s + str(Seq(right_ov).reverse_complement())
-    elif act == "chew_back" and "3" in ov_type:
-        # Chew back 3' overhang: removes the single-stranded tail
-        blunted = s
+    if act == "fill_in":
+        if "3" in ov_type:
+            # 3' overhangs cannot be filled in by 5'->3' polymerase
+            blunted = s
+        else:
+            # Fill in 5' overhangs
+            res_seq = s
+            if left_ov and not res_seq.startswith(left_ov):
+                res_seq = left_ov + res_seq
+            if right_ov and not res_seq.endswith(right_ov):
+                res_seq = res_seq + right_ov
+            blunted = res_seq
+    elif act == "chew_back":
+        if "5" in ov_type:
+            # 3'->5' exonuclease does not chew 5' overhangs
+            blunted = s
+        else:
+            # Chew back 3' protruding overhangs
+            res_seq = s
+            if left_ov and res_seq.startswith(left_ov):
+                res_seq = res_seq[len(left_ov):]
+            if right_ov and res_seq.endswith(right_ov):
+                res_seq = res_seq[:-len(right_ov)]
+            blunted = res_seq
     else:
         blunted = s
 
