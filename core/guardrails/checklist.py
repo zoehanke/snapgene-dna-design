@@ -512,40 +512,75 @@ def quick_biological_sanity_check(
     # 8. Secondary Structure / Inverted Repeats (BIO-10)
     sec_struct_check = scan_inverted_repeats_and_hairpins(seq_str) if check_secondary_structure else None
 
-    # Summary of objective issues found
+    # Summary of objective issues found with severity tiers: CRITICAL vs WARNING
     issues_found = []
+    critical_issues = []
+    warnings_list = []
+
     if annotated_cds_audits:
         for audit in annotated_cds_audits:
             name = audit["name"]
             coords = f"{audit['interval_0based'][0]}..{audit['interval_0based'][1]}"
             if not audit["is_multiple_of_three"]:
-                issues_found.append(f"BIO-01: Annotated CDS '{name}' ({coords}) length {audit['length_bp']} bp is not a multiple of 3 (frameshift).")
+                msg = f"BIO-01: Annotated CDS '{name}' ({coords}) length {audit['length_bp']} bp is not a multiple of 3 (frameshift)."
+                issues_found.append(msg)
+                critical_issues.append({"code": "BIO-01-FRAMESHIFT", "message": msg, "severity": "CRITICAL"})
             if audit["has_premature_stop"]:
-                issues_found.append(f"BIO-01: Annotated CDS '{name}' ({coords}) contains {len(audit['premature_stop_positions'])} premature stop codon(s).")
+                msg = f"BIO-01: Annotated CDS '{name}' ({coords}) contains {len(audit['premature_stop_positions'])} premature stop codon(s)."
+                issues_found.append(msg)
+                critical_issues.append({"code": "BIO-01-PREMATURE_STOP", "message": msg, "severity": "CRITICAL"})
             if not audit["terminal_stop"]:
-                issues_found.append(f"BIO-02: Annotated CDS '{name}' ({coords}) does not end with a canonical stop codon (TAA/TAG/TGA).")
+                msg = f"BIO-02: Annotated CDS '{name}' ({coords}) does not end with a canonical stop codon (TAA/TAG/TGA)."
+                issues_found.append(msg)
+                warnings_list.append({"code": "BIO-02-TERMINAL_STOP_MISSING", "message": msg, "severity": "WARNING"})
     elif rf_result is not None:
         if not rf_result["is_multiple_of_three"]:
-            issues_found.append("BIO-01: CDS sequence length is not a multiple of 3 (frameshift).")
+            msg = "BIO-01: CDS sequence length is not a multiple of 3 (frameshift)."
+            issues_found.append(msg)
+            critical_issues.append({"code": "BIO-01-FRAMESHIFT", "message": msg, "severity": "CRITICAL"})
         if rf_result["has_premature_stop"]:
-            issues_found.append(f"BIO-01: Detected {len(rf_result['premature_stop_positions'])} premature stop codon(s).")
+            msg = f"BIO-01: Detected {len(rf_result['premature_stop_positions'])} premature stop codon(s)."
+            issues_found.append(msg)
+            critical_issues.append({"code": "BIO-01-PREMATURE_STOP", "message": msg, "severity": "CRITICAL"})
         if not rf_result["terminal_stop"]:
-            issues_found.append("BIO-02: No canonical terminal stop codon (TAA/TAG/TGA) at sequence 3' end.")
+            msg = "BIO-02: No canonical terminal stop codon (TAA/TAG/TGA) at sequence 3' end."
+            issues_found.append(msg)
+            warnings_list.append({"code": "BIO-02-TERMINAL_STOP_MISSING", "message": msg, "severity": "WARNING"})
 
     if enzyme_conflicts:
-        issues_found.append(f"BIO-03: Internal restriction cut conflict detected for: {[e['enzyme'] for e in enzyme_conflicts]}.")
+        msg = f"BIO-03: Internal restriction cut conflict detected for: {[e['enzyme'] for e in enzyme_conflicts]}."
+        issues_found.append(msg)
+        critical_issues.append({"code": "BIO-03-INTERNAL_RESTRICTION_CONFLICT", "message": msg, "severity": "CRITICAL", "conflicts": enzyme_conflicts})
+
     if crispr_recleavage and crispr_recleavage["recleavage_risk"]:
-        issues_found.append("BIO-05: CRISPR donor contains intact PAM/Seed target; severe risk of in vivo Cas9 re-cleavage.")
+        msg = "BIO-05: CRISPR donor contains intact PAM/Seed target; severe risk of in vivo Cas9 re-cleavage."
+        issues_found.append(msg)
+        critical_issues.append({"code": "BIO-05-CRISPR_RECLEAVAGE", "message": msg, "severity": "CRITICAL"})
+
     if u6_check and u6_check["has_poly_t_terminator"]:
-        issues_found.append("BIO-06: Consecutive TTTT detected; will trigger premature Pol III transcription termination in U6 promoter systems.")
+        msg = "BIO-06: Consecutive TTTT detected; will trigger premature Pol III transcription termination in U6 promoter systems."
+        issues_found.append(msg)
+        warnings_list.append({"code": "BIO-06-POL3_TERMINATOR", "message": msg, "severity": "WARNING"})
+
     if primer_dimer_res and primer_dimer_res["high_dimer_risk"]:
-        issues_found.append(f"BIO-07: Primers exhibit severe 3' complementarity ({primer_dimer_res['max_3prime_complementarity']} bp); high risk of primer-dimer amplification.")
+        msg = f"BIO-07: Primers exhibit severe 3' complementarity ({primer_dimer_res['max_3prime_complementarity']} bp); high risk of primer-dimer amplification."
+        issues_found.append(msg)
+        warnings_list.append({"code": "BIO-07-PRIMER_DIMER", "message": msg, "severity": "WARNING"})
+
     if maint_check["applicable"] and maint_check["missing_essential_maintenance"]:
-        issues_found.append("BIO-08: Circular plasmid construct lacks both functional replication origin (ori) and antibiotic selection marker.")
+        msg = "BIO-08: Circular plasmid construct lacks both functional replication origin (ori) and antibiotic selection marker."
+        issues_found.append(msg)
+        critical_issues.append({"code": "BIO-08-REPLICON_MISSING", "message": msg, "severity": "CRITICAL"})
+
     if meth_check and meth_check["has_methylation_blockade"]:
-        issues_found.append(f"BIO-09: Specified cloning enzyme(s) {meth_check['blocked_enzymes']} are completely/partially blocked by host Dam/Dcm methylation overlap.")
+        msg = f"BIO-09: Specified cloning enzyme(s) {meth_check['blocked_enzymes']} are completely/partially blocked by host Dam/Dcm methylation overlap."
+        issues_found.append(msg)
+        warnings_list.append({"code": "BIO-09-METHYLATION_BLOCKADE", "message": msg, "severity": "WARNING"})
+
     if sec_struct_check and sec_struct_check["has_severe_secondary_structure"]:
-        issues_found.append("BIO-10: Detected long inverted repeat (>=14 bp) or extreme GC cluster; high risk of in vivo spontaneous deletion or vendor synthesis rejection.")
+        msg = "BIO-10: Detected long inverted repeat (>=14 bp) or extreme GC cluster; high risk of in vivo spontaneous deletion or vendor synthesis rejection."
+        issues_found.append(msg)
+        warnings_list.append({"code": "BIO-10-SECONDARY_STRUCTURE", "message": msg, "severity": "WARNING"})
 
     if annotated_cds_audits:
         clean_for_expression = all(
@@ -599,6 +634,9 @@ def quick_biological_sanity_check(
         "methylation_blockade": meth_check,
         "secondary_structure": sec_struct_check,
         "issues_found": issues_found,
+        "critical_issues": critical_issues,
+        "warnings": warnings_list,
+        "has_critical_error": len(critical_issues) > 0,
         "all_clean": all_clean,
         "clean_for_expression": clean_for_expression,
     }

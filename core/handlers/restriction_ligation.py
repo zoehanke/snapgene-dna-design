@@ -18,12 +18,14 @@ from core.errors import PlanningError, TaskValidationError
 from core.evidence_chain import validate_goal_components
 from core.handlers.base import TaskHandler
 
-ROOT = pathlib.Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / "scripts"))
-from assembly_model import AssemblyFragment, check_sticky_junctions, overhang_end  # noqa: E402
-from construct_model import ConstructModel  # noqa: E402
-from sg_common import get_enzyme, restriction_hits  # noqa: E402
-from simulate_cloning import _hit_end_sequences, digest_ligate  # noqa: E402
+from core.models.assembly_model import (
+    AssemblyFragment,
+    check_sticky_junctions,
+    overhang_end,
+)
+from core.models.construct_model import ConstructModel
+from core.tools.assembly import _hit_end_sequences, digest_ligate
+from core.tools.restriction import get_enzyme, restriction_hits
 
 
 class RestrictionLigationHandler(TaskHandler):

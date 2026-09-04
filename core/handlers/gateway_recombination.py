@@ -14,10 +14,8 @@ from core.errors import PlanningError, TaskValidationError
 from core.evidence_chain import validate_goal_components
 from core.handlers.base import TaskHandler
 
-ROOT = pathlib.Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / "scripts"))
-from assembly_model import AssemblyError  # noqa: E402
-from simulate_advanced import gateway_bp, gateway_lr  # noqa: E402
+from core.models.assembly_model import AssemblyError
+from core.tools.recombination import gateway_bp, gateway_lr
 
 
 class GatewayRecombinationHandler(TaskHandler):

@@ -9,25 +9,20 @@ from __future__ import annotations
 import hashlib
 import pathlib
 import sys
-from typing import Any
-
-_SCRIPTS_DIR = str(pathlib.Path(__file__).resolve().parents[2] / "scripts")
-if _SCRIPTS_DIR not in sys.path:
-    sys.path.insert(0, _SCRIPTS_DIR)
-
 from Bio import SeqIO
 from Bio.Seq import Seq
+from Bio.SeqFeature import FeatureLocation, SeqFeature
 from Bio.SeqRecord import SeqRecord
 
-from scripts.assembly_model import (
+from core.models.assembly_model import (
+    AssemblyError,
     AssemblyFragment,
     check_sticky_junctions,
     overhang_end,
 )
-from scripts.construct_model import ConstructModel
-from scripts.sg_common import get_enzyme, restriction_hits
-from scripts.simulate_cloning import digest_ligate
+from core.models.construct_model import ConstructModel
 from core.tools.inspection import _load_record
+from core.tools.restriction import get_enzyme, restriction_hits
 
 
 def simulate_overlap_assembly(
@@ -110,17 +105,140 @@ def simulate_overlap_assembly(
     }
 
 
-def _hit_end_sequences(seq: str, hit: dict) -> tuple[str, str]:
-    t = hit.get("top_cut_boundary_0based", 0)
-    b = hit.get("bottom_cut_boundary_0based", 0)
-    if t == b:
-        return "blunt", ""
-    kind = "5'-overhang" if t < b else "3'-overhang"
-    ov_seq = hit.get("overhang_sequence")
-    if not ov_seq:
-        ov_seq = seq[min(t, b) : max(t, b)]
+def _arc(seq: str, start0: int, end0: int) -> str:
+    n = len(seq)
+    if n == 0:
+        return ""
+    start0 %= n
+    end0 %= n
+    length = (end0 - start0) % n
+    if length == 0:
+        return ""
+    doubled = seq + seq
+    return doubled[start0 : start0 + length]
 
-    return kind, ov_seq
+
+def _hit_end_sequences(seq: str, hit: dict) -> tuple[str, str, str]:
+    """Return (kind, left_sequence, right_sequence) for one cut pair."""
+    raw_t = hit.get("raw_top_cut_boundary_0based", hit["top_cut_boundary_0based"])
+    raw_b = hit.get("raw_bottom_cut_boundary_0based", hit["bottom_cut_boundary_0based"])
+    t = hit["top_cut_boundary_0based"]
+    b = hit["bottom_cut_boundary_0based"]
+    if raw_t == raw_b:
+        return "blunt", "", ""
+    if raw_t < raw_b:
+        region = _arc(seq, t, b)
+        return "5'-overhang", region, str(Seq(region).reverse_complement())
+    region = _arc(seq, b, t)
+    return "3'-overhang", str(Seq(region).reverse_complement()), region
+
+
+_hit_end_sequences_three = _hit_end_sequences
+
+
+def _vector_fragment(vector_rec: SeqRecord, enzyme: Any) -> tuple[AssemblyFragment, int]:
+    seq = str(vector_rec.seq).upper()
+    hits = restriction_hits(seq, enzyme, circular=True)
+    hits = [h for h in hits if h["cuts_within_sequence"]]
+    top = vector_rec.annotations.get("topology", "linear")
+    if top != "circular":
+        raise AssemblyError(
+            "INVALID_TOPOLOGY",
+            f"digest-ligate requires a circular vector; got {top}",
+        )
+    if len(hits) != 1:
+        raise AssemblyError(
+            "SITE_COUNT",
+            f"digest-ligate requires exactly 1 vector recognition site; found {len(hits)}",
+        )
+    hit = hits[0]
+    kind, left_ov, right_ov = _hit_end_sequences_three(seq, hit)
+    source_cut = hit["top_cut_boundary_0based"] % len(seq)
+    vector_frag = AssemblyFragment(
+        vector_rec.name or "vector", seq, topology="linear",
+        left_end=overhang_end(kind, left_ov, 0, source_cut_boundary=source_cut),
+        right_end=overhang_end(kind, right_ov, len(seq), source_cut_boundary=source_cut),
+        source=vector_rec.id,
+    )
+    return vector_frag, source_cut
+
+
+def _restriction_insert_fragment(insert_rec: SeqRecord, enzyme: Any) -> AssemblyFragment:
+    seq = str(insert_rec.seq).upper()
+    circular = insert_rec.annotations.get("topology", "linear") == "circular"
+    hits = restriction_hits(seq, enzyme, circular=circular)
+    hits = [h for h in hits if h["cuts_within_sequence"]]
+    if len(hits) != 2:
+        raise AssemblyError(
+            "SITE_COUNT",
+            f"digest-ligate requires exactly 2 insert recognition sites with in-sequence cuts; found {len(hits)}",
+        )
+    site = str(enzyme.site).upper()
+    rc_site = str(Seq(site).reverse_complement()).upper()
+    h1, h2 = hits
+    t1 = h1["top_cut_boundary_0based"] % len(seq)
+    t2 = h2["top_cut_boundary_0based"] % len(seq)
+    frag_a = _arc(seq, t1, t2)
+    frag_b = _arc(seq, t2, t1)
+    chosen = None
+    for fragment, left_hit, right_hit in ((frag_a, h1, h2), (frag_b, h2, h1)):
+        up = fragment.upper()
+        if fragment and site not in up and rc_site not in up:
+            chosen = (fragment, left_hit, right_hit)
+            break
+    if chosen is None:
+        raise AssemblyError(
+            "INSERT_EXCISION_FAILED",
+            f"no internal insert fragment free of intact {enzyme} recognition sites",
+        )
+    fragment, left_hit, right_hit = chosen
+    left_kind, left_ov, _left_right = _hit_end_sequences_three(seq, left_hit)
+    right_kind, _right_left, right_ov = _hit_end_sequences_three(seq, right_hit)
+    insert_frag = AssemblyFragment(
+        insert_rec.name or "insert", fragment, topology="linear",
+        left_end=overhang_end(
+            left_kind, left_ov, 0,
+            source_cut_boundary=left_hit["top_cut_boundary_0based"] % len(seq)),
+        right_end=overhang_end(
+            right_kind, right_ov, len(fragment),
+            source_cut_boundary=right_hit["top_cut_boundary_0based"] % len(seq)),
+        source=insert_rec.id,
+    )
+    return insert_frag
+
+
+def digest_ligate(
+    vector_rec: SeqRecord,
+    insert_rec: SeqRecord,
+    enzyme_name: str,
+) -> tuple[SeqRecord, list[AssemblyFragment], list[dict[str, Any]]]:
+    """Sticky-end ligation using the shared end model."""
+    enzyme = get_enzyme(enzyme_name)
+    vector_frag, vector_cut0 = _vector_fragment(vector_rec, enzyme)
+    insert_frag = _restriction_insert_fragment(insert_rec, enzyme)
+
+    junctions = check_sticky_junctions([vector_frag, insert_frag], circular=True)
+    if any(j["compatibility"] == "MISMATCH" for j in junctions):
+        raise AssemblyError(
+            "STICKY_END_MISMATCH",
+            "digest-ligation sticky ends are not complementary: %s"
+            % "; ".join("%s: %s" % (j["between"], j["compatibility"]) for j in junctions),
+            details=junctions,
+        )
+
+    ins_seq = insert_frag.sequence
+    model = ConstructModel(vector_rec).insert(vector_cut0, ins_seq)
+    model.set_topology("circular")
+    product = model.to_record()
+    product.id = "product"
+    product.name = "product"
+    product.description = "digest-ligation product"
+    product.features.append(SeqFeature(
+        FeatureLocation(vector_cut0, vector_cut0 + len(ins_seq), strand=1),
+        type="misc_feature", qualifiers={"label": ["insert"]},
+    ))
+    return product, [vector_frag, insert_frag], junctions
+
 
 
 def simulate_digest_ligation(
@@ -198,8 +316,8 @@ def simulate_digest_ligation(
     ins_frag = iseq[i1:i2]
     backbone = vseq[:t1] + vseq[t2:]
 
-    l_kind, l_ov = _hit_end_sequences(vseq, vector_hits[1])
-    r_kind, r_ov = _hit_end_sequences(vseq, vector_hits[0])
+    l_kind, l_ov, _ = _hit_end_sequences(vseq, vector_hits[1])
+    r_kind, _, r_ov = _hit_end_sequences(vseq, vector_hits[0])
     backbone_frag = AssemblyFragment(
         "vector", backbone, topology="linear",
         left_end=overhang_end(l_kind, l_ov, 0, source_cut_boundary=t2),
@@ -207,8 +325,8 @@ def simulate_digest_ligation(
         source=vec_rec.id,
     )
 
-    il_kind, il_ov = _hit_end_sequences(iseq, insert_hits[0])
-    ir_kind, ir_ov = _hit_end_sequences(iseq, insert_hits[1])
+    il_kind, il_ov, _ = _hit_end_sequences(iseq, insert_hits[0])
+    ir_kind, _, ir_ov = _hit_end_sequences(iseq, insert_hits[1])
     insert_frag = AssemblyFragment(
         "insert", ins_frag, topology="linear",
         left_end=overhang_end(il_kind, il_ov, 0, source_cut_boundary=i1),
@@ -246,8 +364,6 @@ def simulate_golden_gate(
     liberating inserts between inward-facing recognition sites with 4-bp sticky overhangs,
     verifies junction complementarity, and ligates fragments.
     """
-    from scripts.sg_common import get_enzyme, restriction_hits
-
     enz = get_enzyme(enzyme)
     digested_frags = []
 

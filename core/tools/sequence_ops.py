@@ -10,6 +10,7 @@ import hashlib
 import pathlib
 from typing import Any
 
+from Bio.Data import CodonTable
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
@@ -64,13 +65,19 @@ def check_reading_frame(
     complete_codons_len = len(seq_clean) - rem
     coding_dna = seq_clean[:complete_codons_len]
 
+    try:
+        table_obj = CodonTable.unambiguous_dna_by_id[transl_table]
+        stop_codons = set(table_obj.stop_codons)
+    except (KeyError, AttributeError):
+        stop_codons = {"TAA", "TAG", "TGA"}
+
     stops = []
     premature_stops = []
     aa_list = []
 
     for idx in range(0, complete_codons_len, 3):
         codon = coding_dna[idx : idx + 3]
-        if codon in ("TAA", "TAG", "TGA"):
+        if codon in stop_codons:
             codon_pos = start_offset + idx
             stops.append(codon_pos)
             if idx < complete_codons_len - 3:

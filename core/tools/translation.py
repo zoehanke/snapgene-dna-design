@@ -9,7 +9,7 @@ from __future__ import annotations
 from Bio.Data import CodonTable
 from Bio.Seq import Seq
 
-from scripts.sg_common import get_enzyme, restriction_hits
+from core.tools.restriction import get_enzyme, restriction_hits
 
 
 def reverse_complement(seq: str) -> str:
@@ -40,7 +40,7 @@ def silent_mutation_remove_site(
     frame_offset: int = 0,
     table: int = 1,
 ) -> dict:
-    """Mutate an internal restriction site silently without altering translated amino acid sequence.
+    """Mutate internal restriction sites silently without altering translated amino acid sequence.
 
     Args:
         cds_seq: Coding sequence.
@@ -58,8 +58,8 @@ def silent_mutation_remove_site(
     # Initial translation
     orig_aa = translate_dna("".join(s), frame=frame_offset + 1, table=table)
 
-    hits = restriction_hits(Seq("".join(s)), enz, circular=False)
-    if not hits:
+    current_hits = restriction_hits(Seq("".join(s)), enz, circular=False)
+    if not current_hits:
         return {
             "mutated_seq": "".join(s),
             "site_removed": True,
@@ -69,54 +69,64 @@ def silent_mutation_remove_site(
         }
 
     mutations_applied = []
-    # Standard codon table dictionary
     forward_table = CodonTable.unambiguous_dna_by_id[table].forward_table
 
-    for h in hits:
-        site_start = h.get("recognition_start0", h.get("start", 0))
-        site_len = len(str(getattr(enz, "site", "")))
+    # Continue attempting to silence sites while sites exist and progress is made
+    max_rounds = len(current_hits) + 4
+    round_count = 0
+    while current_hits and round_count < max_rounds:
+        round_count += 1
+        progress_made = False
 
-        resolved = False
-        # Try mutating bases within the recognition site
-        for pos in range(site_start, min(site_start + site_len, n)):
-            # Determine codon start for this position
-            codon_idx = (pos - frame_offset) // 3
-            codon_start = frame_offset + codon_idx * 3
-            codon_end = codon_start + 3
-            if codon_end > n:
-                continue
+        for h in current_hits:
+            site_start = h.get("recognition_start0", h.get("start", 0))
+            site_len = len(str(getattr(enz, "site", "")))
 
-            current_codon = "".join(s[codon_start:codon_end])
-            orig_amino = forward_table.get(current_codon, "*")
-            base_idx_in_codon = pos - codon_start
-
-            for alt in ("A", "C", "G", "T"):
-                if alt == s[pos]:
+            for pos in range(site_start, min(site_start + site_len, n)):
+                codon_idx = (pos - frame_offset) // 3
+                codon_start = frame_offset + codon_idx * 3
+                codon_end = codon_start + 3
+                if codon_end > n or codon_start < 0:
                     continue
-                test_codon = list(current_codon)
-                test_codon[base_idx_in_codon] = alt
-                test_codon_str = "".join(test_codon)
-                test_amino = forward_table.get(test_codon_str, "*")
 
-                if test_amino == orig_amino:
-                    # Synonymous! Test if this mutation destroys the restriction site
-                    test_seq = list(s)
-                    test_seq[pos] = alt
-                    remaining_hits = restriction_hits(Seq("".join(test_seq)), enz, circular=False)
-                    if len(remaining_hits) < len(hits):
-                        # Successfully eliminated this hit!
-                        s[pos] = alt
-                        mutations_applied.append({
-                            "position_0based": pos,
-                            "original_base": current_codon[base_idx_in_codon],
-                            "alt_base": alt,
-                            "codon_change": f"{current_codon} -> {test_codon_str}",
-                            "amino_acid": orig_amino,
-                        })
-                        resolved = True
-                        break
-            if resolved:
+                current_codon = "".join(s[codon_start:codon_end])
+                orig_amino = forward_table.get(current_codon, "*")
+                base_idx_in_codon = pos - codon_start
+
+                for alt in ("A", "C", "G", "T"):
+                    if alt == s[pos]:
+                        continue
+                    test_codon = list(current_codon)
+                    test_codon[base_idx_in_codon] = alt
+                    test_codon_str = "".join(test_codon)
+                    test_amino = forward_table.get(test_codon_str, "*")
+
+                    if test_amino == orig_amino:
+                        # Synonymous! Test if this mutation reduces the count of restriction sites
+                        test_seq = list(s)
+                        test_seq[pos] = alt
+                        new_hits = restriction_hits(Seq("".join(test_seq)), enz, circular=False)
+                        if len(new_hits) < len(current_hits):
+                            # Successfully eliminated at least one site!
+                            s[pos] = alt
+                            mutations_applied.append({
+                                "position_0based": pos,
+                                "original_base": current_codon[base_idx_in_codon],
+                                "alt_base": alt,
+                                "codon_change": f"{current_codon} -> {test_codon_str}",
+                                "amino_acid": orig_amino,
+                            })
+                            current_hits = new_hits
+                            progress_made = True
+                            break
+                if progress_made:
+                    break
+            if progress_made:
                 break
+
+        if not progress_made:
+            # Cannot eliminate remaining sites with synonymous mutations
+            break
 
     mutated_str = "".join(s)
     new_aa = translate_dna(mutated_str, frame=frame_offset + 1, table=table)

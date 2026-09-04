@@ -161,15 +161,17 @@ def recipe_protein_tagging(
         # Order: [Kozak] + Tag + [Linker] + [Cleavage] + Target_CDS (with its own stop or terminal_stop)
         tag_stripped_res = strip_terminal_codons(tag_dna, strip_start=False, strip_stop=True)
         tag_core = tag_stripped_res["sequence"]
+        if not tag_core.startswith("ATG"):
+            tag_core = "ATG" + tag_core
 
         # If target CDS has start codon ATG, we can keep it or strip it; standard SOP usually strips target ATG if directly preceded by protease/tag
         cds_stripped_start = strip_terminal_codons(target_cds, strip_start=True, strip_stop=False)["sequence"]
 
         components = [tag_core]
-        if cleavage_dna:
-            components.append(cleavage_dna)
         if linker_dna:
             components.append(linker_dna)
+        if cleavage_dna:
+            components.append(cleavage_dna)
         components.append(cds_stripped_start)
 
         fused = "".join(components)
@@ -200,6 +202,7 @@ def recipe_protein_tagging(
 
     return {
         "recipe": "recipe_protein_tagging",
+        "product_sequence": product_dna,
         "product_dna_sequence": product_dna,
         "product_dna_length": len(product_dna),
         "translated_protein_sequence": aa_seq,

@@ -76,6 +76,8 @@ def validate_interval(
     if not is_circular:
         # Linear record
         if s0 == e0:
+            if task_kind in ("insertion", "plasmid_insert", "point_mutation"):
+                return (s0, s0, False)
             raise PlanningError(
                 "ZERO_WIDTH_INTERVAL_REJECTED",
                 "zero-width interval [%d, %d) is rejected on linear record" % (s0, e0),
@@ -98,13 +100,17 @@ def validate_interval(
 
     # Circular record
     if s0 == e0:
+        if task_kind in ("insertion", "plasmid_insert", "point_mutation"):
+            return (s0, s0, False)
         if not whole_record_approved:
             raise PlanningError(
                 "ZERO_WIDTH_INTERVAL_REJECTED",
                 "zero-width interval [%d, %d) is rejected on circular record unless whole-record operation is explicitly approved" % (s0, e0),
                 missing_fields=["target.selection.interval_0based"],
             )
-        return (0, record_len, False)
+        if s0 == 0:
+            return (0, record_len, False)
+        return (s0, s0, False)
 
     if s0 < e0:
         if s0 == 0 and e0 == record_len:

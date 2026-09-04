@@ -13,9 +13,68 @@ from typing import Any
 
 from Bio import SeqIO
 from Bio.Seq import Seq
+from Bio.SeqFeature import FeatureLocation, Reference, SeqFeature
 from Bio.SeqRecord import SeqRecord
 
-from scripts.write_dna import _snapgene_annotated, write_native_dna
+
+def _strand_char(strand: int | None) -> str:
+    return "-" if strand == -1 else "+"
+
+
+def _ensure_annotations(record: SeqRecord) -> SeqRecord:
+    record.annotations["molecule_type"] = "DNA"
+    if "topology" not in record.annotations:
+        record.annotations["topology"] = record.annotations.get("topology", "linear")
+    return record
+
+
+def _snapgene_annotated(record: SeqRecord) -> SeqRecord:
+    """Return the record annotated for the GenBank-SnapGene dialect."""
+    _ensure_annotations(record)
+    record.name = "Exported"
+    ref = Reference()
+    ref.title = "Direct Submission"
+    ref.journal = "Exported from snapgene-dna-design (SnapGene)"
+    ref.authors = "."
+    refs = list(record.annotations.get("references", []))
+    refs.append(ref)
+    record.annotations["references"] = refs
+    return record
+
+
+def write_native_dna(record: SeqRecord, out_path: str | pathlib.Path) -> str | pathlib.Path:
+    """Write a native SnapGene .dna file via sgffp (0-based coords)."""
+    from sgffp import SgffFeature, SgffObject, SgffSegment, SgffWriter
+    topo = record.annotations.get("topology", "linear")
+    sg = SgffObject.new(str(record.seq), topology=topo)
+    for f in record.features:
+        if "primer" in f.type.lower():
+            seq = str(f.extract(record.seq))
+            if seq:
+                sg.add_primer(
+                    f.qualifiers.get("label", [f.id or "primer"])[0],
+                    seq,
+                    bind_position=int(f.location.start),
+                    bind_strand=_strand_char(f.location.strand),
+                )
+            continue
+        name = f.qualifiers.get(
+            "label", f.qualifiers.get("gene", [f.id or "feature"])
+        )[0]
+        parts = getattr(f.location, "parts", [f.location])
+        segments = [
+            SgffSegment(start=int(p.start), end=int(p.end)) for p in parts
+        ]
+        feature = SgffFeature(
+            name=name,
+            type=f.type,
+            strand=_strand_char(f.location.strand),
+            segments=segments,
+        )
+        sg.features.add(feature)
+    SgffWriter.to_file(sg, out_path)
+    return out_path
+
 
 
 SNAPGENE_EXE_PATH = r"D:\SnapGene\SnapGene.exe"

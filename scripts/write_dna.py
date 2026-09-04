@@ -34,70 +34,19 @@ def attach_features(record, feat_path):
     return record
 
 
-def _ensure_annotations(record):
-    record.annotations["molecule_type"] = "DNA"
-    if "topology" not in record.annotations:
-        record.annotations["topology"] = topology(record)
-    return record
+import pathlib
+import sys
 
+_ROOT = str(pathlib.Path(__file__).resolve().parents[1])
+if _ROOT not in sys.path:
+    sys.path.insert(0, _ROOT)
 
-def _snapgene_annotated(record):
-    """Return the record annotated for the GenBank-SnapGene dialect.
-
-    Uses real Reference objects (not string post-processing) so the file
-    re-reads cleanly with no malformed LOCUS or phantom features.
-    """
-    _ensure_annotations(record)
-    record.name = "Exported"
-    ref = Reference()
-    ref.title = "Direct Submission"
-    ref.journal = "Exported from snapgene-dna-design (SnapGene)"
-    ref.authors = "."
-    refs = list(record.annotations.get("references", []))
-    refs.append(ref)
-    record.annotations["references"] = refs
-    return record
-
-
-def _strand_char(strand):
-    return "-" if strand == -1 else "+"
-
-
-def write_native_dna(record, out_path):
-    """Write a native SnapGene .dna file via sgffp (0-based coords).
-
-    CompoundLocation features are written as multiple segments so that
-    wrapped / multi-part features survive a native round trip.
-    """
-    from sgffp import SgffFeature, SgffObject, SgffSegment, SgffWriter
-    sg = SgffObject.new(str(record.seq), topology=topology(record))
-    for f in record.features:
-        if "primer" in f.type.lower():
-            seq = str(f.extract(record.seq))
-            if seq:
-                sg.add_primer(
-                    f.qualifiers.get("label", [f.id or "primer"])[0],
-                    seq,
-                    bind_position=int(f.location.start),
-                    bind_strand=_strand_char(f.location.strand),
-                )
-            continue
-        name = f.qualifiers.get(
-            "label", f.qualifiers.get("gene", [f.id or "feature"])
-        )[0]
-        parts = getattr(f.location, "parts", [f.location])
-        segments = [
-            SgffSegment(start=int(p.start), end=int(p.end)) for p in parts
-        ]
-        feature = SgffFeature(
-            name=name,
-            type=f.type,
-            strand=_strand_char(f.location.strand),
-            segments=segments,
-        )
-        sg.features.add(feature)
-    SgffWriter.to_file(sg, out_path)
-    return out_path
+from core.tools.snapgene_io import (
+    _ensure_annotations,
+    _snapgene_annotated,
+    _strand_char,
+    write_native_dna,
+)
 
 
 def main():

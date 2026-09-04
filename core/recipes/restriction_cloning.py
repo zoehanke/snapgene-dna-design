@@ -20,7 +20,36 @@ from Bio.Seq import Seq
 
 from core.tools.amplification import design_overhang_primers, simulate_pcr
 from core.tools.assembly import simulate_digest_ligation
-from core.tools.restriction import check_overhang_compatibility, find_restriction_sites
+from core.tools.restriction import (
+    check_overhang_compatibility,
+    find_restriction_sites,
+    get_enzyme,
+)
+
+
+def are_restriction_ends_compatible(enz1: Any, enz2: Any) -> bool:
+    """Return True if two restriction enzymes produce mutually compatible cohesive or blunt ends.
+
+    When ends are compatible, linearized vectors can self-ligate and inserts can integrate
+    in either forward or reverse orientation, rendering cloning non-directional.
+    """
+    if enz1 == enz2:
+        return True
+    ov1 = getattr(enz1, "ovhg", None)
+    ov2 = getattr(enz2, "ovhg", None)
+    if ov1 is None or ov2 is None:
+        return False
+    if ov1 == 0 and ov2 == 0:
+        # Both blunt ends -> mutually ligatable non-directionally
+        return True
+    if ov1 != ov2:
+        # Different overhang length or geometry (5' vs 3') -> incompatible
+        return False
+    seq1 = str(getattr(enz1, "ovhgseq", "")).upper()
+    seq2 = str(getattr(enz2, "ovhgseq", "")).upper()
+    if not seq1 or not seq2:
+        return False
+    return seq1 == seq2
 
 AUTHORITATIVE_SOURCES = [
     {
@@ -78,13 +107,15 @@ def recipe_restriction_cloning(
     - Warns about DpnI template digestion and vector dephosphorylation.
     - Emits full provenance and authoritative literature citations.
     """
-    from scripts.sg_common import get_enzyme
-
     enz5_obj = get_enzyme(enzyme5)
     enz3_obj = get_enzyme(enzyme3)
 
     site5 = str(getattr(enz5_obj, "site", "")).upper()
     site3 = str(getattr(enz3_obj, "site", "")).upper()
+
+    # Directional cloning validation: enzymes must not produce compatible cohesive or blunt ends
+    ends_compatible = are_restriction_ends_compatible(enz5_obj, enz3_obj)
+    is_directional = (enzyme5 != enzyme3) and not ends_compatible
 
     # 1. Look up standard NEB 5' protective bases
     prot5 = STANDARD_PROTECTIVE_BASES.get(enzyme5, "CGC")
@@ -118,6 +149,12 @@ def recipe_restriction_cloning(
     # 4. Check for Dam/Dcm methylation overlap on vector and insert
     re_check_vector = find_restriction_sites(vector_source, enzymes=[enzyme5, enzyme3])
     warnings = []
+    if not is_directional:
+        warnings.append(
+            f"Non-directional cloning: {enzyme5} and {enzyme3} produce compatible ends "
+            f"(both blunt or compatible overhangs '{getattr(enz5_obj, 'ovhgseq', '')}'). "
+            "Insert can integrate in either orientation; vector dephosphorylation and colony orientation screening required."
+        )
     for enz_name, e_info in re_check_vector.get("enzymes", {}).items():
         for s in e_info.get("cuts", []):
             if s.get("methylation_warnings"):
@@ -142,7 +179,8 @@ def recipe_restriction_cloning(
     ]
 
     quality_checks = {
-        "directional_cloning": (enzyme5 != enzyme3),
+        "directional_cloning": is_directional,
+        "ends_compatible": ends_compatible,
         "protective_bases_added": {"5prime": prot5, "3prime": prot3},
         "binding_core_delta_tm": primers["binding_core_delta_tm"],
         "delta_tm_within_standard_2C": primers["binding_core_delta_tm"] <= 2.0,

@@ -88,6 +88,7 @@ def recipe_crispr_hdr_donor(
     pam_mutated = False
     pam_details = "No sgRNA sequence provided; PAM status unverified"
     mutations_applied = []
+    warnings = []
 
     if grna_seq:
         g = grna_seq.strip().upper()
@@ -98,28 +99,83 @@ def recipe_crispr_hdr_donor(
             if pam_seq.endswith("GG"):
                 mutated_syn = False
                 if target_is_cds:
-                    # Find the exact triplet codon overlapping right_arm[5]
-                    c_rel = (5 - (cds_frame_offset % 3)) % 3
-                    c_start = 5 - c_rel
-                    if c_start + 3 <= len(right_arm):
-                        orig_codon = right_arm[c_start : c_start + 3]
+                    # Check codons overlapping PAM position 5 and 4
+                    for target_pos in (5, 4):
+                        c_rel = (target_pos - (cds_frame_offset % 3)) % 3
+                        c_start = target_pos - c_rel
+                        if c_start >= 0 and c_start + 3 <= len(right_arm):
+                            orig_codon = right_arm[c_start : c_start + 3]
+                            syn_info = get_codon_synonyms(orig_codon)
+                            for syn in syn_info.get("synonymous_codons", []):
+                                if syn[c_rel] != right_arm[target_pos]:
+                                    new_right = right_arm[:c_start] + syn + right_arm[c_start + 3:]
+                                    if not new_right[3:6].endswith("GG"):
+                                        old_base = right_arm[target_pos]
+                                        new_base = syn[c_rel]
+                                        right_arm = new_right
+                                        pam_mutated = True
+                                        mutated_syn = True
+                                        pam_details = (
+                                            f"Silenced PAM via synonymous codon {orig_codon} -> {syn} ({syn_info['amino_acid']}) "
+                                            f"at right arm [{c_start}:{c_start+3}] without altering protein sequence (Paquet et al. 2016 Nature)"
+                                        )
+                                        mutations_applied.append({
+                                            "location": "right_arm",
+                                            "offset_0based": c_start,
+                                            "ref": orig_codon,
+                                            "alt": syn,
+                                            "amino_acid": syn_info["amino_acid"],
+                                            "synonymous": True,
+                                        })
+                                        break
+                        if mutated_syn:
+                            break
+
+                if not mutated_syn:
+                    if target_is_cds:
+                        # CRITICAL: Do NOT silently introduce missense mutation into CDS!
+                        warnings.append(
+                            f"CRITICAL: Target is in CDS and no synonymous mutation was found to silence PAM ({pam_seq}). "
+                            "Non-synonymous mutation was refused to prevent missense/nonsense mutation in coding sequence. "
+                            "Consider selecting an alternative gRNA target."
+                        )
+                        pam_details = f"PAM {pam_seq} retained: in CDS with no viable synonymous mutation"
+                    else:
+                        # Standard non-coding PAM mutation (Paquet 2016)
+                        old_base = right_arm[5]
+                        new_base = "A" if old_base == "G" else "T"
+                        right_arm = right_arm[:5] + new_base + right_arm[6:]
+                        pam_mutated = True
+                        pam_details = f"Silenced PAM {pam_seq} -> {right_arm[3:6]} (G->{new_base} at right arm bp 5) to prevent Cas9 re-cleavage (Paquet et al. 2016 Nature)"
+                        mutations_applied.append({"location": "right_arm", "offset_0based": 5, "ref": old_base, "alt": new_base, "synonymous": False})
+        elif grna_strand == -1 and len(left_arm) >= 6:
+            # Bottom strand (-1): cut is at len(left_arm), PAM_rc (CCN) is at left_arm[-6:-3]
+            pam_rc = left_arm[-6:-3]
+            if pam_rc.startswith("CC"):
+                mutated_syn = False
+                if target_is_cds:
+                    # Check codon overlapping left_arm[-6]
+                    target_idx = len(left_arm) - 6
+                    c_rel = (target_idx - (cds_frame_offset % 3)) % 3
+                    c_start = target_idx - c_rel
+                    if c_start >= 0 and c_start + 3 <= len(left_arm):
+                        orig_codon = left_arm[c_start : c_start + 3]
                         syn_info = get_codon_synonyms(orig_codon)
                         for syn in syn_info.get("synonymous_codons", []):
-                            # Test if this synonym alters the terminal G of PAM
-                            if syn[c_rel] != right_arm[5]:
-                                new_right = right_arm[:c_start] + syn + right_arm[c_start + 3:]
-                                if not new_right[3:6].endswith("GG"):
-                                    old_base = right_arm[5]
+                            if syn[c_rel] != left_arm[target_idx]:
+                                new_left = left_arm[:c_start] + syn + left_arm[c_start + 3:]
+                                if not new_left[-6:-3].startswith("CC"):
+                                    old_base = left_arm[target_idx]
                                     new_base = syn[c_rel]
-                                    right_arm = new_right
+                                    left_arm = new_left
                                     pam_mutated = True
                                     mutated_syn = True
                                     pam_details = (
-                                        f"Silenced PAM via synonymous codon {orig_codon} -> {syn} ({syn_info['amino_acid']}) "
-                                        f"at right arm [{c_start}:{c_start+3}] without altering protein sequence (Paquet et al. 2016 Nature)"
+                                        f"Silenced PAM reverse complement via synonymous codon {orig_codon} -> {syn} "
+                                        f"({syn_info['amino_acid']}) at left arm [{c_start}:{c_start+3}] (Paquet et al. 2016 Nature)"
                                     )
                                     mutations_applied.append({
-                                        "location": "right_arm",
+                                        "location": "left_arm",
                                         "offset_0based": c_start,
                                         "ref": orig_codon,
                                         "alt": syn,
@@ -127,24 +183,21 @@ def recipe_crispr_hdr_donor(
                                         "synonymous": True,
                                     })
                                     break
+
                 if not mutated_syn:
-                    # Standard non-coding or fallback PAM mutation (Paquet 2016)
-                    old_base = right_arm[5]
-                    new_base = "A" if old_base == "G" else "T"
-                    right_arm = right_arm[:5] + new_base + right_arm[6:]
-                    pam_mutated = True
-                    pam_details = f"Silenced PAM {pam_seq} -> {right_arm[3:6]} (G->{new_base} at right arm bp 5) to prevent Cas9 re-cleavage (Paquet et al. 2016 Nature)"
-                    mutations_applied.append({"location": "right_arm", "offset_0based": 5, "ref": old_base, "alt": new_base, "synonymous": False})
-        elif grna_strand == -1 and len(left_arm) >= 6:
-            # Bottom strand (-1): cut is at len(left_arm), PAM_rc (CCN) is at left_arm[-6:-3]
-            pam_rc = left_arm[-6:-3]
-            if pam_rc.startswith("CC"):
-                old_base = left_arm[-6]
-                new_base = "T" if old_base == "C" else "A"
-                left_arm = left_arm[:-6] + new_base + left_arm[-5:]
-                pam_mutated = True
-                pam_details = f"Silenced PAM reverse complement {pam_rc} -> {left_arm[-6:-3]} to prevent Cas9 re-cleavage"
-                mutations_applied.append({"location": "left_arm", "offset_0based": len(left_arm) - 6, "ref": old_base, "alt": new_base})
+                    if target_is_cds:
+                        warnings.append(
+                            f"CRITICAL: Target is in CDS and no synonymous mutation was found to silence PAM reverse complement ({pam_rc}). "
+                            "Non-synonymous mutation was refused to prevent missense/nonsense mutation in coding sequence."
+                        )
+                        pam_details = f"PAM reverse complement {pam_rc} retained: in CDS with no viable synonymous mutation"
+                    else:
+                        old_base = left_arm[-6]
+                        new_base = "T" if old_base == "C" else "A"
+                        left_arm = left_arm[:-6] + new_base + left_arm[-5:]
+                        pam_mutated = True
+                        pam_details = f"Silenced PAM reverse complement {pam_rc} -> {left_arm[-6:-3]} to prevent Cas9 re-cleavage"
+                        mutations_applied.append({"location": "left_arm", "offset_0based": len(left_arm) - 6, "ref": old_base, "alt": new_base, "synonymous": False})
 
     donor_seq = left_arm + edit + right_arm
     total_len = len(donor_seq)
@@ -155,6 +208,7 @@ def recipe_crispr_hdr_donor(
         "pam_recleavage_prevented": pam_mutated or (not grna_seq),
         "edit_distance_from_dsb_bp": 0,  # Placed directly at DSB
         "ssodn_total_length_under_200nt": (total_len <= 200) if donor_type.lower() == "ssodn" else True,
+        "missense_mutation_avoided": not any(m.get("synonymous") is False for m in mutations_applied if target_is_cds),
     }
 
     return {
@@ -172,5 +226,6 @@ def recipe_crispr_hdr_donor(
         "pam_silencing_details": pam_details,
         "mutations_applied": mutations_applied,
         "quality_checks": quality_checks,
+        "warnings": warnings,
         "authoritative_sources": AUTHORITATIVE_SOURCES,
     }

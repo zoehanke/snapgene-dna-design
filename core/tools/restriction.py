@@ -13,8 +13,120 @@ from typing import Any
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
-from scripts.sg_common import get_enzyme, restriction_hits
 from core.tools.inspection import _load_record
+
+
+def get_enzyme(enzyme_name: str):
+    """Resolve a restriction enzyme name case-insensitively.
+
+    Returns a Bio.Restriction enzyme class, or raises ValueError.
+    """
+    import Bio.Restriction as restr
+    name = enzyme_name.strip()
+    # exact attribute lookup first (handles EcoRI, BamHI, etc.)
+    for candidate in (name, name.capitalize()):
+        try:
+            return getattr(restr, candidate)
+        except AttributeError:
+            continue
+    # case-insensitive fallback over all known enzymes
+    lower = name.lower()
+    for attr in dir(restr):
+        if attr.lower() == lower:
+            return getattr(restr, attr)
+    raise ValueError(f"Unknown restriction enzyme: {enzyme_name}")
+
+
+def enzyme_sites(seq: str | Seq, enzyme: Any, circular: bool = False) -> list[int]:
+    """Return 1-based first-base-after-top-cut positions.
+
+    Follows Bio.Restriction.search semantics. Cut coordinate, not recognition start.
+    """
+    try:
+        positions = list(enzyme.search(Seq(str(seq)), linear=not circular))
+        if circular and len(seq):
+            positions = [((int(pos) - 1) % len(seq)) + 1 for pos in positions]
+        return sorted(set(int(pos) for pos in positions))
+    except Exception:
+        return []
+
+
+def restriction_hits(seq: str | Seq, enzyme: Any, circular: bool = False) -> list[dict[str, Any]]:
+    """Return recognition sites and explicit double-strand cut boundaries.
+
+    Circular hits may have ``end < start`` and ``wraps_origin=True``.
+    Non-palindromic sites are searched on both orientations.
+    """
+    s = str(seq).upper()
+    site = str(enzyme.site).upper()
+    n, width = len(s), len(site)
+    iupac = {
+        "A": "A", "C": "C", "G": "G", "T": "T", "U": "U",
+        "R": "AG", "Y": "CT", "S": "GC", "W": "AT", "K": "GT",
+        "M": "AC", "B": "CGT", "D": "AGT", "H": "ACT",
+        "V": "ACG", "N": "ACGT",
+    }
+
+    def matches(window, pattern):
+        return len(window) == len(pattern) and all(
+            base in iupac.get(symbol, symbol)
+            for base, symbol in zip(window, pattern))
+    if not n or not width:
+        return []
+
+    rc_site = str(Seq(site).reverse_complement())
+    if circular:
+        repeats = ((width - 1) // n) + 2
+        searchable = (s * repeats)[:n + width - 1]
+        starts = range(n)
+    else:
+        searchable = s
+        starts = range(max(n - width + 1, 0))
+
+    hits = []
+    for start0 in starts:
+        window = searchable[start0:start0 + width]
+        orientations = []
+        if matches(window, site):
+            orientations.append(1)
+        if rc_site != site and matches(window, rc_site):
+            orientations.append(-1)
+        for strand in orientations:
+            end0 = start0 + width
+            wraps = circular and end0 > n
+            end_1based = ((end0 - 1) % n) + 1 if circular else end0
+            fst5 = int(enzyme.fst5)
+            fst3 = int(enzyme.fst3)
+            if strand == 1:
+                top_cut = start0 + fst5
+                bottom_cut = start0 + width + fst3
+            else:
+                top_cut = start0 - fst3
+                bottom_cut = start0 + width - fst5
+            raw_top_cut, raw_bottom_cut = top_cut, bottom_cut
+            if circular:
+                top_cut %= n
+                bottom_cut %= n
+            hits.append({
+                "start": start0 + 1,
+                "end": end_1based,
+                "strand": strand,
+                "wraps_origin": wraps,
+                "recognition_start0": start0,
+                "recognition_end0": end0,
+                "top_cut_boundary_0based": top_cut,
+                "bottom_cut_boundary_0based": bottom_cut,
+                "raw_top_cut_boundary_0based": raw_top_cut,
+                "raw_bottom_cut_boundary_0based": raw_bottom_cut,
+                "top_cut_after_base_1based": top_cut,
+                "bottom_cut_after_base_1based": bottom_cut,
+                "cuts_within_sequence": (
+                    circular or (
+                        0 <= raw_top_cut <= n and 0 <= raw_bottom_cut <= n
+                    )
+                ),
+            })
+    return hits
 
 
 COMMON_CLONING_ENZYMES = [
@@ -181,8 +293,6 @@ def digest_sequence(
     circular: bool = False,
 ) -> dict[str, Any]:
     """Digest a DNA sequence with a restriction endonuclease, returning cleaved fragments and their end geometries."""
-    from scripts.sg_common import get_enzyme, restriction_hits
-
     enz = get_enzyme(enzyme)
     s = str(seq).strip().upper()
     hits = restriction_hits(Seq(s), enz, circular=circular)
@@ -265,8 +375,6 @@ def digest_type_iis(
     enzyme: str = "BsaI",
 ) -> dict[str, Any]:
     """Perform single-fragment Type IIS digestion (e.g. BsaI, BsmBI), stripping recognition sites and liberating cohesive overhangs."""
-    from scripts.sg_common import get_enzyme, restriction_hits
-
     enz = get_enzyme(enzyme)
     s = str(fragment_seq).strip().upper()
     hits = restriction_hits(Seq(s), enz, circular=False)
