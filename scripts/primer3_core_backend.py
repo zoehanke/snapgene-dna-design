@@ -110,6 +110,79 @@ def discover_primer3_core(explicit=None):
     return None
 
 
+def clear_core_cache():
+    """Clear cached discovery results."""
+    _DISCOVERED_CORE_CACHE.clear()
+
+
+def ensure_primer3_core(explicit=None, auto_install=False, verbose=True):
+    """Ensure primer3_core is available, optionally attempting pip auto-install.
+
+    Returns the absolute path to primer3_core executable if available, or None.
+
+    If primer3_core is not initially discovered and ``auto_install`` is True
+    (or the PRIMER3_AUTO_INSTALL environment variable is set to "1" or "true"),
+    this function executes ``sys.executable -m pip install "primer3-py>=2.3.0"``
+    to fetch the precompiled binary wheel for the current platform.
+
+    On success, the discovery cache is refreshed and the path is returned.
+    If installation fails or is not attempted, returns None cleanly without
+    raising an unhandled exception, allowing caller fallback.
+    """
+    found = discover_primer3_core(explicit)
+    if found:
+        return found
+
+    should_install = auto_install or (
+        os.environ.get("PRIMER3_AUTO_INSTALL", "").strip().lower() in ("1", "true", "yes")
+    )
+    if not should_install:
+        return None
+
+    if verbose:
+        sys.stderr.write(
+            "[Primer3 Bootstrap] primer3_core not found. Installing official precompiled wheel via:\n"
+            "  %s -m pip install 'primer3-py>=2.3.0'...\n" % sys.executable
+        )
+        sys.stderr.flush()
+
+    try:
+        proc = subprocess.run(
+            [sys.executable, "-m", "pip", "install", "primer3-py>=2.3.0"],
+            capture_output=True,
+            text=True,
+            timeout=180,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+        if proc.returncode == 0:
+            clear_core_cache()
+            newly_found = discover_primer3_core(explicit)
+            if newly_found:
+                if verbose:
+                    sys.stderr.write(
+                        "[Primer3 Bootstrap] Successfully installed primer3-py! primer3_core ready at:\n"
+                        "  %s\n" % newly_found
+                    )
+                    sys.stderr.flush()
+                return newly_found
+            elif verbose:
+                sys.stderr.write(
+                    "[Primer3 Bootstrap] pip install succeeded, but primer3_core executable was not found.\n"
+                )
+        else:
+            if verbose:
+                err_snippet = (proc.stderr or proc.stdout or "").strip()[-300:]
+                sys.stderr.write(
+                    "[Primer3 Bootstrap] pip install failed (exit=%d): %s\n"
+                    % (proc.returncode, err_snippet)
+                )
+    except Exception as exc:
+        if verbose:
+            sys.stderr.write("[Primer3 Bootstrap] Auto-installation error: %s\n" % exc)
+
+    return None
+
+
 def probe_primer3_core(explicit=None, timeout=10):
     """Return a structured, honest availability report."""
     path = discover_primer3_core(explicit)

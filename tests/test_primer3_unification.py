@@ -53,6 +53,32 @@ class TestPrimer3Unification(unittest.TestCase):
         self.assertTrue(res["forward_primer"]["full_sequence"].startswith("GAATTC"))
         self.assertTrue(res["reverse_primer"]["full_sequence"].startswith("GGATCC"))
 
+    def test_ensure_primer3_core(self):
+        from scripts.primer3_core_backend import ensure_primer3_core
+        # When already installed, ensure_primer3_core returns path
+        core_path = ensure_primer3_core(auto_install=False, verbose=False)
+        self.assertIsNotNone(core_path)
+
+        # When an explicit non-existent path is requested without auto_install, returns None safely
+        res_nonexistent = ensure_primer3_core(explicit="non_existent_primer3_path", auto_install=False, verbose=False)
+        self.assertIsNone(res_nonexistent)
+
+    def test_install_primer3_script_json_mode(self):
+        import subprocess
+        import sys
+        import json
+        proc = subprocess.run(
+            [sys.executable, "scripts/install_primer3.py", "--json"],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        self.assertEqual(proc.returncode, 0, f"install_primer3.py exited with {proc.returncode}: {proc.stderr}")
+        data = json.loads(proc.stdout)
+        self.assertTrue(data.get("ok"))
+        self.assertIn("path", data)
+        self.assertEqual(data.get("verification", {}).get("status"), "verified")
+
 
 if __name__ == "__main__":
     unittest.main()

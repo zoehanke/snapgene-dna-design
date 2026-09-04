@@ -299,8 +299,12 @@ def design_overhang_primers(
             scripts_dir = pathlib.Path(__file__).resolve().parent.parent.parent / "scripts"
             if str(scripts_dir) not in sys.path:
                 sys.path.insert(0, str(scripts_dir))
-            from primer3_core_backend import discover_primer3_core, design_anchored_pairs
-            core_path = discover_primer3_core()
+            from primer3_core_backend import (
+                design_anchored_pairs,
+                discover_primer3_core,
+                ensure_primer3_core,
+            )
+            core_path = discover_primer3_core() or ensure_primer3_core(auto_install=False, verbose=False)
             if core_path:
                 # Attempt A: with overhang tails
                 res_p3 = design_anchored_pairs(

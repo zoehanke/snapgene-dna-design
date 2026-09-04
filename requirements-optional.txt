@@ -1,8 +1,8 @@
-# Optional external engines (v0.8.0-dev3)
-# primer3-py is one way to obtain primer3_core. The skill discovers the
-# bundled executable as a file and runs it in a child process; it never imports
-# primer3-py's native Python extension. Primer3/primer3-py are GPL-2.0-or-later
-# and are NOT bundled in this MIT package.
+# External engines
+# primer3-py is now included in standard requirements.txt for out-of-the-box
+# primer design. It provides precompiled primer3_core binaries on Windows/Mac/Linux.
+# Primer3/primer3-py are GPL-2.0-or-later; our codebase executes primer3_core strictly
+# as a separate child process via Boulder-IO pipes, maintaining full MIT license cleanliness.
 primer3-py>=2.3.0
 
 # v0.8.0-dev3 real on-target models

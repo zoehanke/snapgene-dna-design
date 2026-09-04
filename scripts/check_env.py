@@ -173,7 +173,11 @@ def main():
             print("  [%s] %s %s" % (
                 "OK" if item["status"] == "ok" else "MISSING",
                 item["dist"], item["version"] or "-"))
-        print("primer3_core: %s" % primer3_core["status"])
+        if primer3_core["status"] == "available":
+            print("primer3_core: OK (version %s, %s)" % (primer3_core.get("version"), primer3_core.get("path")))
+        else:
+            print("primer3_core: NOT INSTALLED")
+            print("  [Auto-Fix Tip] Run 'python scripts/install_primer3.py' or 'pip install primer3-py'")
         print("cas-offinder v2: installed=%s version=%s opencl=%s" % (
             cas_v2["installed"], cas_v2["version"], cas_v2["opencl_detected"]))
         print("cas-offinder v3: installed=%s version=%s opencl=%s" % (
