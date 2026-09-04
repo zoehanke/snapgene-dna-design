@@ -101,6 +101,8 @@ def discover_primer3_core(explicit=None):
             continue
         seen.add(key)
         if resolved.is_file():
+            if os.name != "nt" and not os.access(resolved, os.X_OK):
+                continue
             found_path = str(resolved)
             _DISCOVERED_CORE_CACHE[cache_key] = found_path
             return found_path
