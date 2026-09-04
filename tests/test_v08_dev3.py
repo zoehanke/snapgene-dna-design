@@ -323,7 +323,7 @@ class CasOffinderAdapterTests(unittest.TestCase):
                 self.assertEqual(len(cmd), 4)
                 self.assertEqual(cmd[2], "G0")
                 cwd = pathlib.Path(kwargs.get("cwd"))
-                self.assertEqual(cwd, tmp)
+                self.assertTrue(os.path.samefile(cwd, tmp))
                 self.assertIn("in.txt", str(cmd[1]))
                 self.assertIn("out.txt", str(cmd[3]))
                 input_text = (cwd / str(cmd[1])).read_text(encoding="utf-8")

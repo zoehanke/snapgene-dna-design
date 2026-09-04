@@ -11,6 +11,24 @@ import json
 import os
 import sys
 
+if sys.stdout and hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+if sys.stderr and hasattr(sys.stderr, "reconfigure"):
+    try:
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
+
+def _safe_print_json(data):
+    try:
+        print(json.dumps(data, ensure_ascii=False, indent=2))
+    except (UnicodeEncodeError, UnicodeError):
+        print(json.dumps(data, ensure_ascii=True, indent=2))
+
 from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
@@ -40,7 +58,7 @@ def jprint(obj, ok=None):
         if isinstance(schema_version, str) and schema_version.startswith("0.8"):
             # v0.8 commands emit their native v0.8 schema directly.  The
             # v0.5 success envelope is reserved for legacy commands.
-            print(json.dumps(payload, ensure_ascii=False, indent=2))
+            _safe_print_json(payload)
             return
         warnings = payload.get("warnings", [])
         if warnings is None:
@@ -57,7 +75,7 @@ def jprint(obj, ok=None):
             "warnings": warnings,
         }
         obj = envelope
-    print(json.dumps(obj, ensure_ascii=False, indent=2))
+    _safe_print_json(obj)
 
 
 def jfail(code, message, details=None, warnings=None):
@@ -79,14 +97,14 @@ def jfail(code, message, details=None, warnings=None):
         warnings = []
     elif not isinstance(warnings, list):
         warnings = [str(warnings)]
-    print(json.dumps({
+    _safe_print_json({
         "schema_version": JSON_SCHEMA_VERSION,
         "ok": False,
         "command": os.path.basename(sys.argv[0]),
         "data": None,
         "warnings": warnings,
         "error": error,
-    }, ensure_ascii=False, indent=2))
+    })
     sys.exit(1)
 
 
