@@ -90,17 +90,9 @@ def simulate_pcr(
         dict containing amplicon sequence, length, SHA-256, binding coordinates,
         and appended 5' tail extensions.
     """
-    if isinstance(template_path_or_seq, SeqRecord):
-        rec = template_path_or_seq
-        t_seq = str(rec.seq).upper()
-        topo = topology or rec.annotations.get("topology", "linear")
-    elif isinstance(template_path_or_seq, (str, pathlib.Path)) and pathlib.Path(template_path_or_seq).exists():
-        rec = _load_record(template_path_or_seq)
-        t_seq = str(rec.seq).upper()
-        topo = topology or rec.annotations.get("topology", "linear")
-    else:
-        t_seq = str(template_path_or_seq).upper()
-        topo = topology or "linear"
+    from core.io.input_resolution import resolve_sequence_input
+    rec, t_seq = resolve_sequence_input(template_path_or_seq, default_topology=topology or "linear")
+    topo = topology or rec.annotations.get("topology", "linear")
 
     is_circular = (topo.lower() == "circular")
     n = len(t_seq)
@@ -268,13 +260,8 @@ def design_overhang_primers(
 
     Finds the optimal length binding core closest to target_tm, then attaches 5' overhangs.
     """
-    if isinstance(template_record_or_seq, SeqRecord):
-        t_seq = str(template_record_or_seq.seq).upper()
-    elif isinstance(template_record_or_seq, (str, pathlib.Path)) and pathlib.Path(template_record_or_seq).exists():
-        rec = _load_record(template_record_or_seq)
-        t_seq = str(rec.seq).upper()
-    else:
-        t_seq = str(template_record_or_seq).upper()
+    from core.io.input_resolution import resolve_sequence_input
+    rec, t_seq = resolve_sequence_input(template_record_or_seq)
 
     if end <= start:
         raise ValueError(f"Invalid target interval: end ({end}) must be greater than start ({start}).")

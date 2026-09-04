@@ -33,7 +33,7 @@ def main():
     parser.add_argument("--pipeline", required=True, help="Path to JSON file defining pipeline steps")
     parser.add_argument("--task-id", help="Optional task ID identifier (default: derived from pipeline filename)")
     parser.add_argument("--sources", nargs="*", help="Source sequence files (.gb, .dna, .fasta)")
-    parser.add_argument("--topology", default="circular", choices=["circular", "linear"], help="Product topology (default: circular)")
+    parser.add_argument("--topology", default=None, choices=["circular", "linear"], help="Product topology (default: circular or specified in pipeline JSON)")
     parser.add_argument("--out-dir", default="./output", help="Output directory (default: ./output)")
     parser.add_argument("--confirmed", action="store_true", help="Explicit user confirmation for authoritative delivery")
     parser.add_argument("--open-snapgene", action="store_true", help="Launch desktop SnapGene viewer on generated construct")
@@ -59,8 +59,15 @@ def main():
 
     # Resolve source files: CLI --sources overrides pipeline JSON sources
     source_files = args.sources or pipe_data.get("sources", [])
-    if isinstance(source_files, list) and source_files and isinstance(source_files[0], dict):
-        source_files = [s.get("path") or s.get("file") for s in source_files]
+    if args.sources:
+        parsed_sources = []
+        for s in args.sources:
+            if "=" in s:
+                sid, spath = s.split("=", 1)
+                parsed_sources.append({"source_id": sid.strip(), "path": spath.strip()})
+            else:
+                parsed_sources.append(s)
+        source_files = parsed_sources
 
     task_id = args.task_id or pipe_data.get("task_id") or pipe_path.stem
     topo = args.topology or pipe_data.get("topology", "circular")

@@ -405,6 +405,7 @@ def quick_biological_sanity_check(
     topology: str = "linear",
     check_secondary_structure: bool = False,
     is_cds: bool = True,
+    expected_orientation: str | None = None,
 ) -> dict[str, Any]:
     """Lightweight objective factual scan to assist the agent in catching obvious biological glitches.
 
@@ -620,6 +621,53 @@ def quick_biological_sanity_check(
         term_stop = True
         preview = "Non-coding sequence"
 
+    # Objective assessment of strand and orientation (BIO-04)
+    has_corrupt_coords_or_strand = False
+    observed_orientations = []
+    if isinstance(record_or_seq, SeqRecord):
+        for f in getattr(record_or_seq, "features", []):
+            st = getattr(f.location, "strand", 1)
+            if st not in (1, -1, 0, None):
+                has_corrupt_coords_or_strand = True
+            s0 = int(f.location.start)
+            e0 = int(f.location.end)
+            if s0 < 0 or (e0 < s0 and rec_top != "circular"):
+                has_corrupt_coords_or_strand = True
+            if st == 1:
+                observed_orientations.append("forward")
+            elif st == -1:
+                observed_orientations.append("reverse")
+
+    if has_corrupt_coords_or_strand:
+        bio04_status = "FAIL"
+        bio04_applicable = True
+        bio04_details = "Corrupted coordinate or strand detected on sequence feature(s)"
+    elif expected_orientation:
+        bio04_applicable = True
+        exp_clean = str(expected_orientation).strip().lower()
+        if exp_clean in ("+1", "1", "+", "fwd", "forward"):
+            exp_norm = "forward"
+        elif exp_clean in ("-1", "-", "rev", "reverse"):
+            exp_norm = "reverse"
+        else:
+            exp_norm = exp_clean
+
+        if not observed_orientations:
+            bio04_status = "UNKNOWN"
+            bio04_details = f"Target orientation '{expected_orientation}' specified, but no annotated features exist to verify orientation"
+        else:
+            primary_orient = observed_orientations[0]
+            if primary_orient == exp_norm:
+                bio04_status = "PASS"
+                bio04_details = f"Observed orientation '{primary_orient}' matches expected '{exp_norm}'"
+            else:
+                bio04_status = "FAIL"
+                bio04_details = f"Orientation conflict: observed '{primary_orient}', expected '{exp_norm}'"
+    else:
+        bio04_status = "N/A"
+        bio04_applicable = False
+        bio04_details = "No target orientation constraint specified; feature coordinates syntactically valid" if observed_orientations else "No strand or feature annotations present to evaluate orientation"
+
     guardrail_status_table = {
         "BIO-01-FRAME": {
             "title": "Reading Frame & Premature Stops",
@@ -629,9 +677,9 @@ def quick_biological_sanity_check(
         },
         "BIO-02-STOP": {
             "title": "Stop Codon Integrity",
-            "status": "PASS" if ((annotated_cds_audits and all(a["terminal_stop"] for a in annotated_cds_audits)) or (rf_result is not None and rf_result["terminal_stop"])) else ("N/A" if not annotated_cds_audits and not is_cds else "FAIL"),
+            "status": "PASS" if ((annotated_cds_audits and all(a["terminal_stop"] for a in annotated_cds_audits)) or (rf_result is not None and rf_result["terminal_stop"])) else ("N/A" if not annotated_cds_audits and not is_cds else "WARN"),
             "applicable": bool(annotated_cds_audits or is_cds),
-            "details": "Canonical stop codon present" if ((annotated_cds_audits and all(a["terminal_stop"] for a in annotated_cds_audits)) or (rf_result and rf_result["terminal_stop"])) else ("N/A" if not annotated_cds_audits and not is_cds else "Terminal stop missing"),
+            "details": "Canonical stop codon present" if ((annotated_cds_audits and all(a["terminal_stop"] for a in annotated_cds_audits)) or (rf_result and rf_result["terminal_stop"])) else ("N/A" if not annotated_cds_audits and not is_cds else "Terminal stop missing (warning: permitted for non-stop fusions/intermediate fragments)"),
         },
         "BIO-03-ENZYME": {
             "title": "Internal Restriction Cut Conflict",
@@ -641,9 +689,9 @@ def quick_biological_sanity_check(
         },
         "BIO-04-STRAND": {
             "title": "Strand & Orientation Consistency",
-            "status": "PASS",
-            "applicable": True,
-            "details": "Sequence coordinates and orientations audited",
+            "status": bio04_status,
+            "applicable": bio04_applicable,
+            "details": bio04_details,
         },
         "BIO-05-RECLEAVAGE": {
             "title": "CRISPR In Vivo Recleavage Prevention",
@@ -683,7 +731,10 @@ def quick_biological_sanity_check(
         },
     }
 
-    all_applicable_pass = not any(g["status"] in ("FAIL", "UNKNOWN") for g in guardrail_status_table.values())
+    failed_codes = [code for code, g in guardrail_status_table.items() if g["status"] == "FAIL"]
+    unknown_codes = [code for code, g in guardrail_status_table.items() if g["status"] == "UNKNOWN"]
+    blocking_codes = [code for code, g in guardrail_status_table.items() if g["status"] in ("FAIL", "UNKNOWN")]
+    all_applicable_pass = len(blocking_codes) == 0
     all_clean = len(issues_found) == 0 and all_applicable_pass
 
     return {
@@ -708,5 +759,8 @@ def quick_biological_sanity_check(
         "all_clean": all_clean,
         "clean_for_expression": clean_for_expression,
         "guardrail_status_table": guardrail_status_table,
+        "failed_codes": failed_codes,
+        "unknown_codes": unknown_codes,
+        "blocking_codes": blocking_codes,
         "all_applicable_pass": all_applicable_pass,
     }

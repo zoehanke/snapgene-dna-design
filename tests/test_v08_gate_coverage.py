@@ -619,6 +619,10 @@ class AdditionalCoverageTests(unittest.TestCase):
         deep_model._SEQ_NET = old_net
 
     def test_azimuth_error_branches(self):
+        try:
+            import pandas  # noqa: F401
+        except ImportError:
+            self.skipTest("pandas is not installed; skipping azimuth backend tests")
         import azimuth_backend
         predictor = azimuth_backend.AzimuthPredictor.__new__(
             azimuth_backend.AzimuthPredictor)

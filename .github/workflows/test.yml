@@ -37,5 +37,5 @@ jobs:
 
       - name: Run CLI Entrypoints Smoke Test
         run: |
-          python scripts/inspect_plasmid.py fixtures/golden/pENTR-EmGFP.gb
+          python scripts/inspect_plasmid.py fixtures/synthetic/pSynthetic-GFP.gb
           python scripts/run_recipe.py --recipe recipe_protein_tagging --params "{\"target_cds_seq_or_file\": \"ATGAAACCCGGGTTTTAA\", \"tag_name_or_seq\": \"6xHis\", \"tag_position\": \"C-terminal\"}" --out-dir ./build/ci_recipe

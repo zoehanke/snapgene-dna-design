@@ -43,14 +43,14 @@ class ToolSpec:
         return adapted
 
     def execute(self, **kwargs) -> Any:
-        """Invoke the tool with adapted parameters."""
-        call_kwargs = self.adapt_params(kwargs)
+        """Invoke the tool with validated and adapted parameters using inspect.signature().bind()."""
+        import jsonschema
+        adapted = self.adapt_params(kwargs)
+        jsonschema.validate(instance=adapted, schema=self.parameters_schema)
         sig = inspect.signature(self.callable)
-        has_varkw = any(p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values())
-        if not has_varkw:
-            valid_keys = set(sig.parameters.keys())
-            call_kwargs = {k: v for k, v in call_kwargs.items() if k in valid_keys}
-        return self.callable(**call_kwargs)
+        bound = sig.bind(**adapted)
+        bound.apply_defaults()
+        return self.callable(*bound.args, **bound.kwargs)
 
     def extract_sequence(self, result: Any) -> str:
         """Extract primary DNA/protein sequence string from tool result if applicable."""
@@ -79,8 +79,15 @@ class ToolSpec:
 TOOL_REGISTRY: dict[str, ToolSpec] = {}
 
 
+class DuplicateToolRegistration(Exception):
+    """Raised when attempting to register a duplicate tool name."""
+    pass
+
+
 def register_tool(spec: ToolSpec) -> None:
-    """Register a ToolSpec into the global registry."""
+    """Register a ToolSpec into the global registry. Raises DuplicateToolRegistration on duplicate."""
+    if spec.name in TOOL_REGISTRY:
+        raise DuplicateToolRegistration(f"Tool '{spec.name}' is already registered in TOOL_REGISTRY.")
     TOOL_REGISTRY[spec.name] = spec
 
 
@@ -164,10 +171,11 @@ def init_default_registry() -> None:
             parameters_schema={
                 "type": "object",
                 "properties": {
-                    "file_path": {"type": "string", "description": "Path to the GenBank, FASTA, or SnapGene .dna file."},
+                    "file_path_or_record": {"type": "string", "description": "Path to the GenBank, FASTA, or SnapGene .dna file, or SeqRecord."},
                 },
-                "required": ["file_path"],
+                "required": ["file_path_or_record"],
             },
+            param_aliases={"file_path": "file_path_or_record", "file": "file_path_or_record", "record": "file_path_or_record"},
             result_type="dict",
         ),
         ToolSpec(
@@ -198,6 +206,13 @@ def init_default_registry() -> None:
                 },
                 "required": ["file_path_or_record", "name_or_type"],
             },
+            param_aliases={
+                "record_or_path": "file_path_or_record",
+                "source": "file_path_or_record",
+                "file": "file_path_or_record",
+                "name": "name_or_type",
+                "feature_name": "name_or_type",
+            },
             sequence_output_key="sequence",
             result_type="dict",
         ),
@@ -205,15 +220,17 @@ def init_default_registry() -> None:
             name="find_open_reading_frames",
             callable=find_open_reading_frames,
             category="compute",
-            description="Find open reading frames (ORFs) in a DNA sequence.",
+            description="Find open reading frames (ORFs) in a DNA sequence or sequence file.",
             parameters_schema={
                 "type": "object",
                 "properties": {
-                    "seq": {"type": "string", "description": "DNA nucleotide sequence."},
-                    "min_len_aa": {"type": "integer", "default": 30},
+                    "file_path_or_seq": {"type": "string", "description": "DNA sequence or path to sequence file."},
+                    "min_length_aa": {"type": "integer", "default": 30},
+                    "transl_table": {"type": "integer", "default": 1},
                 },
-                "required": ["seq"],
+                "required": ["file_path_or_seq"],
             },
+            param_aliases={"seq": "file_path_or_seq", "dna_seq": "file_path_or_seq", "min_len_aa": "min_length_aa"},
             result_type="list",
         ),
         ToolSpec(
@@ -329,13 +346,13 @@ def init_default_registry() -> None:
             parameters_schema={
                 "type": "object",
                 "properties": {
-                    "seq_or_record": {"type": "string", "description": "DNA sequence or record."},
+                    "dna_seq": {"type": "string", "description": "DNA sequence or record."},
                     "start_offset": {"type": "integer", "default": 0},
-                    "table_id": {"type": "integer", "default": 1},
+                    "transl_table": {"type": "integer", "default": 1},
                 },
-                "required": ["seq_or_record"],
+                "required": ["dna_seq"],
             },
-            param_aliases={"seq": "seq_or_record"},
+            param_aliases={"seq": "dna_seq", "seq_or_record": "dna_seq", "table_id": "transl_table"},
             result_type="dict",
         ),
         ToolSpec(
@@ -369,8 +386,8 @@ def init_default_registry() -> None:
                 },
                 "required": ["cds_seq"],
             },
-            sequence_output_key="stripped_seq",
-            param_aliases={"seq": "cds_seq"},
+            sequence_output_key="sequence",
+            param_aliases={"seq": "cds_seq", "dna_seq": "cds_seq"},
             result_type="dict",
         ),
         ToolSpec(
@@ -628,16 +645,24 @@ def init_default_registry() -> None:
             parameters_schema={
                 "type": "object",
                 "properties": {
-                    "record_or_path": {"type": "string"},
-                    "name": {"type": "string"},
-                    "start_0based": {"type": "integer"},
-                    "end_0based": {"type": "integer"},
+                    "record": {"type": "string", "description": "Sequence record, file path, or DNA sequence."},
+                    "name": {"type": "string", "description": "Feature label/name."},
                     "feature_type": {"type": "string", "default": "misc_feature"},
+                    "start": {"type": "integer", "default": 0},
+                    "end": {"type": "integer", "default": 0},
                     "strand": {"type": "integer", "default": 1},
+                    "color": {"type": "string", "default": ""},
                 },
-                "required": ["record_or_path", "name", "start_0based", "end_0based"],
+                "required": ["record", "name"],
             },
-            result_type="dict",
+            param_aliases={
+                "record_or_path": "record",
+                "source": "record",
+                "file": "record",
+                "start_0based": "start",
+                "end_0based": "end",
+            },
+            result_type="object",
         ),
         ToolSpec(
             name="migrate_features_after_assembly",
@@ -647,13 +672,13 @@ def init_default_registry() -> None:
             parameters_schema={
                 "type": "object",
                 "properties": {
-                    "fragments_features": {"type": "array", "items": {"type": "object"}},
-                    "fragment_lengths": {"type": "array", "items": {"type": "integer"}},
-                    "overlaps": {"type": "array", "items": {"type": "integer"}},
+                    "fragments": {"type": "array", "items": {"type": "object"}, "description": "Fragments with offset_in_product, length, features, strand."},
+                    "total_length": {"type": "integer", "description": "Total length of assembled product."},
                     "circular": {"type": "boolean", "default": True},
                 },
-                "required": ["fragments_features", "fragment_lengths"],
+                "required": ["fragments", "total_length"],
             },
+            param_aliases={"fragments_features": "fragments", "product_length": "total_length"},
             result_type="list",
         ),
         ToolSpec(
@@ -678,15 +703,14 @@ def init_default_registry() -> None:
             parameters_schema={
                 "type": "object",
                 "properties": {
-                    "seq_or_record": {"type": "string"},
-                    "frame": {"type": "integer", "default": 0},
-                    "table_id": {"type": "integer", "default": 1},
+                    "seq": {"type": "string", "description": "DNA sequence."},
+                    "frame": {"type": "integer", "default": 1},
+                    "table": {"type": "integer", "default": 1},
                 },
-                "required": ["seq_or_record"],
+                "required": ["seq"],
             },
-            sequence_output_key="protein_sequence",
-            param_aliases={"seq": "seq_or_record"},
-            result_type="dict",
+            param_aliases={"seq_or_record": "seq", "dna_seq": "seq", "table_id": "table"},
+            result_type="string",
         ),
         ToolSpec(
             name="get_codon_synonyms",
@@ -794,93 +818,6 @@ def init_default_registry() -> None:
             description="List all available wet-lab experience rules.",
             parameters_schema={"type": "object", "properties": {}},
             result_type="list",
-        ),
-        ToolSpec(
-            name="extract_subsequence",
-            callable=extract_subsequence,
-            category="compute",
-            description="Extract sub-sequence with topology, circular-wrap and strand handling.",
-            parameters_schema={
-                "type": "object",
-                "properties": {
-                    "file_path_or_record": {"type": "string"},
-                    "start": {"type": "integer"},
-                    "end": {"type": "integer"},
-                    "strand": {"type": "integer", "default": 1},
-                    "topology": {"type": "string", "default": "linear"},
-                },
-                "required": ["file_path_or_record", "start", "end"],
-            },
-            sequence_output_key="sequence",
-            param_aliases={"source": "file_path_or_record", "file": "file_path_or_record", "template": "file_path_or_record"},
-            result_type="dict",
-        ),
-        ToolSpec(
-            name="mutate_sequence",
-            callable=mutate_sequence,
-            category="compute",
-            description="Apply point mutations or substitutions to a sequence.",
-            parameters_schema={
-                "type": "object",
-                "properties": {
-                    "dna_seq": {"type": "string"},
-                    "mutations": {"type": "array", "items": {"type": "object"}},
-                },
-                "required": ["dna_seq", "mutations"],
-            },
-            sequence_output_key="mutated_sequence",
-            param_aliases={"seq": "dna_seq"},
-            result_type="dict",
-        ),
-        ToolSpec(
-            name="check_reading_frame",
-            callable=check_reading_frame,
-            category="compute",
-            description="Check if a CDS maintains an open reading frame without premature stop codons.",
-            parameters_schema={
-                "type": "object",
-                "properties": {
-                    "dna_seq": {"type": "string"},
-                    "start_offset": {"type": "integer", "default": 0},
-                },
-                "required": ["dna_seq"],
-            },
-            param_aliases={"seq": "dna_seq"},
-            result_type="dict",
-        ),
-        ToolSpec(
-            name="strip_terminal_codons",
-            callable=strip_terminal_codons,
-            category="compute",
-            description="Strip start (ATG) or terminal stop codons (TAA/TAG/TGA) for fusion protein design.",
-            parameters_schema={
-                "type": "object",
-                "properties": {
-                    "dna_seq": {"type": "string"},
-                    "strip_start": {"type": "boolean", "default": False},
-                    "strip_stop": {"type": "boolean", "default": True},
-                },
-                "required": ["dna_seq"],
-            },
-            sequence_output_key="stripped_seq",
-            param_aliases={"seq": "dna_seq"},
-            result_type="dict",
-        ),
-        ToolSpec(
-            name="get_feature",
-            callable=get_feature,
-            category="inspect",
-            description="Find and retrieve a specific annotated feature from a sequence record by name.",
-            parameters_schema={
-                "type": "object",
-                "properties": {
-                    "record_or_path": {"type": "string"},
-                    "name": {"type": "string"},
-                },
-                "required": ["record_or_path", "name"],
-            },
-            param_aliases={"source": "record_or_path", "file": "record_or_path"},
-            result_type="dict",
         ),
     ]
 

@@ -125,6 +125,8 @@ class ContractAndRoundTripTests(unittest.TestCase):
 
     def test_internal_snapgene_genbank_roundtrip(self):
         fixture = os.path.join(ROOT, "fixtures", "pDONR201.dna")
+        if not os.path.exists(fixture):
+            self.skipTest("fixtures/pDONR201.dna not present (academic-only)")
         result = validate(fixture, "snapgene-gb")
         self.assertTrue(result["internal_roundtrip"]["passed"], result)
         self.assertTrue(result["passed"], result)

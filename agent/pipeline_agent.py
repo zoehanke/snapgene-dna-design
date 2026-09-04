@@ -85,11 +85,11 @@ def build_agent_planning_prompt(
 def execute_agent_pipeline(
     task_id: str,
     pipeline_steps: list[dict[str, Any]],
-    source_files: list[str | pathlib.Path],
+    source_files: list[str | pathlib.Path | dict[str, Any]],
     product_topology: str = "circular",
     out_dir: str | pathlib.Path = "./build",
     auto_open_snapgene: bool = False,
-    user_confirmed: bool = True,
+    user_confirmed: bool = False,
 ) -> dict[str, Any]:
     """Execute an agent-formulated composite pipeline deterministically and deliver SnapGene construct."""
     out_path = pathlib.Path(out_dir)
@@ -97,13 +97,26 @@ def execute_agent_pipeline(
 
     sources = []
     for idx, f in enumerate(source_files):
-        p = pathlib.Path(f).resolve()
-        sources.append({
-            "source_id": f"src_{idx + 1}",
-            "path": str(p),
-            "role": "template" if idx == 0 else "donor_component",
-            "evidence": {"source_evidence_class": "user-provided"},
-        })
+        if isinstance(f, dict):
+            sid = f.get("source_id") or f"src_{idx + 1}"
+            raw_p = f.get("path") or f.get("file") or f.get("filepath")
+            p = pathlib.Path(raw_p).resolve()
+            role = f.get("role") or ("template" if idx == 0 else "donor_component")
+            evidence = f.get("evidence") or {"source_evidence_class": "user-provided"}
+            sources.append({
+                "source_id": sid,
+                "path": str(p),
+                "role": role,
+                "evidence": evidence,
+            })
+        else:
+            p = pathlib.Path(f).resolve()
+            sources.append({
+                "source_id": f"src_{idx + 1}",
+                "path": str(p),
+                "role": "template" if idx == 0 else "donor_component",
+                "evidence": {"source_evidence_class": "user-provided"},
+            })
 
     task = {
         "schema_version": "construction-task-v1",
@@ -141,8 +154,14 @@ def execute_agent_pipeline(
 
     delivery = None
     if report["overall"] == "verified":
-        # 5. Authoritative Finalize
-        delivery = finalize(vtask, p, exec_res, report, out_path)
+        if user_confirmed:
+            # 5. Authoritative Finalize
+            delivery = finalize(vtask, p, exec_res, report, out_path)
+            status = delivery["status"]
+        else:
+            status = "verified-candidate"
+    else:
+        status = report["overall"]
 
     # 6. Optional SnapGene launch
     snapgene_status = None
@@ -152,7 +171,7 @@ def execute_agent_pipeline(
             snapgene_status = open_in_snapgene(dna_file)
 
     return {
-        "status": delivery["status"] if delivery else report["overall"],
+        "status": status,
         "task_id": task_id,
         "product_length": len(p["product_sequence"]),
         "product_topology": product_topology,

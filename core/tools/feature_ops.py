@@ -97,7 +97,7 @@ def get_feature(
 
 
 def annotate_feature(
-    record: SeqRecord,
+    record: SeqRecord | str | pathlib.Path,
     name: str,
     feature_type: str = "misc_feature",
     start: int = 0,
@@ -107,6 +107,10 @@ def annotate_feature(
     qualifiers: dict[str, Any] | None = None,
 ) -> SeqRecord:
     """Add a new annotated feature to a SeqRecord with optional color."""
+    if not isinstance(record, SeqRecord):
+        from core.io.input_resolution import resolve_sequence_record
+        record = resolve_sequence_record(record)
+
     q: dict[str, list[str]] = {"label": [name], "gene": [name]}
     if color:
         q["ApEinfo_fcolor"] = [color]

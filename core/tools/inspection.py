@@ -15,23 +15,14 @@ from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
 
+from core.io.input_resolution import resolve_sequence_input, resolve_sequence_record
+
+
 def _load_record(file_path_or_record: str | pathlib.Path | SeqRecord) -> SeqRecord:
-    if isinstance(file_path_or_record, SeqRecord):
-        return file_path_or_record
-    if isinstance(file_path_or_record, (str, pathlib.Path)):
-        try:
-            p = pathlib.Path(file_path_or_record)
-            if p.exists() and p.is_file():
-                from core.task import read_record
-                return read_record(p)
-        except (OSError, ValueError):
-            pass
-        s = str(file_path_or_record).strip().upper()
-        if s and all(c in "ACGTNWSMKRYBDHV \r\n\t" for c in s):
-            clean_seq = "".join(s.split())
-            return SeqRecord(Seq(clean_seq), id="custom_sequence", annotations={"topology": "circular"})
-        raise FileNotFoundError(f"Sequence file not found: {file_path_or_record}")
-    raise TypeError(f"Unsupported record type: {type(file_path_or_record)}")
+    try:
+        return resolve_sequence_record(file_path_or_record, default_topology="linear")
+    except (ValueError, FileNotFoundError) as exc:
+        raise FileNotFoundError(f"Sequence file not found or invalid sequence: {file_path_or_record}") from exc
 
 
 def inspect_dna(file_path_or_record: str | pathlib.Path | SeqRecord) -> dict[str, Any]:
@@ -172,13 +163,7 @@ def find_open_reading_frames(
     transl_table: int = 1,
 ) -> list[dict[str, Any]]:
     """Scan all 6 reading frames for ATG-initiated ORFs with terminal stop codons."""
-    if isinstance(file_path_or_seq, SeqRecord):
-        seq_str = str(file_path_or_seq.seq).upper()
-    elif isinstance(file_path_or_seq, (str, pathlib.Path)) and pathlib.Path(file_path_or_seq).exists():
-        rec = _load_record(file_path_or_seq)
-        seq_str = str(rec.seq).upper()
-    else:
-        seq_str = str(file_path_or_seq).upper()
+    rec, seq_str = resolve_sequence_input(file_path_or_seq)
 
     n = len(seq_str)
     orfs = []

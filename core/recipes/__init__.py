@@ -29,6 +29,8 @@ from core.recipes.verification import (
 
 from core.recipes.contract import RecipeResult
 
+recipe_point_mutagenesis = recipe_site_directed_mutagenesis
+
 __all__ = [
     "RecipeResult",
     "recipe_crispr_hdr_donor",
@@ -36,6 +38,7 @@ __all__ = [
     "recipe_golden_gate",
     "recipe_restriction_cloning",
     "recipe_site_directed_mutagenesis",
+    "recipe_point_mutagenesis",
     "recipe_protein_tagging",
     "recipe_cloning_verification",
     "get_recipe_sources",
@@ -48,6 +51,7 @@ ALL_RECIPE_SOURCES = {
     "recipe_golden_gate": GOLDEN_GATE_SOURCES,
     "recipe_restriction_cloning": RESTRICTION_SOURCES,
     "recipe_site_directed_mutagenesis": MUTAGENESIS_SOURCES,
+    "recipe_point_mutagenesis": MUTAGENESIS_SOURCES,
     "recipe_protein_tagging": TAGGING_SOURCES,
     "recipe_cloning_verification": VERIFICATION_SOURCES,
 }

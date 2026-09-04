@@ -58,11 +58,35 @@ def run_recipe_cli(
     # 1. Execute Recipe
     res: RecipeResult = fn(**params)
 
-    # 2. Biological Guardrails Check
+    # 2. Biological Guardrails Check with contextual parameters
     prod_seq = res.product_sequence or res.get("product_dna_sequence") or ""
     topo = res.product_topology or "linear"
-    is_cds = (res.result_kind == "component")
-    sanity = quick_biological_sanity_check(prod_seq, topology=topo, is_cds=is_cds)
+
+    # Only treat as CDS if explicitly designated or standard coding recipe
+    is_cds = False
+    if res.result_kind == "component":
+        if canonical_name in ("recipe_protein_tagging", "recipe_site_directed_mutagenesis", "recipe_point_mutagenesis"):
+            is_cds = True
+        elif params.get("is_cds") is not None:
+            is_cds = bool(params.get("is_cds"))
+
+    # Extract execution context
+    cloning_enz = params.get("enzyme") or params.get("enzymes") or res.details.get("enzyme") or res.details.get("enzymes")
+    if cloning_enz and isinstance(cloning_enz, str):
+        cloning_enz = [cloning_enz]
+    grna_seq = params.get("grna_seq") or params.get("target_grna_seq") or res.details.get("grna_seq") or ""
+    pr_seqs = [p.get("sequence") or p.get("seq") for p in (res.primers or []) if (p.get("sequence") or p.get("seq"))]
+    u6_term = bool(canonical_name == "recipe_crispr_hdr_donor" or params.get("check_u6_termination"))
+
+    sanity = quick_biological_sanity_check(
+        prod_seq,
+        topology=topo,
+        is_cds=is_cds,
+        cloning_enzymes=cloning_enz,
+        crispr_grna_seq=grna_seq,
+        primers=pr_seqs if len(pr_seqs) >= 2 else None,
+        check_u6_termination=u6_term,
+    )
 
     # 3. Save Candidate Artifacts
     candidate_files = []
@@ -98,60 +122,27 @@ def run_recipe_cli(
             raise ValueError(
                 f"Authoritative promotion refused: Recipe result '{res.result_kind}' ({res.completeness}) is not a complete plasmid construct."
             )
-        if not sanity.get("all_applicable_pass"):
-            table = sanity.get("guardrail_status_table", {})
-            failed_items = []
-            if isinstance(table, dict):
-                failed_items = [f"{c} ({i.get('title', '')})" for c, i in table.items() if i.get("status") in ("FAIL", "UNKNOWN")]
-            elif isinstance(table, list):
-                failed_items = [f"{g['code']} ({g['name']})" for g in table if g.get("status") in ("FAIL", "UNKNOWN")]
-            raise ValueError(
-                f"Authoritative promotion refused: Biological guardrails did not pass. Issues: {', '.join(failed_items)}"
-            )
 
-        # Build authoritative delivery
-        auth_dir = out_path / "authoritative"
-        if auth_dir.exists():
-            shutil.rmtree(auth_dir)
-        auth_dir.mkdir(parents=True)
+        cand_gb = candidate_dir / f"{canonical_name}.gb"
+        cand_fa = candidate_dir / f"{canonical_name}.fasta"
+        if not cand_gb.exists() or not cand_fa.exists():
+            raise FileNotFoundError(f"Candidate files missing for promotion: {cand_gb}, {cand_fa}")
 
-        auth_gb = auth_dir / "construct.gb"
-        auth_fa = auth_dir / "construct.fasta"
-        auth_dna = auth_dir / "construct.dna"
-
-        shutil.copyfile(candidate_dir / f"{canonical_name}.gb", auth_gb)
-        shutil.copyfile(candidate_dir / f"{canonical_name}.fasta", auth_fa)
-        shutil.copyfile(candidate_dir / f"{canonical_name}.dna", auth_dna)
-
-        def _sha256(p: pathlib.Path) -> str:
-            h = hashlib.sha256()
-            with open(p, "rb") as fh:
-                for chunk in iter(lambda: fh.read(1 << 20), b""):
-                    h.update(chunk)
-            return h.hexdigest().upper()
-
-        manifest = {
-            "schema_version": "delivery-manifest-v1",
-            "artifact_class": "authoritative",
-            "recipe": canonical_name,
-            "product_length": len(prod_seq),
-            "topology": topo,
-            "guardrails": sanity,
-            "files": {
-                "construct.gb": {"sha256": _sha256(auth_gb), "class": "authoritative"},
-                "construct.fasta": {"sha256": _sha256(auth_fa), "class": "authoritative"},
-                "construct.dna": {"sha256": _sha256(auth_dna), "class": "authoritative"},
+        from core.runtime_gate import finalize_candidate_construct
+        authoritative_delivery = finalize_candidate_construct(
+            candidate_gb=cand_gb,
+            candidate_fasta=cand_fa,
+            out_dir=out_path,
+            metadata={
+                "recipe": canonical_name,
+                "result_kind": res.result_kind,
+                "completeness": res.completeness,
+                "product_length": len(prod_seq),
+                "product_topology": topo,
             },
-        }
-        manifest_path = auth_dir / "DELIVERY-MANIFEST.json"
-        manifest_path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8")
-
-        authoritative_delivery = {
-            "status": "delivered",
-            "directory": str(auth_dir),
-            "manifest_file": str(manifest_path),
-            "files": [str(auth_gb), str(auth_fa), str(auth_dna), str(manifest_path)],
-        }
+            sanity_check=sanity,
+            user_confirmed=user_confirmed,
+        )
 
     return {
         "recipe": canonical_name,

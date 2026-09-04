@@ -38,13 +38,8 @@ def design_crispr_grna(
     Returns:
         List of candidate sgRNA dictionaries sorted by objective quality score.
     """
-    if isinstance(target_seq_or_file, SeqRecord):
-        seq = str(target_seq_or_file.seq).upper()
-    elif isinstance(target_seq_or_file, (str, pathlib.Path)) and pathlib.Path(target_seq_or_file).exists():
-        rec = _load_record(target_seq_or_file)
-        seq = str(rec.seq).upper()
-    else:
-        seq = str(target_seq_or_file).upper()
+    from core.io.input_resolution import resolve_sequence_input
+    rec, seq = resolve_sequence_input(target_seq_or_file)
 
     n = len(seq)
     scan_start = 0 if start is None else max(0, start)
@@ -248,13 +243,8 @@ def design_hdr_donor(
     Returns:
         dict with donor_sequence, left_arm, right_arm, donor_type, and PAM silencing report.
     """
-    if isinstance(target_seq_or_file, SeqRecord):
-        seq = str(target_seq_or_file.seq).upper()
-    elif isinstance(target_seq_or_file, (str, pathlib.Path)) and pathlib.Path(target_seq_or_file).exists():
-        rec = _load_record(target_seq_or_file)
-        seq = str(rec.seq).upper()
-    else:
-        seq = str(target_seq_or_file).upper()
+    from core.io.input_resolution import resolve_sequence_input
+    rec, seq = resolve_sequence_input(target_seq_or_file)
 
     n = len(seq)
     s_left = max(0, cut_position_0based - left_arm_length)
@@ -319,17 +309,9 @@ def extract_homology_arms(
     circular: bool | None = None,
 ) -> dict[str, Any]:
     """Extract left and right homology arms centered at a target cut/insertion site."""
-    topo = None
-    if isinstance(target_seq_or_file, SeqRecord):
-        rec = target_seq_or_file
-        seq = str(rec.seq).upper()
-        topo = rec.annotations.get("topology")
-    elif isinstance(target_seq_or_file, (str, pathlib.Path)) and pathlib.Path(target_seq_or_file).exists():
-        rec = _load_record(target_seq_or_file)
-        seq = str(rec.seq).upper()
-        topo = rec.annotations.get("topology")
-    else:
-        seq = str(target_seq_or_file).upper()
+    from core.io.input_resolution import resolve_sequence_input
+    rec, seq = resolve_sequence_input(target_seq_or_file)
+    topo = rec.annotations.get("topology")
 
     n = len(seq)
     is_circular = (circular if circular is not None else (topo == "circular"))

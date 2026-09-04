@@ -368,22 +368,14 @@ def simulate_golden_gate(
     digested_frags = []
 
     for idx, f in enumerate(fragments):
-        if isinstance(f, SeqRecord):
-            rec = f
-            seq = str(f.seq).upper()
-            fid = f.id or f"frag_{idx+1}"
-        elif isinstance(f, dict):
+        if isinstance(f, dict):
             seq = str(f.get("sequence", "")).upper()
             fid = f.get("id", f"frag_{idx+1}")
             rec = SeqRecord(Seq(seq), id=fid, name=fid)
-        elif isinstance(f, (str, pathlib.Path)) and pathlib.Path(f).exists():
-            rec = _load_record(f)
-            seq = str(rec.seq).upper()
-            fid = rec.id or f"frag_{idx+1}"
         else:
-            seq = str(f).upper()
-            fid = f"frag_{idx+1}"
-            rec = SeqRecord(Seq(seq), id=fid, name=fid)
+            from core.io.input_resolution import resolve_sequence_input
+            rec, seq = resolve_sequence_input(f, record_id=f"frag_{idx+1}")
+            fid = rec.id or f"frag_{idx+1}"
 
         hits = restriction_hits(seq, enz, circular=False)
         if len(hits) < 2:

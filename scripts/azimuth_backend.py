@@ -16,7 +16,10 @@ import pathlib
 import sys
 
 import numpy as np
-import pandas
+try:
+    import pandas
+except ImportError:
+    pandas = None
 
 THIRD_PARTY = pathlib.Path(__file__).resolve().parents[1] / "third_party" / "azimuth"
 MODEL_PICKLE = THIRD_PARTY / "saved_models" / "V3_model_nopos.pickle"
@@ -85,6 +88,8 @@ class AzimuthPredictor:
     """Real Azimuth V3 model (Doench 2016) with its original 627 features."""
 
     def __init__(self, model_path=None, featurization_root=None):
+        if pandas is None:
+            raise BackendUnavailable("AZIMUTH_PANDAS_UNAVAILABLE: pandas is required for azimuth backend")
         self.model_path = pathlib.Path(model_path or MODEL_PICKLE)
         self.featurization_root = pathlib.Path(
             featurization_root or THIRD_PARTY)

@@ -95,7 +95,7 @@ python scripts/run_recipe.py --recipe recipe_gibson_assembly --params-json gibso
 
 ---
 
-## 5. `recipe_point_mutagenesis`
+## 5. `recipe_site_directed_mutagenesis` (alias: `recipe_point_mutagenesis`)
 
 **Module:** `core.recipes.mutagenesis`  
 **Purpose:** Site-directed mutagenesis primer design (QuikChange / Zheng 2004 protocol).  

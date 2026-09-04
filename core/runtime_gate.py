@@ -154,26 +154,81 @@ def finalize(task: dict, plan: dict, execution: dict, validation: dict, out_dir:
                 details={"assumption": assumption},
             )
 
-    out_path = pathlib.Path(out_dir)
+    manifest_payload = {
+        "schema_version": "delivery-manifest-v1",
+        "artifact_class": "authoritative",
+        "provenance_type": "pipeline",
+        "task_id": task["task_id"],
+        "task_revision": task["revision"],
+        "task_sha256": plan["task_sha256"],
+        "plan_sha256": plan["plan_sha256"],
+        "validation": {
+            "overall": validation["overall"],
+            "artifact_valid": validation["artifact_valid"],
+            "computation_valid": validation["computation_valid"],
+            "goal_valid": validation["goal_valid"],
+        },
+        "evidence": stamp_product(
+            task,
+            plan,
+            plan["sources"],
+            method_maturity="validated",
+            artifact_class="authoritative",
+            execution=execution,
+            validation=validation,
+        ),
+    }
+
+    return _promote_verified_candidate(
+        candidate_gb=pathlib.Path(execution["product_gb"]),
+        candidate_fasta=pathlib.Path(execution["product_fasta"]),
+        out_dir=out_dir,
+        manifest_payload=manifest_payload,
+        temp_identifier=task["task_id"],
+    )
+
+
+def _promote_verified_candidate(
+    candidate_gb: pathlib.Path,
+    candidate_fasta: pathlib.Path,
+    out_dir: pathlib.Path | str,
+    manifest_payload: dict[str, Any],
+    temp_identifier: str = "construct",
+) -> dict[str, Any]:
+    """Single physical promoter for authoritative directory creation.
+
+    Performs:
+    1. Collision checking against existing authoritative directory.
+    2. Atomic staging in temporary directory (.authoritative-<temp_identifier>.tmp).
+    3. Conversion and generation of native SnapGene construct.dna.
+    4. Strict Three-Format Semantic Consistency Verification (rec_gb.seq == rec_fa.seq == rec_dna.seq).
+    5. Optional SnapGene desktop application roundtrip verification (SNAPGENE_VERIFY_OFFICIAL=1).
+    6. Attested SHA-256 hashed DELIVERY-MANIFEST.json generation.
+    7. Atomic promotion to authoritative/.
+    """
+    out_path = pathlib.Path(out_dir).resolve()
     out_path.mkdir(parents=True, exist_ok=True)
     authoritative = out_path / "authoritative"
     if authoritative.exists():
         raise GateRejected("GATE_AUTHORITATIVE_ALREADY_EXISTS", "refusing to overwrite an existing authoritative directory")
 
-    tmp = out_path / (f".authoritative-{task['task_id']}.tmp")
+    if not candidate_gb.exists():
+        raise GateRejected("GATE_CANDIDATE_MISSING", f"Candidate GenBank file not found: {candidate_gb}")
+    if not candidate_fasta.exists():
+        raise GateRejected("GATE_CANDIDATE_MISSING", f"Candidate FASTA file not found: {candidate_fasta}")
+
+    tmp = out_path / f".authoritative-{temp_identifier}.tmp"
     if tmp.exists():
         shutil.rmtree(tmp)
     tmp.mkdir(parents=True)
 
     try:
         # Copy GB and FASTA
-        gb_src = pathlib.Path(execution["product_gb"])
         gb_dst = tmp / "construct.gb"
-        shutil.copyfile(gb_src, gb_dst)
+        shutil.copyfile(candidate_gb, gb_dst)
 
-        fa_src = pathlib.Path(execution["product_fasta"])
         fa_dst = tmp / "construct.fasta"
-        shutil.copyfile(fa_src, fa_dst)
+        shutil.copyfile(candidate_fasta, fa_dst)
 
         # Generate SnapGene native .dna
         dna_dst = tmp / "construct.dna"
@@ -223,7 +278,7 @@ def finalize(task: dict, plan: dict, execution: dict, validation: dict, out_dir:
                 f"Sequence mismatch across formats: GB ({len(gb_seq)} bp), FASTA ({len(fa_seq)} bp), DNA ({len(dna_seq)} bp)",
             )
 
-        # SnapGene.exe official roundtrip verification if explicitly requested and executable exists
+        # Optional SnapGene desktop official roundtrip verification
         import os
         from core.tools.snapgene_io import find_snapgene_executable
         if os.environ.get("SNAPGENE_VERIFY_OFFICIAL") == "1":
@@ -266,31 +321,9 @@ def finalize(task: dict, plan: dict, execution: dict, validation: dict, out_dir:
                         f"SnapGene official roundtrip verification rejected: {rt_data.get('errors') or rt_data.get('reasons')}",
                     )
 
-        # Build DELIVERY-MANIFEST.json
-        manifest = {
-            "schema_version": "delivery-manifest-v1",
-            "artifact_class": "authoritative",
-            "task_id": task["task_id"],
-            "task_revision": task["revision"],
-            "task_sha256": plan["task_sha256"],
-            "plan_sha256": plan["plan_sha256"],
-            "validation": {
-                "overall": validation["overall"],
-                "artifact_valid": validation["artifact_valid"],
-                "computation_valid": validation["computation_valid"],
-                "goal_valid": validation["goal_valid"],
-            },
-            "evidence": stamp_product(
-                task,
-                plan,
-                plan["sources"],
-                method_maturity="validated",
-                artifact_class="authoritative",
-                execution=execution,
-                validation=validation,
-            ),
-            "files": {},
-        }
+        # Build attested hashed DELIVERY-MANIFEST.json
+        manifest = dict(manifest_payload)
+        manifest["files"] = {}
         for rel in ("construct.gb", "construct.fasta", "construct.dna"):
             manifest["files"][rel] = {
                 "sha256": _sha256_file(tmp / rel),
@@ -320,3 +353,49 @@ def finalize(task: dict, plan: dict, execution: dict, validation: dict, out_dir:
         "manifest_sha256": _sha256_file(authoritative / "DELIVERY-MANIFEST.json"),
         "files": sorted(str(p.relative_to(authoritative)) for p in authoritative.iterdir()),
     }
+
+
+def finalize_candidate_construct(
+    candidate_gb: str | pathlib.Path,
+    candidate_fasta: str | pathlib.Path,
+    out_dir: str | pathlib.Path,
+    metadata: dict[str, Any],
+    sanity_check: dict[str, Any],
+    user_confirmed: bool = False,
+) -> dict[str, Any]:
+    """Promote a verified candidate construct (e.g. from recipe execution) to authoritative delivery."""
+    if not user_confirmed:
+        raise GateRejected(
+            "GATE_USER_CONFIRMATION_REQUIRED",
+            "Authoritative promotion refused: requires explicit user confirmation (--confirmed).",
+        )
+
+    if not sanity_check.get("all_applicable_pass", True):
+        failed = sanity_check.get("failed_codes") or sanity_check.get("blocking_codes", [])
+        raise GateRejected(
+            "GATE_GUARDRAILS_FAILED",
+            f"Authoritative promotion refused: biological guardrails failed on {failed}",
+        )
+
+    gb_path = pathlib.Path(candidate_gb).resolve()
+    fa_path = pathlib.Path(candidate_fasta).resolve()
+
+    manifest_payload = {
+        "schema_version": "delivery-manifest-v1",
+        "artifact_class": "authoritative",
+        "provenance_type": "recipe",
+        "recipe": metadata.get("recipe", "unknown"),
+        "product_length": metadata.get("product_length", 0),
+        "product_topology": metadata.get("product_topology", "circular"),
+        "guardrails": sanity_check,
+        "metadata": metadata,
+    }
+
+    temp_id = str(metadata.get("recipe", "recipe_construct")).replace(" ", "_")
+    return _promote_verified_candidate(
+        candidate_gb=gb_path,
+        candidate_fasta=fa_path,
+        out_dir=out_dir,
+        manifest_payload=manifest_payload,
+        temp_identifier=temp_id,
+    )

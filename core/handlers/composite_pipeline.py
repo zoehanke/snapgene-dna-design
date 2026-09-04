@@ -207,11 +207,21 @@ class CompositePipelineHandler(TaskHandler):
             errors.append(f"Sequence SHA256 mismatch: expected {exp_sha}, got {act_sha}")
 
         # Run lightweight biological sanity check
-        sanity = quick_biological_sanity_check(product_seq)
+        topo = task.get("product", {}).get("topology", "linear")
+        is_cds = bool(task.get("product", {}).get("is_cds", False))
+        sanity = quick_biological_sanity_check(
+            product_record,
+            topology=topo,
+            is_cds=is_cds,
+        )
         traces.append({
             "check": "quick_biological_sanity_check",
             "result": sanity,
         })
+
+        if not sanity.get("all_applicable_pass"):
+            blocking = sanity.get("blocking_codes", [])
+            errors.append(f"Biological guardrails check failed: {blocking}")
 
         return (len(errors) == 0), traces, errors
 

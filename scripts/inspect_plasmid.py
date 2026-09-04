@@ -39,7 +39,7 @@ def inspect_single_file(file_path: str | pathlib.Path, enzymes: list[str] | None
     rec = _load_record(p)
     seq_str = str(rec.seq).upper()
     n = len(seq_str)
-    topo = rec.annotations.get("topology", "circular" if getattr(rec, "id", "") and "p" in getattr(rec, "id", "").lower() else "linear")
+    topo = rec.annotations.get("topology", "unknown")
     gc = round((seq_str.count("G") + seq_str.count("C")) / n * 100.0, 1) if n > 0 else 0.0
 
     target_enzymes = enzymes or COMMON_MCS_ENZYMES

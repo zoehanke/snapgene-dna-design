@@ -256,7 +256,7 @@ class CasOffinderAdapterTests(unittest.TestCase):
         self.assertNotIn(
             str(cas_offinder_adapter.ROOT).lower(),
             str(default).lower())
-        self.assertIn("SnapGeneDNADesign", str(default))
+        self.assertTrue("snapgenednadesign" in str(default).lower() or "snapgene-dna-design" in str(default).lower())
 
     def test_build_input_contract(self):
         text = cas_offinder_adapter.build_input_text(

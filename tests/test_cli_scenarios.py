@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """tests/test_cli_scenarios.py - Automated regression tests for Host LLM CLI entrypoints."""
+import hashlib
 import json
 import os
 import pathlib
@@ -7,6 +8,8 @@ import subprocess
 import sys
 import tempfile
 import unittest
+
+from Bio import SeqIO
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 SCRIPTS = ROOT / "scripts"
@@ -21,35 +24,78 @@ class TestCLIScenarios(unittest.TestCase):
     def tearDown(self):
         self.tmp_dir.cleanup()
 
+    def test_synthetic_fixture_invariants(self):
+        synth = FIXTURES / "synthetic" / "pSynthetic-GFP.gb"
+        self.assertTrue(synth.exists(), f"Synthetic fixture missing: {synth}")
+
+        rec = SeqIO.read(str(synth), "genbank")
+        seq_str = str(rec.seq).upper()
+
+        # Invariant 1: exact length 2500 bp
+        self.assertEqual(len(seq_str), 2500)
+        self.assertEqual(rec.annotations.get("topology"), "circular")
+
+        # Invariant 2: fixed deterministic SHA256
+        seq_sha = hashlib.sha256(seq_str.encode("utf-8")).hexdigest().upper()
+        self.assertEqual(seq_sha, "21541EFEE3C76CBA0F574A6C29055E811F306B7C485132489F0F00247C6BF969")
+
+        # Invariant 3: essential annotated biological features
+        feature_types = [f.type for f in rec.features]
+        self.assertIn("rep_origin", feature_types)
+        self.assertIn("CDS", feature_types)
+
+        # Check GFP and AmpR CDS features
+        gfp_feats = [
+            f for f in rec.features
+            if f.type == "CDS" and any("gfp" in str(v).lower() for v in f.qualifiers.get("label", []) + f.qualifiers.get("gene", []))
+        ]
+        self.assertEqual(len(gfp_feats), 1)
+        gfp_feat = gfp_feats[0]
+        gfp_seq = str(gfp_feat.extract(rec.seq)).upper()
+        self.assertEqual(len(gfp_seq) % 3, 0)
+        self.assertTrue(gfp_seq.startswith("ATG"))
+        self.assertTrue(gfp_seq.endswith(("TAA", "TAG", "TGA")))
+
+        ampr_feats = [
+            f for f in rec.features
+            if f.type == "CDS" and any(("amp" in str(v).lower() or "bla" in str(v).lower()) for v in f.qualifiers.get("label", []) + f.qualifiers.get("gene", []))
+        ]
+        self.assertEqual(len(ampr_feats), 1)
+        ampr_feat = ampr_feats[0]
+        ampr_seq = str(ampr_feat.extract(rec.seq)).upper()
+        self.assertEqual(len(ampr_seq) % 3, 0)
+        self.assertTrue(ampr_seq.startswith("ATG"))
+        self.assertTrue(ampr_seq.endswith(("TAA", "TAG", "TGA")))
+
     def test_inspect_plasmid_cli(self):
-        pentr = FIXTURES / "golden" / "pENTR-EmGFP.gb"
-        self.assertTrue(pentr.exists(), f"Fixture missing: {pentr}")
+        synth = FIXTURES / "synthetic" / "pSynthetic-GFP.gb"
+        self.assertTrue(synth.exists(), f"Fixture missing: {synth}")
 
         cmd = [
             sys.executable,
             "-X", "utf8", "-B",
             str(SCRIPTS / "inspect_plasmid.py"),
-            str(pentr),
+            str(synth),
             "--json",
         ]
         res = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8")
         self.assertEqual(res.returncode, 0, f"inspect_plasmid failed: {res.stderr}")
 
         data = json.loads(res.stdout)
-        self.assertEqual(data["file_name"], "pENTR-EmGFP.gb")
-        self.assertEqual(data["length_bp"], 2977)
+        self.assertEqual(data["file_name"], "pSynthetic-GFP.gb")
+        self.assertEqual(data["length_bp"], 2500)
         self.assertEqual(data["topology"], "circular")
         self.assertGreater(len(data["origin_of_replication"]), 0)
         self.assertGreater(len(data["selection_markers"]), 0)
         self.assertGreater(len(data["cds_features"]), 0)
-        self.assertTrue(data["cds_features"][0]["in_frame"])
+        self.assertTrue(all(cds["in_frame"] for cds in data["cds_features"]))
 
         # Also verify Markdown text output mode
         cmd_md = [
             sys.executable,
             "-X", "utf8", "-B",
             str(SCRIPTS / "inspect_plasmid.py"),
-            str(pentr),
+            str(synth),
         ]
         res_md = subprocess.run(cmd_md, capture_output=True, text=True, encoding="utf-8")
         self.assertEqual(res_md.returncode, 0)
@@ -99,19 +145,19 @@ class TestCLIScenarios(unittest.TestCase):
         self.assertEqual(sanity["guardrail_status_table"]["BIO-02-STOP"]["status"], "PASS")
 
     def test_run_pipeline_cli_end_to_end(self):
-        pentr = FIXTURES / "golden" / "pENTR-EmGFP.gb"
+        synth = FIXTURES / "synthetic" / "pSynthetic-GFP.gb"
         pipe_def = {
             "task_id": "test_e2e_pipeline",
             "topology": "linear",
-            "sources": [str(pentr)],
+            "sources": [{"source_id": "plasmid", "path": str(synth)}],
             "steps": [
                 {
                     "step_id": "slice_gfp",
                     "tool": "extract_subsequence",
                     "params": {
-                        "file_path_or_record": str(pentr),
-                        "start": 431,
-                        "end": 1151,
+                        "file_path_or_record": "$plasmid",
+                        "start": 171,
+                        "end": 888,
                         "strand": 1,
                         "topology": "circular",
                     },
@@ -127,7 +173,24 @@ class TestCLIScenarios(unittest.TestCase):
         pipe_file.write_text(json.dumps(pipe_def), encoding="utf-8")
 
         out_dir = self.tmp / "pipeline_out"
-        cmd = [
+
+        # 1. Unconfirmed execution -> verified-candidate, no authoritative directory
+        cmd_unconf = [
+            sys.executable,
+            "-X", "utf8", "-B",
+            str(SCRIPTS / "run_pipeline.py"),
+            "--pipeline", str(pipe_file),
+            "--out-dir", str(out_dir),
+            "--json",
+        ]
+        res_unconf = subprocess.run(cmd_unconf, capture_output=True, text=True, encoding="utf-8")
+        self.assertEqual(res_unconf.returncode, 0, f"run_pipeline candidate failed: {res_unconf.stderr}")
+        data_unconf = json.loads(res_unconf.stdout)
+        self.assertEqual(data_unconf["status"], "verified-candidate")
+        self.assertIsNone(data_unconf["delivery"])
+
+        # 2. Confirmed execution -> delivered, authoritative directory created
+        cmd_conf = [
             sys.executable,
             "-X", "utf8", "-B",
             str(SCRIPTS / "run_pipeline.py"),
@@ -136,12 +199,12 @@ class TestCLIScenarios(unittest.TestCase):
             "--confirmed",
             "--json",
         ]
-        res = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8")
-        self.assertEqual(res.returncode, 0, f"run_pipeline failed: {res.stderr}")
+        res_conf = subprocess.run(cmd_conf, capture_output=True, text=True, encoding="utf-8")
+        self.assertEqual(res_conf.returncode, 0, f"run_pipeline confirmed failed: {res_conf.stderr}")
 
-        data = json.loads(res.stdout)
+        data = json.loads(res_conf.stdout)
         self.assertEqual(data["status"], "delivered")
-        self.assertEqual(data["product_length"], 720)
+        self.assertEqual(data["product_length"], 717)
         self.assertTrue(data["validation_report"]["artifact_valid"])
         self.assertTrue(data["validation_report"]["computation_valid"])
         self.assertTrue(data["validation_report"]["goal_valid"])

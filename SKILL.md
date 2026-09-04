@@ -68,7 +68,7 @@ python scripts/run_recipe.py --recipe recipe_protein_tagging --params '{"target_
 | `recipe_restriction_cloning` | `construct` | `complete_construct` | Sambrook & Green (2012) *Mol Cloning* |
 | `recipe_golden_gate` | `construct` | `complete_construct` | Engler et al. (2008) *PLoS ONE* |
 | `recipe_crispr_hdr_donor` | `component` | `component_only` | Paquet et al. (2016) *Nature* |
-| `recipe_point_mutagenesis` | `construct` | `complete_construct` | Zheng et al. (2004) *NAR* |
+| `recipe_site_directed_mutagenesis` | `construct` | `complete_construct` | Zheng et al. (2004) *NAR* (alias: `recipe_point_mutagenesis`) |
 | `recipe_protein_tagging` | `component` | `component_only` | Terpe (2003) & Kozak (1986) *Cell* |
 | `recipe_cloning_verification` | `verification` | `qc_only` | Sanger et al. (1977) *PNAS* |
 

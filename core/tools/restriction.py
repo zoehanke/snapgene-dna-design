@@ -152,17 +152,9 @@ def find_restriction_sites(
         dict containing per-enzyme site locations, counts, overhang geometries,
         and single-cutter / unique-cutter classifications.
     """
-    if isinstance(file_path_or_seq, SeqRecord):
-        rec = file_path_or_seq
-        seq_str = str(rec.seq).upper()
-        topo = topology or rec.annotations.get("topology", "linear")
-    elif isinstance(file_path_or_seq, (str, pathlib.Path)) and pathlib.Path(file_path_or_seq).exists():
-        rec = _load_record(file_path_or_seq)
-        seq_str = str(rec.seq).upper()
-        topo = topology or rec.annotations.get("topology", "linear")
-    else:
-        seq_str = str(file_path_or_seq).upper()
-        topo = topology or "linear"
+    from core.io.input_resolution import resolve_sequence_input
+    rec, seq_str = resolve_sequence_input(file_path_or_seq, default_topology=topology or "linear")
+    topo = topology or rec.annotations.get("topology", "linear")
 
     is_circular = (topo.lower() == "circular")
     n = len(seq_str)

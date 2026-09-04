@@ -206,6 +206,8 @@ class FailureContractTests(unittest.TestCase):
         self.assertEqual(payload["feature_count"], 2)
 
     def test_roundtrip_reports_and_can_require_qualifier_equality(self):
+        if not (FIXTURES / "pDONR201.dna").exists():
+            self.skipTest("fixtures/pDONR201.dna not present (academic-only)")
         completed = run_script(
             "validate_roundtrip.py", str(FIXTURES / "pDONR201.dna"),
             "--format", "dna", "--json")
@@ -251,6 +253,8 @@ class FailureContractTests(unittest.TestCase):
 
 class GoldenGatewayTests(unittest.TestCase):
     def setUp(self):
+        if not (FIXTURES / "pDONR201.dna").exists() or not (GOLDEN / "attB-EmGFP.gb").exists():
+            self.skipTest("Academic golden fixtures not present")
         self.tmp = tempfile.TemporaryDirectory(prefix="v04-gw-")
         self.addCleanup(self.tmp.cleanup)
         self.tmp_path = pathlib.Path(self.tmp.name)
@@ -395,6 +399,8 @@ def enzyme_site(enzyme):
 
 class GoldenTATests(unittest.TestCase):
     def setUp(self):
+        if not (GOLDEN / "pGEM-T-linearized.dna").exists() or not (GOLDEN / "ta-insert.fa").exists():
+            self.skipTest("Academic golden fixtures not present")
         self.tmp = tempfile.TemporaryDirectory(prefix="v04-ta-")
         self.addCleanup(self.tmp.cleanup)
         self.tmp_path = pathlib.Path(self.tmp.name)

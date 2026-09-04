@@ -53,7 +53,7 @@ class PipelineAgentTests(unittest.TestCase):
             {
                 "step_id": "slice_a",
                 "tool": "extract_subsequence",
-                "params": {"source": str(self.src1), "start": 0, "end": 50, "strand": 1, "topology": "circular"},
+                "params": {"source": "$backbone", "start": 0, "end": 50, "strand": 1, "topology": "circular"},
             },
             {
                 "step_id": "rc_slice",
@@ -63,13 +63,29 @@ class PipelineAgentTests(unittest.TestCase):
         ]
 
         out_dir = self.tmp / "build"
-        result = execute_agent_pipeline(
+        # 1. Without confirmation: status is 'verified-candidate' and no authoritative directory
+        cand_result = execute_agent_pipeline(
             task_id="construct-agent-test",
             pipeline_steps=steps,
-            source_files=[self.src1],
+            source_files=[{"source_id": "backbone", "path": str(self.src1)}],
             product_topology="linear",
             out_dir=out_dir,
             auto_open_snapgene=False,
+            user_confirmed=False,
+        )
+        self.assertEqual(cand_result["status"], "verified-candidate")
+        self.assertIsNone(cand_result["delivery"])
+        self.assertIsNone(cand_result["authoritative_dir"])
+
+        # 2. With confirmation: status is 'delivered' and authoritative directory is populated
+        result = execute_agent_pipeline(
+            task_id="construct-agent-test",
+            pipeline_steps=steps,
+            source_files=[{"source_id": "backbone", "path": str(self.src1)}],
+            product_topology="linear",
+            out_dir=out_dir,
+            auto_open_snapgene=False,
+            user_confirmed=True,
         )
 
         self.assertEqual(result["status"], "delivered")
