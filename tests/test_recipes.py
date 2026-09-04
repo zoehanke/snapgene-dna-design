@@ -68,12 +68,13 @@ class TestStandardRecipes(unittest.TestCase):
     def test_recipe_restriction_cloning(self):
         # Mock vector with EcoRI (GAATTC) and BamHI (GGATCC)
         vector = "A" * 30 + "GAATTC" + "C" * 40 + "GGATCC" + "A" * 30
-        insert_tpl = "G" * 30 + "ATGCATGCATGCATGCATGC" + "C" * 30
+        insert_core = "ATGGCTAGCAAAGGAGAAGAACTTTTCACTGGAGTTGTCCCAATTCTTGTTGAATTAGATGGTGATGTTAATGGGCACAAATTTTCTGTCCGTGGAGAGGGTGAAGGTGATGCTACAAACGGAAAACTCACCC"
+        insert_tpl = "G" * 30 + insert_core + "C" * 30
         res = recipe_restriction_cloning(
             vector_source=vector,
             insert_template=insert_tpl,
             insert_start=30,
-            insert_end=50,
+            insert_end=30 + len(insert_core),
             enzyme5="EcoRI",
             enzyme3="BamHI",
         )

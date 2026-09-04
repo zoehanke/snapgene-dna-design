@@ -60,11 +60,15 @@ def find_restriction_sites(
     unique_cutters = []
     double_cutters = []
     non_cutters = []
+    unknown_enzymes = []
+    warnings = []
 
     for name in query_enzymes:
         try:
             enz = get_enzyme(name)
         except Exception:
+            unknown_enzymes.append(name)
+            warnings.append(f"Restriction enzyme '{name}' is unrecognized by REBASE database; site scan omitted.")
             continue
 
         raw_hits = restriction_hits(Seq(seq_str), enz, circular=is_circular)
@@ -126,6 +130,8 @@ def find_restriction_sites(
         "unique_cutters": unique_cutters,
         "double_cutters": double_cutters,
         "non_cutters": non_cutters,
+        "unknown_enzymes": unknown_enzymes,
+        "warnings": warnings,
         "enzymes": results,
     }
 

@@ -1,5 +1,5 @@
 {
-  "schema_version": "0.9.0",
+  "schema_version": "0.9.1",
   "parts": [
     {"name": "pET-28a(+)", "type": "backbone", "source": "MilliporeSigma/Novagen Cat 69864-3 (pET-28a)", "accession": "Novagen 69864-3", "sequence": null, "features": ["T7 promoter", "lacI", "KanR", "pBR322 ori", "6xHis", "thrombin site"], "notes": "下载权威序列后再使用；本记录只做来源索引"},
     {"name": "pUC19", "type": "backbone", "source": "GenBank M77789 / NEB N3041", "accession": "M77789", "sequence": null, "features": ["lacZ alpha", "AmpR", "pMB1 ori"], "notes": "高拷贝克隆骨架"},

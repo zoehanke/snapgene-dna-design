@@ -265,22 +265,23 @@ def design_hdr_donor(
         # For SpCas9: PAM is 3 bp downstream of cut on top strand (+1): right_arm starts at cut+3?
         # Actually cut is 3 bp upstream of PAM, so PAM is at bases [3:6] of right_arm on top strand!
         if grna_strand == 1 and len(right_arm) >= 6:
-            # Top strand: right_arm[3:5] is the GG of NGG!
-            # Mutate GG -> GA or GT or GC to silently disable PAM
-            pam_candidate = right_arm[2:5]  # NGG
+            # Top strand (+1): cut is at index 0 of right_arm, bases [0:3] are spacer ends, PAM (NGG) is at [3:6]
+            pam_candidate = right_arm[3:6]
             if pam_candidate.endswith("GG"):
-                # Mutate to GA (destroys PAM while often silent)
-                right_arm = right_arm[:4] + "A" + right_arm[5:]
+                old_base = right_arm[5]
+                new_base = "A" if old_base == "G" else "T"
+                right_arm = right_arm[:5] + new_base + right_arm[6:]
                 pam_silenced = True
-                silencing_details = f"Mutated PAM {pam_candidate} -> {right_arm[2:5]} in right arm to prevent re-cleavage"
+                silencing_details = f"Silenced PAM {pam_candidate} -> {right_arm[3:6]} (G->{new_base} at right arm bp 5) to prevent Cas9 re-cleavage (Paquet et al. 2016 Nature)"
         elif grna_strand == -1 and len(left_arm) >= 6:
-            # Bottom strand: cut is 3 bp upstream of PAM on bottom strand
-            # On top strand, PAM_rc (CCN) is 3 bp upstream of cut in left_arm[-6:-3]
-            pam_candidate_rc = left_arm[-5:-2]
+            # Bottom strand (-1): cut is at end of left_arm, PAM reverse complement (CCN) is at left_arm[-6:-3]
+            pam_candidate_rc = left_arm[-6:-3]
             if pam_candidate_rc.startswith("CC"):
-                left_arm = left_arm[:-5] + "T" + left_arm[-4:]
+                old_base = left_arm[-6]
+                new_base = "T" if old_base == "C" else "A"
+                left_arm = left_arm[:-6] + new_base + left_arm[-5:]
                 pam_silenced = True
-                silencing_details = f"Mutated PAM on reverse strand to prevent re-cleavage"
+                silencing_details = f"Silenced PAM reverse complement {pam_candidate_rc} -> {left_arm[-6:-3]} to prevent Cas9 re-cleavage"
 
     donor_seq = left_arm + edit + right_arm
     total_len = len(donor_seq)

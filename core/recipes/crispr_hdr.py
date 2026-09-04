@@ -54,6 +54,8 @@ def recipe_crispr_hdr_donor(
     grna_seq: str = "",
     grna_strand: int = 1,
     custom_arm_length: int | None = None,
+    target_is_cds: bool = False,
+    cds_frame_offset: int = 0,
 ) -> dict[str, Any]:
     """Execute the gold-standard SOP for CRISPR HDR repair template design.
 
@@ -94,13 +96,45 @@ def recipe_crispr_hdr_donor(
         if grna_strand == 1 and len(right_arm) >= 6:
             pam_seq = right_arm[3:6]
             if pam_seq.endswith("GG"):
-                # In standard SOP (Paquet 2016), mutate the terminal G of NGG to A, C, or T
-                old_base = right_arm[5]
-                new_base = "A" if old_base == "G" else "T"
-                right_arm = right_arm[:5] + new_base + right_arm[6:]
-                pam_mutated = True
-                pam_details = f"Silenced PAM {pam_seq} -> {right_arm[3:6]} (G->{new_base} at right arm bp 5) to prevent Cas9 re-cleavage (Paquet et al. 2016 Nature)"
-                mutations_applied.append({"location": "right_arm", "offset_0based": 5, "ref": old_base, "alt": new_base})
+                mutated_syn = False
+                if target_is_cds:
+                    # Find the exact triplet codon overlapping right_arm[5]
+                    c_rel = (5 - (cds_frame_offset % 3)) % 3
+                    c_start = 5 - c_rel
+                    if c_start + 3 <= len(right_arm):
+                        orig_codon = right_arm[c_start : c_start + 3]
+                        syn_info = get_codon_synonyms(orig_codon)
+                        for syn in syn_info.get("synonymous_codons", []):
+                            # Test if this synonym alters the terminal G of PAM
+                            if syn[c_rel] != right_arm[5]:
+                                new_right = right_arm[:c_start] + syn + right_arm[c_start + 3:]
+                                if not new_right[3:6].endswith("GG"):
+                                    old_base = right_arm[5]
+                                    new_base = syn[c_rel]
+                                    right_arm = new_right
+                                    pam_mutated = True
+                                    mutated_syn = True
+                                    pam_details = (
+                                        f"Silenced PAM via synonymous codon {orig_codon} -> {syn} ({syn_info['amino_acid']}) "
+                                        f"at right arm [{c_start}:{c_start+3}] without altering protein sequence (Paquet et al. 2016 Nature)"
+                                    )
+                                    mutations_applied.append({
+                                        "location": "right_arm",
+                                        "offset_0based": c_start,
+                                        "ref": orig_codon,
+                                        "alt": syn,
+                                        "amino_acid": syn_info["amino_acid"],
+                                        "synonymous": True,
+                                    })
+                                    break
+                if not mutated_syn:
+                    # Standard non-coding or fallback PAM mutation (Paquet 2016)
+                    old_base = right_arm[5]
+                    new_base = "A" if old_base == "G" else "T"
+                    right_arm = right_arm[:5] + new_base + right_arm[6:]
+                    pam_mutated = True
+                    pam_details = f"Silenced PAM {pam_seq} -> {right_arm[3:6]} (G->{new_base} at right arm bp 5) to prevent Cas9 re-cleavage (Paquet et al. 2016 Nature)"
+                    mutations_applied.append({"location": "right_arm", "offset_0based": 5, "ref": old_base, "alt": new_base, "synonymous": False})
         elif grna_strand == -1 and len(left_arm) >= 6:
             # Bottom strand (-1): cut is at len(left_arm), PAM_rc (CCN) is at left_arm[-6:-3]
             pam_rc = left_arm[-6:-3]

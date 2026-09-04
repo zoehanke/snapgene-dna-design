@@ -60,7 +60,7 @@ def _find_primer_binding(
                     "tail_length": len(tail),
                 })
                 found_this_len = True
-            elif sub == core_rc:
+            if sub == core_rc:
                 hits.append({
                     "strand": -1,
                     "template_start_0based": start_c,
@@ -175,29 +175,54 @@ def calc_primer_tm(
     primer_seq: str,
     salt_conc_mM: float = 50.0,
     primer_conc_nM: float = 200.0,
+    mg_conc_mM: float = 0.0,
+    dntp_conc_mM: float = 0.0,
 ) -> dict[str, Any]:
     """Calculate melting temperature (Tm), GC%, length, and 3' GC clamp of a primer.
 
-    Uses nearest-neighbor thermodynamic calculation with salt correction.
+    Uses SantaLucia (1998) unified nearest-neighbor thermodynamic calculation with salt correction.
+    Literature source:
+    - SantaLucia, J. (1998). A unified view of polymer, dumbbell, and oligonucleotide DNA nearest-neighbor thermodynamics.
+      PNAS 95(4):1460-1465. doi:10.1073/pnas.95.4.1460.
     """
     from Bio.SeqUtils.MeltingTemp import Tm_NN
 
     seq = str(primer_seq).strip().upper()
     n = len(seq)
     if n == 0:
-        return {"tm": 0.0, "length": 0, "gc_percent": 0.0, "warnings": ["Sequence is empty"]}
+        return {
+            "sequence": "",
+            "length": 0,
+            "tm": 0.0,
+            "gc_percent": 0.0,
+            "gc_clamp_ideal": False,
+            "gc_in_3prime_5bp": 0,
+            "thermodynamic_model": "None",
+            "warnings": ["Sequence is empty"],
+        }
 
     gc_count = seq.count("G") + seq.count("C")
     gc_pct = round((gc_count / n) * 100.0, 1)
 
+    dnac = primer_conc_nM / 2.0
+    model = "SantaLucia (1998) Nearest-Neighbor"
     try:
-        tm_val = Tm_NN(seq, Na=salt_conc_mM, dnac=primer_conc_nM)
+        tm_val = Tm_NN(
+            seq,
+            Na=salt_conc_mM,
+            Mg=mg_conc_mM,
+            dNTPs=dntp_conc_mM,
+            dnac1=dnac,
+            dnac2=dnac,
+        )
         tm_round = round(float(tm_val), 1)
-    except Exception:
-        # Fallback to standard Wallace rule
+    except Exception as exc:
+        model = "Wallace (1979) 2(A+T)+4(G+C) [Fallback]"
         tm_round = round((seq.count("A") + seq.count("T")) * 2.0 + gc_count * 4.0, 1)
 
     warnings = []
+    if model != "SantaLucia (1998) Nearest-Neighbor":
+        warnings.append(f"Nearest-neighbor thermodynamic model unavailable ({exc}); fell back to Wallace rule.")
     if n < 18:
         warnings.append("Primer length < 18 bp (risk of non-specific binding)")
     elif n > 35:
@@ -208,7 +233,6 @@ def calc_primer_tm(
     elif gc_pct > 60.0:
         warnings.append(f"High GC content ({gc_pct}%), recommend 40-60%")
 
-    # 3' clamp: check last 5 bases at 3' end
     tail5 = seq[-5:]
     tail_gc = tail5.count("G") + tail5.count("C")
     gc_clamp = (1 <= tail_gc <= 3)
@@ -224,6 +248,7 @@ def calc_primer_tm(
         "gc_percent": gc_pct,
         "gc_clamp_ideal": gc_clamp,
         "gc_in_3prime_5bp": tail_gc,
+        "thermodynamic_model": model,
         "warnings": warnings,
     }
 
@@ -249,6 +274,14 @@ def design_overhang_primers(
         t_seq = str(rec.seq).upper()
     else:
         t_seq = str(template_record_or_seq).upper()
+
+    if end <= start:
+        raise ValueError(f"Invalid target interval: end ({end}) must be greater than start ({start}).")
+    if (end - start) < min_core_len:
+        raise ValueError(
+            f"Amplification interval ({end - start} bp) is shorter than minimum primer core length ({min_core_len} bp). "
+            "Forward and reverse primers cannot amplify an interval shorter than a single primer core."
+        )
 
     n = len(t_seq)
     # Forward primer core starts at 'start' and extends forward
@@ -283,6 +316,18 @@ def design_overhang_primers(
             best_rev_diff = diff
             best_rev_core = rev_core_seq
             best_rev_tm = tm_info["tm"]
+
+    if not best_fwd_core or not best_rev_core:
+        raise ValueError(
+            f"Could not design viable primer cores within bounds for interval [{start}, {end}] on template of length {n}."
+        )
+
+    if (start + len(best_fwd_core)) > end or (end - len(best_rev_core)) < start:
+        raise ValueError(
+            f"Amplification interval [{start}:{end}] ({end - start} bp) is too short for target Tm {target_tm}°C primers "
+            f"(Fwd core: {len(best_fwd_core)} bp, Rev core: {len(best_rev_core)} bp). "
+            "Primers cross each other and cannot face each other to produce an amplicon."
+        )
 
     fwd_full = fwd_5prime_overhang.upper() + best_fwd_core
     rev_full = rev_5prime_overhang.upper() + best_rev_core

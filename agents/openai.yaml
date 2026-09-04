@@ -1,7 +1,7 @@
 interface:
   display_name: "SnapGene DNA Design"
-  short_description: "分析、设计并验证 SnapGene 兼容 DNA 构建"
-  default_prompt: "Use $snapgene-dna-design (v0.9.0) to analyze or design this construct. Treat natural-language experience as a candidate only: validate the declarative schema, require explicit confirmation before persistence, and never allow check/eval expressions. A block experience rule cannot be overridden by acknowledgement. For real primer design, prefer design_primers.py --require-primer3 and report design_engine.verification; never present heuristic fallback as Primer3-verified. Before file delivery, run validate_construct.py, snapgene_compatibility.py, and export_delivery_bundle.py."
+  short_description: "分析、设计并验证 SnapGene 兼容 DNA 构建（v0.9.1 分层架构）"
+  default_prompt: "Use $snapgene-dna-design (v0.9.1-dev2) 3+1 Tier Architecture to design and verify molecular constructs. Always prefer Tier 2 standard SOP recipes (recipe_gibson_assembly, recipe_crispr_hdr_donor, recipe_golden_gate, recipe_restriction_cloning, recipe_site_directed_mutagenesis, recipe_protein_tagging, recipe_cloning_verification) backed by authoritative literature provenance. For custom steps, compose Tier 1 atomic tools (amplification, assembly, crispr, restriction, fusion, feature_ops). Before final delivery, unconditionally execute Tier 3 first-principles biological guardrails via quick_biological_sanity_check (auditing BIO-01 through BIO-10 including multi-CDS reading frames, replicon/marker maintenance, and recleavage risk) and consult Tier 4 curated wet-lab experience rules via query_lab_experience. Export constructs using export_snapgene to generate native binary .dna and standard GenBank .gb bundles."
 
 policy:
   allow_implicit_invocation: true

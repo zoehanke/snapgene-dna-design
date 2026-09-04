@@ -84,6 +84,8 @@ STANDARD_ELEMENTS: dict[str, dict[str, Any]] = {
         "aa": "HHHHHH",
         "description": "Hexahistidine affinity tag for IMAC purification",
         "color": "#fdbf6f",
+        "citation": "Hochuli, E. et al. (1988). Genetic Approach to Facilitate Purification of Recombinant Proteins with a Novel Metal Chelate Adsorbent. Nature Biotechnology (Bio/Technology) 6:1321-1325.",
+        "doi": "10.1038/nbt1188-1321",
     },
     "8xhis": {
         "name": "8xHis",
@@ -92,6 +94,8 @@ STANDARD_ELEMENTS: dict[str, dict[str, Any]] = {
         "aa": "HHHHHHHH",
         "description": "Octahistidine tag for higher stringency IMAC",
         "color": "#fdbf6f",
+        "citation": "Spriestersbach, A. et al. (2015). Purification of His-Tagged Proteins. Methods Enzymol 559:1-15.",
+        "doi": "10.1016/bs.mie.2014.11.003",
     },
     "flag": {
         "name": "FLAG",
@@ -100,6 +104,8 @@ STANDARD_ELEMENTS: dict[str, dict[str, Any]] = {
         "aa": "DYKDDDDK",
         "description": "FLAG epitope tag (enterokinase cleavable)",
         "color": "#cab2d6",
+        "citation": "Hopp, T.P. et al. (1988). A Short Polypeptide Marker Sequence Useful for Recombinant Protein Identification and Purification. Nature Biotechnology (Bio/Technology) 6:1204-1210.",
+        "doi": "10.1038/nbt1088-1204",
     },
     "3xflag": {
         "name": "3xFLAG",
@@ -108,6 +114,8 @@ STANDARD_ELEMENTS: dict[str, dict[str, Any]] = {
         "aa": "DYKDHDGDYKDHDIDYKDDDDK",
         "description": "Triple-repeat FLAG tag with higher antibody affinity",
         "color": "#cab2d6",
+        "citation": "Hernan, R. et al. (2000). Multiple epitope tagging of proteins with the 3xFLAG system. BioTechniques 28(4):789-793.",
+        "doi": "10.2144/00284pf01",
     },
     "ha": {
         "name": "HA",
@@ -116,6 +124,8 @@ STANDARD_ELEMENTS: dict[str, dict[str, Any]] = {
         "aa": "YPYDVPDYA",
         "description": "Influenza hemagglutinin epitope tag",
         "color": "#b15928",
+        "citation": "Field, J. et al. (1988). Purification of a RAS-responsive adenylyl cyclase complex from Saccharomyces cerevisiae by use of an epitope-addition method. Mol Cell Biol 8(5):2159-2165.",
+        "doi": "10.1128/mcb.8.5.2159",
     },
     "myc": {
         "name": "Myc",
@@ -124,6 +134,8 @@ STANDARD_ELEMENTS: dict[str, dict[str, Any]] = {
         "aa": "EQKLISEEDL",
         "description": "c-Myc epitope tag",
         "color": "#ff7f00",
+        "citation": "Evan, G.I. et al. (1985). Isolation of monoclonal antibodies specific for human c-myc proto-oncogene product. Mol Cell Biol 5(12):3610-3616.",
+        "doi": "10.1128/mcb.5.12.3610",
     },
     "v5": {
         "name": "V5",
@@ -132,6 +144,8 @@ STANDARD_ELEMENTS: dict[str, dict[str, Any]] = {
         "aa": "GKPIPNPLLGLDST",
         "description": "Paramyxovirus V5 epitope tag",
         "color": "#6a3d9a",
+        "citation": "Southern, J.A. et al. (1991). Identification of an epitope on the P and V proteins of simian virus 5 that can be used for ease of detection and purification of proteins. J Gen Virol 72(7):1551-1557.",
+        "doi": "10.1099/0022-1317-72-7-1551",
     },
     "strep_ii": {
         "name": "Strep-tag II",
@@ -140,6 +154,8 @@ STANDARD_ELEMENTS: dict[str, dict[str, Any]] = {
         "aa": "WSHPQFEK",
         "description": "Strep-tag II affinity tag for Strep-Tactin resins",
         "color": "#ffff99",
+        "citation": "Schmidt, T.G. and Skerra, A. (2007). The Strep-tag system for one-step purification and high-affinity detection or capturing of proteins. Nature Protocols 2(3):698-709.",
+        "doi": "10.1038/nprot.2007.209",
     },
     # Flexible & rigid linkers
     "g4s_1": {
@@ -149,6 +165,8 @@ STANDARD_ELEMENTS: dict[str, dict[str, Any]] = {
         "aa": "GGGGS",
         "description": "5-amino acid flexible glycine-serine linker",
         "color": "#b2df8a",
+        "citation": "Huston, J.S. et al. (1988). Protein engineering of antibody binding sites: recovery of specific activity in an anti-digoxin single-chain Fv analogue produced in Escherichia coli. PNAS 85(16):5879-5883.",
+        "doi": "10.1073/pnas.85.16.5879",
     },
     "g4s_2": {
         "name": "(G4S)2",
@@ -157,6 +175,8 @@ STANDARD_ELEMENTS: dict[str, dict[str, Any]] = {
         "aa": "GGGGSGGGGS",
         "description": "10-amino acid flexible glycine-serine linker",
         "color": "#b2df8a",
+        "citation": "Huston, J.S. et al. (1988). PNAS 85(16):5879-5883.",
+        "doi": "10.1073/pnas.85.16.5879",
     },
     "g4s_3": {
         "name": "(G4S)3",
@@ -165,6 +185,8 @@ STANDARD_ELEMENTS: dict[str, dict[str, Any]] = {
         "aa": "GGGGSGGGGSGGGGS",
         "description": "15-amino acid standard flexible linker",
         "color": "#b2df8a",
+        "citation": "Chen, X. et al. (2013). Fusion protein linkers: property, design and functionality. Adv Drug Deliv Rev 65(10):1357-1369.",
+        "doi": "10.1016/j.addr.2012.09.039",
     },
     "eaaak_3": {
         "name": "(EAAAK)3",
@@ -173,6 +195,8 @@ STANDARD_ELEMENTS: dict[str, dict[str, Any]] = {
         "aa": "EAAAKEAAAKEAAAK",
         "description": "15-amino acid rigid alpha-helical linker",
         "color": "#33a02c",
+        "citation": "Arai, R. et al. (2001). Design of the linkers which effectively separate domains of a bifunctional fusion protein. Protein Eng 14(8):529-532.",
+        "doi": "10.1093/protein/14.8.529",
     },
     # Protease cleavage sites
     "tev": {
@@ -182,6 +206,8 @@ STANDARD_ELEMENTS: dict[str, dict[str, Any]] = {
         "aa": "ENLYFQG",
         "description": "Tobacco Etch Virus protease cleavage site (cuts between Q and G)",
         "color": "#fb9a99",
+        "citation": "Carrington, J.C. and Dougherty, W.G. (1988). A viral cleavage site in a polyprotein is processed in vitro by a proteinase with a genetic relationship to the polyprotein. PNAS 85(10):3391-3395.",
+        "doi": "10.1073/pnas.85.10.3391",
     },
     "precission": {
         "name": "PreScission (3C)",
@@ -190,6 +216,8 @@ STANDARD_ELEMENTS: dict[str, dict[str, Any]] = {
         "aa": "LEVLFQGP",
         "description": "Human rhinovirus 3C protease cleavage site (cuts between Q and G)",
         "color": "#e31a1c",
+        "citation": "Walker, P.A. et al. (1994). Efficient site-specific cleavage of fusion proteins using cloned human rhinovirus 14 3C protease. Biotechnology (N Y) 12(6):601-605.",
+        "doi": "10.1038/nbt0694-601",
     },
     "thrombin": {
         "name": "Thrombin",
@@ -198,6 +226,8 @@ STANDARD_ELEMENTS: dict[str, dict[str, Any]] = {
         "aa": "LVPRGS",
         "description": "Thrombin protease cleavage site (cuts between R and G)",
         "color": "#a6cee3",
+        "citation": "Chang, J.Y. (1985). Thrombin specificity: requirement for apolar amino acids adjacent to the thrombin cleavage site of prothrombin. Eur J Biochem 151(1):217-224.",
+        "doi": "10.1111/j.1432-1033.1985.tb09139.x",
     },
 }
 

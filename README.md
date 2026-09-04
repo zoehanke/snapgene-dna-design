@@ -52,7 +52,7 @@ SnapGene-compatible DNA design, molecular cloning, and CRISPR editing toolkit po
 | Restriction enzymes | `find_sites.py` | Recognition sites and simulated digests; explicit double-strand cut boundaries |
 | PCR / primers | `design_primers.py`, `primer_design_engine.py`, `primer3_core_backend.py`, `primer_qc.py`, `simulate_pcr.py`, `pcr_strategy.py` | Exact-boundary primer design with Primer3 or labelled heuristic fallback; four-layer retry chain (tailed → binding-only → relaxed-Tm → slide-retry with `boundary_offset_5p/3p`); tails / restriction sites / protective bases; hairpin-dimer QC; PCR simulation; GC/AT/long-template strategies |
 | Consent & transparency | `operation_consent.py` | Structured confirmation for parameters, relaxations, degradations, no-solution and external writes; `--consent ask/auto`, `--yes`; unconfirmed = not executed; append-only operation log (backend, parameters, input SHA, retry path, output files) |
-| Natural-language Agent (v0.9.0-dev1) | `design/spec.py`, `agent/*`, `planning/method_selector.py`, `scripts/run_design_agent.py` | DesignSpec v1 state machine (draft→…→delivered/blocked), exploration/formal modes, source-hash tracing, clarification rules, deterministic method comparison, unified scheduler over existing CLIs, hash-bound DELIVERY-MANIFEST |
+| 3+1 Tier Architecture (v0.9.1-dev2) | `core/recipes/*`, `core/tools/*`, `core/guardrails/*`, `core/task.py` | 7 standard SOP recipes (Tier 2), 28 atomic tools (Tier 1), first-principles biological guardrails (Tier 3), and curated wet-lab experience rules (Tier 4) |
 | Cloning simulation | `simulate_cloning.py`, `simulate_advanced.py`, `golden_gate.py` | Gibson / digest-ligate; In-Fusion, TA, TOPO, Gateway BP/LR; Type IIS Golden Gate |
 | Plasmid editing | `edit_plasmid.py`, `mutagenesis.py`, `annotate.py`, `draw_map.py`, `convert.py`, `write_dna.py` | Insert/delete/replace/rotate/linearize; site-directed mutagenesis and codon edits; ORF annotation; SVG maps; format conversion; GenBank / SnapGene-GB / native `.dna` / FASTA export |
 | Validation | `validate_construct.py`, `validate_roundtrip.py`, `validation_crosscheck.py` | One-shot QC (topology/length/CDS stops/unique cutters); internal and official SnapGene round-trip; independent Tm / restriction / GC cross-checks |
@@ -443,7 +443,7 @@ python scripts/check_env.py
 python -X utf8 -B -m unittest discover -s tests
 ```
 
-Current source tree: **405 tests, 0 failures** — default run `OK
+Current source tree: **595 tests, 0 failures** — default run `OK
 (skipped=13)`; with all real backends enabled `OK` (0 skipped). Skips are
 optional external backends / academic fixture, each recorded with its reason.
 
