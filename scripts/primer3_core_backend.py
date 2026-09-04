@@ -25,22 +25,35 @@ def _candidate_names():
     return ("primer3_core.exe", "primer3_core")
 
 
+_DISCOVERED_CORE_CACHE: dict[str, str | None] = {}
+
+
 def discover_primer3_core(explicit=None):
     """Return an absolute primer3_core path, or ``None``.
 
     Search order is intentionally deterministic: explicit CLI value, the
-    PRIMER3_CORE environment variable, PATH, then the data directory embedded
-    in an installed primer3-py wheel.  The wheel is inspected as files only;
-    its native Python extension is never imported.
+    PRIMER3_CORE environment variable, PATH, entries in sys.path, site-packages,
+    and cross-environment Python installations (e.g. %LOCALAPPDATA%/Programs/Python).
+    The wheel is inspected as files only; its native Python extension is never imported.
     """
+    cache_key = str(explicit) if explicit else "__default__"
+    if cache_key in _DISCOVERED_CORE_CACHE:
+        cached = _DISCOVERED_CORE_CACHE[cache_key]
+        if cached and pathlib.Path(cached).is_file():
+            return cached
+
     candidates = []
     if explicit:
         candidate = pathlib.Path(explicit).expanduser()
         try:
             resolved = candidate.resolve()
         except OSError:
+            _DISCOVERED_CORE_CACHE[cache_key] = None
             return None
-        return str(resolved) if resolved.is_file() else None
+        res_str = str(resolved) if resolved.is_file() else None
+        _DISCOVERED_CORE_CACHE[cache_key] = res_str
+        return res_str
+
     env_path = os.environ.get("PRIMER3_CORE")
     if env_path:
         candidates.append(pathlib.Path(env_path).expanduser())
@@ -55,6 +68,28 @@ def discover_primer3_core(explicit=None):
         for name in _candidate_names():
             candidates.append(base / "primer3" / "src" / "libprimer3" / name)
 
+    # Cross-environment inspection on Windows & Unix
+    import glob
+    extra_patterns = [
+        os.path.expandvars(r"%LOCALAPPDATA%\Programs\Python\Python3*\Lib\site-packages\primer3\src\libprimer3\primer3_core.exe"),
+        os.path.expandvars(r"%APPDATA%\Python\Python3*\site-packages\primer3\src\libprimer3\primer3_core.exe"),
+        r"C:\Python3*\Lib\site-packages\primer3\src\libprimer3\primer3_core.exe",
+        r"D:\anaconda\envs\*\Lib\site-packages\primer3\src\libprimer3\primer3_core.exe",
+        r"C:\anaconda3\envs\*\Lib\site-packages\primer3\src\libprimer3\primer3_core.exe",
+        r"C:\miniconda3\envs\*\Lib\site-packages\primer3\src\libprimer3\primer3_core.exe",
+        os.path.expanduser(r"~/.local/lib/python3.*/site-packages/primer3/src/libprimer3/primer3_core"),
+        r"/usr/local/lib/python3.*/dist-packages/primer3/src/libprimer3/primer3_core",
+        r"/opt/conda/envs/*/lib/python3.*/site-packages/primer3/src/libprimer3/primer3_core",
+    ]
+    for pattern in extra_patterns:
+        try:
+            matches = glob.glob(pattern)
+            matches.sort(reverse=True)
+            for matched in matches:
+                candidates.append(pathlib.Path(matched))
+        except Exception:
+            pass
+
     seen = set()
     for candidate in candidates:
         try:
@@ -66,7 +101,10 @@ def discover_primer3_core(explicit=None):
             continue
         seen.add(key)
         if resolved.is_file():
-            return str(resolved)
+            found_path = str(resolved)
+            _DISCOVERED_CORE_CACHE[cache_key] = found_path
+            return found_path
+    _DISCOVERED_CORE_CACHE[cache_key] = None
     return None
 
 

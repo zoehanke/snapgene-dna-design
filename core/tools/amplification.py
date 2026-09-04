@@ -262,6 +262,7 @@ def design_overhang_primers(
     target_tm: float = 60.0,
     min_core_len: int = 18,
     max_core_len: int = 32,
+    prefer_primer3: bool = True,
 ) -> dict[str, Any]:
     """Design a forward and reverse primer pair for a template interval with optional 5' overhangs.
 
@@ -284,38 +285,117 @@ def design_overhang_primers(
         )
 
     n = len(t_seq)
-    # Forward primer core starts at 'start' and extends forward
-    best_fwd_core = ""
-    best_fwd_diff = 999.0
-    best_fwd_tm = 0.0
+    interval_seq = t_seq[start:end]
 
-    for l in range(min_core_len, max_core_len + 1):
-        if start + l > n:
-            break
-        core_seq = t_seq[start : start + l]
-        tm_info = calc_primer_tm(core_seq)
-        diff = abs(tm_info["tm"] - target_tm)
-        if diff < best_fwd_diff:
-            best_fwd_diff = diff
-            best_fwd_core = core_seq
-            best_fwd_tm = tm_info["tm"]
+    # --- Step 1: Attempt official Primer3 engine ---
+    p3_pair = None
+    p3_fwd = None
+    p3_rev = None
+    engine_name = "SantaLucia-Heuristic [Fallback]"
 
-    # Reverse primer core ends at 'end' and extends backwards (RC of top strand)
-    best_rev_core = ""
-    best_rev_diff = 999.0
-    best_rev_tm = 0.0
+    if prefer_primer3:
+        try:
+            import sys
+            scripts_dir = pathlib.Path(__file__).resolve().parent.parent.parent / "scripts"
+            if str(scripts_dir) not in sys.path:
+                sys.path.insert(0, str(scripts_dir))
+            from primer3_core_backend import discover_primer3_core, design_anchored_pairs
+            core_path = discover_primer3_core()
+            if core_path:
+                # Attempt A: with overhang tails
+                res_p3 = design_anchored_pairs(
+                    core_path=core_path,
+                    sequence=interval_seq,
+                    region_start=start,
+                    target_tm=target_tm,
+                    min_len=min_core_len,
+                    max_len=min(max_core_len, len(interval_seq)),
+                    top_n=1,
+                    fwd_tail=fwd_5prime_overhang.upper(),
+                    rev_tail=rev_5prime_overhang.upper(),
+                    tm_range=(max(45.0, target_tm - 6.0), target_tm + 6.0),
+                )
+                if res_p3.get("pairs"):
+                    p3_pair = res_p3["pairs"][0]
+                    p3_fwd = res_p3["forward_candidates"][0]
+                    p3_rev = res_p3["reverse_candidates"][0]
+                    engine_name = "primer3-core"
+                else:
+                    # Attempt B: binding-only (in case tail caused hairpin/dimer penalty rejection)
+                    res_p3_bo = design_anchored_pairs(
+                        core_path=core_path,
+                        sequence=interval_seq,
+                        region_start=start,
+                        target_tm=target_tm,
+                        min_len=min_core_len,
+                        max_len=min(max_core_len, len(interval_seq)),
+                        top_n=1,
+                        fwd_tail="",
+                        rev_tail="",
+                        tm_range=(max(45.0, target_tm - 8.0), target_tm + 8.0),
+                    )
+                    if res_p3_bo.get("pairs"):
+                        p3_pair = res_p3_bo["pairs"][0]
+                        p3_fwd = res_p3_bo["forward_candidates"][0]
+                        p3_rev = res_p3_bo["reverse_candidates"][0]
+                        engine_name = "primer3-core (binding-only retry)"
+        except Exception:
+            p3_pair = None
 
-    for l in range(min_core_len, max_core_len + 1):
-        if end - l < 0:
-            break
-        top_rev_segment = t_seq[end - l : end]
-        rev_core_seq = str(Seq(top_rev_segment).reverse_complement())
-        tm_info = calc_primer_tm(rev_core_seq)
-        diff = abs(tm_info["tm"] - target_tm)
-        if diff < best_rev_diff:
-            best_rev_diff = diff
-            best_rev_core = rev_core_seq
-            best_rev_tm = tm_info["tm"]
+    if p3_pair and p3_fwd and p3_rev:
+        best_fwd_core = p3_fwd["binding"]
+        best_rev_core = p3_rev["binding"]
+        best_fwd_tm = p3_fwd["tm"]
+        best_rev_tm = p3_rev["tm"]
+        primer3_metrics = {
+            "engine": engine_name,
+            "penalty": p3_pair.get("primer3_penalty"),
+            "heterodimer_tm": (p3_pair.get("heterodimer") or {}).get("tm_any"),
+            "fwd_hairpin_tm": (p3_fwd.get("hairpin") or {}).get("tm"),
+            "fwd_self_dimer_tm": (p3_fwd.get("self_dimer") or {}).get("tm_any"),
+            "fwd_end_stability_3p": (p3_fwd.get("end_stability_3p") or {}).get("value"),
+            "rev_hairpin_tm": (p3_rev.get("hairpin") or {}).get("tm"),
+            "rev_self_dimer_tm": (p3_rev.get("self_dimer") or {}).get("tm_any"),
+            "rev_end_stability_3p": (p3_rev.get("end_stability_3p") or {}).get("value"),
+        }
+    else:
+        # --- Step 2: Fallback to SantaLucia (1998) Nearest-Neighbor thermodynamic scan ---
+        best_fwd_core = ""
+        best_fwd_diff = 999.0
+        best_fwd_tm = 0.0
+
+        for l in range(min_core_len, max_core_len + 1):
+            if start + l > n:
+                break
+            core_seq = t_seq[start : start + l]
+            tm_info = calc_primer_tm(core_seq)
+            diff = abs(tm_info["tm"] - target_tm)
+            if diff < best_fwd_diff:
+                best_fwd_diff = diff
+                best_fwd_core = core_seq
+                best_fwd_tm = tm_info["tm"]
+
+        best_rev_core = ""
+        best_rev_diff = 999.0
+        best_rev_tm = 0.0
+
+        for l in range(min_core_len, max_core_len + 1):
+            if end - l < 0:
+                break
+            top_rev_segment = t_seq[end - l : end]
+            rev_core_seq = str(Seq(top_rev_segment).reverse_complement())
+            tm_info = calc_primer_tm(rev_core_seq)
+            diff = abs(tm_info["tm"] - target_tm)
+            if diff < best_rev_diff:
+                best_rev_diff = diff
+                best_rev_core = rev_core_seq
+                best_rev_tm = tm_info["tm"]
+
+        primer3_metrics = {
+            "engine": "SantaLucia-Heuristic [Fallback]",
+            "penalty": None,
+            "heterodimer_tm": None,
+        }
 
     if not best_fwd_core or not best_rev_core:
         raise ValueError(
@@ -343,6 +423,9 @@ def design_overhang_primers(
             "binding_core_length": len(best_fwd_core),
             "binding_core_tm": best_fwd_tm,
             "overhang_5prime": fwd_5prime_overhang.upper(),
+            "hairpin_tm": primer3_metrics.get("fwd_hairpin_tm"),
+            "self_dimer_tm": primer3_metrics.get("fwd_self_dimer_tm"),
+            "end_stability_3p": primer3_metrics.get("fwd_end_stability_3p"),
         },
         "reverse_primer": {
             "full_sequence": rev_full,
@@ -351,9 +434,14 @@ def design_overhang_primers(
             "binding_core_length": len(best_rev_core),
             "binding_core_tm": best_rev_tm,
             "overhang_5prime": rev_5prime_overhang.upper(),
+            "hairpin_tm": primer3_metrics.get("rev_hairpin_tm"),
+            "self_dimer_tm": primer3_metrics.get("rev_self_dimer_tm"),
+            "end_stability_3p": primer3_metrics.get("rev_end_stability_3p"),
         },
         "binding_core_delta_tm": delta_tm,
         "delta_tm_warning": delta_tm > 3.0,
+        "engine": primer3_metrics["engine"],
+        "primer3_metrics": primer3_metrics,
     }
 
 
