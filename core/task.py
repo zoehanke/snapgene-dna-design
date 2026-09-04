@@ -142,7 +142,8 @@ def validate_construction_task(task, base_dir=None):
                                       "duplicate source_id: %s" % sid,
                                       missing_fields=["sources"])
         seen_ids.add(sid)
-        singleton = source["role"] in {
+        is_pipeline = task.get("task_kind") in ("composite_pipeline", "pipeline")
+        singleton = (not is_pipeline) and source["role"] in {
             "template", "backbone", "entry", "destination",
             "replacement", "donor_component"}
         if singleton and source["role"] in seen_roles:

@@ -19,23 +19,9 @@ from core.errors import PlanningError, TaskValidationError
 from core.guardrails.checklist import quick_biological_sanity_check
 from core.handlers.base import TaskHandler
 from core.tools import (
-    annotate_feature,
-    check_reading_frame,
     export_snapgene,
-    extract_subsequence,
-    find_restriction_sites,
-    fuse_in_frame,
-    get_feature,
-    inspect_dna,
-    mutate_sequence,
-    reverse_complement,
-    silent_mutation_remove_site,
-    simulate_digest_ligation,
-    simulate_golden_gate,
-    simulate_overlap_assembly,
-    simulate_pcr,
-    design_hdr_donor,
-    translate_dna,
+    get_tool,
+    TOOL_REGISTRY,
 )
 
 
@@ -68,87 +54,22 @@ def run_pipeline_steps(steps: list[dict], sources_map: dict[str, str]) -> tuple[
         raw_params = step.get("params", {})
         params = _resolve_param_val(raw_params, env, sources_map)
 
-        if tool == "extract_subsequence":
-            res = extract_subsequence(
-                file_path_or_record=params["source"],
-                start=params["start"],
-                end=params["end"],
-                strand=params.get("strand", 1),
-                topology=params.get("topology", "linear"),
-                wraps_origin=params.get("wraps_origin", True),
-            )
-            out_seq = res["sequence"]
-        elif tool == "simulate_pcr":
-            res = simulate_pcr(
-                template_path_or_seq=params["template"],
-                f_primer=params["f_primer"],
-                r_primer=params["r_primer"],
-                topology=params.get("topology", "linear"),
-            )
-            out_seq = res["amplicon"]
-        elif tool == "fuse_in_frame":
-            res = fuse_in_frame(
-                partner5_seq=params["partner5"],
-                partner3_seq=params["partner3"],
-                linker_seq=params.get("linker", ""),
-                strip_p5_stop=params.get("strip_p5_stop", True),
-                add_terminal_stop=params.get("add_terminal_stop", True),
-            )
-            out_seq = res["fusion_sequence"]
-        elif tool == "silent_mutation_remove_site":
-            res = silent_mutation_remove_site(
-                cds_seq=params["cds_seq"],
-                enzyme_name=params["enzyme"],
-                frame_offset=params.get("frame_offset", 0),
-            )
-            out_seq = res["mutated_seq"]
-        elif tool == "mutate_sequence":
-            res = mutate_sequence(
-                dna_seq=params["dna_seq"],
-                mutations=params["mutations"],
-            )
-            out_seq = res["sequence"]
-        elif tool == "simulate_overlap_assembly":
-            res = simulate_overlap_assembly(
-                fragments=params["fragments"],
-                min_overlap=params.get("min_overlap", 15),
-                circular=params.get("circular", True),
-            )
-            out_seq = res["product_sequence"]
-        elif tool == "simulate_digest_ligation":
-            res = simulate_digest_ligation(
-                vector_source=params["vector"],
-                insert_source=params["insert"],
-                vector_enzymes=params["vector_enzymes"],
-                insert_enzymes=params.get("insert_enzymes"),
-                orientation=params.get("orientation", "forward"),
-            )
-            out_seq = res["product_sequence"]
-        elif tool == "simulate_golden_gate":
-            res = simulate_golden_gate(
-                fragments=params["fragments"],
-                enzyme=params.get("enzyme", "BsaI"),
-                circular=params.get("circular", True),
-            )
-            out_seq = res["product_sequence"]
-        elif tool == "design_hdr_donor":
-            res = design_hdr_donor(
-                target_seq_or_file=params["target"],
-                cut_position_0based=params["cut_position"],
-                edit_dna=params["edit_dna"],
-                left_arm_length=params.get("left_arm_length", 50),
-                right_arm_length=params.get("right_arm_length", 50),
-                grna_seq=params.get("grna_seq", ""),
-            )
-            out_seq = res["donor_sequence"]
-        elif tool == "reverse_complement":
-            out_seq = reverse_complement(params["seq"])
-            res = {"sequence": out_seq}
-        else:
+        tool_spec = get_tool(tool)
+        if not tool_spec:
             raise PlanningError(
                 "UNSUPPORTED_PIPELINE_TOOL",
-                f"Atomic tool '{tool}' is not recognized in composite pipeline"
+                f"Atomic tool '{tool}' is not registered in TOOL_REGISTRY",
             )
+
+        try:
+            res = tool_spec.execute(**params)
+        except Exception as exc:
+            raise PlanningError(
+                "TOOL_EXECUTION_ERROR",
+                f"Tool '{tool}' failed during step '{step_id}': {exc}",
+            )
+
+        out_seq = tool_spec.extract_sequence(res)
 
         env[step_id] = out_seq
         step_records.append({

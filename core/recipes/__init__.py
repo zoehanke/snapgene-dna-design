@@ -27,7 +27,10 @@ from core.recipes.verification import (
     recipe_cloning_verification,
 )
 
+from core.recipes.contract import RecipeResult
+
 __all__ = [
+    "RecipeResult",
     "recipe_crispr_hdr_donor",
     "recipe_gibson_assembly",
     "recipe_golden_gate",

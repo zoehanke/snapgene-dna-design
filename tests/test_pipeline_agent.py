@@ -78,6 +78,41 @@ class PipelineAgentTests(unittest.TestCase):
         self.assertTrue((auth_dir / "construct.dna").exists())
         self.assertTrue((auth_dir / "construct.gb").exists())
 
+    def test_execute_agent_pipeline_multi_source_three_files(self):
+        """Regression test: verify schema validity when passing 3 source files."""
+        src3 = self.tmp / "plasmidC.gb"
+        _write_gb(src3, "T" * 30 + "AAGCTT" + "G" * 40 + "A" * 44, "plasmidC", "circular")
+
+        steps = [
+            {
+                "step_id": "slice_a",
+                "tool": "extract_subsequence",
+                "params": {"source": str(self.src1), "start": 0, "end": 30, "strand": 1},
+            },
+            {
+                "step_id": "slice_b",
+                "tool": "extract_subsequence",
+                "params": {"source": str(self.src2), "start": 0, "end": 30, "strand": 1},
+            },
+            {
+                "step_id": "slice_c",
+                "tool": "extract_subsequence",
+                "params": {"source": str(src3), "start": 0, "end": 30, "strand": 1},
+            },
+        ]
+        out_dir = self.tmp / "build_multi"
+        result = execute_agent_pipeline(
+            task_id="construct-multi-test",
+            pipeline_steps=steps,
+            source_files=[self.src1, self.src2, src3],
+            product_topology="linear",
+            out_dir=out_dir,
+            auto_open_snapgene=False,
+            user_confirmed=True,
+        )
+        self.assertEqual(result["status"], "delivered")
+        self.assertEqual(result["product_length"], 30)
+
 
 if __name__ == "__main__":
     unittest.main()

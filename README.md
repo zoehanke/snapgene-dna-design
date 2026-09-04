@@ -1,30 +1,34 @@
-# SnapGene DNA Design v0.9.1-dev2
+# SnapGene DNA Design
 
-SnapGene-compatible DNA design, molecular cloning, and CRISPR editing toolkit powered by a **3+1 Tier Architecture**:
-- **Tier 1 (Hands & Feet)**: 28 pure physical and mathematical atomic tools (`core/tools/`) for sequence operations, restriction cutting, annealing, primer design, and in-frame fusion.
-- **Tier 2 (Standard SOP Recipes)**: 7 gold-standard routine recipes (`core/recipes/`) directly grounded in international classic laboratory manuals (*Molecular Cloning* 4th ed., *Nature Protocols*, *Nature Methods*, *ACS Synth Biol*, *NEB*).
-- **Tier 3 (Objective Guardrails)**: Factual sanity checks (`quick_biological_sanity_check`) for reading frames, PAM recleavage, Pol III termination, and primer dimers without subjective deadlocks.
-- **Tier 4 (Lab Experience Rules)**: Auditable, human-reviewed laboratory experience rules for edge-case reminders.
+A production-grade, **LLM-Native Agent Skill Runtime** for molecular biology, plasmid engineering, and CRISPR design. Built for open-source AI assistants including Codex, Claude Code, Antigravity, Cursor, and ChatGPT.
 
-> Status: **`VERSION = 0.9.1-dev2` (3+1 Tier Architecture Development Baseline)**.
-> All 28 Tier 1 atomic tools and 7 Tier 2 SOP recipes are fully implemented and verified with automated test suites.
-> Academic sources and classical manual citations are registered in `references/authoritative_sop_sources.md`.
+## Key Architecture & Philosophy
 
-## 3+1 分层架构与设计哲学 (v0.9.1-dev2)
+- **Host LLM as the Intelligent Brain**: The chat assistant understands user intent in natural language, explores biological strategies, and aligns with the researcher.
+- **Skill Runtime as Hands & Feet**:
+  1. **Plasmid Map Inspection (`scripts/inspect_plasmid.py`)**: Fast, token-efficient extraction of plasmid topology, origins, markers, CDS reading frames, and unique cloning cutters.
+  2. **7 Standard SOP Recipes (`scripts/run_recipe.py`)**: Gold-standard laboratory protocols (Gibson, Restriction Cloning, Golden Gate, CRISPR HDR, Mutagenesis, Protein Tagging, Colony Verification) directly cited from CSHL *Molecular Cloning*, *Nature Methods*, *Cell*, and *PNAS*.
+  3. **38 Atomic Tools & Dynamic Pipeline (`scripts/run_pipeline.py`)**: Zero hardcoded dispatch bottlenecks; compose any sequence operation, PCR simulation, or digestion dynamically.
+  4. **Applicability-Aware Guardrails (`BIO-01 ~ BIO-10`)**: Transparent scientific audits reporting `PASS`, `FAIL`, `N/A`, or `UNKNOWN` without false-alarm circular plasmid lockups.
+  5. **Authoritative Delivery Gate (`finalize`)**: Cryptographic SHA-256 hash chains guaranteeing that only verified constructs are signed off into `authoritative/` (`.dna`, `.gb`, `.fasta`, `DELIVERY-MANIFEST.json`).
 
-### 1. 7 大黄金实验 SOP 配方 (`core/recipes/`)
-为高频常规分子克隆与基因编辑提供开箱即用的标准流程，所有配方均严格溯源自国际经典实验手册与顶刊文献：
-- `recipe_restriction_cloning`: 经典限制性双酶切克隆（CSHL《分子克隆》第 4 版 & NEB）
-- `recipe_gibson_assembly`: 同源重叠无缝组装（Gibson 2009 & NEB）
-- `recipe_golden_gate`: Type IIS 一锅法组装（Engler 2008 & Potapov 2018）
-- `recipe_crispr_hdr_donor`: CRISPR sgRNA 与 HDR 供体设计（Ran 2013 & Paquet 2016）
-- `recipe_site_directed_mutagenesis`: QuikChange 定点突变（Zheng 2004 & CSHL Ch. 13）
-- `recipe_protein_tagging`: 表达标签与融合蛋白工程（Terpe 2003 & Kozak 1986）
-- `recipe_cloning_verification`: 分子质检与引物布局（CSHL Ch. 1 & 8, Sanger 1977）
+---
 
-### 2. 28 个 Tier 1 原子生物学工具 (`core/tools/`)
-纯物理/数学操作原语，供 AI 在遇到复杂非标实验时自由调度编排：
-- 序列检视、限制酶切、末端修整、退火配对、引物二聚体初筛、同义突变推荐、在读框融合等。
+### Quick Start for AI Agents & Researchers
+
+```bash
+# 1. Inspect plasmid features (never guess coordinates)
+python scripts/inspect_plasmid.py pUC19.gb [insert.fasta]
+
+# 2. Run a standard SOP recipe
+python scripts/run_recipe.py --recipe recipe_gibson_assembly --params-json params.json --out-dir ./build
+
+# 3. Promote verified construct to authoritative delivery (with user confirmation)
+python scripts/run_recipe.py --recipe recipe_gibson_assembly --params-json params.json --out-dir ./build --finalize --confirmed
+
+# 4. Execute a custom multi-step pipeline
+python scripts/run_pipeline.py --pipeline custom_pipeline.json --out-dir ./build --confirmed
+```
 
 ---
 

@@ -18,6 +18,7 @@ from typing import Any
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
+from core.recipes.contract import RecipeResult
 from core.tools.amplification import calc_primer_tm, check_primer_dimers, design_overhang_primers, simulate_pcr
 from core.tools.assembly import simulate_overlap_assembly
 from core.tools.feature_ops import migrate_features_after_assembly
@@ -126,19 +127,41 @@ def recipe_gibson_assembly(
         "assembled_successfully": bool(assembly_res.get("product_sequence")),
     }
 
-    return {
-        "recipe": "recipe_gibson_assembly",
-        "product_sequence": assembly_res["product_sequence"],
-        "product_length": assembly_res["product_length"],
-        "product_topology": assembly_res["product_topology"],
-        "primers": {
-            "forward": primers["forward_primer"],
-            "reverse": primers["reverse_primer"],
-            "dimer_analysis": dimer_check,
+    primers_list = [
+        {"name": "forward_primer", "seq": primers["forward_primer"]["full_sequence"], "tm": primers["forward_primer"]["binding_core_tm"]},
+        {"name": "reverse_primer", "seq": primers["reverse_primer"]["full_sequence"], "tm": primers["reverse_primer"]["binding_core_tm"]},
+    ]
+
+    protocol_steps = [
+        {"step": 1, "action": "Amplify insert with designed overhang primers (Tm 60°C)."},
+        {"step": 2, "action": "Linearize vector at specified cleavage site."},
+        {"step": 3, "action": "Assemble vector and PCR product with NEBuilder HiFi / Gibson master mix at 50°C for 15-60 min."},
+        {"step": 4, "action": "Transform 2 uL assembly product into competent E. coli cells."},
+    ]
+
+    return RecipeResult(
+        recipe_name="recipe_gibson_assembly",
+        result_kind="construct",
+        completeness="complete_construct",
+        product_sequence=assembly_res["product_sequence"],
+        product_topology=assembly_res["product_topology"],
+        features=[],
+        primers=primers_list,
+        quality_checks=quality_checks,
+        warnings=warnings,
+        protocol_steps=protocol_steps,
+        citations=AUTHORITATIVE_SOURCES,
+        details={
+            "recipe": "recipe_gibson_assembly",
+            "product_length": assembly_res["product_length"],
+            "primers": {
+                "forward": primers["forward_primer"],
+                "reverse": primers["reverse_primer"],
+                "dimer_analysis": dimer_check,
+            },
+            "insert_amplicon_length": len(amplicon),
+            "junctions": assembly_res.get("junctions", []),
+            "quality_checks": quality_checks,
+            "authoritative_sources": AUTHORITATIVE_SOURCES,
         },
-        "insert_amplicon_length": len(amplicon),
-        "junctions": assembly_res.get("junctions", []),
-        "warnings": warnings,
-        "quality_checks": quality_checks,
-        "authoritative_sources": AUTHORITATIVE_SOURCES,
-    }
+    )

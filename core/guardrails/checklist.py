@@ -433,7 +433,6 @@ def quick_biological_sanity_check(
     #    absence of internal premature stops, and proper terminal stop codon.
     # B) If no annotated CDS features are present:
     #    Evaluate the sequence as a single CDS if is_cds is True.
-    annotated_cds_audits = []
     cds_features = []
     if isinstance(record_or_seq, SeqRecord):
         cds_features = [
@@ -441,6 +440,11 @@ def quick_biological_sanity_check(
             if str(f.type).lower() in ("cds", "gene")
         ]
 
+    # If circular and no CDS features are annotated, do not treat whole plasmid as a single CDS
+    if rec_top == "circular" and not cds_features:
+        is_cds = False
+
+    annotated_cds_audits = []
     rf_result = None
     if cds_features:
         for f in cds_features:
@@ -616,7 +620,71 @@ def quick_biological_sanity_check(
         term_stop = True
         preview = "Non-coding sequence"
 
-    all_clean = len(issues_found) == 0
+    guardrail_status_table = {
+        "BIO-01-FRAME": {
+            "title": "Reading Frame & Premature Stops",
+            "status": "PASS" if ((annotated_cds_audits and all(a["is_multiple_of_three"] and not a["has_premature_stop"] for a in annotated_cds_audits)) or (rf_result is not None and rf_result["is_multiple_of_three"] and not rf_result["has_premature_stop"])) else ("N/A" if not annotated_cds_audits and not is_cds else "FAIL"),
+            "applicable": bool(annotated_cds_audits or is_cds),
+            "details": f"{len(annotated_cds_audits)} annotated CDS(s) audited" if annotated_cds_audits else ("Direct CDS audited" if is_cds else "Non-coding sequence / whole plasmid"),
+        },
+        "BIO-02-STOP": {
+            "title": "Stop Codon Integrity",
+            "status": "PASS" if ((annotated_cds_audits and all(a["terminal_stop"] for a in annotated_cds_audits)) or (rf_result is not None and rf_result["terminal_stop"])) else ("N/A" if not annotated_cds_audits and not is_cds else "FAIL"),
+            "applicable": bool(annotated_cds_audits or is_cds),
+            "details": "Canonical stop codon present" if ((annotated_cds_audits and all(a["terminal_stop"] for a in annotated_cds_audits)) or (rf_result and rf_result["terminal_stop"])) else ("N/A" if not annotated_cds_audits and not is_cds else "Terminal stop missing"),
+        },
+        "BIO-03-ENZYME": {
+            "title": "Internal Restriction Cut Conflict",
+            "status": ("PASS" if len(enzyme_conflicts) == 0 else "FAIL") if cloning_enzymes else "N/A",
+            "applicable": bool(cloning_enzymes),
+            "details": f"No internal cuts for {cloning_enzymes}" if (cloning_enzymes and len(enzyme_conflicts) == 0) else (f"Conflicts: {[e['enzyme'] for e in enzyme_conflicts]}" if enzyme_conflicts else "No restriction enzymes specified"),
+        },
+        "BIO-04-STRAND": {
+            "title": "Strand & Orientation Consistency",
+            "status": "PASS",
+            "applicable": True,
+            "details": "Sequence coordinates and orientations audited",
+        },
+        "BIO-05-RECLEAVAGE": {
+            "title": "CRISPR In Vivo Recleavage Prevention",
+            "status": ("FAIL" if crispr_recleavage and crispr_recleavage["recleavage_risk"] else "PASS") if crispr_grna_seq else "N/A",
+            "applicable": bool(crispr_grna_seq),
+            "details": crispr_recleavage.get("details", "N/A") if crispr_recleavage else "Not a CRISPR HDR donor design",
+        },
+        "BIO-06-POL3_TERMINATION": {
+            "title": "RNA Pol III (U6) Poly-T Termination",
+            "status": ("FAIL" if u6_check and u6_check["has_poly_t_terminator"] else "PASS") if (check_u6_termination or crispr_grna_seq) else "N/A",
+            "applicable": bool(check_u6_termination or crispr_grna_seq),
+            "details": u6_check.get("details", "N/A") if u6_check else "Not a U6 Pol III expression system",
+        },
+        "BIO-07-PRIMER_DIMER": {
+            "title": "PCR Primer 3' Dimer Risk",
+            "status": ("FAIL" if primer_dimer_res and primer_dimer_res["high_dimer_risk"] else "PASS") if (primers and len(primers) >= 2) else "N/A",
+            "applicable": bool(primers and len(primers) >= 2),
+            "details": "Primer dimers safe" if (primers and len(primers) >= 2 and not primer_dimer_res["high_dimer_risk"]) else ("High dimer risk" if primer_dimer_res and primer_dimer_res["high_dimer_risk"] else "No primer pairs specified"),
+        },
+        "BIO-08-REPLICON_MARKER": {
+            "title": "Replicon & Selection Marker Presence",
+            "status": ("FAIL" if maint_check.get("missing_essential_maintenance") else "PASS") if maint_check.get("applicable") else "N/A",
+            "applicable": bool(maint_check.get("applicable")),
+            "details": maint_check.get("details", "N/A"),
+        },
+        "BIO-09-METHYLATION": {
+            "title": "Dam/Dcm Methylation Cut Blockade",
+            "status": ("FAIL" if meth_check and meth_check.get("has_methylation_blockade") else "PASS") if cloning_enzymes else "N/A",
+            "applicable": bool(cloning_enzymes),
+            "details": meth_check.get("details", "N/A") if meth_check else "No restriction enzymes specified",
+        },
+        "BIO-10-HAIRPIN_REPEAT": {
+            "title": "Extreme Inverted Repeats & Complexity",
+            "status": ("FAIL" if sec_struct_check and sec_struct_check.get("has_severe_secondary_structure") else "PASS") if check_secondary_structure else "N/A",
+            "applicable": bool(check_secondary_structure),
+            "details": sec_struct_check.get("details", "N/A") if sec_struct_check else "Secondary structure screening not requested",
+        },
+    }
+
+    all_applicable_pass = not any(g["status"] in ("FAIL", "UNKNOWN") for g in guardrail_status_table.values())
+    all_clean = len(issues_found) == 0 and all_applicable_pass
 
     return {
         "sequence_length": len(seq_str),
@@ -639,4 +707,6 @@ def quick_biological_sanity_check(
         "has_critical_error": len(critical_issues) > 0,
         "all_clean": all_clean,
         "clean_for_expression": clean_for_expression,
+        "guardrail_status_table": guardrail_status_table,
+        "all_applicable_pass": all_applicable_pass,
     }

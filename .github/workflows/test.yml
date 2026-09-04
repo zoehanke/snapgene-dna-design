@@ -1,0 +1,41 @@
+name: CI Test Suite
+
+on:
+  push:
+    branches: [ main, master, "recovery/*", "release/*" ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test:
+    name: Python ${{ matrix.python-version }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.10", "3.11", "3.12"]
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install Core Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run Full Unit Test Suite
+        run: |
+          python -m unittest discover -s tests
+
+      - name: Run CLI Entrypoints Smoke Test
+        run: |
+          python scripts/inspect_plasmid.py fixtures/golden/pENTR-EmGFP.gb
+          python scripts/run_recipe.py --recipe recipe_protein_tagging --params "{\"target_cds_seq_or_file\": \"ATGAAACCCGGGTTTTAA\", \"tag_name_or_seq\": \"6xHis\", \"tag_position\": \"C-terminal\"}" --out-dir ./build/ci_recipe

@@ -1,8 +1,12 @@
 # -*- coding: utf-8 -*-
-"""run_design_agent.py - CLI entry for the v0.9.0-dev1 construction Agent.
+"""run_design_agent.py - [DEPRECATED] Legacy CLI entry for v0.9.0 heuristic agent.
 
-This is a deterministic scheduler over the existing toolchain. It never
-reimplements primer/restriction/assembly algorithms.
+NOTICE: This legacy keyword/regex orchestrator is deprecated for v1.0.
+In the modern Agent Skill architecture, Host LLMs (Claude/Codex/Cursor/ChatGPT)
+handle natural language interaction natively and invoke deterministic tools via:
+  - scripts/inspect_plasmid.py (Feature and topology inspection)
+  - scripts/run_recipe.py     (Standard laboratory SOP execution)
+  - scripts/run_pipeline.py   (Custom multi-step composite pipeline execution)
 """
 import argparse
 import json

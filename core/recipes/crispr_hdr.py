@@ -16,8 +16,7 @@ import pathlib
 from typing import Any
 
 from Bio.Seq import Seq
-from Bio.SeqRecord import SeqRecord
-
+from core.recipes.contract import RecipeResult
 from core.tools.crispr import design_crispr_grna, extract_homology_arms, prepare_grna_oligos
 from core.tools.sequence_ops import mutate_sequence
 from core.tools.translation import get_codon_synonyms
@@ -211,21 +210,40 @@ def recipe_crispr_hdr_donor(
         "missense_mutation_avoided": not any(m.get("synonymous") is False for m in mutations_applied if target_is_cds),
     }
 
-    return {
-        "recipe": "recipe_crispr_hdr_donor",
-        "donor_type": donor_type,
-        "donor_sequence": donor_seq,
-        "total_length": total_len,
-        "left_homology_arm": left_arm,
-        "left_arm_length": len(left_arm),
-        "edit_payload": edit,
-        "edit_length": len(edit),
-        "right_homology_arm": right_arm,
-        "right_arm_length": len(right_arm),
-        "pam_silenced": pam_mutated,
-        "pam_silencing_details": pam_details,
-        "mutations_applied": mutations_applied,
-        "quality_checks": quality_checks,
-        "warnings": warnings,
-        "authoritative_sources": AUTHORITATIVE_SOURCES,
-    }
+    protocol_steps = [
+        {"step": 1, "action": "Synthesize designed ssODN donor oligo (PAGE-purified or HPLC-purified)."},
+        {"step": 2, "action": "Prepare Cas9-sgRNA ribonucleoprotein (RNP) complex or co-transfection plasmid."},
+        {"step": 3, "action": "Electroporate / transfect RNP with ssODN donor (typically 20-50 pmol) into target cells."},
+        {"step": 4, "action": "Harvest cells at 48-72h post-transfection and perform genomic PCR + Sanger/NGS to quantify HDR rate."},
+    ]
+
+    return RecipeResult(
+        recipe_name="recipe_crispr_hdr_donor",
+        result_kind="component",
+        completeness="component_only",
+        product_sequence=donor_seq,
+        product_topology="linear",
+        features=[],
+        primers=[],
+        quality_checks=quality_checks,
+        warnings=warnings,
+        protocol_steps=protocol_steps,
+        citations=AUTHORITATIVE_SOURCES,
+        details={
+            "recipe": "recipe_crispr_hdr_donor",
+            "donor_type": donor_type,
+            "donor_sequence": donor_seq,
+            "total_length": total_len,
+            "left_homology_arm": left_arm,
+            "left_arm_length": len(left_arm),
+            "edit_payload": edit,
+            "edit_length": len(edit),
+            "right_homology_arm": right_arm,
+            "right_arm_length": len(right_arm),
+            "pam_silenced": pam_mutated,
+            "pam_silencing_details": pam_details,
+            "mutations_applied": mutations_applied,
+            "quality_checks": quality_checks,
+            "authoritative_sources": AUTHORITATIVE_SOURCES,
+        },
+    )

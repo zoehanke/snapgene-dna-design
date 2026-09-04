@@ -89,6 +89,7 @@ def execute_agent_pipeline(
     product_topology: str = "circular",
     out_dir: str | pathlib.Path = "./build",
     auto_open_snapgene: bool = False,
+    user_confirmed: bool = True,
 ) -> dict[str, Any]:
     """Execute an agent-formulated composite pipeline deterministically and deliver SnapGene construct."""
     out_path = pathlib.Path(out_dir)
@@ -100,7 +101,7 @@ def execute_agent_pipeline(
         sources.append({
             "source_id": f"src_{idx + 1}",
             "path": str(p),
-            "role": "template" if idx == 0 else f"donor_{idx}",
+            "role": "template" if idx == 0 else "donor_component",
             "evidence": {"source_evidence_class": "user-provided"},
         })
 
@@ -121,7 +122,7 @@ def execute_agent_pipeline(
             "formats": ["gb", "fasta", "dna"],
         },
         "method_constraints": {},
-        "approvals": {"user_confirmed_task": {"value": True}},
+        "approvals": {"user_confirmed_task": {"value": user_confirmed}},
         "assumptions": [],
         "provenance": [],
     }

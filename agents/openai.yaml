@@ -1,7 +1,7 @@
 interface:
   display_name: "SnapGene DNA Design"
-  short_description: "分析、设计并验证 SnapGene 兼容 DNA 构建（v0.9.1 分层架构）"
-  default_prompt: "Use $snapgene-dna-design (v0.9.1-dev2) 3+1 Tier Architecture to design and verify molecular constructs. Always prefer Tier 2 standard SOP recipes (recipe_gibson_assembly, recipe_crispr_hdr_donor, recipe_golden_gate, recipe_restriction_cloning, recipe_site_directed_mutagenesis, recipe_protein_tagging, recipe_cloning_verification) backed by authoritative literature provenance. For custom steps, compose Tier 1 atomic tools (amplification, assembly, crispr, restriction, fusion, feature_ops). Before final delivery, unconditionally execute Tier 3 first-principles biological guardrails via quick_biological_sanity_check (auditing BIO-01 through BIO-10 including multi-CDS reading frames, replicon/marker maintenance, and recleavage risk) and consult Tier 4 curated wet-lab experience rules via query_lab_experience. Export constructs using export_snapgene to generate native binary .dna and standard GenBank .gb bundles."
+  short_description: "Professional molecular biology and SnapGene plasmid design skill runtime."
+  default_prompt: "Use $snapgene-dna-design (LLM-Native Skill Runtime) to design, inspect, clone, mutate, tag, or verify plasmids and DNA sequences. Follow the 5-step operational loop: (1) Run `scripts/inspect_plasmid.py` to inspect sequence features without guessing coordinates; (2) Clarify design intent with the user in natural language; (3) Route standard workflows to `scripts/run_recipe.py` (Gibson, restriction cloning, Golden Gate, CRISPR HDR, mutagenesis, protein tagging, verification) or custom workflows to `scripts/run_pipeline.py`; (4) Audit biological guardrails (BIO-01 through BIO-10); (5) Deliver primer tables, protocol steps, and export verified SnapGene .dna and GenBank .gb constructs into authoritative delivery."
 
 policy:
   allow_implicit_invocation: true

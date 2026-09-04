@@ -10,6 +10,7 @@ htmlcov/
 .pytest_cache/
 
 # Generated outputs and local evidence
+build/
 reports/
 release/
 output/

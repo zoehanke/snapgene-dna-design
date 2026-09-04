@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from core.recipes.contract import RecipeResult
 from core.tools.assembly import simulate_golden_gate
 from core.tools.restriction import digest_type_iis
 
@@ -78,13 +79,29 @@ def recipe_golden_gate(
         "zero_palindromic_overhangs": len(palindromic_overhangs) == 0,
     }
 
-    return {
-        "recipe": "recipe_golden_gate",
-        "product_sequence": res["product_sequence"],
-        "product_length": res["product_length"],
-        "product_topology": res["product_topology"],
-        "junctions": res.get("junctions", []),
-        "warnings": warnings,
-        "quality_checks": quality_checks,
-        "authoritative_sources": AUTHORITATIVE_SOURCES,
-    }
+    protocol_steps = [
+        {"step": 1, "action": f"Set up one-pot Golden Gate reaction with fragments, T4 DNA ligase, and {enzyme}."},
+        {"step": 2, "action": "Thermal cycler: 30 cycles of (37°C for 3 min, 16°C for 4 min), followed by 50°C for 5 min (final cut) and 80°C for 5 min (heat inactivation)."},
+        {"step": 3, "action": "Transform 2 uL into competent E. coli cells."},
+    ]
+
+    return RecipeResult(
+        recipe_name="recipe_golden_gate",
+        result_kind="construct",
+        completeness="complete_construct",
+        product_sequence=res["product_sequence"],
+        product_topology=res["product_topology"],
+        features=[],
+        primers=[],
+        quality_checks=quality_checks,
+        warnings=warnings,
+        protocol_steps=protocol_steps,
+        citations=AUTHORITATIVE_SOURCES,
+        details={
+            "recipe": "recipe_golden_gate",
+            "product_length": res["product_length"],
+            "junctions": res.get("junctions", []),
+            "quality_checks": quality_checks,
+            "authoritative_sources": AUTHORITATIVE_SOURCES,
+        },
+    )

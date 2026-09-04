@@ -1,0 +1,892 @@
+# -*- coding: utf-8 -*-
+"""core/tools/registry.py - Unified Atomic Tool Registry for DNA Design Skill.
+
+Defines ToolSpec, categorizes tools by purity/side-effects, and provides
+dynamic dispatch for both LLM schema generation (GET_TOOL_DEFINITIONS)
+and CompositePipelineHandler execution.
+"""
+from __future__ import annotations
+
+import inspect
+from dataclasses import dataclass, field
+from typing import Any, Callable, Literal
+
+ToolCategory = Literal["compute", "inspect", "write", "external", "network"]
+
+
+@dataclass
+class ToolSpec:
+    name: str
+    callable: Callable[..., Any]
+    category: ToolCategory
+    description: str
+    parameters_schema: dict[str, Any]
+    result_type: str = "any"
+    sequence_output_key: str | None = None
+    param_aliases: dict[str, str] = field(default_factory=dict)
+
+    def to_definition(self) -> dict[str, Any]:
+        """Format as JSON Schema tool declaration for LLM function calling."""
+        return {
+            "name": self.name,
+            "description": f"[{self.category.upper()}] {self.description}",
+            "category": self.category,
+            "parameters": self.parameters_schema,
+        }
+
+    def adapt_params(self, params: dict[str, Any]) -> dict[str, Any]:
+        """Apply parameter aliases to match the underlying callable signature."""
+        adapted = {}
+        for k, v in params.items():
+            target_key = self.param_aliases.get(k, k)
+            adapted[target_key] = v
+        return adapted
+
+    def execute(self, **kwargs) -> Any:
+        """Invoke the tool with adapted parameters."""
+        call_kwargs = self.adapt_params(kwargs)
+        sig = inspect.signature(self.callable)
+        has_varkw = any(p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values())
+        if not has_varkw:
+            valid_keys = set(sig.parameters.keys())
+            call_kwargs = {k: v for k, v in call_kwargs.items() if k in valid_keys}
+        return self.callable(**call_kwargs)
+
+    def extract_sequence(self, result: Any) -> str:
+        """Extract primary DNA/protein sequence string from tool result if applicable."""
+        if isinstance(result, str):
+            return result
+        if isinstance(result, dict):
+            if self.sequence_output_key and self.sequence_output_key in result:
+                return str(result[self.sequence_output_key])
+            for candidate in [
+                "sequence",
+                "dna",
+                "amplicon",
+                "product_sequence",
+                "fusion_sequence",
+                "mutated_seq",
+                "donor_sequence",
+                "duplex_core",
+                "protein_sequence",
+            ]:
+                if candidate in result and isinstance(result[candidate], str):
+                    return result[candidate]
+        return ""
+
+
+# Global Registry Map
+TOOL_REGISTRY: dict[str, ToolSpec] = {}
+
+
+def register_tool(spec: ToolSpec) -> None:
+    """Register a ToolSpec into the global registry."""
+    TOOL_REGISTRY[spec.name] = spec
+
+
+def get_tool(name: str) -> ToolSpec | None:
+    """Look up a tool by name."""
+    return TOOL_REGISTRY.get(name)
+
+
+def list_tool_definitions() -> list[dict[str, Any]]:
+    """Return JSON Schema tool declarations for all registered tools."""
+    return [spec.to_definition() for spec in TOOL_REGISTRY.values()]
+
+
+def init_default_registry() -> None:
+    """Initialize standard atomic tools into TOOL_REGISTRY."""
+    if TOOL_REGISTRY:
+        return
+
+    from core.tools.amplification import (
+        anneal_oligos,
+        calc_primer_tm,
+        check_primer_dimers,
+        design_overhang_primers,
+        simulate_pcr,
+    )
+    from core.tools.assembly import (
+        simulate_digest_ligation,
+        simulate_golden_gate,
+        simulate_overlap_assembly,
+    )
+    from core.tools.crispr import (
+        design_crispr_grna,
+        design_hdr_donor,
+        extract_homology_arms,
+        prepare_grna_oligos,
+    )
+    from core.tools.experience_helper import (
+        get_experience_categories,
+        get_experience_rule_by_id,
+        list_all_experience_rules,
+        query_lab_experience,
+    )
+    from core.tools.feature_ops import (
+        annotate_feature,
+        get_feature,
+        migrate_features_after_assembly,
+    )
+    from core.tools.fusion import fuse_in_frame, get_standard_element
+    from core.tools.inspection import (
+        find_open_reading_frames,
+        inspect_dna,
+        summarize_backbone,
+    )
+    from core.tools.restriction import (
+        check_overhang_compatibility,
+        digest_sequence,
+        digest_type_iis,
+        fill_or_chew_overhang,
+        find_restriction_sites,
+    )
+    from core.tools.sequence_ops import (
+        check_reading_frame,
+        extract_subsequence,
+        mutate_sequence,
+        strip_terminal_codons,
+    )
+    from core.tools.snapgene_io import export_snapgene, open_in_snapgene
+    from core.tools.translation import (
+        get_codon_synonyms,
+        reverse_complement,
+        silent_mutation_remove_site,
+        translate_dna,
+    )
+
+    tools = [
+        ToolSpec(
+            name="inspect_dna",
+            callable=inspect_dna,
+            category="inspect",
+            description="Parse and inspect a DNA sequence file (GenBank, FASTA, SnapGene .dna) to retrieve topology, length, GC%, and all annotated features with exact coordinates.",
+            parameters_schema={
+                "type": "object",
+                "properties": {
+                    "file_path": {"type": "string", "description": "Path to the GenBank, FASTA, or SnapGene .dna file."},
+                },
+                "required": ["file_path"],
+            },
+            result_type="dict",
+        ),
+        ToolSpec(
+            name="summarize_backbone",
+            callable=summarize_backbone,
+            category="inspect",
+            description="Identify plasmid backbone components: replication origins, antibiotic markers, and promoters.",
+            parameters_schema={
+                "type": "object",
+                "properties": {
+                    "file_path_or_record": {"type": "string", "description": "Path to plasmid file or SeqRecord."},
+                },
+                "required": ["file_path_or_record"],
+            },
+            result_type="dict",
+        ),
+        ToolSpec(
+            name="get_feature",
+            callable=get_feature,
+            category="inspect",
+            description="Find and extract a specific feature from a plasmid by name or type, returning sequence and coordinates.",
+            parameters_schema={
+                "type": "object",
+                "properties": {
+                    "file_path_or_record": {"type": "string", "description": "Path to sequence file."},
+                    "name_or_type": {"type": "string", "description": "Name or type of feature."},
+                    "return_all": {"type": "boolean", "default": False},
+                },
+                "required": ["file_path_or_record", "name_or_type"],
+            },
+            sequence_output_key="sequence",
+            result_type="dict",
+        ),
+        ToolSpec(
+            name="find_open_reading_frames",
+            callable=find_open_reading_frames,
+            category="compute",
+            description="Find open reading frames (ORFs) in a DNA sequence.",
+            parameters_schema={
+                "type": "object",
+                "properties": {
+                    "seq": {"type": "string", "description": "DNA nucleotide sequence."},
+                    "min_len_aa": {"type": "integer", "default": 30},
+                },
+                "required": ["seq"],
+            },
+            result_type="list",
+        ),
+        ToolSpec(
+            name="find_restriction_sites",
+            callable=find_restriction_sites,
+            category="compute",
+            description="Analyze restriction enzyme recognition and cut sites in a DNA sequence or file.",
+            parameters_schema={
+                "type": "object",
+                "properties": {
+                    "file_path_or_seq": {"type": "string", "description": "File path or DNA sequence."},
+                    "enzymes": {"type": "array", "items": {"type": "string"}, "description": "Enzyme names."},
+                    "topology": {"type": "string", "enum": ["circular", "linear"], "default": "linear"},
+                },
+                "required": ["file_path_or_seq"],
+            },
+            result_type="dict",
+        ),
+        ToolSpec(
+            name="digest_sequence",
+            callable=digest_sequence,
+            category="compute",
+            description="Digest sequence with a restriction endonuclease, returning cleaved fragments and overhangs.",
+            parameters_schema={
+                "type": "object",
+                "properties": {
+                    "seq": {"type": "string", "description": "DNA sequence."},
+                    "enzyme": {"type": "string", "description": "Enzyme name."},
+                    "circular": {"type": "boolean", "default": False},
+                },
+                "required": ["seq", "enzyme"],
+            },
+            result_type="dict",
+        ),
+        ToolSpec(
+            name="digest_type_iis",
+            callable=digest_type_iis,
+            category="compute",
+            description="Digest fragment flanked by Type IIS restriction sites (BsaI, BsmBI), stripping recognition sites.",
+            parameters_schema={
+                "type": "object",
+                "properties": {
+                    "fragment_seq": {"type": "string", "description": "Fragment flanked by Type IIS sites."},
+                    "enzyme": {"type": "string", "default": "BsaI"},
+                },
+                "required": ["fragment_seq"],
+            },
+            sequence_output_key="insert_core",
+            result_type="dict",
+        ),
+        ToolSpec(
+            name="fill_or_chew_overhang",
+            callable=fill_or_chew_overhang,
+            category="compute",
+            description="Enzymatic end-repair blunting of sticky ends via 5' fill-in or 3' chew-back.",
+            parameters_schema={
+                "type": "object",
+                "properties": {
+                    "seq": {"type": "string", "description": "Double-stranded sequence core."},
+                    "left_overhang": {"type": "string", "default": ""},
+                    "right_overhang": {"type": "string", "default": ""},
+                    "overhang_type": {"type": "string", "default": "5prime"},
+                    "action": {"type": "string", "enum": ["fill_in", "chew_back"], "default": "fill_in"},
+                },
+                "required": ["seq"],
+            },
+            sequence_output_key="sequence",
+            result_type="dict",
+        ),
+        ToolSpec(
+            name="check_overhang_compatibility",
+            callable=check_overhang_compatibility,
+            category="compute",
+            description="Check if two overhangs can ligate based on geometry and sequence complementarity.",
+            parameters_schema={
+                "type": "object",
+                "properties": {
+                    "overhang1": {"type": "string"},
+                    "overhang2": {"type": "string"},
+                    "type1": {"type": "string", "enum": ["5prime", "3prime", "blunt"], "default": "5prime"},
+                    "type2": {"type": "string", "enum": ["5prime", "3prime", "blunt"], "default": "5prime"},
+                },
+                "required": ["overhang1", "overhang2"],
+            },
+            result_type="dict",
+        ),
+        ToolSpec(
+            name="extract_subsequence",
+            callable=extract_subsequence,
+            category="compute",
+            description="Topology-aware sequence extraction supporting origin-crossing circular intervals.",
+            parameters_schema={
+                "type": "object",
+                "properties": {
+                    "file_path_or_record": {"type": "string", "description": "File path or sequence record."},
+                    "start": {"type": "integer", "description": "0-based start coordinate."},
+                    "end": {"type": "integer", "description": "0-based end coordinate."},
+                    "strand": {"type": "integer", "enum": [1, -1], "default": 1},
+                    "topology": {"type": "string", "enum": ["circular", "linear"], "default": "linear"},
+                    "wraps_origin": {"type": "boolean", "default": False},
+                },
+                "required": ["file_path_or_record", "start", "end"],
+            },
+            sequence_output_key="sequence",
+            param_aliases={"source": "file_path_or_record"},
+            result_type="dict",
+        ),
+        ToolSpec(
+            name="check_reading_frame",
+            callable=check_reading_frame,
+            category="compute",
+            description="Check reading frame integrity, length multiple of 3, and internal stop codons.",
+            parameters_schema={
+                "type": "object",
+                "properties": {
+                    "seq_or_record": {"type": "string", "description": "DNA sequence or record."},
+                    "start_offset": {"type": "integer", "default": 0},
+                    "table_id": {"type": "integer", "default": 1},
+                },
+                "required": ["seq_or_record"],
+            },
+            param_aliases={"seq": "seq_or_record"},
+            result_type="dict",
+        ),
+        ToolSpec(
+            name="mutate_sequence",
+            callable=mutate_sequence,
+            category="compute",
+            description="Apply precise point mutations, insertions, or deletions to a DNA sequence.",
+            parameters_schema={
+                "type": "object",
+                "properties": {
+                    "dna_seq": {"type": "string", "description": "Base DNA sequence."},
+                    "mutations": {"type": "array", "items": {"type": "object"}, "description": "Mutations list."},
+                },
+                "required": ["dna_seq", "mutations"],
+            },
+            sequence_output_key="sequence",
+            param_aliases={"seq": "dna_seq"},
+            result_type="dict",
+        ),
+        ToolSpec(
+            name="strip_terminal_codons",
+            callable=strip_terminal_codons,
+            category="compute",
+            description="Strip start codon (ATG) or stop codons (TAA/TAG/TGA) from a CDS.",
+            parameters_schema={
+                "type": "object",
+                "properties": {
+                    "cds_seq": {"type": "string", "description": "CDS nucleotide sequence."},
+                    "strip_start": {"type": "boolean", "default": False},
+                    "strip_stop": {"type": "boolean", "default": False},
+                },
+                "required": ["cds_seq"],
+            },
+            sequence_output_key="stripped_seq",
+            param_aliases={"seq": "cds_seq"},
+            result_type="dict",
+        ),
+        ToolSpec(
+            name="calc_primer_tm",
+            callable=calc_primer_tm,
+            category="compute",
+            description="Calculate exact melting temperature (Tm) with nearest-neighbor thermodynamics.",
+            parameters_schema={
+                "type": "object",
+                "properties": {
+                    "primer_seq": {"type": "string", "description": "Primer sequence."},
+                    "salt_conc_mM": {"type": "number", "default": 50.0},
+                    "primer_conc_nM": {"type": "number", "default": 200.0},
+                },
+                "required": ["primer_seq"],
+            },
+            result_type="dict",
+        ),
+        ToolSpec(
+            name="check_primer_dimers",
+            callable=check_primer_dimers,
+            category="compute",
+            description="Check for primer heterodimer or homodimer cross-hybridization.",
+            parameters_schema={
+                "type": "object",
+                "properties": {
+                    "primer1": {"type": "string", "description": "Forward primer sequence."},
+                    "primer2": {"type": "string", "description": "Reverse primer sequence (optional)."},
+                },
+                "required": ["primer1"],
+            },
+            result_type="dict",
+        ),
+        ToolSpec(
+            name="design_overhang_primers",
+            callable=design_overhang_primers,
+            category="compute",
+            description="Design optimal forward and reverse primer pair with optional 5' overhang tails.",
+            parameters_schema={
+                "type": "object",
+                "properties": {
+                    "template_record_or_seq": {"type": "string"},
+                    "start": {"type": "integer"},
+                    "end": {"type": "integer"},
+                    "fwd_5prime_overhang": {"type": "string", "default": ""},
+                    "rev_5prime_overhang": {"type": "string", "default": ""},
+                    "target_tm": {"type": "number", "default": 60.0},
+                },
+                "required": ["template_record_or_seq", "start", "end"],
+            },
+            param_aliases={"template": "template_record_or_seq"},
+            result_type="dict",
+        ),
+        ToolSpec(
+            name="anneal_oligos",
+            callable=anneal_oligos,
+            category="compute",
+            description="Simulate in-vitro annealing of two single-stranded oligos.",
+            parameters_schema={
+                "type": "object",
+                "properties": {
+                    "top_oligo": {"type": "string"},
+                    "bottom_oligo": {"type": "string"},
+                },
+                "required": ["top_oligo", "bottom_oligo"],
+            },
+            sequence_output_key="duplex_core",
+            result_type="dict",
+        ),
+        ToolSpec(
+            name="simulate_pcr",
+            callable=simulate_pcr,
+            category="compute",
+            description="Simulate PCR amplification with forward and reverse primers on template.",
+            parameters_schema={
+                "type": "object",
+                "properties": {
+                    "template_path_or_seq": {"type": "string"},
+                    "f_primer": {"type": "string"},
+                    "r_primer": {"type": "string"},
+                    "topology": {"type": "string", "enum": ["circular", "linear"], "default": "linear"},
+                },
+                "required": ["template_path_or_seq", "f_primer", "r_primer"],
+            },
+            sequence_output_key="amplicon",
+            param_aliases={"template": "template_path_or_seq"},
+            result_type="dict",
+        ),
+        ToolSpec(
+            name="simulate_overlap_assembly",
+            callable=simulate_overlap_assembly,
+            category="compute",
+            description="Simulate homologous overlap assembly (Gibson Assembly / In-Fusion) of overlapping fragments.",
+            parameters_schema={
+                "type": "object",
+                "properties": {
+                    "fragments": {"type": "array", "items": {"type": "string"}},
+                    "min_overlap": {"type": "integer", "default": 15},
+                    "circular": {"type": "boolean", "default": True},
+                },
+                "required": ["fragments"],
+            },
+            sequence_output_key="product_sequence",
+            result_type="dict",
+        ),
+        ToolSpec(
+            name="simulate_golden_gate",
+            callable=simulate_golden_gate,
+            category="compute",
+            description="Simulate Type IIS Golden Gate one-pot assembly.",
+            parameters_schema={
+                "type": "object",
+                "properties": {
+                    "fragments": {"type": "array", "items": {"type": "string"}},
+                    "enzyme": {"type": "string", "default": "BsaI"},
+                    "circular": {"type": "boolean", "default": True},
+                },
+                "required": ["fragments"],
+            },
+            sequence_output_key="product_sequence",
+            result_type="dict",
+        ),
+        ToolSpec(
+            name="simulate_digest_ligation",
+            callable=simulate_digest_ligation,
+            category="compute",
+            description="Simulate restriction enzyme digestion of vector and insert followed by T4 DNA ligation.",
+            parameters_schema={
+                "type": "object",
+                "properties": {
+                    "vector_source": {"type": "string"},
+                    "insert_source": {"type": "string"},
+                    "vector_enzymes": {"type": "array", "items": {"type": "string"}},
+                    "insert_enzymes": {"type": "array", "items": {"type": "string"}},
+                    "orientation": {"type": "string", "enum": ["forward", "reverse"], "default": "forward"},
+                },
+                "required": ["vector_source", "insert_source", "vector_enzymes"],
+            },
+            sequence_output_key="product_sequence",
+            param_aliases={"vector": "vector_source", "insert": "insert_source"},
+            result_type="dict",
+        ),
+        ToolSpec(
+            name="fuse_in_frame",
+            callable=fuse_in_frame,
+            category="compute",
+            description="Fuse two protein coding sequences in-frame with optional linker and stop codon policy.",
+            parameters_schema={
+                "type": "object",
+                "properties": {
+                    "partner5_seq": {"type": "string"},
+                    "partner3_seq": {"type": "string"},
+                    "linker_seq": {"type": "string", "default": ""},
+                    "strip_p5_stop": {"type": "boolean", "default": True},
+                    "add_terminal_stop": {"type": "boolean", "default": True},
+                },
+                "required": ["partner5_seq", "partner3_seq"],
+            },
+            sequence_output_key="fusion_sequence",
+            param_aliases={"partner5": "partner5_seq", "partner3": "partner3_seq", "linker": "linker_seq"},
+            result_type="dict",
+        ),
+        ToolSpec(
+            name="get_standard_element",
+            callable=get_standard_element,
+            category="compute",
+            description="Retrieve nucleotide sequence and translation of standard biological tags and linkers.",
+            parameters_schema={
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string", "description": "Element name ('6xHis', 'FLAG', 'HA', 'TEV', '(G4S)3')."},
+                },
+                "required": ["name"],
+            },
+            sequence_output_key="dna",
+            result_type="dict",
+        ),
+        ToolSpec(
+            name="design_crispr_grna",
+            callable=design_crispr_grna,
+            category="compute",
+            description="Scan target gene or locus for candidate CRISPR sgRNA target sites.",
+            parameters_schema={
+                "type": "object",
+                "properties": {
+                    "target_seq_or_file": {"type": "string"},
+                    "nuclease": {"type": "string", "enum": ["SpCas9", "AsCas12a"], "default": "SpCas9"},
+                    "start": {"type": "integer"},
+                    "end": {"type": "integer"},
+                },
+                "required": ["target_seq_or_file"],
+            },
+            param_aliases={"target": "target_seq_or_file"},
+            result_type="dict",
+        ),
+        ToolSpec(
+            name="prepare_grna_oligos",
+            callable=prepare_grna_oligos,
+            category="compute",
+            description="Generate top and bottom forward/reverse cloning oligos for sgRNA expression vectors.",
+            parameters_schema={
+                "type": "object",
+                "properties": {
+                    "spacer_seq": {"type": "string"},
+                    "vector_type": {"type": "string", "default": "BbsI"},
+                },
+                "required": ["spacer_seq"],
+            },
+            result_type="dict",
+        ),
+        ToolSpec(
+            name="design_hdr_donor",
+            callable=design_hdr_donor,
+            category="compute",
+            description="Design an HDR donor repair template with synonymous PAM mutation.",
+            parameters_schema={
+                "type": "object",
+                "properties": {
+                    "target_seq_or_file": {"type": "string"},
+                    "cut_position_0based": {"type": "integer"},
+                    "edit_dna": {"type": "string"},
+                    "left_arm_length": {"type": "integer", "default": 50},
+                    "right_arm_length": {"type": "integer", "default": 50},
+                    "grna_seq": {"type": "string", "default": ""},
+                },
+                "required": ["target_seq_or_file", "cut_position_0based", "edit_dna"],
+            },
+            sequence_output_key="donor_sequence",
+            param_aliases={"target": "target_seq_or_file", "cut_position": "cut_position_0based"},
+            result_type="dict",
+        ),
+        ToolSpec(
+            name="extract_homology_arms",
+            callable=extract_homology_arms,
+            category="compute",
+            description="Extract left and right homology arms centered at a genomic cut site.",
+            parameters_schema={
+                "type": "object",
+                "properties": {
+                    "target_seq_or_file": {"type": "string"},
+                    "cut_position_0based": {"type": "integer"},
+                    "left_arm_length": {"type": "integer", "default": 50},
+                    "right_arm_length": {"type": "integer", "default": 50},
+                },
+                "required": ["target_seq_or_file", "cut_position_0based"],
+            },
+            param_aliases={"target": "target_seq_or_file", "cut_position": "cut_position_0based"},
+            result_type="dict",
+        ),
+        ToolSpec(
+            name="annotate_feature",
+            callable=annotate_feature,
+            category="compute",
+            description="Add or update feature annotation on a SeqRecord or file.",
+            parameters_schema={
+                "type": "object",
+                "properties": {
+                    "record_or_path": {"type": "string"},
+                    "name": {"type": "string"},
+                    "start_0based": {"type": "integer"},
+                    "end_0based": {"type": "integer"},
+                    "feature_type": {"type": "string", "default": "misc_feature"},
+                    "strand": {"type": "integer", "default": 1},
+                },
+                "required": ["record_or_path", "name", "start_0based", "end_0based"],
+            },
+            result_type="dict",
+        ),
+        ToolSpec(
+            name="migrate_features_after_assembly",
+            callable=migrate_features_after_assembly,
+            category="compute",
+            description="Remap feature annotations from source fragments to assembled product construct.",
+            parameters_schema={
+                "type": "object",
+                "properties": {
+                    "fragments_features": {"type": "array", "items": {"type": "object"}},
+                    "fragment_lengths": {"type": "array", "items": {"type": "integer"}},
+                    "overlaps": {"type": "array", "items": {"type": "integer"}},
+                    "circular": {"type": "boolean", "default": True},
+                },
+                "required": ["fragments_features", "fragment_lengths"],
+            },
+            result_type="list",
+        ),
+        ToolSpec(
+            name="reverse_complement",
+            callable=reverse_complement,
+            category="compute",
+            description="Generate reverse complement of a DNA sequence string.",
+            parameters_schema={
+                "type": "object",
+                "properties": {
+                    "seq": {"type": "string", "description": "DNA sequence."},
+                },
+                "required": ["seq"],
+            },
+            result_type="string",
+        ),
+        ToolSpec(
+            name="translate_dna",
+            callable=translate_dna,
+            category="compute",
+            description="Translate DNA sequence to amino acids.",
+            parameters_schema={
+                "type": "object",
+                "properties": {
+                    "seq_or_record": {"type": "string"},
+                    "frame": {"type": "integer", "default": 0},
+                    "table_id": {"type": "integer", "default": 1},
+                },
+                "required": ["seq_or_record"],
+            },
+            sequence_output_key="protein_sequence",
+            param_aliases={"seq": "seq_or_record"},
+            result_type="dict",
+        ),
+        ToolSpec(
+            name="get_codon_synonyms",
+            callable=get_codon_synonyms,
+            category="compute",
+            description="Retrieve synonymous codons translating to same amino acid.",
+            parameters_schema={
+                "type": "object",
+                "properties": {
+                    "codon": {"type": "string"},
+                    "table": {"type": "integer", "default": 1},
+                },
+                "required": ["codon"],
+            },
+            result_type="list",
+        ),
+        ToolSpec(
+            name="silent_mutation_remove_site",
+            callable=silent_mutation_remove_site,
+            category="compute",
+            description="Introduce synonymous mutations into CDS to silence restriction site without altering translation.",
+            parameters_schema={
+                "type": "object",
+                "properties": {
+                    "cds_seq": {"type": "string"},
+                    "enzyme_name": {"type": "string"},
+                    "frame_offset": {"type": "integer", "default": 0},
+                },
+                "required": ["cds_seq", "enzyme_name"],
+            },
+            sequence_output_key="mutated_seq",
+            param_aliases={"enzyme": "enzyme_name"},
+            result_type="dict",
+        ),
+        ToolSpec(
+            name="export_snapgene",
+            callable=export_snapgene,
+            category="write",
+            description="Export designed construct into native SnapGene .dna and standard GenBank (.gb) files.",
+            parameters_schema={
+                "type": "object",
+                "properties": {
+                    "record_or_seq": {"type": "string"},
+                    "out_dir": {"type": "string"},
+                    "filename_base": {"type": "string", "default": "construct"},
+                    "topology": {"type": "string", "enum": ["circular", "linear"], "default": "circular"},
+                },
+                "required": ["record_or_seq", "out_dir"],
+            },
+            result_type="dict",
+        ),
+        ToolSpec(
+            name="open_in_snapgene",
+            callable=open_in_snapgene,
+            category="external",
+            description="Launch local desktop SnapGene application to view construct map directly.",
+            parameters_schema={
+                "type": "object",
+                "properties": {
+                    "file_path": {"type": "string"},
+                },
+                "required": ["file_path"],
+            },
+            result_type="dict",
+        ),
+        ToolSpec(
+            name="query_lab_experience",
+            callable=query_lab_experience,
+            category="compute",
+            description="Retrieve wet-lab experience rules and practical tips.",
+            parameters_schema={
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "default": ""},
+                    "category": {"type": "string", "default": ""},
+                    "max_results": {"type": "integer", "default": 5},
+                },
+            },
+            result_type="list",
+        ),
+        ToolSpec(
+            name="get_experience_categories",
+            callable=get_experience_categories,
+            category="compute",
+            description="List categories in experience rules store.",
+            parameters_schema={"type": "object", "properties": {}},
+            result_type="list",
+        ),
+        ToolSpec(
+            name="get_experience_rule_by_id",
+            callable=get_experience_rule_by_id,
+            category="compute",
+            description="Retrieve specific experience rule by its rule_id.",
+            parameters_schema={
+                "type": "object",
+                "properties": {"rule_id": {"type": "string"}},
+                "required": ["rule_id"],
+            },
+            result_type="dict",
+        ),
+        ToolSpec(
+            name="list_all_experience_rules",
+            callable=list_all_experience_rules,
+            category="compute",
+            description="List all available wet-lab experience rules.",
+            parameters_schema={"type": "object", "properties": {}},
+            result_type="list",
+        ),
+        ToolSpec(
+            name="extract_subsequence",
+            callable=extract_subsequence,
+            category="compute",
+            description="Extract sub-sequence with topology, circular-wrap and strand handling.",
+            parameters_schema={
+                "type": "object",
+                "properties": {
+                    "file_path_or_record": {"type": "string"},
+                    "start": {"type": "integer"},
+                    "end": {"type": "integer"},
+                    "strand": {"type": "integer", "default": 1},
+                    "topology": {"type": "string", "default": "linear"},
+                },
+                "required": ["file_path_or_record", "start", "end"],
+            },
+            sequence_output_key="sequence",
+            param_aliases={"source": "file_path_or_record", "file": "file_path_or_record", "template": "file_path_or_record"},
+            result_type="dict",
+        ),
+        ToolSpec(
+            name="mutate_sequence",
+            callable=mutate_sequence,
+            category="compute",
+            description="Apply point mutations or substitutions to a sequence.",
+            parameters_schema={
+                "type": "object",
+                "properties": {
+                    "dna_seq": {"type": "string"},
+                    "mutations": {"type": "array", "items": {"type": "object"}},
+                },
+                "required": ["dna_seq", "mutations"],
+            },
+            sequence_output_key="mutated_sequence",
+            param_aliases={"seq": "dna_seq"},
+            result_type="dict",
+        ),
+        ToolSpec(
+            name="check_reading_frame",
+            callable=check_reading_frame,
+            category="compute",
+            description="Check if a CDS maintains an open reading frame without premature stop codons.",
+            parameters_schema={
+                "type": "object",
+                "properties": {
+                    "dna_seq": {"type": "string"},
+                    "start_offset": {"type": "integer", "default": 0},
+                },
+                "required": ["dna_seq"],
+            },
+            param_aliases={"seq": "dna_seq"},
+            result_type="dict",
+        ),
+        ToolSpec(
+            name="strip_terminal_codons",
+            callable=strip_terminal_codons,
+            category="compute",
+            description="Strip start (ATG) or terminal stop codons (TAA/TAG/TGA) for fusion protein design.",
+            parameters_schema={
+                "type": "object",
+                "properties": {
+                    "dna_seq": {"type": "string"},
+                    "strip_start": {"type": "boolean", "default": False},
+                    "strip_stop": {"type": "boolean", "default": True},
+                },
+                "required": ["dna_seq"],
+            },
+            sequence_output_key="stripped_seq",
+            param_aliases={"seq": "dna_seq"},
+            result_type="dict",
+        ),
+        ToolSpec(
+            name="get_feature",
+            callable=get_feature,
+            category="inspect",
+            description="Find and retrieve a specific annotated feature from a sequence record by name.",
+            parameters_schema={
+                "type": "object",
+                "properties": {
+                    "record_or_path": {"type": "string"},
+                    "name": {"type": "string"},
+                },
+                "required": ["record_or_path", "name"],
+            },
+            param_aliases={"source": "record_or_path", "file": "record_or_path"},
+            result_type="dict",
+        ),
+    ]
+
+    for tool in tools:
+        register_tool(tool)
+
+
+# Initialize default tools upon module load
+init_default_registry()

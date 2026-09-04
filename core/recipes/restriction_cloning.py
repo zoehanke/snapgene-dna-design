@@ -16,8 +16,7 @@ from __future__ import annotations
 import pathlib
 from typing import Any
 
-from Bio.Seq import Seq
-
+from core.recipes.contract import RecipeResult
 from core.tools.amplification import design_overhang_primers, simulate_pcr
 from core.tools.assembly import simulate_digest_ligation
 from core.tools.restriction import (
@@ -197,18 +196,41 @@ def recipe_restriction_cloning(
         "assembled_successfully": bool(ligation_res.get("product_sequence")),
     }
 
-    return {
-        "recipe": "recipe_restriction_cloning",
-        "product_sequence": ligation_res["product_sequence"],
-        "product_length": ligation_res["product_length"],
-        "product_topology": ligation_res["product_topology"],
-        "primers": {
-            "forward": primers["forward_primer"],
-            "reverse": primers["reverse_primer"],
-            "protective_bases": {"fwd": prot5, "rev": prot3},
+    primers_list = [
+        {"name": "forward_primer", "seq": primers["forward_primer"]["full_sequence"], "tm": primers["forward_primer"]["binding_core_tm"]},
+        {"name": "reverse_primer", "seq": primers["reverse_primer"]["full_sequence"], "tm": primers["reverse_primer"]["binding_core_tm"]},
+    ]
+
+    protocol_steps = [
+        {"step": 1, "action": "PCR amplify insert using designed primers with 5' restriction tails and protective bases."},
+        {"step": 2, "action": "Treat PCR product with DpnI (37°C, 20 min) to digest template plasmid."},
+        {"step": 3, "action": f"Digest vector and insert with {enzyme5} and {enzyme3}."},
+        {"step": 4, "action": "Perform T4 DNA ligation at 16°C overnight or room temperature for 2 hours (1:3 vector:insert ratio)."},
+        {"step": 5, "action": "Transform ligation mixture into competent cells."},
+    ]
+
+    return RecipeResult(
+        recipe_name="recipe_restriction_cloning",
+        result_kind="construct",
+        completeness="complete_construct",
+        product_sequence=ligation_res["product_sequence"],
+        product_topology=ligation_res["product_topology"],
+        features=[],
+        primers=primers_list,
+        quality_checks=quality_checks,
+        warnings=warnings,
+        protocol_steps=protocol_steps,
+        citations=AUTHORITATIVE_SOURCES,
+        details={
+            "recipe": "recipe_restriction_cloning",
+            "product_length": ligation_res["product_length"],
+            "primers": {
+                "forward": primers["forward_primer"],
+                "reverse": primers["reverse_primer"],
+                "protective_bases": {"fwd": prot5, "rev": prot3},
+            },
+            "sop_reminders": sop_reminders,
+            "quality_checks": quality_checks,
+            "authoritative_sources": AUTHORITATIVE_SOURCES,
         },
-        "warnings": warnings,
-        "sop_reminders": sop_reminders,
-        "quality_checks": quality_checks,
-        "authoritative_sources": AUTHORITATIVE_SOURCES,
-    }
+    )

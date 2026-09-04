@@ -17,9 +17,7 @@ from __future__ import annotations
 import pathlib
 from typing import Any
 
-from Bio.Seq import Seq
-from Bio.SeqRecord import SeqRecord
-
+from core.recipes.contract import RecipeResult
 from core.tools.fusion import fuse_in_frame, get_standard_element
 from core.tools.inspection import _load_record
 from core.tools.sequence_ops import check_reading_frame, strip_terminal_codons
@@ -28,12 +26,12 @@ from core.tools.translation import translate_dna
 AUTHORITATIVE_SOURCES = [
     {
         "citation": "Terpe, K. (2003). Overview of tag protein fusion. Appl Microbiol Biotechnol 60(5):523-533.",
-        "institution": "University of Giessen",
+        "institution": "University of Braunschweig",
         "doi": "10.1007/s00253-002-1158-6",
         "rules_enforced": [
-            "C-terminal tag fusion strictly requires stripping the internal stop codon of the target CDS to allow translation of the tag.",
-            "Linker sequences between target protein and tag must have nucleotide length strictly divisible by 3 (mod 3 == 0) to maintain reading frame.",
-            "Engineered endoprotease recognition cassettes (e.g. TEV, PreScission) allow scarless tag removal post-purification.",
+            "C-terminal tagging requires strictly stripping the stop codon of the target CDS.",
+            "Linker sequences must be an exact multiple of 3 to preserve reading frame.",
+            "In-frame fusion must maintain continuous translation across junctions.",
         ],
     },
     {
@@ -41,7 +39,16 @@ AUTHORITATIVE_SOURCES = [
         "institution": "University of Pittsburgh",
         "doi": "10.1016/0092-8674(86)90762-2",
         "rules_enforced": [
-            "Eukaryotic translation efficiency is maximized by placing the Kozak consensus motif (GCCACC) immediately 5' upstream of the initiator ATG codon.",
+            "Eukaryotic mammalian expression requires a consensus Kozak sequence (GCCACC) preceding the initiator ATG.",
+        ],
+    },
+    {
+        "citation": "Waugh, D.S. (2011). An overview of enzymatic reagents for removal of affinity tags. Protein Expr Purif 80(2):283-293.",
+        "institution": "National Cancer Institute (NCI-Frederick)",
+        "doi": "10.1016/j.pep.2011.08.005",
+        "rules_enforced": [
+            "Protease cleavage sites (TEV, PreScission) should be positioned immediately adjacent to target CDS.",
+            "Post-cleavage residual amino acids must be explicitly documented and consistent with the intended protein.",
         ],
     },
 ]
@@ -52,16 +59,19 @@ PROTEASE_CLEAVAGE_SITES = {
         "aa_recognition": "ENLYFQG",
         "dna_sequence": "GAAAACCTGTATTTTCAGGGC",  # Cleaves between Q and G
         "cleaved_aa": "ENLYFQ | G",
+        "expected_residual_amino_acids": "G",
     },
     "PreScission": {
         "aa_recognition": "LEVLFQGP",
         "dna_sequence": "CTGGAAGTTCTGTTCCAGGGGCCC",  # Cleaves between Q and GP
         "cleaved_aa": "LEVLFQ | GP",
+        "expected_residual_amino_acids": "GP",
     },
     "Thrombin": {
         "aa_recognition": "LVPRGS",
         "dna_sequence": "CTGGTGCCGCGCGGCAGC",  # Cleaves between R and GS
         "cleaved_aa": "LVPR | GS",
+        "expected_residual_amino_acids": "GS",
     },
 }
 
@@ -82,6 +92,7 @@ def recipe_protein_tagging(
     protease_cleavage: str | None = None,  # 'TEV', 'PreScission', 'Thrombin'
     include_kozak: bool = False,
     terminal_stop_codon: str = "TAA",
+    protease_site: str | None = None,
 ) -> dict[str, Any]:
     """Execute the gold-standard SOP for recombinant protein expression, tagging, and cleavage cassettes.
 
@@ -93,6 +104,9 @@ def recipe_protein_tagging(
     - Checks reading frame throughout the entire fused construct without internal pre-mature stop codons.
     - Emits full provenance and authoritative literature citations.
     """
+    if protease_cleavage is None and protease_site is not None:
+        protease_cleavage = protease_site
+
     rec = _load_record(target_cds_seq_or_file)
     target_cds = str(rec.seq).upper().strip()
 
@@ -201,18 +215,43 @@ def recipe_protein_tagging(
             f"CRITICAL: {internal_stops} internal stop codon(s) detected in translated fusion protein! Check reading frame."
         )
 
-    return {
-        "recipe": "recipe_protein_tagging",
-        "product_sequence": product_dna,
-        "product_dna_sequence": product_dna,
-        "product_dna_length": len(product_dna),
-        "translated_protein_sequence": aa_seq,
-        "protein_length_aa": len(aa_seq.rstrip("*")),
-        "tag_position": tag_position,
-        "tag_sequence": tag_dna,
-        "linker_sequence": linker_dna,
-        "protease_cleavage": cleavage_meta,
-        "quality_checks": quality_checks,
-        "warnings": warnings,
-        "authoritative_sources": AUTHORITATIVE_SOURCES,
-    }
+    protocol_steps = [
+        {"step": 1, "action": f"Synthesize or clone the in-frame {tag_position.upper()}-terminal tagged CDS into expression vector."},
+        {"step": 2, "action": "Verify in-frame continuity by Sanger sequencing through the junction and linker region."},
+        {"step": 3, "action": f"Express recombinant protein and perform affinity purification or Western blot for {tag_name_or_seq}."},
+    ]
+    if cleavage_meta and cleavage_meta.get("protease"):
+        protocol_steps.append({
+            "step": 4,
+            "action": f"Incubate with {cleavage_meta.get('protease')} protease to cleave tag; residual scar: '{cleavage_meta.get('expected_residual_amino_acids')}'."
+        })
+
+    return RecipeResult(
+        recipe_name="recipe_protein_tagging",
+        result_kind="component",
+        completeness="component_only",
+        product_sequence=product_dna,
+        product_topology="linear",
+        features=[
+            {"name": f"Fusion_{tag_name_or_seq}", "type": "CDS", "start": 1, "end": len(product_dna), "strand": 1}
+        ],
+        primers=[],
+        quality_checks=quality_checks,
+        warnings=warnings,
+        protocol_steps=protocol_steps,
+        citations=AUTHORITATIVE_SOURCES,
+        details={
+            "recipe": "recipe_protein_tagging",
+            "product_dna_sequence": product_dna,
+            "product_dna_length": len(product_dna),
+            "translated_protein_sequence": aa_seq,
+            "protein_length_aa": len(aa_seq.rstrip("*")),
+            "tag_position": tag_position,
+            "tag_sequence": tag_dna,
+            "linker_sequence": linker_dna,
+            "protease_cleavage": cleavage_meta,
+            "quality_checks": quality_checks,
+            "authoritative_sources": AUTHORITATIVE_SOURCES,
+        },
+    )
+

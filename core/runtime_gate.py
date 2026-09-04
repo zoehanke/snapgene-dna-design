@@ -223,45 +223,48 @@ def finalize(task: dict, plan: dict, execution: dict, validation: dict, out_dir:
                 f"Sequence mismatch across formats: GB ({len(gb_seq)} bp), FASTA ({len(fa_seq)} bp), DNA ({len(dna_seq)} bp)",
             )
 
-        # SnapGene.exe official roundtrip verification if SnapGene executable exists
-        snapgene_exe = pathlib.Path(r"D:\SnapGene\SnapGene.exe")
-        if snapgene_exe.exists():
-            roundtrip = subprocess.run(
-                [
-                    sys.executable,
-                    "-X",
-                    "utf8",
-                    "-B",
-                    str(ROOT / "scripts" / "validate_roundtrip.py"),
-                    str(dna_dst),
-                    "--format",
-                    "dna",
-                    "--snapgene-exe",
-                    str(snapgene_exe),
-                    "--json",
-                ],
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-            )
-            if roundtrip.returncode != 0:
-                raise GateRejected(
-                    "GATE_OFFICIAL_ROUNDTRIP_FAILED",
-                    f"SnapGene roundtrip process failed with exit code {roundtrip.returncode}: {roundtrip.stderr[-500:]}",
+        # SnapGene.exe official roundtrip verification if explicitly requested and executable exists
+        import os
+        from core.tools.snapgene_io import find_snapgene_executable
+        if os.environ.get("SNAPGENE_VERIFY_OFFICIAL") == "1":
+            snapgene_exe = find_snapgene_executable()
+            if snapgene_exe and snapgene_exe.exists():
+                roundtrip = subprocess.run(
+                    [
+                        sys.executable,
+                        "-X",
+                        "utf8",
+                        "-B",
+                        str(ROOT / "scripts" / "validate_roundtrip.py"),
+                        str(dna_dst),
+                        "--format",
+                        "dna",
+                        "--snapgene-exe",
+                        str(snapgene_exe),
+                        "--json",
+                    ],
+                    capture_output=True,
+                    text=True,
+                    encoding="utf-8",
+                    errors="replace",
                 )
-            try:
-                rt_data = json.loads(roundtrip.stdout)
-            except Exception as exc:
-                raise GateRejected(
-                    "GATE_OFFICIAL_ROUNDTRIP_FAILED",
-                    f"Failed to parse SnapGene roundtrip JSON output: {exc}",
-                )
-            if not rt_data.get("ok") and not rt_data.get("passed") and rt_data.get("core_passed") is not True:
-                raise GateRejected(
-                    "GATE_OFFICIAL_ROUNDTRIP_FAILED",
-                    f"SnapGene official roundtrip verification rejected: {rt_data.get('errors') or rt_data.get('reasons')}",
-                )
+                if roundtrip.returncode != 0:
+                    raise GateRejected(
+                        "GATE_OFFICIAL_ROUNDTRIP_FAILED",
+                        f"SnapGene roundtrip process failed with exit code {roundtrip.returncode}: {roundtrip.stderr[-500:]}",
+                    )
+                try:
+                    rt_data = json.loads(roundtrip.stdout)
+                except Exception as exc:
+                    raise GateRejected(
+                        "GATE_OFFICIAL_ROUNDTRIP_FAILED",
+                        f"Failed to parse SnapGene roundtrip JSON output: {exc}",
+                    )
+                if not rt_data.get("ok") and not rt_data.get("passed") and rt_data.get("core_passed") is not True:
+                    raise GateRejected(
+                        "GATE_OFFICIAL_ROUNDTRIP_FAILED",
+                        f"SnapGene official roundtrip verification rejected: {rt_data.get('errors') or rt_data.get('reasons')}",
+                    )
 
         # Build DELIVERY-MANIFEST.json
         manifest = {

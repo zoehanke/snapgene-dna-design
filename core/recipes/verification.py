@@ -19,6 +19,7 @@ from typing import Any
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
+from core.recipes.contract import RecipeResult
 from core.tools.amplification import calc_primer_tm, check_primer_dimers
 from core.tools.inspection import _load_record
 from core.tools.restriction import find_restriction_sites
@@ -278,25 +279,70 @@ def recipe_cloning_verification(
         "notes": "One primer in backbone, one in insert; strictly prevents unwashed template false-positives (Sambrook Ch. 8).",
     }
 
-    return {
-        "recipe": "recipe_cloning_verification",
-        "template_length": n,
-        "recombinant_plasmid_length": n,
-        "topology": topo,
-        "insert_coordinates": {"start": ins_s, "end": ins_e, "length": ins_len},
-        "sanger_sequencing_primer": {
+    primers_list = [
+        {
+            "name": "Colony_PCR_Fwd_Vector",
+            "sequence": fwd_primer_seq,
+            "tm": fwd_tm,
+            "gc_percent": fwd_primer_res["gc_percent"],
+            "role": "colony_pcr_screening",
+        },
+        {
+            "name": "Colony_PCR_Rev_Insert",
+            "sequence": rev_primer_seq,
+            "tm": rev_tm,
+            "gc_percent": rev_primer_res["gc_percent"],
+            "role": "colony_pcr_screening",
+        },
+    ]
+    if sanger_primer_seq:
+        primers_list.append({
+            "name": "Sanger_Seq_Fwd",
             "sequence": sanger_primer_seq,
             "tm": sanger_tm,
             "gc_percent": sanger_primer_res["gc_percent"] if sanger_primer_res else 0.0,
-            "interval_0based": sanger_primer_res["interval_0based"] if sanger_primer_res else [],
-            "distance_upstream_of_junction_bp": sanger_dist,
-            "notes": f"Anchored ~{sanger_dist} bp upstream of junction to avoid 30-50 bp dye-blob blind zone (Sanger et al. 1977).",
+            "role": "sanger_sequencing",
+        })
+
+    protocol_steps = [
+        {"step": 1, "action": f"Pick candidate colonies and perform colony PCR using primers {fwd_primer_seq[:10]}... and {rev_primer_seq[:10]}... (expected size: {amplicon_size} bp)."},
+        {"step": 2, "action": "Run 1.0% agarose gel electrophoresis to confirm positive insert presence (no template false-positives)."},
+        {"step": 3, "action": "Isolate high-purity plasmid DNA from positive clones and run diagnostic restriction digests."},
+        {"step": 4, "action": "Perform Sanger sequencing using primer anchored upstream of junction to confirm mutation/junction fidelity."},
+    ]
+
+    return RecipeResult(
+        recipe_name="recipe_cloning_verification",
+        result_kind="verification",
+        completeness="qc_only",
+        product_sequence=str(rec.seq),
+        product_topology=topo,
+        features=[],
+        primers=primers_list,
+        quality_checks=quality_checks,
+        warnings=warnings,
+        protocol_steps=protocol_steps,
+        citations=AUTHORITATIVE_SOURCES,
+        details={
+            "recipe": "recipe_cloning_verification",
+            "template_length": n,
+            "recombinant_plasmid_length": n,
+            "topology": topo,
+            "insert_coordinates": {"start": ins_s, "end": ins_e, "length": ins_len},
+            "sanger_sequencing_primer": {
+                "sequence": sanger_primer_seq,
+                "tm": sanger_tm,
+                "gc_percent": sanger_primer_res["gc_percent"] if sanger_primer_res else 0.0,
+                "interval_0based": sanger_primer_res["interval_0based"] if sanger_primer_res else [],
+                "distance_upstream_of_junction_bp": sanger_dist,
+                "notes": f"Anchored ~{sanger_dist} bp upstream of junction to avoid 30-50 bp dye-blob blind zone (Sanger et al. 1977).",
+            },
+            "colony_pcr_primers": primers_dict,
+            "junction_pcr_primers": primers_dict,
+            "diagnostic_restriction_digests": diagnostic_bands,
+            "quality_checks": quality_checks,
+            "warnings": warnings,
+            "sop_reminders": sop_reminders,
+            "authoritative_sources": AUTHORITATIVE_SOURCES,
         },
-        "colony_pcr_primers": primers_dict,
-        "junction_pcr_primers": primers_dict,
-        "diagnostic_restriction_digests": diagnostic_bands,
-        "quality_checks": quality_checks,
-        "warnings": warnings,
-        "sop_reminders": sop_reminders,
-        "authoritative_sources": AUTHORITATIVE_SOURCES,
-    }
+    )

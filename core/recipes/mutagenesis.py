@@ -20,6 +20,7 @@ from typing import Any
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
+from core.recipes.contract import RecipeResult
 from core.tools.amplification import calc_primer_tm
 from core.tools.inspection import _load_record
 from core.tools.sequence_ops import mutate_sequence
@@ -130,20 +131,45 @@ def recipe_site_directed_mutagenesis(
         "THERMOCYCLING: Standard QuikChange cycling uses 16-18 cycles (95°C 30s, 55°C 1min, 68°C 1min/kb plasmid length).",
     ]
 
-    return {
-        "recipe": "recipe_site_directed_mutagenesis",
-        "mutated_sequence": mutated_product,
-        "product_length": len(mutated_product),
-        "mutation_type": "substitution" if (ref_len == len(alt) and ref_len > 0) else ("insertion" if ref_len == 0 else "deletion"),
-        "primers": {
-            "forward_mutagenic_primer": fwd_primer,
-            "reverse_mutagenic_primer": rev_primer,
-            "primer_length": len(fwd_primer),
-            "quikchange_tm": qc_tm,
-            "santalucia_tm": santalucia_tm,
+    primers_list = [
+        {"name": "forward_mutagenic_primer", "seq": fwd_primer, "qc_tm": qc_tm, "santalucia_tm": santalucia_tm},
+        {"name": "reverse_mutagenic_primer", "seq": rev_primer, "qc_tm": qc_tm, "santalucia_tm": santalucia_tm},
+    ]
+
+    protocol_steps = [
+        {"step": 1, "action": "Set up mutagenic PCR reaction with high-fidelity DNA polymerase (PfuUltra / Q5)."},
+        {"step": 2, "action": "Thermal cycling: 95°C 30s, followed by 16-18 cycles of (95°C 30s, 55°C 1min, 68°C 1min/kb plasmid length)."},
+        {"step": 3, "action": "Digest reaction with 1 uL DpnI at 37°C for 60 min to eliminate parent plasmid template."},
+        {"step": 4, "action": "Transform 2-5 uL into competent XL1-Blue / DH5alpha cells."},
+    ]
+
+    return RecipeResult(
+        recipe_name="recipe_site_directed_mutagenesis",
+        result_kind="construct",
+        completeness="complete_construct",
+        product_sequence=mutated_product,
+        product_topology="circular",
+        features=[],
+        primers=primers_list,
+        quality_checks=quality_checks,
+        warnings=warnings,
+        protocol_steps=protocol_steps,
+        citations=AUTHORITATIVE_SOURCES,
+        details={
+            "recipe": "recipe_site_directed_mutagenesis",
+            "mutated_sequence": mutated_product,
+            "product_length": len(mutated_product),
+            "mutation_type": "substitution" if (ref_len == len(alt) and ref_len > 0) else ("insertion" if ref_len == 0 else "deletion"),
+            "primers": {
+                "forward_mutagenic_primer": fwd_primer,
+                "reverse_mutagenic_primer": rev_primer,
+                "primer_length": len(fwd_primer),
+                "quikchange_tm": qc_tm,
+                "santalucia_tm": santalucia_tm,
+            },
+            "quality_checks": quality_checks,
+            "warnings": warnings,
+            "sop_reminders": sop_reminders,
+            "authoritative_sources": AUTHORITATIVE_SOURCES,
         },
-        "quality_checks": quality_checks,
-        "warnings": warnings,
-        "sop_reminders": sop_reminders,
-        "authoritative_sources": AUTHORITATIVE_SOURCES,
-    }
+    )

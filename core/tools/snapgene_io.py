@@ -77,7 +77,40 @@ def write_native_dna(record: SeqRecord, out_path: str | pathlib.Path) -> str | p
 
 
 
-SNAPGENE_EXE_PATH = r"D:\SnapGene\SnapGene.exe"
+import shutil
+
+def find_snapgene_executable() -> pathlib.Path | None:
+    """Locate SnapGene desktop application across platforms."""
+    # 1. Explicit environment variable override
+    env_path = os.environ.get("SNAPGENE_PATH")
+    if env_path and pathlib.Path(env_path).exists():
+        return pathlib.Path(env_path)
+
+    # 2. PATH resolution
+    for cmd in ["SnapGene", "SnapGene.exe", "snapgene"]:
+        found = shutil.which(cmd)
+        if found:
+            return pathlib.Path(found)
+
+    # 3. Known default installation locations
+    candidates = [
+        pathlib.Path(r"C:\Program Files\SnapGene\SnapGene.exe"),
+        pathlib.Path(r"C:\Program Files (x86)\SnapGene\SnapGene.exe"),
+        pathlib.Path(r"C:\Program Files\GSL Biotech\SnapGene\SnapGene.exe"),
+        pathlib.Path(r"D:\SnapGene\SnapGene.exe"),
+        pathlib.Path("/Applications/SnapGene.app/Contents/MacOS/SnapGene"),
+        pathlib.Path("/usr/bin/snapgene"),
+        pathlib.Path("/usr/local/bin/snapgene"),
+    ]
+    for c in candidates:
+        if c.exists():
+            return c
+
+    return None
+
+
+_detected_exe = find_snapgene_executable()
+SNAPGENE_EXE_PATH = str(_detected_exe) if _detected_exe else "SnapGene"
 
 SNAPGENE_DEFAULT_COLORS: dict[str, str] = {
     "cds": "#ff8080",
@@ -162,6 +195,9 @@ def export_snapgene(
     }
 
 
+export_plasmid = export_snapgene
+
+
 def open_in_snapgene(file_path: str | pathlib.Path) -> dict[str, Any]:
     """Launch the local SnapGene desktop application to display the construct.
 
@@ -175,11 +211,11 @@ def open_in_snapgene(file_path: str | pathlib.Path) -> dict[str, Any]:
     if not p.exists():
         raise FileNotFoundError(f"File not found: {p}")
 
-    exe = pathlib.Path(SNAPGENE_EXE_PATH)
-    if not exe.exists():
+    exe = find_snapgene_executable()
+    if exe is None or not exe.exists():
         return {
             "success": False,
-            "message": f"SnapGene executable not found at {SNAPGENE_EXE_PATH}",
+            "message": "SnapGene desktop executable not found on this system. Constructed files (.dna, .gb) remain available for manual opening.",
         }
 
     try:
