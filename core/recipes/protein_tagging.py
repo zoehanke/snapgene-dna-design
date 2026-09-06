@@ -233,7 +233,7 @@ def recipe_protein_tagging(
         product_sequence=product_dna,
         product_topology="linear",
         features=[
-            {"name": f"Fusion_{tag_name_or_seq}", "type": "CDS", "start": 1, "end": len(product_dna), "strand": 1}
+            {"name": f"Fusion_{tag_name_or_seq}", "type": "CDS", "start": 1, "end": len(product_dna), "interval_0based": [0, len(product_dna)], "strand": 1}
         ],
         primers=[],
         quality_checks=quality_checks,
@@ -254,4 +254,3 @@ def recipe_protein_tagging(
             "authoritative_sources": AUTHORITATIVE_SOURCES,
         },
     )
-

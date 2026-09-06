@@ -8,6 +8,7 @@ atomic biological tools.
 from __future__ import annotations
 
 import hashlib
+import copy
 import pathlib
 from typing import Any
 
@@ -18,6 +19,8 @@ from Bio.SeqRecord import SeqRecord
 from core.errors import PlanningError, TaskValidationError
 from core.guardrails.checklist import quick_biological_sanity_check
 from core.handlers.base import TaskHandler
+from core.io.input_resolution import resolve_sequence_record
+from core.models.construct_model import feature_to_dict
 from core.tools import (
     export_snapgene,
     get_tool,
@@ -31,7 +34,7 @@ def _resolve_param_val(val: Any, env: dict[str, Any], sources_map: dict[str, str
         if val.startswith("$"):
             var_name = val[1:]
             if var_name in env:
-                return env[var_name]
+                return copy.deepcopy(env[var_name])
             if var_name in sources_map:
                 return sources_map[var_name]
         elif val in sources_map:
@@ -47,6 +50,15 @@ def run_pipeline_steps(steps: list[dict], sources_map: dict[str, str]) -> tuple[
     """Execute pipeline steps sequentially in an in-memory environment."""
     env: dict[str, Any] = {}
     step_records: list[dict] = []
+
+    def has_annotations(value):
+        if isinstance(value, SeqRecord):
+            return bool(value.features)
+        if isinstance(value, dict):
+            return any(has_annotations(item) for item in value.values())
+        if isinstance(value, list):
+            return any(has_annotations(item) for item in value)
+        return False
 
     for step in steps:
         step_id = step.get("step_id")
@@ -70,8 +82,21 @@ def run_pipeline_steps(steps: list[dict], sources_map: dict[str, str]) -> tuple[
             )
 
         out_seq = tool_spec.extract_sequence(res)
+        if out_seq and has_annotations(params) and not (
+            isinstance(res, SeqRecord) or isinstance(res, dict) and "features" in res
+        ):
+            raise PlanningError("ANNOTATION_LOSS", f"Tool '{tool}' does not return mapped features for annotated inputs")
 
-        env[step_id] = out_seq
+        if isinstance(res, SeqRecord):
+            res = {
+                "sequence": out_seq,
+                "topology": res.annotations.get("topology", "linear"),
+                "features": [feature_to_dict(f, len(res)) for f in res.features],
+            }
+        if out_seq and isinstance(res, dict) and "features" in res:
+            env[step_id] = resolve_sequence_record({**res, "sequence": out_seq})
+        else:
+            env[step_id] = out_seq if out_seq else res
         step_records.append({
             "step_id": step_id,
             "tool": tool,
@@ -108,7 +133,7 @@ class CompositePipelineHandler(TaskHandler):
         smap = {}
         for s in task.get("sources", []):
             sid = s.get("source_id")
-            resolved = s.get("_resolved_path") or s.get("filepath")
+            resolved = s.get("_resolved_path") or s.get("path") or s.get("filepath")
             if sid and resolved:
                 smap[sid] = str(resolved)
         return smap
@@ -119,12 +144,14 @@ class CompositePipelineHandler(TaskHandler):
         steps = task["pipeline"]["steps"]
 
         final_seq, step_records, _env = run_pipeline_steps(steps, sources_map)
+        final_record = _env[steps[-1]["step_id"]]
         topo = task.get("product", {}).get("topology") or "circular"
 
         return {
             "task_kind": self.kind,
             "product_topology": topo,
             "product_sequence": final_seq,
+            "product_features": [feature_to_dict(f, len(final_record)) for f in final_record.features] if isinstance(final_record, SeqRecord) else [],
             "product_sequence_sha256": hashlib.sha256(final_seq.encode("utf-8")).hexdigest().upper(),
             "steps": step_records,
             "expected_components": task.get("expected_components", []),
@@ -141,7 +168,7 @@ class CompositePipelineHandler(TaskHandler):
         name = task.get("task_id", "construct")
 
         exported = export_snapgene(
-            record_or_seq=prod_seq,
+            record_or_seq=resolve_sequence_record({"sequence": prod_seq, "topology": topo, "features": plan.get("product_features", [])}),
             out_dir=inter,
             filename_base=name,
             topology=topo,
@@ -197,6 +224,10 @@ class CompositePipelineHandler(TaskHandler):
     ) -> tuple[bool, list[dict], list[str]]:
         errors = []
         traces = []
+        from core.runtime_validate import _validate_requested_components
+        component_traces, component_errors = _validate_requested_components(task, product_record)
+        traces.extend(component_traces)
+        errors.extend(component_errors)
 
         if len(product_seq) == 0:
             errors.append("Product sequence is empty")
@@ -207,7 +238,7 @@ class CompositePipelineHandler(TaskHandler):
             errors.append(f"Sequence SHA256 mismatch: expected {exp_sha}, got {act_sha}")
 
         # Run lightweight biological sanity check
-        topo = task.get("product", {}).get("topology", "linear")
+        topo = task.get("product", {}).get("topology", self.default_topology)
         is_cds = bool(task.get("product", {}).get("is_cds", False))
         sanity = quick_biological_sanity_check(
             product_record,

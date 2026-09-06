@@ -88,6 +88,16 @@ def recipe_site_directed_mutagenesis(
 
     # 1. Tier 1 atomic tool / sequence operation: apply mutation to sequence
     mutated_product = t_seq[:start_0based] + alt + t_seq[end_0based:]
+    from core.models.construct_model import ConstructModel, feature_to_dict
+    model = ConstructModel(rec)
+    if ref_len == len(alt):
+        model.mutate([(start_0based + i, base) for i, base in enumerate(alt)])
+    elif ref_len == 0:
+        model.insert(start_0based, alt)
+    elif alt:
+        model.replace(start_0based, end_0based, alt)
+    else:
+        model.delete(start_0based, end_0based)
 
     # 2. Design standard QuikChange primers centered around the mutation
     flank = max(10, min(25, target_flank_bp))
@@ -149,7 +159,7 @@ def recipe_site_directed_mutagenesis(
         completeness="complete_construct",
         product_sequence=mutated_product,
         product_topology="circular",
-        features=[],
+        features=[feature_to_dict(f, len(mutated_product)) for f in model.to_record().features],
         primers=primers_list,
         quality_checks=quality_checks,
         warnings=warnings,

@@ -452,11 +452,7 @@ def quick_biological_sanity_check(
             s0 = int(f.location.start)
             e0 = int(f.location.end)
             strand = int(f.location.strand or 1)
-            if e0 >= s0:
-                cds_raw = seq_str[s0:e0]
-            else:
-                cds_raw = seq_str[s0:] + seq_str[:e0]
-            cds_dna = str(Seq(cds_raw).reverse_complement()) if strand == -1 else cds_raw
+            cds_dna = str(f.extract(record_or_seq.seq)).upper()
             name = f.qualifiers.get("label", f.qualifiers.get("gene", [f.type]))[0]
 
             rf = check_reading_frame(cds_dna, start_offset=0)

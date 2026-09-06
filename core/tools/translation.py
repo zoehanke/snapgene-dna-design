@@ -8,12 +8,15 @@ from __future__ import annotations
 
 from Bio.Data import CodonTable
 from Bio.Seq import Seq
+from Bio.SeqRecord import SeqRecord
 
 from core.tools.restriction import get_enzyme, restriction_hits
 
 
 def reverse_complement(seq: str) -> str:
     """Compute the reverse complement of a DNA nucleotide string."""
+    if isinstance(seq, SeqRecord):
+        return seq.reverse_complement(id=True, name=True, description=True, annotations=True)
     return str(Seq(str(seq).strip().upper()).reverse_complement())
 
 

@@ -81,6 +81,8 @@ def main():
             out_dir=args.out_dir,
             auto_open_snapgene=args.open_snapgene,
             user_confirmed=args.confirmed,
+            expected_components=pipe_data.get("expected_components", []),
+            forbidden_components=pipe_data.get("forbidden_components", []),
         )
 
         if args.json:

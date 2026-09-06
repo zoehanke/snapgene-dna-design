@@ -214,16 +214,16 @@ class FailureContractTests(unittest.TestCase):
         self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
         payload = parsed(completed)
         self.assertTrue(payload["core_passed"])
-        self.assertFalse(payload["strict_passed"])
-        self.assertTrue(any("qualifiers differ" in w for w in payload["warnings"]))
+        self.assertTrue(payload["strict_passed"])
+        self.assertFalse(any("qualifiers differ" in w for w in payload["warnings"]))
 
         completed = run_script(
             "validate_roundtrip.py", str(FIXTURES / "pDONR201.dna"),
             "--format", "dna", "--strict", "--json")
-        self.assertNotEqual(completed.returncode, 0)
+        self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
         payload = parsed(completed)
-        self.assertFalse(payload["ok"])
-        self.assertFalse(payload["strict_passed"])
+        self.assertTrue(payload["ok"])
+        self.assertTrue(payload["strict_passed"])
 
     def test_circular_gibson_validates_and_trims_closing_overlap(self):
         a = self.tmp_path / "a.fa"

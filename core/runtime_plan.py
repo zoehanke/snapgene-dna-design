@@ -41,6 +41,8 @@ def compute_plan_sha256(plan: dict) -> str:
         "forbidden_components": plan.get("forbidden_components", []),
         "steps": plan.get("steps", []),
     }
+    if "product_features" in plan:
+        semantic["product_features"] = plan["product_features"]
     return hashlib.sha256(canonical_json(semantic).encode("utf-8")).hexdigest().upper()
 
 

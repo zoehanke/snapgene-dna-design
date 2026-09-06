@@ -90,6 +90,8 @@ def execute_agent_pipeline(
     out_dir: str | pathlib.Path = "./build",
     auto_open_snapgene: bool = False,
     user_confirmed: bool = False,
+    expected_components: list | None = None,
+    forbidden_components: list | None = None,
 ) -> dict[str, Any]:
     """Execute an agent-formulated composite pipeline deterministically and deliver SnapGene construct."""
     out_path = pathlib.Path(out_dir)
@@ -124,6 +126,8 @@ def execute_agent_pipeline(
         "revision": 1,
         "mode": "formal",
         "task_kind": "composite_pipeline",
+        "expected_components": expected_components or [],
+        "forbidden_components": forbidden_components or [],
         "pipeline": {
             "steps": pipeline_steps,
         },

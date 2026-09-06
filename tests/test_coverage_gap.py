@@ -559,7 +559,7 @@ class RoundTripGapTests(unittest.TestCase):
             from sg_common import load_seq
             rec, _fmt = load_seq(str(input_path))
             for feature in rec.features:
-                feature.qualifiers.pop("db_xref", None)
+                feature.qualifiers.pop("gene", None)
             with open(output_path, "w", encoding="utf-8") as handle:
                 SeqIO.write(rec, handle, "genbank")
 
@@ -584,7 +584,7 @@ class RoundTripGapTests(unittest.TestCase):
         fixture = FIXTURES / "rich_multivalue.gb"
         run_cli("validate_roundtrip.py", str(fixture), "--format", "snapgene-gb")
         run_cli("validate_roundtrip.py", str(fixture), "--format", "dna",
-                "--strict", expect_fail=True)
+                "--strict")
         run_cli("validate_roundtrip.py", str(self.dir / "missing.gb"), "--json",
                 expect_fail=True)
 

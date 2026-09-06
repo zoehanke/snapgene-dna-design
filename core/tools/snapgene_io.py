@@ -7,6 +7,7 @@ the official desktop SnapGene viewer to inspect the generated plasmid map.
 from __future__ import annotations
 
 import os
+import copy
 import pathlib
 import subprocess
 from typing import Any
@@ -62,6 +63,10 @@ def write_native_dna(record: SeqRecord, out_path: str | pathlib.Path) -> str | p
             "label", f.qualifiers.get("gene", [f.id or "feature"])
         )[0]
         parts = getattr(f.location, "parts", [f.location])
+        # SnapGene stores segments in reference order and reverses them when
+        # reading a reverse-strand feature into Biopython.
+        if f.location.strand == -1:
+            parts = list(reversed(parts))
         segments = [
             SgffSegment(start=int(p.start), end=int(p.end)) for p in parts
         ]
@@ -70,6 +75,8 @@ def write_native_dna(record: SeqRecord, out_path: str | pathlib.Path) -> str | p
             type=f.type,
             strand=_strand_char(f.location.strand),
             segments=segments,
+            qualifiers=copy.deepcopy(f.qualifiers),
+            color=f.qualifiers.get("ApEinfo_fcolor", [None])[0],
         )
         sg.features.add(feature)
     SgffWriter.to_file(sg, out_path)
@@ -148,7 +155,7 @@ def export_snapgene(
     out_path.mkdir(parents=True, exist_ok=True)
 
     if isinstance(record_or_seq, SeqRecord):
-        rec = record_or_seq
+        rec = copy.deepcopy(record_or_seq)
     else:
         rec = SeqRecord(Seq(str(record_or_seq).upper()), id=filename_base, name=filename_base)
         rec.annotations["molecule_type"] = "DNA"
@@ -159,22 +166,13 @@ def export_snapgene(
 
     # Attach features if provided
     if features:
-        from core.tools.feature_ops import annotate_feature
+        from core.io.input_resolution import resolve_sequence_record
         for f in features:
             ft = f.get("type", "misc_feature")
             color = f.get("color") or SNAPGENE_DEFAULT_COLORS.get(ft.lower(), "#c0c0c0")
-            s_coord = f.get("start", f.get("interval_0based", [0, 0])[0])
-            e_coord = f.get("end", f.get("interval_0based", [0, 0])[1])
-            annotate_feature(
-                rec,
-                name=f.get("name", "feature"),
-                feature_type=ft,
-                start=s_coord,
-                end=e_coord,
-                strand=f.get("strand", 1),
-                color=color,
-                qualifiers=f.get("qualifiers"),
-            )
+            added = resolve_sequence_record({"sequence": str(rec.seq), "features": [f]}).features[0]
+            added.qualifiers.setdefault("ApEinfo_fcolor", [color])
+            rec.features.append(added)
 
     gb_path = out_path / f"{filename_base}.gb"
     dna_path = out_path / f"{filename_base}.dna"

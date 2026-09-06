@@ -23,6 +23,75 @@ from core.runtime_plan import compute_plan_sha256
 from core.task import canonical_json, task_sha256
 
 
+def _validate_requested_components(task: dict, product_record) -> tuple[list[dict], list[str]]:
+    """Check the user's component sequences against the actual file, never the plan."""
+    from core.io.input_resolution import resolve_sequence_record
+    from Bio.SeqFeature import FeatureLocation
+
+    def names(feature):
+        return {str(v).casefold() for key in ("label", "gene", "product", "locus_tag")
+                for v in feature.qualifiers.get(key, [])}
+
+    sources = {}
+    source_errors = {}
+    for source in task.get("sources", []):
+        sid = source["source_id"]
+        try:
+            sources[sid] = resolve_sequence_record(source.get("_resolved_path") or source.get("path") or source.get("filepath"))
+        except Exception as exc:
+            source_errors[sid] = str(exc)
+
+    product = str(product_record.seq).upper()
+    circular = product_record.annotations.get("topology") == "circular"
+    traces, errors = [], []
+    for forbidden, components in (
+        (False, list(task.get("expected_components", [])) + list(task.get("product", {}).get("required_components", []))),
+        (True, list(task.get("forbidden_components", [])) + list(task.get("product", {}).get("forbidden_components", []))),
+    ):
+        for component in components:
+            spec = {"name": component} if isinstance(component, str) else component
+            name = spec.get("name", "component")
+            sequence = spec.get("expected_sequence") or spec.get("sequence")
+            candidates = {str(sequence).upper()} if sequence else set()
+            sid = spec.get("source_id")
+            records = [sources[sid]] if sid in sources else ([] if sid else list(sources.values()))
+            if not candidates:
+                for record in records:
+                    if spec.get("interval_0based") is not None:
+                        start, end = spec["interval_0based"]
+                        if not 0 <= start < end <= len(record):
+                            raise ValueError(f"Invalid component interval for '{name}'")
+                        candidates.add(str(FeatureLocation(start, end).extract(record.seq)).upper())
+                    else:
+                        for feature in record.features:
+                            if name.casefold() in names(feature):
+                                candidates.add(str(feature.extract(record.seq)).upper())
+            labelled = any(name.casefold() in names(f) for f in product_record.features)
+            if forbidden and labelled:
+                present = True
+            elif len(candidates) != 1 or "" in candidates:
+                errors.append(f"COMPONENT_UNRESOLVED: '{name}' requires one unambiguous source feature or explicit sequence; source errors: {source_errors}")
+                continue
+            else:
+                needle = next(iter(candidates))
+                if any(base not in "ACGT" for base in needle):
+                    errors.append(f"COMPONENT_UNRESOLVED: '{name}' contains ambiguous bases")
+                    continue
+                strand = spec.get("strand")
+                if strand not in (None, 1, -1):
+                    raise ValueError(f"Invalid component strand for '{name}'")
+                reverse = str(Seq(needle).reverse_complement())
+                needles = [needle, reverse] if forbidden or strand is None else ([reverse] if strand == -1 else [needle])
+                searchable = product + product[:len(needle) - 1] if circular else product
+                present = len(needle) <= len(product) and any(n in searchable for n in needles)
+            passed = not present if forbidden else present
+            traces.append({"check": "forbidden_component" if forbidden else "expected_component", "component": name, "passed": passed})
+            if not passed:
+                code = "FORBIDDEN_COMPONENT_PRESENT" if forbidden else "REQUIRED_COMPONENT_MISSING"
+                errors.append(f"{code}: '{name}' failed the user's component requirement")
+    return traces, errors
+
+
 def compute_validation_sha256(val_dict: dict) -> str:
     """Compute deterministic cryptographic SHA-256 over validation result fields."""
     semantic = {
@@ -49,8 +118,10 @@ def _validate_artifact(execution: dict, plan: dict) -> tuple[bool, SeqIO.SeqReco
         return False, None, ["Product files missing on disk"]
 
     try:
-        gb_rec = SeqIO.read(str(gb_path), "genbank")
-        fa_rec = SeqIO.read(str(fa_path), "fasta")
+        with gb_path.open(encoding="utf-8") as handle:
+            gb_rec = SeqIO.read(handle, "genbank")
+        with fa_path.open(encoding="utf-8") as handle:
+            fa_rec = SeqIO.read(handle, "fasta")
     except Exception as exc:
         return False, None, [f"Failed to parse product files: {exc}"]
 
@@ -130,6 +201,11 @@ def validate(task: dict, plan: dict, execution: dict) -> dict:
             goal_ok, evidence_traces, goal_errors = handler.validate_goal(
                 task, plan, execution, prod_rec, str(prod_rec.seq).upper()
             )
+            if task["task_kind"] != "composite_pipeline" and (task.get("expected_components") or task.get("forbidden_components")):
+                traces, errors = _validate_requested_components(task, prod_rec)
+                evidence_traces.extend(traces)
+                goal_errors.extend(errors)
+                goal_ok = goal_ok and not errors
         except Exception as exc:
             goal_errors.append(f"Goal validation failed: {exc}")
 

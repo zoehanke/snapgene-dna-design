@@ -23,6 +23,7 @@ def main():
     parser.add_argument("--allow-primer3-skip", action="store_true",
                         help="allow real-primer3 tests to skip (not release evidence)")
     args = parser.parse_args()
+    sys.path.insert(0, str(ROOT))
     sys.path.insert(0, str(HERE))
     loader = unittest.TestLoader()
     suite = loader.discover(str(ROOT / "tests"))

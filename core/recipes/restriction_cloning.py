@@ -19,6 +19,7 @@ from typing import Any
 from core.recipes.contract import RecipeResult
 from core.tools.amplification import design_overhang_primers, simulate_pcr
 from core.tools.assembly import simulate_digest_ligation
+from core.io.input_resolution import resolve_sequence_record
 from core.tools.restriction import (
     check_overhang_compatibility,
     find_restriction_sites,
@@ -174,7 +175,7 @@ def recipe_restriction_cloning(
     # 5. Call Tier 1 atomic tool: simulate directional digestion and ligation
     ligation_res = simulate_digest_ligation(
         vector_source=vector_source,
-        insert_source=amplicon,
+        insert_source=resolve_sequence_record(pcr_res),
         vector_enzymes=[enzyme5, enzyme3],
         insert_enzymes=[enzyme5, enzyme3],
         orientation="forward",
@@ -215,7 +216,7 @@ def recipe_restriction_cloning(
         completeness="complete_construct",
         product_sequence=ligation_res["product_sequence"],
         product_topology=ligation_res["product_topology"],
-        features=[],
+        features=ligation_res["features"],
         primers=primers_list,
         quality_checks=quality_checks,
         warnings=warnings,

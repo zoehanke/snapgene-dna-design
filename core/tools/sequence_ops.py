@@ -16,6 +16,7 @@ from Bio.SeqRecord import SeqRecord
 
 from core.interval import extract_interval
 from core.tools.inspection import _load_record
+from core.models.construct_model import ConstructModel, feature_to_dict
 
 
 def extract_subsequence(
@@ -42,13 +43,22 @@ def extract_subsequence(
     )
 
     seq_upper = extracted.upper()
+    if start == end:
+        fragment = rec[:]
+    elif start > end:
+        fragment = ConstructModel(rec).rotate(start).to_record()[:len(extracted)]
+    else:
+        fragment = rec[start:end]
+    if strand == -1:
+        fragment = fragment.reverse_complement()
     return {
         "sequence": seq_upper,
         "length": len(seq_upper),
         "sha256": hashlib.sha256(seq_upper.encode("utf-8")).hexdigest().upper(),
         "interval_0based": [start, end],
         "strand": strand,
-        "topology": topo,
+        "topology": "linear",
+        "features": [feature_to_dict(f, len(fragment)) for f in fragment.features],
     }
 
 
@@ -121,7 +131,9 @@ def mutate_sequence(
     Returns:
         dict with mutated sequence, updated length, and log of applied mutations.
     """
-    seq_list = list(str(dna_seq).upper())
+    record = _load_record(dna_seq)
+    model = ConstructModel(record)
+    seq_list = list(str(record.seq).upper())
     applied = []
 
     # Sort mutations in descending order by position so insertions/deletions don't shift earlier indices
@@ -146,6 +158,12 @@ def mutate_sequence(
         else:
             # Deletion
             del seq_list[pos]
+        if len(alt) == 1:
+            model.mutate([(pos, alt)])
+        elif alt:
+            model.replace(pos, pos + 1, alt)
+        else:
+            model.delete(pos, pos + 1)
 
         applied.append({
             "position_0based": pos,
@@ -155,9 +173,11 @@ def mutate_sequence(
 
     mutated_str = "".join(seq_list)
     return {
-        "original_length": len(dna_seq),
+        "original_length": len(record),
         "mutated_length": len(mutated_str),
         "sequence": mutated_str,
+        "topology": record.annotations.get("topology", "linear"),
+        "features": [feature_to_dict(f, len(mutated_str)) for f in model.to_record().features],
         "mutations_count": len(applied),
         "applied_mutations": list(reversed(applied)),
     }

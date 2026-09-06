@@ -82,6 +82,13 @@ python scripts/run_pipeline.py --pipeline pipeline.json --out-dir ./build
 ```
 Any of the 38 atomic tools registered in `TOOL_REGISTRY` (e.g. `digest_sequence`, `simulate_pcr`, `simulate_overlap_assembly`, `extract_subsequence`, `mutate_sequence`) can be dynamically chained.
 
+#### Route C: In-Place Primer Annotation & Editing
+When annotating or editing primers on an existing construct (`.dna` or `.gb`), always use `scripts/annotate_primers.py`:
+```bash
+python scripts/annotate_primers.py <source> --out <dest> --op add --name <name> --seq <seq>
+```
+Supports `add`, `remove`, `replace`, and `clear`. Never reconstruct an existing construct from bare sequence or overwrite it with a blank `SeqRecord`, as this discards pre-existing annotations and SnapGene metadata.
+
 ### Step 4: Audit Biological Guardrails
 Every execution automatically evaluates the 10 biological guardrails (`BIO-01` to `BIO-10`):
 - `BIO-01-FRAME`: Reading frame continuity (multiple of 3, zero premature stops).

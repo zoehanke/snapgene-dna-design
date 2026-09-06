@@ -241,10 +241,11 @@ class ConstructModel:
             unwrapped_end = new_start + length
             if unwrapped_end <= n:
                 return [_part(new_start, unwrapped_end, part)]
-            return [
+            split = [
                 _part(new_start, n, part),
                 _part(0, unwrapped_end - n, part),
             ]
+            return list(reversed(split)) if part.strand == -1 else split
 
         self._replace_parts(transform)
         old = str(self.record.seq)

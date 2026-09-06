@@ -152,10 +152,17 @@ def simulate_pcr(
     best = candidates[0]
 
     amplicon_str = best["amplicon"]
+    from core.tools.sequence_ops import extract_subsequence
+    from core.io.input_resolution import resolve_sequence_record
+    from core.models.construct_model import feature_to_dict
+    start, end = best["template_interval_0based"]
+    core_record = resolve_sequence_record(extract_subsequence(rec, start, end, topology=topo))
+    offset = len(best["f_hit"]["tail_5prime"])
     return {
         "amplicon": amplicon_str,
         "amplicon_length": len(amplicon_str),
         "amplicon_sha256": hashlib.sha256(amplicon_str.encode("utf-8")).hexdigest().upper(),
+        "features": [feature_to_dict(f._shift(offset), len(amplicon_str)) for f in core_record.features],
         "template_interval_0based": best["template_interval_0based"],
         "forward_binding": best["f_hit"],
         "reverse_binding": best["r_hit"],

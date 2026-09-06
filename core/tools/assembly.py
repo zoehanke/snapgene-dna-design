@@ -20,7 +20,8 @@ from core.models.assembly_model import (
     check_sticky_junctions,
     overhang_end,
 )
-from core.models.construct_model import ConstructModel
+from core.models.construct_model import ConstructModel, feature_to_dict
+from core.tools.feature_ops import migrate_features_after_assembly
 from core.tools.inspection import _load_record
 from core.tools.restriction import get_enzyme, restriction_hits
 
@@ -40,12 +41,8 @@ def simulate_overlap_assembly(
     Returns:
         dict containing assembled product sequence, length, junctions, and topology.
     """
-    seqs = []
-    for f in fragments:
-        if isinstance(f, dict):
-            seqs.append(str(f["sequence"]).upper())
-        else:
-            seqs.append(str(f).upper())
+    records = [_load_record(f) for f in fragments]
+    seqs = [str(record.seq).upper() for record in records]
 
     if len(seqs) < 2:
         raise ValueError("Overlap assembly requires at least 2 fragments")
@@ -95,11 +92,22 @@ def simulate_overlap_assembly(
         closing_ov = junctions[-1]["overlap_length"]
         product = product[:-closing_ov]
 
+    feature_fragments = []
+    offset = 0
+    for i, record in enumerate(records):
+        feature_fragments.append({
+            "offset_in_product": offset, "length": len(record),
+            "features": [feature_to_dict(f, len(record)) for f in record.features],
+        })
+        if i < len(junctions):
+            offset += len(record) - junctions[i]["overlap_length"]
+
     return {
         "product_sequence": product,
         "product_length": len(product),
         "product_sha256": hashlib.sha256(product.encode("utf-8")).hexdigest().upper(),
         "product_topology": "circular" if circular else "linear",
+        "features": migrate_features_after_assembly(feature_fragments, len(product), circular=circular),
         "fragment_count": n_frags,
         "junctions": junctions,
     }
@@ -233,6 +241,11 @@ def digest_ligate(
     product.id = "product"
     product.name = "product"
     product.description = "digest-ligation product"
+    from core.tools.sequence_ops import extract_subsequence
+    start = insert_frag.left_end.source_cut_boundary
+    end = insert_frag.right_end.source_cut_boundary
+    insert_record = _load_record(extract_subsequence(insert_rec, start, end, topology=insert_rec.annotations.get("topology", "linear")))
+    product.features.extend(f._shift(vector_cut0) for f in insert_record.features)
     product.features.append(SeqFeature(
         FeatureLocation(vector_cut0, vector_cut0 + len(ins_seq), strand=1),
         type="misc_feature", qualifiers={"label": ["insert"]},
@@ -254,6 +267,10 @@ def simulate_digest_ligation(
     """
     vec_rec = _load_record(vector_source)
     ins_rec = _load_record(insert_source)
+    if orientation not in ("forward", "reverse"):
+        raise ValueError("Insert orientation must be forward or reverse")
+    if orientation == "reverse":
+        ins_rec = ins_rec.reverse_complement(id=True, name=True, description=True, annotations=True)
 
     enz = vector_enzymes
     ins_enz = insert_enzymes or enz
@@ -267,6 +284,7 @@ def simulate_digest_ligation(
             "product_length": len(prod_seq),
             "product_sha256": hashlib.sha256(prod_seq.encode("utf-8")).hexdigest().upper(),
             "product_topology": "circular",
+            "features": [feature_to_dict(f, len(prod_rec)) for f in prod_rec.features],
             "enzymes": enz,
             "junctions": junctions,
         }
@@ -274,9 +292,6 @@ def simulate_digest_ligation(
     # Two-enzyme directional cloning
     if len(enz) != 2 or len(ins_enz) != 2:
         raise ValueError("Two-enzyme restriction ligation requires exactly two enzymes")
-
-    if orientation == "reverse":
-        ins_rec = ins_rec.reverse_complement(id=True, name=True, description=True)
 
     vseq = str(vec_rec.seq).upper()
     iseq = str(ins_rec.seq).upper()
@@ -340,13 +355,16 @@ def simulate_digest_ligation(
 
     product = ConstructModel(vec_rec).replace(t1, t2, ins_frag)
     product.set_topology("circular")
-    prod_seq = str(product.to_record().seq).upper()
+    prod_rec = product.to_record()
+    prod_rec.features.extend(f._shift(t1) for f in ins_rec[i1:i2].features)
+    prod_seq = str(prod_rec.seq).upper()
 
     return {
         "product_sequence": prod_seq,
         "product_length": len(prod_seq),
         "product_sha256": hashlib.sha256(prod_seq.encode("utf-8")).hexdigest().upper(),
         "product_topology": "circular",
+        "features": [feature_to_dict(f, len(prod_rec)) for f in prod_rec.features],
         "vector_cuts_0based": [t1, t2],
         "insert_cuts_0based": [i1, i2],
         "junctions": junctions,
@@ -368,14 +386,9 @@ def simulate_golden_gate(
     digested_frags = []
 
     for idx, f in enumerate(fragments):
-        if isinstance(f, dict):
-            seq = str(f.get("sequence", "")).upper()
-            fid = f.get("id", f"frag_{idx+1}")
-            rec = SeqRecord(Seq(seq), id=fid, name=fid)
-        else:
-            from core.io.input_resolution import resolve_sequence_input
-            rec, seq = resolve_sequence_input(f, record_id=f"frag_{idx+1}")
-            fid = rec.id or f"frag_{idx+1}"
+        from core.io.input_resolution import resolve_sequence_input
+        rec, seq = resolve_sequence_input(f, record_id=f"frag_{idx+1}")
+        fid = (f.get("id") if isinstance(f, dict) else rec.id) or f"frag_{idx+1}"
 
         hits = restriction_hits(seq, enz, circular=False)
         if len(hits) < 2:
@@ -403,6 +416,7 @@ def simulate_golden_gate(
             "id": fid,
             "original_length": len(seq),
             "insert_core": insert_core,
+            "features": [feature_to_dict(feature, len(insert_core)) for feature in rec[left_cut:right_cut_max].features],
             "left_overhang": left_ov,
             "right_overhang": right_ov,
             "left_cut": left_cut,
@@ -439,12 +453,18 @@ def simulate_golden_gate(
         assembled_parts.append(core[:-ov_len] if ov_len > 0 else core)
 
     prod_seq = "".join(assembled_parts)
+    feature_fragments = []
+    offset = 0
+    for fragment, part in zip(digested_frags, assembled_parts):
+        feature_fragments.append({"offset_in_product": offset, "length": len(fragment["insert_core"]), "features": fragment["features"]})
+        offset += len(part)
     return {
         "product_sequence": prod_seq,
         "product_length": len(prod_seq),
         "product_sha256": hashlib.sha256(prod_seq.encode("utf-8")).hexdigest().upper(),
         "product_topology": "circular" if circular else "linear",
         "enzyme": enzyme,
+        "features": migrate_features_after_assembly(feature_fragments, len(prod_seq), circular=circular),
         "fragment_count": num,
         "junctions": junctions,
         "fragments": digested_frags,

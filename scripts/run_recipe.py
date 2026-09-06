@@ -31,6 +31,7 @@ import core.recipes as recipes
 from core.guardrails.checklist import quick_biological_sanity_check
 from core.recipes.contract import RecipeResult
 from core.tools.snapgene_io import export_plasmid
+from core.io.input_resolution import resolve_sequence_record
 
 
 def get_recipe_function(recipe_name: str):
@@ -61,6 +62,7 @@ def run_recipe_cli(
     # 2. Biological Guardrails Check with contextual parameters
     prod_seq = res.product_sequence or res.get("product_dna_sequence") or ""
     topo = res.product_topology or "linear"
+    product_record = resolve_sequence_record({"sequence": prod_seq, "topology": topo, "features": res.features})
 
     # Only treat as CDS if explicitly designated or standard coding recipe
     is_cds = False
@@ -79,7 +81,7 @@ def run_recipe_cli(
     u6_term = bool(canonical_name == "recipe_crispr_hdr_donor" or params.get("check_u6_termination"))
 
     sanity = quick_biological_sanity_check(
-        prod_seq,
+        product_record,
         topology=topo,
         is_cds=is_cds,
         cloning_enzymes=cloning_enz,
@@ -97,11 +99,10 @@ def run_recipe_cli(
 
     if res.is_plasmid_construct() and prod_seq:
         export_res = export_plasmid(
-            record_or_seq=prod_seq,
+            record_or_seq=product_record,
             out_dir=candidate_dir,
             filename_base=canonical_name,
             topology=topo,
-            features=res.features,
         )
         candidate_files.append(export_res["gb_file"])
         candidate_files.append(export_res["dna_file"])

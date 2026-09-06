@@ -18,6 +18,8 @@
     "provenance"
   ],
   "properties": {
+    "expected_components": {"$ref": "#/definitions/component_requirements"},
+    "forbidden_components": {"$ref": "#/definitions/component_requirements"},
     "schema_version": {
       "const": "construction-task-v1"
     },
@@ -287,6 +289,25 @@
     }
   },
   "definitions": {
+    "component_requirements": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {"type": "string", "minLength": 1},
+          {
+            "type": "object", "required": ["name"], "additionalProperties": false,
+            "properties": {
+              "name": {"type": "string", "minLength": 1},
+              "sequence": {"type": "string", "minLength": 1},
+              "expected_sequence": {"type": "string", "minLength": 1},
+              "source_id": {"type": "string", "minLength": 1},
+              "interval_0based": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"type": "integer", "minimum": 0}},
+              "strand": {"type": "integer", "enum": [1, -1]}
+            }
+          }
+        ]
+      }
+    },
     "interval": {
       "type": "array",
       "minItems": 2,

@@ -104,6 +104,11 @@ def restriction_hits(seq: str | Seq, enzyme: Any, circular: bool = False) -> lis
                 top_cut = start0 - fst3
                 bottom_cut = start0 + width - fst5
             raw_top_cut, raw_bottom_cut = top_cut, bottom_cut
+            cuts_within = circular or (0 <= top_cut <= n and 0 <= bottom_cut <= n)
+            lo, hi = sorted((raw_top_cut, raw_bottom_cut))
+            overhang_type = "blunt" if lo == hi else ("5prime" if raw_top_cut < raw_bottom_cut else "3prime")
+            # Report the reference top-strand motif, including an origin-spanning cut.
+            overhang_seq = ("".join(s[i % n] for i in range(lo, hi)) if circular else s[lo:hi]) if cuts_within else None
             if circular:
                 top_cut %= n
                 bottom_cut %= n
@@ -118,6 +123,8 @@ def restriction_hits(seq: str | Seq, enzyme: Any, circular: bool = False) -> lis
                 "bottom_cut_boundary_0based": bottom_cut,
                 "raw_top_cut_boundary_0based": raw_top_cut,
                 "raw_bottom_cut_boundary_0based": raw_bottom_cut,
+                "overhang_type": overhang_type,
+                "overhang_sequence": overhang_seq,
                 "top_cut_after_base_1based": top_cut,
                 "bottom_cut_after_base_1based": bottom_cut,
                 "cuts_within_sequence": (
@@ -182,8 +189,8 @@ def find_restriction_sites(
             recog_seq = h.get("site", str(getattr(enz, "site", "")))
             top_cut = h.get("top_cut_boundary_0based", 0)
             bottom_cut = h.get("bottom_cut_boundary_0based", 0)
-            overhang_type = h.get("overhang_type", "blunt")
-            overhang_seq = h.get("overhang_sequence", "")
+            overhang_type = h["overhang_type"]
+            overhang_seq = h["overhang_sequence"]
             cuts_within = h.get("cuts_within_sequence", True)
 
             # Check for prokaryotic Dam/Dcm methylation overlap
@@ -208,7 +215,7 @@ def find_restriction_sites(
                 "methylation_warnings": blocked_by,
             })
 
-        count = len(sites)
+        count = sum(site["cuts_within_sequence"] for site in sites)
         is_type_iis = name in ("BsaI", "BsmBI", "Esp3I", "BbsI", "SapI", "AarI", "PaqCI", "FokI", "BtsI") or getattr(enz, "fst5", 0) > len(str(getattr(enz, "site", "")))
         recog_pattern = str(enz.site) if hasattr(enz, "site") else ""
 
@@ -217,6 +224,7 @@ def find_restriction_sites(
             "recognition_sequence": recog_pattern,
             "is_type_iis": is_type_iis,
             "cut_count": count,
+            "recognition_count": len(sites),
             "cuts": sites,
         }
 
@@ -290,7 +298,7 @@ def digest_sequence(
     """Digest a DNA sequence with a restriction endonuclease, returning cleaved fragments and their end geometries."""
     enz = get_enzyme(enzyme)
     s = str(seq).strip().upper()
-    hits = restriction_hits(Seq(s), enz, circular=circular)
+    hits = [h for h in restriction_hits(Seq(s), enz, circular=circular) if h["cuts_within_sequence"]]
 
     if not hits:
         return {
@@ -307,13 +315,7 @@ def digest_sequence(
     def _overhang_info(h, dna_str):
         if not h:
             return "", "blunt"
-        t = h.get("top_cut_boundary_0based", 0)
-        b = h.get("bottom_cut_boundary_0based", 0)
-        if t == b:
-            return "", "blunt"
-        ov = dna_str[min(t, b) : max(t, b)]
-        ov_type = "5prime" if t < b else "3prime"
-        return ov, ov_type
+        return h["overhang_sequence"], h["overhang_type"]
 
     if not circular:
         # Linear cuts produce len(cuts) + 1 fragments

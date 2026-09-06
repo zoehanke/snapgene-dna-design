@@ -21,6 +21,7 @@ from Bio.SeqRecord import SeqRecord
 from core.recipes.contract import RecipeResult
 from core.tools.amplification import calc_primer_tm, check_primer_dimers, design_overhang_primers, simulate_pcr
 from core.tools.assembly import simulate_overlap_assembly
+from core.io.input_resolution import resolve_sequence_input, resolve_sequence_record
 from core.tools.feature_ops import migrate_features_after_assembly
 
 AUTHORITATIVE_SOURCES = [
@@ -64,8 +65,8 @@ def recipe_gibson_assembly(
     - Simulates high-fidelity PCR and overlap assembly.
     - Emits full provenance and authoritative literature citations.
     """
-    v_seq = str(vector_linear_seq).strip().upper()
-    i_template = str(insert_template_seq).strip().upper()
+    vector_record, v_seq = resolve_sequence_input(vector_linear_seq)
+    insert_record, i_template = resolve_sequence_input(insert_template_seq)
 
     # 1. Enforce standard overlap length (Gibson 2009 / NEB: 20-25 bp)
     ol = max(15, min(35, overlap_length))
@@ -94,7 +95,7 @@ def recipe_gibson_assembly(
 
     # 4. Call Tier 1 atomic tool: simulate PCR amplification of insert with overhangs
     pcr_res = simulate_pcr(
-        template_path_or_seq=i_template,
+        template_path_or_seq=insert_record,
         f_primer=fwd_p,
         r_primer=rev_p,
         topology="linear",
@@ -114,7 +115,7 @@ def recipe_gibson_assembly(
 
     # 6. Call Tier 1 atomic tool: simulate overlap assembly
     assembly_res = simulate_overlap_assembly(
-        fragments=[v_seq, amplicon],
+        fragments=[vector_record, resolve_sequence_record(pcr_res)],
         min_overlap=ol - 5,
         circular=circular_product,
     )
@@ -145,7 +146,7 @@ def recipe_gibson_assembly(
         completeness="complete_construct",
         product_sequence=assembly_res["product_sequence"],
         product_topology=assembly_res["product_topology"],
-        features=[],
+        features=assembly_res["features"],
         primers=primers_list,
         quality_checks=quality_checks,
         warnings=warnings,

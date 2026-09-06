@@ -7,13 +7,14 @@ tags, terminators, origins) across recombinant DNA records.
 from __future__ import annotations
 
 import pathlib
+import copy
 from typing import Any
 
-from Bio.SeqFeature import FeatureLocation, SeqFeature
+from Bio.SeqFeature import CompoundLocation, FeatureLocation, SeqFeature
 from Bio.SeqRecord import SeqRecord
 
 from core.tools.inspection import _load_record
-from core.interval import extract_interval
+from core.models.construct_model import feature_to_dict
 
 
 FEATURE_ALIASES: dict[str, list[str]] = {
@@ -73,10 +74,10 @@ def get_feature(
             s0 = int(f.location.start)
             e0 = int(f.location.end)
             strand = int(f.location.strand or 1)
-            topo = rec.annotations.get("topology", "linear")
-
-            seq = extract_interval(rec, s0, e0, topology=topo, strand=strand, whole_record_approved=True)
+            seq = str(f.extract(rec.seq))
             matched_name = names[0] if names else f.type
+            extracted_feature = copy.deepcopy(f)
+            extracted_feature.location = FeatureLocation(0, len(seq), strand=1)
 
             feat_dict = {
                 "name": matched_name,
@@ -86,6 +87,8 @@ def get_feature(
                 "length": len(seq),
                 "sequence": seq.upper(),
                 "qualifiers": {k: v for k, v in f.qualifiers.items()},
+                "features": [feature_to_dict(extracted_feature, len(seq))],
+                "topology": "linear",
             }
             if not return_all:
                 return feat_dict
@@ -153,29 +156,31 @@ def migrate_features_after_assembly(
         frag_len = frag.get("length", 0)
         frag_strand = frag.get("strand", 1)
 
-        for feat in frag.get("features", []):
-            orig_s0, orig_e0 = feat["interval_0based"]
-            orig_strand = feat.get("strand", 1)
-
-            if frag_strand == 1:
-                # Forward insertion
-                new_s0 = frag_offset + orig_s0
-                new_e0 = frag_offset + orig_e0
-                new_strand = orig_strand
-            else:
-                # Reverse complemented insertion
-                new_s0 = frag_offset + (frag_len - orig_e0)
-                new_e0 = frag_offset + (frag_len - orig_s0)
-                new_strand = -orig_strand
-
-            # Circular wrap handling
-            if circular and total_length > 0:
-                new_s0 = new_s0 % total_length
-                new_e0 = new_e0 % total_length
-
-            new_feat = dict(feat)
-            new_feat["interval_0based"] = [new_s0, new_e0]
-            new_feat["strand"] = new_strand
-            migrated.append(new_feat)
+        from core.io.input_resolution import resolve_sequence_record
+        record = resolve_sequence_record({"sequence": "N" * frag_len, "features": frag.get("features", [])})
+        if frag_strand == -1:
+            record = record.reverse_complement()
+        for feature in record.features:
+            parts = []
+            for part in feature.location.parts:
+                start = frag_offset + int(part.start)
+                end = start + len(part)
+                if circular and total_length > 0:
+                    start %= total_length
+                    end = start + len(part)
+                    if len(part) > total_length:
+                        raise ValueError("Feature exceeds assembled molecule length")
+                    if end > total_length:
+                        split = [FeatureLocation(start, total_length, strand=part.strand), FeatureLocation(0, end - total_length, strand=part.strand)]
+                        parts.extend(reversed(split) if part.strand == -1 else split)
+                        continue
+                if not 0 <= start <= end <= total_length:
+                    raise ValueError("Feature falls outside assembled molecule")
+                parts.append(FeatureLocation(start, end, strand=part.strand))
+            feature.location = parts[0] if len(parts) == 1 else CompoundLocation(parts, operator=getattr(feature.location, "operator", "join"))
+            new_feat = feature_to_dict(feature, total_length)
+            new_feat["interval_0based"] = [int(feature.location.start), int(feature.location.end)]
+            if new_feat not in migrated:
+                migrated.append(new_feat)
 
     return migrated

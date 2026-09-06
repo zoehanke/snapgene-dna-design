@@ -12,10 +12,19 @@
     {
       "exclusion_reason": null,
       "license": "MIT",
+      "path": ".github/workflows/test.yml",
+      "redistributable": true,
+      "sha256": "5191ABBB1DB8090AC850952BC2CF80331F39C3F3E97AF1687485B9D57E08B3E1",
+      "size": 1234,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
       "path": ".gitignore",
       "redistributable": true,
-      "sha256": "0655A3B88DF58C08F5C64575E0E5FE7F0BA0893EB63E4D2F2C35359855E62358",
-      "size": 514,
+      "sha256": "6F29659A46CC6EFC4AE62EEFA506F04728DBF2285ADDC6E38636116BEFA19701",
+      "size": 521,
       "source_category": "project-code"
     },
     {
@@ -59,8 +68,17 @@
       "license": "MIT",
       "path": "agent/orchestrator.py",
       "redistributable": true,
-      "sha256": "014ACE48C812E0F057656F61DEC142E12EF97EAA120BDFC9C911EF8774DF76F2",
-      "size": 19982,
+      "sha256": "B2FFF5D3B050CB29CF0126DB737D5B0C93C848D157A1CE56D158B3B014AE0F4A",
+      "size": 20012,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "agent/pipeline_agent.py",
+      "redistributable": true,
+      "sha256": "05B2E7F239EBCF6FDC700671334D6BFFBC689CADF1C126F2829F2F494B9CE3D7",
+      "size": 6775,
       "source_category": "project-code"
     },
     {
@@ -86,8 +104,242 @@
       "license": "MIT",
       "path": "agents/openai.yaml",
       "redistributable": true,
-      "sha256": "8A3D85B340D0DEC6CDEF3DA3C7DF7FF619B2C2B624226E6275DEAD28E96D6682",
-      "size": 775,
+      "sha256": "9B6FBEA1B6F3345B85E036469DF2010F0637F90F528E6A708446570631383CB0",
+      "size": 927,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "build/acceptance_benchmarks/ACCEPTANCE_BENCHMARK_REPORT.json",
+      "redistributable": true,
+      "sha256": "613D4921B5B0703EC02FB44C2E013CAFAA564C87820BDEA56ECC3F0F61E2369C",
+      "size": 4440,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "build/acceptance_benchmarks/task_01_insertion/mcherry.fasta",
+      "redistributable": true,
+      "sha256": "A702E55F0830A940543DD9C0AD5C2DD7056DEB2A69D4AA3777F1CB72963CCA7F",
+      "size": 727,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "build/acceptance_benchmarks/task_05_re/insert.fa",
+      "redistributable": true,
+      "sha256": "60F0DDD8907A2D8541B58761DFEC9FE395C7C8ADC06018E440DB2160C2A6299F",
+      "size": 137,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "build/acceptance_benchmarks/task_10_gate/authoritative/construct.dna",
+      "redistributable": true,
+      "sha256": "035E03B3922F13B036EC1A14D4B23C800B11F5A868197220928A75EB64F1A540",
+      "size": 3234,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "build/acceptance_benchmarks/task_10_gate/authoritative/construct.fasta",
+      "redistributable": true,
+      "sha256": "5516C962208BCA48A01AA0F993051A269E7717E3D8807D1C334F0AB35A2FBDC7",
+      "size": 2638,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "build/acceptance_benchmarks/task_10_gate/authoritative/construct.gb",
+      "redistributable": true,
+      "sha256": "971DB7E1627C8FE3A616D251C0E16D5BAD69E6E859E9B675E24A166682FF553E",
+      "size": 4161,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "build/acceptance_benchmarks/task_10_gate/authoritative/DELIVERY-MANIFEST.json",
+      "redistributable": true,
+      "sha256": "89B787300C6B514FF3A6E68751C305D05B00F25E3B8357725213D512FDB2546F",
+      "size": 4838,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "build/acceptance_benchmarks/task_10_gate/candidate/construct.dna/construct.dna",
+      "redistributable": true,
+      "sha256": "035E03B3922F13B036EC1A14D4B23C800B11F5A868197220928A75EB64F1A540",
+      "size": 3234,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "build/acceptance_benchmarks/task_10_gate/candidate/construct.dna/construct.gb",
+      "redistributable": true,
+      "sha256": "D070E156F37D85EE8A8017E9BE3D249A37884FAFCB4C4D28F8C79C8EE6EA8AA6",
+      "size": 4280,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "build/acceptance_benchmarks/task_10_gate/candidate/construct.fasta",
+      "redistributable": true,
+      "sha256": "5516C962208BCA48A01AA0F993051A269E7717E3D8807D1C334F0AB35A2FBDC7",
+      "size": 2638,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "build/acceptance_benchmarks/task_10_gate/candidate/construct.gb",
+      "redistributable": true,
+      "sha256": "971DB7E1627C8FE3A616D251C0E16D5BAD69E6E859E9B675E24A166682FF553E",
+      "size": 4161,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "build/ci_recipe/candidate/recipe_protein_tagging.fasta",
+      "redistributable": true,
+      "sha256": "CACAA7C3BED56EB5D5176B8615AC2731BF1A37CDAE9A0CE1F0239378A59D8F3E",
+      "size": 119,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "build/ci_recipe/candidate/recipe_protein_tagging_result.json",
+      "redistributable": true,
+      "sha256": "AB790B5FA0B7CA704C35E3336592EDB7A14CB22F90E62437729787F4A637F6FE",
+      "size": 7722,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "build/format_tests/test1_default.dna",
+      "redistributable": true,
+      "sha256": "3136E6BD6F9E555CD42AB3D4BC58BBF5ABA97DF9AE69AD04F31AD10112110C25",
+      "size": 661,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "build/format_tests/test2_imp16.dna",
+      "redistributable": true,
+      "sha256": "2B3CF12F91E499611C6BCC98E895B8FAB46B7072F9567BE8C8E40B4BEFE53D8D",
+      "size": 661,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "build/format_tests/test3_notes.dna",
+      "redistributable": true,
+      "sha256": "AE179A18E7E34CD3DA6F623996CD3E56A6E4EB935D49399F85110BE38DF2D5D1",
+      "size": 742,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "build/format_tests/test4_notes_prop.dna",
+      "redistributable": true,
+      "sha256": "67C9576C4209538A78227B5E3371106D8AB8A4104DDE3D932108D8081835A07A",
+      "size": 778,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "build/format_tests/test_fake_gb.dna",
+      "redistributable": true,
+      "sha256": "57FD92480A8B9E599BD360C53ACFCE364F108C47D4C80F9FAA8EAA13B0623C42",
+      "size": 279,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "build/format_tests/test_hybrid_fix.dna",
+      "redistributable": true,
+      "sha256": "517351AB41E9DAD04F6D9DA7B8575C3DFF16B1949D709F08D5B8027498547CA2",
+      "size": 176252,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "build/format_tests/test_perfect_modern.dna",
+      "redistributable": true,
+      "sha256": "5AFEBB6625C5A1FAE8840FB522077F737EE02A1E7E24297FE552A8E07467E144",
+      "size": 177325,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "build/format_tests/var_A_no_14_28.dna",
+      "redistributable": true,
+      "sha256": "C8DC28DF6B48D28A56D0262B9B8310374EEA137708FFDE250B62682E117F7FD9",
+      "size": 176426,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "build/format_tests/var_B_no_primers.dna",
+      "redistributable": true,
+      "sha256": "14DB5475D0CBAA6F4D2E79A10E080AA50798AF4D493FB53016204CEEAB23C3C2",
+      "size": 175103,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "build/format_tests/var_C_only_seq_features.dna",
+      "redistributable": true,
+      "sha256": "3E447527B4FDD2E570DABBDC8F825AA9102C4E7B0EBBD4CBCBC43300456C273F",
+      "size": 175453,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "build/format_tests/var_D_imp16.dna",
+      "redistributable": true,
+      "sha256": "603D762B3EA2AD948A1A2E0C7EC4D4E85B0BE17FD92AD0B4607D838A2EEE3C7E",
+      "size": 176076,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "build/format_tests/var_E_with_notes.dna",
+      "redistributable": true,
+      "sha256": "6FD096BFEC7FD161D6E4266C6118F66C845055699B48EB57555DCD893EA192CD",
+      "size": 176162,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "build/format_tests/var_F_notes_imp16.dna",
+      "redistributable": true,
+      "sha256": "CC670997F69A13D7FFED11AB25BE49C3EB8288D6F3E7E5F74C54C49641AE6966",
+      "size": 176162,
       "source_category": "project-code"
     },
     {
@@ -138,10 +390,28 @@
     {
       "exclusion_reason": null,
       "license": "MIT",
+      "path": "core/guardrails/__init__.py",
+      "redistributable": true,
+      "sha256": "5C121663C2F2E23BD5CEB198B7A177A103F87CC4FED9530D47FAFDF65867E718",
+      "size": 771,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "core/guardrails/checklist.py",
+      "redistributable": true,
+      "sha256": "EB04F39BEABC7C2118C7FB56250759BC0E290F4D3B81020A98297A895500E749",
+      "size": 39557,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
       "path": "core/handlers/__init__.py",
       "redistributable": true,
-      "sha256": "02C3047F4FD22753AF9C7E3A0DA3A9283F98DA4DE876910B30E1278C5ADBEE57",
-      "size": 1923,
+      "sha256": "E09301DBF4F05F3BFA59EDF9F3CD5DEEDCA275E16B7A00551C095FC027F2B02C",
+      "size": 2123,
       "source_category": "project-code"
     },
     {
@@ -165,6 +435,15 @@
     {
       "exclusion_reason": null,
       "license": "MIT",
+      "path": "core/handlers/composite_pipeline.py",
+      "redistributable": true,
+      "sha256": "6AD719B5D963421E101E09B673EBBCA7716E893FA9C2942375D5A31870FC1C6A",
+      "size": 8510,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
       "path": "core/handlers/crispr_editing.py",
       "redistributable": true,
       "sha256": "A62E9CA133F7A2C584EC995460353862E13E62006EE04061D2A67A1AA501B5E4",
@@ -176,8 +455,8 @@
       "license": "MIT",
       "path": "core/handlers/gateway_recombination.py",
       "redistributable": true,
-      "sha256": "561FD34D64D5A737AEA30A4A3B87A59D1A0EFFAA3169D2097817EF5D15B9C8C6",
-      "size": 9818,
+      "sha256": "E44E4CAC7D85BFE0651EE37AD630F4E9FFD566CA1EFAD6AB8E171C24CE174806",
+      "size": 9716,
       "source_category": "project-code"
     },
     {
@@ -194,8 +473,8 @@
       "license": "MIT",
       "path": "core/handlers/integration_donor.py",
       "redistributable": true,
-      "sha256": "528B1C4CBCFB6A8F08ED21DEF627BF36A67F349BAFB9E63448349AF5CC4C6D4F",
-      "size": 11612,
+      "sha256": "405DFCA50F2C9F05D8B8BF958D3D749102A5F20CD82A2E2877AC7847B572FAFB",
+      "size": 11600,
       "source_category": "project-code"
     },
     {
@@ -248,8 +527,8 @@
       "license": "MIT",
       "path": "core/handlers/restriction_ligation.py",
       "redistributable": true,
-      "sha256": "E2040DD6670CEC681A5A2923B4272882E80F8D61BE6CDF8807AAD348AB365BDA",
-      "size": 14131,
+      "sha256": "80EBEE9FD5979E27842FD11CDF24B49C9DA8478B988A9BB1D89B040341D5B17A",
+      "size": 14039,
       "source_category": "project-code"
     },
     {
@@ -257,8 +536,134 @@
       "license": "MIT",
       "path": "core/interval.py",
       "redistributable": true,
-      "sha256": "BE33A0DFD445CF65C58F46CC17FBFB467D23B4B68307020F599B20F9E2DB6B91",
-      "size": 6575,
+      "sha256": "769F58874A858EF2468F56A629BF035A3FA251B06946E79D65428C7EB5ABB674",
+      "size": 7124,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "core/io/__init__.py",
+      "redistributable": true,
+      "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "size": 0,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "core/io/input_resolution.py",
+      "redistributable": true,
+      "sha256": "A48B2AE0620963F4DC30AC1B98A50F889C39833E0E339F108C2201A51E7FADDF",
+      "size": 5425,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "core/models/__init__.py",
+      "redistributable": true,
+      "sha256": "B117AEB3564290D9B080AD43F0A619317C7003651F4EE0C065BDB37419AF3ABF",
+      "size": 102,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "core/models/assembly_model.py",
+      "redistributable": true,
+      "sha256": "9CF595F3D3BDA77033544535FFA21DC5812600D330C6DDACC7E8BA55CA7DDDAC",
+      "size": 13916,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "core/models/construct_model.py",
+      "redistributable": true,
+      "sha256": "6FACCAD6FB2BA8BEAC6B213BCE24369A5737648BDDEE831BD50C6CBCDE6D88E2",
+      "size": 10136,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "core/recipes/__init__.py",
+      "redistributable": true,
+      "sha256": "539A2D8FC27310DCBA518E78406C4AB7F6BC6A2F6674D0A1A9E336A9BB36BC48",
+      "size": 10655,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "core/recipes/contract.py",
+      "redistributable": true,
+      "sha256": "667C518ED1BDFC23F79167E2E7D1222505B9F62F3FAA0DF887B1F119068DD57A",
+      "size": 2672,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "core/recipes/crispr_hdr.py",
+      "redistributable": true,
+      "sha256": "FB7B71BE7BC0EC533D1CC3AF5E04AE43ADC132AE4BFF64A1929CAABA4FE5E708",
+      "size": 13567,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "core/recipes/gibson.py",
+      "redistributable": true,
+      "sha256": "3A42D47E1D8026B55886DB0DDBDBF46A6C7DE53F40CB719E6D988367CA1DCDAB",
+      "size": 7398,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "core/recipes/golden_gate.py",
+      "redistributable": true,
+      "sha256": "5826571B090F90EC9E87C9A75A6B377F8467DCEF9031AC56DD59AB9F29B98D68",
+      "size": 4833,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "core/recipes/mutagenesis.py",
+      "redistributable": true,
+      "sha256": "D12D3DA1BD9A071486B9EA64B63D593C2150A741575DDBCBE4460B940FB8E073",
+      "size": 7785,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "core/recipes/protein_tagging.py",
+      "redistributable": true,
+      "sha256": "437D81883B729C5209D94656429251786FE87962119E62D83B43BFFB4172568C",
+      "size": 11215,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "core/recipes/restriction_cloning.py",
+      "redistributable": true,
+      "sha256": "55FE80C0A4B78306B99342869334C97EB2FBC0A87BF4AE0B09150817E41E2689",
+      "size": 10213,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "core/recipes/verification.py",
+      "redistributable": true,
+      "sha256": "EE598261C9802C8194A598F049A2D7279C1D3445E4C3DF133AE7AC0BEC34135F",
+      "size": 14211,
       "source_category": "project-code"
     },
     {
@@ -266,8 +671,8 @@
       "license": "MIT",
       "path": "core/registry.py",
       "redistributable": true,
-      "sha256": "7D8442163CB1508F40753A982EC2C62CE7B7092BC0F7F8D78495C1989A53C34D",
-      "size": 17116,
+      "sha256": "533C51E07FB7E993B1520656253BD542B714C3E370C6FA2039E0E28927F5DD83",
+      "size": 17920,
       "source_category": "project-code"
     },
     {
@@ -284,8 +689,8 @@
       "license": "MIT",
       "path": "core/runtime_gate.py",
       "redistributable": true,
-      "sha256": "3ECE390C89C861445BDF17BFF69287108AA156573DA44C94DCDA9E07F524156F",
-      "size": 13576,
+      "sha256": "AE066D2DBD296374F331C1B01BC237478599D8336F085DE713C766A81EC61FBD",
+      "size": 16928,
       "source_category": "project-code"
     },
     {
@@ -293,8 +698,8 @@
       "license": "MIT",
       "path": "core/runtime_plan.py",
       "redistributable": true,
-      "sha256": "79EB1FC527E3ABDA7E8C3374E5B3B9B238C6CEC704F495DDE439EA98D04853DA",
-      "size": 2967,
+      "sha256": "7E2BB181D6AE6A290CDD086C3B5A68F4DE1B952B03F32EC2A43D7D634CD2B51E",
+      "size": 2966,
       "source_category": "project-code"
     },
     {
@@ -320,8 +725,134 @@
       "license": "MIT",
       "path": "core/task.py",
       "redistributable": true,
-      "sha256": "FBAD9A0126581916E5C7F8910031C39EEC7D27E5A0FF4B9FE437F767A4997190",
-      "size": 8787,
+      "sha256": "0A69FEE9EBC0DDE49BC0A8FF828392C7C5D13F63DFA4171463DC497E719D3A35",
+      "size": 8892,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "core/tools/__init__.py",
+      "redistributable": true,
+      "sha256": "BBF1093BE7BEBFCDA893899796C4CCA5045EEACAC7A70AE6C7C612D51641FC63",
+      "size": 3262,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "core/tools/amplification.py",
+      "redistributable": true,
+      "sha256": "2DA24E607DD494EB00F92E8C08F665195482542C390C185B48492F9A6D23699C",
+      "size": 22531,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "core/tools/assembly.py",
+      "redistributable": true,
+      "sha256": "1FF4735231BFE2B816E98958AAC91B930BB87C7F21F52179A7143EE35E9B088F",
+      "size": 16835,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "core/tools/crispr.py",
+      "redistributable": true,
+      "sha256": "270732EC1FFBEC32DCEE0EB5D0BD87F61FC76714701632005DDAD5AE006085DA",
+      "size": 14302,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "core/tools/experience_helper.py",
+      "redistributable": true,
+      "sha256": "E959C6686869E00BDA9CDBAC7A003E6E3E23479D7F95D8E832C7BB5ED9A984EB",
+      "size": 5054,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "core/tools/feature_ops.py",
+      "redistributable": true,
+      "sha256": "621BCA4D83BF9A703BF9F299E2397290403B56C68710387CBB253EEB8FD05B7E",
+      "size": 6438,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "core/tools/fusion.py",
+      "redistributable": true,
+      "sha256": "03B0760546310FD3E5B3FD96586B34C8076F231576E0275E55B45412D29BA718",
+      "size": 11168,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "core/tools/inspection.py",
+      "redistributable": true,
+      "sha256": "7FC2CE415A9E6641D6494E45A712E58238C33A7E7D771C5B62499DD2C8320E6B",
+      "size": 7315,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "core/tools/recombination.py",
+      "redistributable": true,
+      "sha256": "7210F7BC23762FCDE545983B36041A34CCFDD8B7D3F4D41637B3E58FACBE874C",
+      "size": 11382,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "core/tools/registry.py",
+      "redistributable": true,
+      "sha256": "058F9AEAE37B890229E673415F9E4C70CE31E732F7757FD82ADED2872817F41D",
+      "size": 34898,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "core/tools/restriction.py",
+      "redistributable": true,
+      "sha256": "493573F288D6950009C59A365806AC9AC108F3617324CD19BDFBD8BE779BAC50",
+      "size": 16376,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "core/tools/sequence_ops.py",
+      "redistributable": true,
+      "sha256": "EE90777AF12686AAF48125892714D60975D0612215C00524F5B440C2C14AE710",
+      "size": 6144,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "core/tools/snapgene_io.py",
+      "redistributable": true,
+      "sha256": "20DEC564DE416B585F0412303DB5C34339A64D0537356BA55122A584D0DD66FA",
+      "size": 7644,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "core/tools/translation.py",
+      "redistributable": true,
+      "sha256": "EAF2EC1C23EEBC24DAF2340E93676B2C915FA6229569F9D770935598802915C1",
+      "size": 6629,
       "source_category": "project-code"
     },
     {
@@ -345,10 +876,19 @@
     {
       "exclusion_reason": null,
       "license": "MIT",
+      "path": "dist/snapgene-dna-design-skill.zip",
+      "redistributable": true,
+      "sha256": "474D13DA07129679629ADC21BB24852457D65B9FF6BDD767153ED3C9C0F6999B",
+      "size": 641205,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
       "path": "dist/snapgene-dna-design-v0.9.1-dev2-academic-full.zip",
       "redistributable": true,
-      "sha256": "EB23ABB9439A06E77474BEC8A4EC8C162BB37931022F655A33D479B0133EB3CA",
-      "size": 1946230,
+      "sha256": "0125F039D928E681177EC300E3DC75C850EE3E56E16F58C38844343BE31DFE56",
+      "size": 11943196,
       "source_category": "project-code"
     },
     {
@@ -356,8 +896,17 @@
       "license": "MIT",
       "path": "dist/snapgene-dna-design-v0.9.1-dev2-redistributable.zip",
       "redistributable": true,
-      "sha256": "0DBD24E93CCEBC751AB3B5F63540D7CF6F8E6AA141BC1E717B3893F66514169C",
-      "size": 1826806,
+      "sha256": "EAAE32C9BE056E4F0F9AC2095956341330EC882B769782B73FBE38BF0139F991",
+      "size": 26072539,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "dist/snapgene-dna-design-v0.9.1-installable.zip",
+      "redistributable": true,
+      "sha256": "A65598A6469048E933FBD2EC0FDCB98E43D1BD335D09A10CCA518329FB0C2131",
+      "size": 648925,
       "source_category": "project-code"
     },
     {
@@ -401,8 +950,8 @@
       "license": "MIT",
       "path": "docs/development/BASELINE-STATUS.md",
       "redistributable": true,
-      "sha256": "F13F3E6DEFC87A4AF9DC3CE36B03A5634F4F839FD14830B3C58BBA4E1D400896",
-      "size": 1151,
+      "sha256": "BCF8F9D0E478A1D4646546379F420F618293AF590EBE8372158B0E8FBBE55AD7",
+      "size": 3176,
       "source_category": "documentation"
     },
     {
@@ -410,8 +959,8 @@
       "license": "MIT",
       "path": "docs/development/DEVELOPER-MANUAL.md",
       "redistributable": true,
-      "sha256": "3426B0F97D389263C010E16BCD8130D9F03998766842A104BBDACDE882210405",
-      "size": 526894,
+      "sha256": "A0E3579FD2B20ADC7D3A0F09BBF76041AF2FAB4F1D47AA90050DB098F20482C2",
+      "size": 530420,
       "source_category": "documentation"
     },
     {
@@ -642,6 +1191,24 @@
     {
       "exclusion_reason": null,
       "license": "MIT",
+      "path": "fixtures/synthetic/pSynthetic-GFP.gb",
+      "redistributable": true,
+      "sha256": "C97857252F92A53E390FDC37C0019F1464EAB8E79056A9C7CA70427712250510",
+      "size": 4162,
+      "source_category": "synthetic-fixture"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "fixtures/synthetic/tagging_params.json",
+      "redistributable": true,
+      "sha256": "FE02EBA070DDD2D368B2EB576089376515241E5B6D29C490ACE91B1E54A83EF8",
+      "size": 118,
+      "source_category": "synthetic-fixture"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
       "path": "LICENSE",
       "redistributable": true,
       "sha256": "2F58BA03C9E724F915324FC1E86725AB6EA93FE1347AC9316886F7C5032D3D8C",
@@ -651,9 +1218,45 @@
     {
       "exclusion_reason": null,
       "license": "MIT",
+      "path": "output/e2e_benchmarks/scenario_a_gibson_egfp_6xhis.dna",
+      "redistributable": true,
+      "sha256": "178CCEF7A92C1CAC014C021D1B9A09427251140833AA2161972316C5E517C6A3",
+      "size": 1977,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "output/e2e_benchmarks/scenario_a_gibson_egfp_6xhis.gb",
+      "redistributable": true,
+      "sha256": "1A672A3BFCE0A238AB5223DF87EA754B1193526D530AC310EBF68FA12577A3FD",
+      "size": 2767,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "output/e2e_benchmarks/scenario_b_crispr_hdr_ha_tag.dna",
+      "redistributable": true,
+      "sha256": "A9E86702F8A9F931DAEBE1A5025858D26985966A6E158E6656F77D534F914F3F",
+      "size": 302,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "output/e2e_benchmarks/scenario_b_crispr_hdr_ha_tag.gb",
+      "redistributable": true,
+      "sha256": "D33ECC9F551B86D1F995859B1D0B56017BB499D48C10D1E6EE27BC4A393EE098",
+      "size": 623,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
       "path": "parts/parts_library.json",
       "redistributable": true,
-      "sha256": "508BF8A018D574DE64819013FCA902745D0F830319BB144167D6FE528F68BF4C",
+      "sha256": "B545B8B71A9A215719FF33F0DC8D839805E177C0FB3657DBF34E599A0D7FDCD6",
       "size": 3342,
       "source_category": "project-code"
     },
@@ -716,8 +1319,17 @@
       "license": "MIT",
       "path": "README.md",
       "redistributable": true,
-      "sha256": "D7289B785A3AC120E8CA72CF45412136D8486A67C22B3D03023CE120B5115606",
-      "size": 31352,
+      "sha256": "DF9A870BD02AD7D4AAAA149BE5317481C52C88A37B92E9112952437ECD59713C",
+      "size": 29237,
+      "source_category": "documentation"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "RECONSTRUCTION-CHECKLIST.md",
+      "redistributable": true,
+      "sha256": "3800A36EC3617CA857D17EBE943E0F5454150EBB36F9FE11F303D6D05A052C09",
+      "size": 13366,
       "source_category": "documentation"
     },
     {
@@ -727,6 +1339,15 @@
       "redistributable": true,
       "sha256": "EA9AF816E49866C28E03BB6F71F791807CD30774AABFA974868756C5D15764FC",
       "size": 3774,
+      "source_category": "documentation"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "references/authoritative_sop_sources.md",
+      "redistributable": true,
+      "sha256": "55B510A205FA26C78E54E82E71F2C479DD1DFF839C1DD9F9FEC5A7E28B600C2E",
+      "size": 17784,
       "source_category": "documentation"
     },
     {
@@ -777,6 +1398,15 @@
     {
       "exclusion_reason": null,
       "license": "MIT",
+      "path": "references/guardrails.md",
+      "redistributable": true,
+      "sha256": "48314C36F1806360BE9B08A8E8BBDE9E84B1FF84623EEA0F2E803A01084834A0",
+      "size": 6341,
+      "source_category": "documentation"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
       "path": "references/nuclease-registry.json",
       "redistributable": true,
       "sha256": "D6D9501BCA348AF927150EC892DC3ADA5A9275A2C7C26AB882E63FCF8EA15EFE",
@@ -808,6 +1438,15 @@
       "redistributable": true,
       "sha256": "9C479174C7B08E816AE0D23AA57BDB086A1A495F2A1A0645AD1D4A240406DEF3",
       "size": 557,
+      "source_category": "documentation"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "references/recipes.md",
+      "redistributable": true,
+      "sha256": "08C51F5DBA903FCAB41AA9CC13EAD9C14C8648D9586F01B7F6A3A2F73B9ADE9C",
+      "size": 9256,
       "source_category": "documentation"
     },
     {
@@ -905,8 +1544,8 @@
       "license": "MIT",
       "path": "requirements-optional.txt",
       "redistributable": true,
-      "sha256": "009C6744770829A47192895543AA367DF4D2C476B4FEDCC9BAB26425D3C70705",
-      "size": 852,
+      "sha256": "90BD7A33EEF95050833CFFE532CFD682437EBC90A038295A469922FF340FB1E2",
+      "size": 897,
       "source_category": "project-code"
     },
     {
@@ -914,8 +1553,8 @@
       "license": "MIT",
       "path": "requirements.txt",
       "redistributable": true,
-      "sha256": "8CF551FC50A1B9F27E61C96A16C395A64DDB61490380104F35D5D8D32251C34D",
-      "size": 74,
+      "sha256": "0D385A57AC110D9941E0F1BE891C567130CF8E884AAD34D6D6EA98A9C1AB6E3B",
+      "size": 92,
       "source_category": "project-code"
     },
     {
@@ -968,8 +1607,8 @@
       "license": "MIT",
       "path": "schemas/construction-task-v1.json",
       "redistributable": true,
-      "sha256": "C871EAD770700282EA87015A54BD58DC9CA105AA2DF2CEE54B258D97F45E41BD",
-      "size": 20086,
+      "sha256": "7534AAA291CC3491E547D74F47B8AE49620EE824AFBAF20C4B4FFA5D074B3B8C",
+      "size": 20341,
       "source_category": "project-code"
     },
     {
@@ -1092,6 +1731,15 @@
     {
       "exclusion_reason": null,
       "license": "MIT",
+      "path": "scripts/annotate_primers.py",
+      "redistributable": true,
+      "sha256": "C3E85237907B330874E78C81BB0899E3A1771826DE16AA74A5C046F7A67ED05C",
+      "size": 16766,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
       "path": "scripts/assemble_contig.py",
       "redistributable": true,
       "sha256": "9E27F1C1E202146A391509532CB87C168A385156AB0D0145814D2265C8D7A6EC",
@@ -1103,8 +1751,8 @@
       "license": "MIT",
       "path": "scripts/assembly_model.py",
       "redistributable": true,
-      "sha256": "9CF595F3D3BDA77033544535FFA21DC5812600D330C6DDACC7E8BA55CA7DDDAC",
-      "size": 13916,
+      "sha256": "63A560857C144770626E1943AE29FDFBF64BF5CDA2D9D179A09688A279C306D2",
+      "size": 485,
       "source_category": "project-code"
     },
     {
@@ -1112,8 +1760,8 @@
       "license": "MIT",
       "path": "scripts/azimuth_backend.py",
       "redistributable": true,
-      "sha256": "0494E3091368D44EAC6676FD139A017DDC1935C0AA3192FF360AA2C9C4B8FC09",
-      "size": 6846,
+      "sha256": "0868409F8721C4A785A2BE55F137EE6521F1A6CF727E8BD026C163D0FC0096A7",
+      "size": 7032,
       "source_category": "project-code"
     },
     {
@@ -1166,8 +1814,8 @@
       "license": "MIT",
       "path": "scripts/check_env.py",
       "redistributable": true,
-      "sha256": "A047C13F9262E911D0D55143A1CD024BC8B0AAA0A0CB7DE380EB895E89FBE58F",
-      "size": 7707,
+      "sha256": "6ECB48935EACC7F3FDFE43A48F35E0B09E1D24997AF1662601F591E8379B8840",
+      "size": 7984,
       "source_category": "project-code"
     },
     {
@@ -1202,8 +1850,8 @@
       "license": "MIT",
       "path": "scripts/construct_model.py",
       "redistributable": true,
-      "sha256": "6FACCAD6FB2BA8BEAC6B213BCE24369A5737648BDDEE831BD50C6CBCDE6D88E2",
-      "size": 10136,
+      "sha256": "89E75546723827B6E6E9C3E5610DDE19B685504026DE57E97BDB30A0FB861C65",
+      "size": 518,
       "source_category": "project-code"
     },
     {
@@ -1362,6 +2010,24 @@
     {
       "exclusion_reason": null,
       "license": "MIT",
+      "path": "scripts/inspect_plasmid.py",
+      "redistributable": true,
+      "sha256": "5A1B91674776EBE5AF8CA4B14A4781D8040ED68A9BC8BCD8C369C8DAC47A66E6",
+      "size": 7559,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "scripts/install_primer3.py",
+      "redistributable": true,
+      "sha256": "41B0A3FB36A0215F4CE309E974A513B9D0BA397DE3A24E5FE037ECAB27DB7901",
+      "size": 7091,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
       "path": "scripts/manage_experience_rules.py",
       "redistributable": true,
       "sha256": "6B2D549BF72A943FE5335D58C02B5AF3106F3EBA04590BB731F9F3FE29CB9357",
@@ -1463,8 +2129,8 @@
       "license": "MIT",
       "path": "scripts/primer3_core_backend.py",
       "redistributable": true,
-      "sha256": "C775DFE78174D78B925F32D7A7C43A251A6F43E30BD86F06941F8EF2BB0E45C7",
-      "size": 17467,
+      "sha256": "D7D243E27517FFF94B83EDE07140B6BD4F4BEE8A6494D713717D56EFEEE5AA2C",
+      "size": 22305,
       "source_category": "project-code"
     },
     {
@@ -1551,6 +2217,15 @@
     {
       "exclusion_reason": null,
       "license": "MIT",
+      "path": "scripts/run_10_acceptance_benchmarks.py",
+      "redistributable": true,
+      "sha256": "BBD7D483474D6498E372D0EB4E85B1F4529A9F4DFBF8EB97F4BBB740E0D46DFB",
+      "size": 24904,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
       "path": "scripts/run_architecture_recovery_examples.py",
       "redistributable": true,
       "sha256": "BFCB022C1CC6D948D59FC51B5FF630A364C1898333EEDE9FE1D5A7415D2DF1EF",
@@ -1571,8 +2246,35 @@
       "license": "MIT",
       "path": "scripts/run_design_agent.py",
       "redistributable": true,
-      "sha256": "27294C645728FB70CE51A12A70F0F994DAAB4A7E72DE83380EE3BBD9F86EB7C1",
-      "size": 6485,
+      "sha256": "0591C99C7753881B24522F1573BB8DCB1B7BA9632521ACA60316190D66D06853",
+      "size": 6814,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "scripts/run_e2e_benchmarks.py",
+      "redistributable": true,
+      "sha256": "B0E08B2257CE9E00FABD699E06B3F2EF19F3833964BDB784F43C9850051762A4",
+      "size": 16312,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "scripts/run_pipeline.py",
+      "redistributable": true,
+      "sha256": "8E863E3D672DA4B95EC1F2602A799FA0A8AFD51CBD309D2D1DCF18710C059323",
+      "size": 4718,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "scripts/run_recipe.py",
+      "redistributable": true,
+      "sha256": "E2C6EF18A862E425E4DF3916DDD77A4CE0077A2A08D68F006D3C47125B7C480B",
+      "size": 11762,
       "source_category": "project-code"
     },
     {
@@ -1607,8 +2309,8 @@
       "license": "MIT",
       "path": "scripts/sg_common.py",
       "redistributable": true,
-      "sha256": "0B67560490DDD3D27527830F7C9CA22C028E401CE2FB032CC6DED8C4106E76C8",
-      "size": 12769,
+      "sha256": "CEE64281CE8E5DB2B7D1631FA5C0C8D6D89ED1133A0825CD490D9ADF80C3F6DB",
+      "size": 9005,
       "source_category": "project-code"
     },
     {
@@ -1616,8 +2318,8 @@
       "license": "MIT",
       "path": "scripts/simulate_advanced.py",
       "redistributable": true,
-      "sha256": "78E3C781CD68C7F81B8BCEFE43D0D1DC952510C2DA74C9FA74BE50D7B226F71C",
-      "size": 22314,
+      "sha256": "4611824C3EC560C551CA5BC877B40B073DB6C96CF50A384FA3F5FD19C91DE82B",
+      "size": 12636,
       "source_category": "project-code"
     },
     {
@@ -1751,8 +2453,8 @@
       "license": "MIT",
       "path": "scripts/write_dna.py",
       "redistributable": true,
-      "sha256": "B7F8063B4DC2BBEB56D45B6440416517C06223D46AECD5320DC0D69DFB02F0C8",
-      "size": 5905,
+      "sha256": "267E148937E9660A49DC7C8750EA417662EA3D4A1C47BB1FDD9941BBA3E1F107",
+      "size": 3901,
       "source_category": "project-code"
     },
     {
@@ -1760,9 +2462,27 @@
       "license": "MIT",
       "path": "SKILL.md",
       "redistributable": true,
-      "sha256": "2DCE2D8EC9CC44129E844E2AA0750F063E2A1527428E748BAA8B2113F3C3E271",
-      "size": 7200,
+      "sha256": "44015C19124CFA839A36B8829D5DAAA97BB0C1085AC6F5D8EF3EB8570D8F07B4",
+      "size": 8249,
       "source_category": "documentation"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "tests/test_10_acceptance_benchmarks.py",
+      "redistributable": true,
+      "sha256": "1BA5F5ABDF3A4D4A0171184F3E10672BAC9431F5E2EDF63BD728078B5B800536",
+      "size": 720,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "tests/test_annotate_primers.py",
+      "redistributable": true,
+      "sha256": "288C4F5FC29113986DBE468753535E8207A3E3028261A6FC84558AD15A5BFBE9",
+      "size": 13318,
+      "source_category": "project-code"
     },
     {
       "exclusion_reason": null,
@@ -1771,6 +2491,15 @@
       "redistributable": true,
       "sha256": "DD443EF5BE96448494D506D9CF7AB296ACA6836D6BCC009D1C748675CFA6FA5E",
       "size": 33535,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "tests/test_atomic_tools.py",
+      "redistributable": true,
+      "sha256": "C189E651D70D3701A223AE9BE9B606CBA36AE94CC89BA4831E9F41C5BB9BB191",
+      "size": 18394,
       "source_category": "project-code"
     },
     {
@@ -1794,6 +2523,24 @@
     {
       "exclusion_reason": null,
       "license": "MIT",
+      "path": "tests/test_cli_scenarios.py",
+      "redistributable": true,
+      "sha256": "3479A04AC02BA70D517972A8BD9346C5443F43384CC920019EE5F50DC7552B1B",
+      "size": 9191,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "tests/test_composite_pipeline.py",
+      "redistributable": true,
+      "sha256": "040F41EB7596843EDE81C3AF1EC980C6EA5FDE828E113CF3482A8C8DB7AB1B94",
+      "size": 3841,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
       "path": "tests/test_construction_task_session.py",
       "redistributable": true,
       "sha256": "8940AE771106F6711A91AD4EBDC7E4F9D19208A3E9AF304EE9723103C3CD33F3",
@@ -1807,6 +2554,15 @@
       "redistributable": true,
       "sha256": "5EE6B911605F7E650341B9308FA6EC06CCFF366D5E00CFDB52AB6536F8686023",
       "size": 29585,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "tests/test_defect_governance.py",
+      "redistributable": true,
+      "sha256": "76AF29792AD7A97F5327BFC0DF410D74A82F16D2192007403C102D2581614C87",
+      "size": 15914,
       "source_category": "project-code"
     },
     {
@@ -1830,10 +2586,28 @@
     {
       "exclusion_reason": null,
       "license": "MIT",
+      "path": "tests/test_e2e_benchmarks.py",
+      "redistributable": true,
+      "sha256": "B97A07302724F0312527858A490C34ADD6D869FC82C7D24402FC984E930C35A1",
+      "size": 15339,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
       "path": "tests/test_e2e_scenarios.py",
       "redistributable": true,
       "sha256": "560FDA6946CD6D94CECF27795EA471207FCBB217B067565288A71441790B3B2E",
       "size": 8824,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "tests/test_experience_helper.py",
+      "redistributable": true,
+      "sha256": "C0CF9350C1A798106B06F61D6E2DAD1EA962D4D322E67C5169869FF61559ED2B",
+      "size": 2647,
       "source_category": "project-code"
     },
     {
@@ -1852,6 +2626,15 @@
       "redistributable": true,
       "sha256": "6366D514CAD694EA93D146779BE90D9534B2C3013F50FF084D441F8E13A4DF4C",
       "size": 47242,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "tests/test_guardrails.py",
+      "redistributable": true,
+      "sha256": "B6DC007639F30C8C0F7C708E4553976D3D21D1F950D2ABFC6DE34D3CF2DFD397",
+      "size": 12018,
       "source_category": "project-code"
     },
     {
@@ -1884,6 +2667,15 @@
     {
       "exclusion_reason": null,
       "license": "MIT",
+      "path": "tests/test_pipeline_agent.py",
+      "redistributable": true,
+      "sha256": "3D93AB4FAA2C6B44AFDEBB24CDA3F3E3B02EDE8AC15AE2A0805A7CA779DA4D77",
+      "size": 5195,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
       "path": "tests/test_primer3_core_backend.py",
       "redistributable": true,
       "sha256": "7C81C8D713080963A1090762B9E90C83FDD70BD0BB86C16C4EBF7F39B54D351C",
@@ -1893,10 +2685,28 @@
     {
       "exclusion_reason": null,
       "license": "MIT",
+      "path": "tests/test_primer3_unification.py",
+      "redistributable": true,
+      "sha256": "2B16A421CCB7AB9600DCCD8AD62F8C90AF9903A570FF787608C54B4DC4CC16A6",
+      "size": 3507,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
       "path": "tests/test_readme_commands.py",
       "redistributable": true,
       "sha256": "2B0EC1824489F36AD2B897CA93BD738CE3ADBFDE8A34915D7485F43B3D6DFA49",
       "size": 1972,
+      "source_category": "project-code"
+    },
+    {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "tests/test_recipes.py",
+      "redistributable": true,
+      "sha256": "E9772F3E86A296923F08E13A264722015BC73FEA0A81B4930B55B59A298A4B9B",
+      "size": 7890,
       "source_category": "project-code"
     },
     {
@@ -1972,12 +2782,21 @@
       "source_category": "project-code"
     },
     {
+      "exclusion_reason": null,
+      "license": "MIT",
+      "path": "tests/test_tool_registry.py",
+      "redistributable": true,
+      "sha256": "48FB990066B246D37C1C8F565AD76A9F330B3B51BF2F468966CDAF3C4E7AE710",
+      "size": 7064,
+      "source_category": "project-code"
+    },
+    {
       "exclusion_reason": "depends-on-restricted-fixtures",
       "license": "MIT",
       "path": "tests/test_v03.py",
       "redistributable": false,
-      "sha256": "D7159AC4A171632C4A448FC2A5DEE6A69B3A3B9684CBE94F275687A9C362F9BE",
-      "size": 5864,
+      "sha256": "67D79C2144659F8FC3C1F1226A9666582E7EA193C23A1B6D929840DB41405873",
+      "size": 5989,
       "source_category": "project-code"
     },
     {
@@ -1985,8 +2804,8 @@
       "license": "MIT",
       "path": "tests/test_v04.py",
       "redistributable": false,
-      "sha256": "096A0CE75D360480D156E00AB0F60002787A3C2993521BC95C0C7A2CCB47213E",
-      "size": 20818,
+      "sha256": "EC3721DA41F544C17527E5970B2784F3027A94F2550729FBFD026793C58CFEEB",
+      "size": 21342,
       "source_category": "project-code"
     },
     {
@@ -2030,8 +2849,8 @@
       "license": "MIT",
       "path": "tests/test_v08_dev3.py",
       "redistributable": true,
-      "sha256": "B7757087BEC3734E853EAC03D7B984A16D85071D4C03253FE3FAF97F6BB18BAE",
-      "size": 24845,
+      "sha256": "98242B45235370AE71F1D24D8B25A4A49CEB12B941970E5175BFD1D814D9067D",
+      "size": 24940,
       "source_category": "project-code"
     },
     {
@@ -2039,8 +2858,8 @@
       "license": "MIT",
       "path": "tests/test_v08_gate_coverage.py",
       "redistributable": true,
-      "sha256": "DFF9D458EDC52CFAE5557421ED2460309E18195F8C0BF1B183C6A1578C408803",
-      "size": 45657,
+      "sha256": "F44C21E7129DC474A8AE88AADA6E1ED85999680A559DB83B9E9118CB55A6BC9A",
+      "size": 44972,
       "source_category": "project-code"
     },
     {

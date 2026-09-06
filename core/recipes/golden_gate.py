@@ -91,7 +91,7 @@ def recipe_golden_gate(
         completeness="complete_construct",
         product_sequence=res["product_sequence"],
         product_topology=res["product_topology"],
-        features=[],
+        features=res["features"],
         primers=[],
         quality_checks=quality_checks,
         warnings=warnings,

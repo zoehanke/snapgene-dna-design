@@ -370,15 +370,38 @@ def finalize_candidate_construct(
             "Authoritative promotion refused: requires explicit user confirmation (--confirmed).",
         )
 
-    if not sanity_check.get("all_applicable_pass", True):
-        failed = sanity_check.get("failed_codes") or sanity_check.get("blocking_codes", [])
+    table = sanity_check.get("guardrail_status_table") if isinstance(sanity_check, dict) else None
+    valid_evidence = (
+        isinstance(table, dict) and bool(table)
+        and sanity_check.get("all_applicable_pass") is True
+        and not any(sanity_check.get(k) for k in ("failed_codes", "blocking_codes", "unknown_codes"))
+        and any(isinstance(item, dict) and item.get("applicable") is True for item in table.values())
+        and all(
+            isinstance(item, dict) and (
+                (item.get("applicable") is True and item.get("status") == "PASS")
+                or (item.get("applicable") is False and item.get("status") == "N/A")
+            ) for item in table.values()
+        )
+    )
+    if not valid_evidence:
         raise GateRejected(
             "GATE_GUARDRAILS_FAILED",
-            f"Authoritative promotion refused: biological guardrails failed on {failed}",
+            "Authoritative promotion refused: missing, incomplete, or failed biological guardrail evidence",
         )
 
     gb_path = pathlib.Path(candidate_gb).resolve()
     fa_path = pathlib.Path(candidate_fasta).resolve()
+
+    # Recheck the annotated candidate itself; a passing report for another
+    # sequence (or for a bare string with its CDS omitted) is not sufficient.
+    from core.guardrails.checklist import quick_biological_sanity_check
+    with gb_path.open(encoding="utf-8") as handle:
+        candidate_record = SeqIO.read(handle, "genbank")
+    actual_sanity = quick_biological_sanity_check(
+        candidate_record, topology=candidate_record.annotations.get("topology", "linear"), is_cds=False,
+    )
+    if actual_sanity["all_applicable_pass"] is not True or sanity_check.get("sequence_length") != len(candidate_record):
+        raise GateRejected("GATE_GUARDRAILS_FAILED", "Annotated candidate failed biological guardrails or does not match the supplied report")
 
     manifest_payload = {
         "schema_version": "delivery-manifest-v1",

@@ -10,6 +10,18 @@ from __future__ import annotations
 import inspect
 from dataclasses import dataclass, field
 from typing import Any, Callable, Literal
+from Bio.SeqRecord import SeqRecord
+
+
+def _schema_value(value):
+    """Check the sequence-shaped JSON view while passing annotated records intact."""
+    if isinstance(value, SeqRecord):
+        return str(value.seq)
+    if isinstance(value, dict):
+        return {key: _schema_value(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_schema_value(item) for item in value]
+    return value
 
 ToolCategory = Literal["compute", "inspect", "write", "external", "network"]
 
@@ -46,7 +58,7 @@ class ToolSpec:
         """Invoke the tool with validated and adapted parameters using inspect.signature().bind()."""
         import jsonschema
         adapted = self.adapt_params(kwargs)
-        jsonschema.validate(instance=adapted, schema=self.parameters_schema)
+        jsonschema.validate(instance=_schema_value(adapted), schema=self.parameters_schema)
         sig = inspect.signature(self.callable)
         bound = sig.bind(**adapted)
         bound.apply_defaults()
@@ -54,6 +66,8 @@ class ToolSpec:
 
     def extract_sequence(self, result: Any) -> str:
         """Extract primary DNA/protein sequence string from tool result if applicable."""
+        if isinstance(result, SeqRecord):
+            return str(result.seq).upper()
         if isinstance(result, str):
             return result
         if isinstance(result, dict):

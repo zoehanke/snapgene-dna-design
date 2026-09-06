@@ -14,6 +14,7 @@ from typing import Any
 
 from Bio import SeqIO
 from Bio.Seq import Seq
+from Bio.SeqFeature import CompoundLocation, FeatureLocation, SeqFeature
 from Bio.SeqRecord import SeqRecord
 
 # Standard IUPAC nucleotide alphabet (including ambiguity codes)
@@ -34,16 +35,19 @@ def _read_record_from_file(p: pathlib.Path) -> SeqRecord:
                 raise ValueError(f"Failed to parse SnapGene .dna file '{p}': {exc}") from exc
     elif suffix in (".gb", ".gbk", ".genbank"):
         try:
-            return SeqIO.read(str(p), "genbank")
+            with p.open(encoding="utf-8") as handle:
+                return SeqIO.read(handle, "genbank")
         except Exception as exc:
             raise ValueError(f"Failed to parse GenBank file '{p}': {exc}") from exc
     else:
         # Default to FASTA or auto-detect
         try:
-            return SeqIO.read(str(p), "fasta")
+            with p.open(encoding="utf-8") as handle:
+                return SeqIO.read(handle, "fasta")
         except Exception:
             try:
-                return SeqIO.read(str(p), "genbank")
+                with p.open(encoding="utf-8") as handle:
+                    return SeqIO.read(handle, "genbank")
             except Exception as exc:
                 raise ValueError(f"Failed to parse sequence file '{p}': {exc}") from exc
 
@@ -73,6 +77,29 @@ def resolve_sequence_input(
     if isinstance(value, SeqRecord):
         seq_str = str(value.seq).upper()
         return value, seq_str
+
+    if isinstance(value, dict):
+        # Existing tool/Recipe results use sequence plus serialized features.
+        sequence = value.get("sequence", value.get("product_sequence", value.get("amplicon")))
+        if not isinstance(sequence, str):
+            raise ValueError("Sequence result must contain a sequence string")
+        rec = SeqRecord(Seq(sequence.upper()), id=record_id, annotations={
+            "molecule_type": "DNA",
+            "topology": value.get("product_topology", value.get("topology", default_topology)),
+        })
+        for feature in value.get("features", []):
+            location = feature.get("location") or {}
+            parts = location.get("parts")
+            if parts:
+                locations = [FeatureLocation(p["start0"], p["end0"], strand=p.get("strand") or None) for p in parts]
+                loc = locations[0] if len(locations) == 1 else CompoundLocation(locations, operator=location.get("operator") or "join")
+            else:
+                start, end = feature.get("interval_0based", [feature.get("start", 0), feature.get("end", 0)])
+                loc = FeatureLocation(start, end, strand=feature.get("strand", 1))
+            qualifiers = {k: list(v) if isinstance(v, list) else [str(v)] for k, v in feature.get("qualifiers", {}).items()}
+            qualifiers.setdefault("label", [feature.get("name", "feature")])
+            rec.features.append(SeqFeature(loc, type=feature.get("type", "misc_feature"), qualifiers=qualifiers))
+        return rec, str(rec.seq)
 
     if isinstance(value, pathlib.Path):
         if not value.exists():
