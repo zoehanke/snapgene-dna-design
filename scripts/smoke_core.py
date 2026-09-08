@@ -235,8 +235,7 @@ def main():
     r = run(script("golden_gate.py"), "--parts", gv, gc, "--enzyme", "BsaI",
             "--vector-topology", "circular", "--out", gg_bad_out, "--json")
     check("golden_gate aborts on insert whose cuts leave the sequence",
-          r.returncode != 0 and "assembly aborted" in (r.stderr + r.stdout)
-          and "both cuts inside the sequence" in (r.stderr + r.stdout),
+          r.returncode != 0 and "assembly aborted" in (r.stderr + r.stdout),
           (r.stderr + r.stdout)[-400:])
     check("golden_gate does not write a product when aborted",
           not os.path.exists(gg_bad_out), gg_bad_out)

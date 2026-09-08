@@ -35,27 +35,41 @@ def main(argv=None):
 
     out = pathlib.Path(args.out_dir)
     out.mkdir(parents=True, exist_ok=True)
-    raw_task = json.loads(pathlib.Path(args.task_json).read_text(
-        encoding="utf-8"))
-
-    session = ConstructionTaskSession(raw_task, base_dir=args.base_dir)
-    if args.answers_json:
-        answers = json.loads(pathlib.Path(args.answers_json).read_text(
+    try:
+        raw_task = json.loads(pathlib.Path(args.task_json).read_text(
             encoding="utf-8"))
+    except Exception as exc:
+        result = _failure_result("TASK_JSON_INVALID", str(exc))
+        _emit(result, args, out)
+        return 2
+
+    try:
+        session = ConstructionTaskSession(raw_task, base_dir=args.base_dir)
+    except CoreError as exc:
+        result = _failure_result(exc.error_code, exc.message, error=exc.to_dict())
+        _emit(result, args, out)
+        return 2
+    except Exception as exc:
+        result = _failure_result("TASK_SESSION_INVALID", str(exc))
+        _emit(result, args, out)
+        return 2
+    if args.answers_json:
+        try:
+            answers = json.loads(pathlib.Path(args.answers_json).read_text(
+                encoding="utf-8"))
+        except Exception as exc:
+            result = _failure_result("ANSWERS_JSON_INVALID", str(exc), session=session)
+            _emit(result, args, out)
+            return 2
         if not isinstance(answers, dict):
-            result = {"status": "blocked",
-                      "error_code": "ANSWERS_MUST_BE_OBJECT",
-                      "write_authoritative_artifact": False}
+            result = _failure_result("ANSWERS_MUST_BE_OBJECT", "answers JSON must be an object", session=session)
             _emit(result, args, out)
             return 2
         for question_id, value in answers.items():
             try:
                 session.answer(question_id, value)
             except (KeyError, ValueError) as exc:
-                result = {"status": "blocked",
-                          "error_code": "INVALID_ANSWER",
-                          "message": str(exc),
-                          "write_authoritative_artifact": False}
+                result = _failure_result("INVALID_ANSWER", str(exc), session=session)
                 _emit(result, args, out)
                 return 2
 
@@ -66,6 +80,8 @@ def main(argv=None):
             "questions": open_questions,
             "session": session.to_record(),
             "write_authoritative_artifact": False,
+            "delivery": None,
+            "historical_artifacts_preserved": True,
         }
         _emit(result, args, out)
         return 3
@@ -86,6 +102,9 @@ def main(argv=None):
                     "error": exc.to_dict(),
                     "validation": report,
                     "session": session.to_record(),
+                    "delivery": None,
+                    "write_authoritative_artifact": False,
+                    "historical_artifacts_preserved": True,
                 }
                 _emit(result, args, out)
                 return 2
@@ -110,6 +129,8 @@ def main(argv=None):
             "validation": report,
             "delivery": delivery,
             "session": session.to_record(),
+            "write_authoritative_artifact": bool(delivery),
+            "historical_artifacts_preserved": delivery is None,
         }
         _emit(result, args, out)
         return 0 if delivery else 2
@@ -118,7 +139,14 @@ def main(argv=None):
             "status": exc.status,
             "error": exc.to_dict(),
             "session": session.to_record(),
+            "delivery": None,
+            "write_authoritative_artifact": False,
+            "historical_artifacts_preserved": True,
         }
+        _emit(result, args, out)
+        return 2
+    except Exception as exc:
+        result = _failure_result("RUNTIME_ERROR", str(exc), session=session)
         _emit(result, args, out)
         return 2
 
@@ -134,6 +162,28 @@ def _emit(result, args, out):
             for question in result["questions"]:
                 print("[%s] %s" % (question["question_id"],
                                    question["question"]))
+
+
+def _failure_result(error_code, message, session=None, error=None):
+    """Emit current failure state without touching prior delivery artifacts."""
+    result = {
+        "status": "blocked",
+        "error": error or {
+            "status": "blocked",
+            "error_code": error_code,
+            "message": message,
+            "missing_fields": [],
+            "questions": [],
+            "details": {},
+            "write_authoritative_artifact": False,
+        },
+        "delivery": None,
+        "write_authoritative_artifact": False,
+        "historical_artifacts_preserved": True,
+    }
+    if session is not None:
+        result["session"] = session.to_record()
+    return result
 
 
 if __name__ == "__main__":

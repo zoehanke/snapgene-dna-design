@@ -32,6 +32,7 @@ user_rules/pending.json
 # Explicitly allow synthetic fixtures tracked in this repository
 !fixtures/rich/*.gb
 !fixtures/synthetic/**
+!tests/data/pBP-eGFP.gb
 
 # Local IDE and OS files
 .idea/

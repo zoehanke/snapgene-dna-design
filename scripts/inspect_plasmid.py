@@ -68,7 +68,7 @@ def inspect_single_file(file_path: str | pathlib.Path, enzymes: list[str] | None
 
     for f in getattr(rec, "features", []):
         ftype = f.type
-        if ftype == "source":
+        if ftype == "source" or f.location is None:
             continue
 
         name = ""
@@ -82,7 +82,7 @@ def inspect_single_file(file_path: str | pathlib.Path, enzymes: list[str] | None
 
         start = int(f.location.start)
         end = int(f.location.end)
-        length = end - start
+        length = len(f)
         strand = 1 if f.location.strand != -1 else -1
 
         feat_dict = {
@@ -92,14 +92,15 @@ def inspect_single_file(file_path: str | pathlib.Path, enzymes: list[str] | None
             "end_0based": end,
             "length_bp": length,
             "strand": strand,
+            "parts_0based": [[int(part.start), int(part.end)] for part in f.location.parts],
         }
 
         name_lower = name.lower()
-        if ftype in ("rep_origin", "origin") or "ori" in name_lower:
+        if ftype in ("rep_origin", "origin"):
             oris.append(feat_dict)
-        elif any(kw in name_lower for kw in ("amp", "kan", "cm", "tet", "spec", "hyg", "puro", "neo", "bla", "resis")):
+        elif ftype in ("CDS", "gene") and any(kw in name_lower for kw in ("ampr", "kanr", "cmr", "cat", "tet", "spec", "hyg", "puro", "neo", "bla", "resis")):
             markers.append(feat_dict)
-        elif "promoter" in ftype or "promoter" in name_lower or any(p in name_lower for p in ("t7", "cmv", "sp6", "lac", "tac", "sv40")):
+        elif ftype == "promoter" or (ftype in ("misc_feature", "regulatory") and "promoter" in name_lower):
             promoters.append(feat_dict)
         elif ftype == "CDS":
             in_frame = (length % 3 == 0)

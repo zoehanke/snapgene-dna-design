@@ -16,6 +16,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 from Bio import SeqIO
 from Bio.Seq import Seq
@@ -812,9 +813,12 @@ class RoundTripEdgeTests(unittest.TestCase):
         if not FIXTURES.is_dir():
             self.skipTest("rich fixtures not present")
         fixture = FIXTURES / "rich_fwd_cds.gb"
-        result = validate_roundtrip.validate(
-            str(fixture), "snapgene-gb", snapgene_exe=None,
-            require_snapgene=True, strict=True)
+        # The product finder also checks the real D: installation. Mock the
+        # imported finder seam to exercise the missing-executable contract.
+        with mock.patch("validate_roundtrip.find_snapgene_executable", return_value=None):
+            result = validate_roundtrip.validate(
+                str(fixture), "snapgene-gb", snapgene_exe=None,
+                require_snapgene=True, strict=True)
         self.assertFalse(result["passed"])
         self.assertEqual(
             result["official_snapgene_roundtrip"]["status"],

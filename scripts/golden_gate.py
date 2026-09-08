@@ -46,6 +46,16 @@ from assembly_model import (
 )
 from sg_common import get_enzyme, jfail, jprint, load_seq, restriction_hits, topology
 
+# Keep the legacy CLI as a thin adapter over the core cut geometry.  Passing
+# the locally imported ``restriction_hits`` result into the shared helper also
+# preserves the CLI's historical test seam and makes both entry points reject
+# the same internal-site and orientation errors.
+from core.tools.assembly import (
+    _reverse_feature_dicts,
+    migrate_features_after_assembly,
+    type_iis_fragment as _core_type_iis_fragment,
+)
+
 # Supported Type IIS enzymes (resolved through Bio.Restriction so that the
 # official recognition site and cut offsets are used, not hard-coded guesses).
 TYPE_IIS = ["BsaI", "BbsI", "BsmBI", "BtgZI", "SapI", "AarI"]
@@ -62,9 +72,10 @@ def _arc(seq, start0, end0):
     n = len(seq)
     if n == 0:
         return ""
+    raw_span = int(end0) - int(start0)
     start0 %= n
     end0 %= n
-    length = (end0 - start0) % n
+    length = n if raw_span and raw_span % n == 0 else (end0 - start0) % n
     if length == 0:
         return ""
     doubled = seq + seq
@@ -93,109 +104,18 @@ def part_fragment(record, enzyme, topology_override=None):
     are physically invalid and are rejected; only an internal, non-wrapping
     fragment is accepted.
     """
-    seq = str(record.seq).upper()
     part_topology = topology_override or topology(record)
     circular = part_topology == "circular"
-    hits = restriction_hits(seq, enzyme, circular=circular)
-    hits = [h for h in hits if h["cuts_within_sequence"]]
-    if len(hits) < 2:
-        return {
-            "ok": False,
-            "reason": "only %d Type IIS site(s) with both cuts inside the sequence" % len(hits),
-            "hit_count": len(hits),
-        }
-
-    candidates = []
-    wrap_candidates = 0
-    for i in range(len(hits)):
-        for j in range(i + 1, len(hits)):
-            h1, h2 = hits[i], hits[j]
-            t1 = h1["top_cut_boundary_0based"]
-            b1 = h1["bottom_cut_boundary_0based"]
-            t2 = h2["top_cut_boundary_0based"]
-            b2 = h2["bottom_cut_boundary_0based"]
-            ov1 = _arc(seq, t1, b1)
-            ov2 = _arc(seq, t2, b2)
-            if not ov1 or len(ov1) != len(ov2):
-                continue
-            frag_a = _arc(seq, t1, t2)
-            frag_b = _arc(seq, t2, t1)
-            for fragment, left_ov, right_ov, start0, end0 in (
-                (frag_a, ov1, ov2, t1, t2),
-                (frag_b, ov2, ov1, t2, t1),
-            ):
-                if not fragment or _contains_recognition(fragment, enzyme):
-                    continue
-                # On a linear molecule the top strand of a fragment can only
-                # run from the lower cut boundary to the higher one. A
-                # start >= end candidate is the "end + beginning" concat of
-                # a circularized molecule and is rejected here.
-                wraps = start0 >= end0
-                if not circular and wraps:
-                    wrap_candidates += 1
-                    continue
-                candidates.append({
-                    "fragment": fragment,
-                    "left_overhang": left_ov,
-                    "right_overhang": right_ov,
-                    "overhang_length": len(left_ov),
-                    "top_cut_start0": start0,
-                    "top_cut_end0": end0,
-                    "wraps_origin": wraps,
-                    "hit_pair": (i, j),
-                })
-
-    # A valid two-site part yields exactly one clean fragment. Multiple clean
-    # fragments mean the flanking-site choice is ambiguous (extra internal
-    # sites or an unconventional design): refuse instead of guessing.
-    unique_pairs = set(tuple(c["hit_pair"]) for c in candidates)
-    if len(unique_pairs) != 1:
-        if wrap_candidates and not circular:
-            reason = (
-                "the only recognition-free fragment is a wrap-around "
-                "'sequence-end + sequence-start' join, which is physically "
-                "invalid for a linear part; annotate the record as circular "
-                "or use --vector-topology circular for a circular vector"
-            )
-        else:
-            reason = (
-                "found %d Type IIS hits but no unambiguous fragment free of "
-                "%s recognition sites (check site orientation, extra internal "
-                "sites, or cuts outside the sequence end)" % (len(hits), str(enzyme))
-            )
-        return {
-            "ok": False,
-            "reason": reason,
-            "hit_count": len(hits),
-            "clean_candidates": len(candidates),
-            "wrap_candidates": wrap_candidates,
-        }
-    chosen = candidates[0]
-    if len(chosen["fragment"]) <= len(chosen["left_overhang"]):
-        return {
-            "ok": False,
-            "reason": "excised fragment (%d bp) is not longer than its overhang (%d bp)"
-                      % (len(chosen["fragment"]), len(chosen["left_overhang"])),
-            "hit_count": len(hits),
-        }
-
-    chosen.update({
-        "ok": True,
-        "hit_count": len(hits),
-        "topology": part_topology,
-        "recognition_sites": [
-            {
-                "start_1based": h["start"],
-                "end_1based": h["end"],
-                "strand": h["strand"],
-                "top_cut_boundary_0based": h["top_cut_boundary_0based"],
-                "bottom_cut_boundary_0based": h["bottom_cut_boundary_0based"],
-                "wraps_origin": h["wraps_origin"],
-            }
-            for h in hits
-        ],
-    })
-    return chosen
+    # Supply the locally computed hits so tests and callers that monkey-patch
+    # the legacy module still exercise exactly the shared geometry.
+    hits = [h for h in restriction_hits(str(record.seq), enzyme, circular=circular)
+            if h.get("cuts_within_sequence", True)]
+    return _core_type_iis_fragment(
+        record,
+        enzyme,
+        topology_override=part_topology,
+        hits=hits,
+    )
 
 
 def assemble(records, names, enzyme, vector_idx=0, reverse=(), vector_topology="circular"):
@@ -251,6 +171,10 @@ def assemble(records, names, enzyme, vector_idx=0, reverse=(), vector_topology="
             "fragment": fragment,
             "left_overhang": left_ov,
             "right_overhang": right_ov,
+            "features": (
+                _reverse_feature_dicts(info.get("features", []), len(fragment))
+                if reversed_flag else info.get("features", [])
+            ),
             "reversed": reversed_flag,
         })
         kept.append((i, info, nm))
@@ -274,6 +198,7 @@ def assemble(records, names, enzyme, vector_idx=0, reverse=(), vector_topology="
             "wraps_origin": info.get("wraps_origin", False),
             "topology": info["topology"],
             "recognition_sites": info["recognition_sites"],
+            "features": info.get("features", []),
             "reversed": info["reversed"],
         })
         fragment_model = AssemblyFragment(
@@ -308,7 +233,25 @@ def assemble(records, names, enzyme, vector_idx=0, reverse=(), vector_topology="
             details=mismatches,
         )
 
-    final = "".join(item[1]["fragment"] for item in ordered)
+    final = ordered[0][1]["fragment"]
+    feature_fragments = [{
+        "offset_in_product": 0,
+        "length": len(ordered[0][1]["fragment"]),
+        "features": ordered[0][1].get("features", []),
+    }]
+    for _, info, _ in ordered[1:]:
+        left_len = len(info.get("left_overhang", ""))
+        offset = len(final) - left_len
+        feature_fragments.append({
+            "offset_in_product": offset,
+            "length": len(info["fragment"]),
+            "features": info.get("features", []),
+        })
+        final += info["fragment"][left_len:]
+    if ordered[-1][1].get("right_overhang"):
+        final = final[:-len(ordered[-1][1]["right_overhang"])]
+    for part, feature_fragment in zip(parts, feature_fragments):
+        part["product_offset_0based"] = feature_fragment["offset_in_product"]
     return final, junctions, parts, notes, fragments
 
 
@@ -364,6 +307,14 @@ def main():
         "double-strand boundaries, but ligation fidelity, feature migration, "
         "and reaction constraints are not modeled; do not use as a wet-lab-ready design",
     )
+    product_features = migrate_features_after_assembly([
+        {
+            "offset_in_product": part.get("product_offset_0based", 0),
+            "length": part.get("fragment_length", 0),
+            "features": part.get("features", []),
+        }
+        for part in parts
+    ], len(final), circular=True)
 
     result = {
         "experimental": True,
@@ -376,6 +327,7 @@ def main():
         "junctions": junctions,
         "notes": notes,
         "product_sequence": final,
+        "features": product_features,
     }
 
     if args.out:
@@ -383,6 +335,12 @@ def main():
                          description="Golden Gate assembly product")
         prod.annotations["molecule_type"] = "DNA"
         prod.annotations["topology"] = "circular"
+        from core.io.input_resolution import resolve_sequence_record
+        prod.features = resolve_sequence_record({
+            "sequence": final,
+            "topology": "circular",
+            "features": product_features,
+        }).features
         with open(args.out, "w", encoding="utf-8") as fh:
             SeqIO.write(prod, fh, "genbank")
         result["out_file"] = args.out

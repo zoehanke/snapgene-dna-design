@@ -10,6 +10,8 @@ import warnings as py_warnings
 from Bio import SeqIO
 
 from sg_common import jprint, load_seq, topology
+from core.tools.snapgene_io import find_snapgene_executable
+from core.tools.feature_ops import canonical_location_parts
 from write_dna import _ensure_annotations, _snapgene_annotated, write_native_dna
 
 
@@ -21,18 +23,10 @@ def _label(feature):
 
 
 def _feature_core(feature):
-    parts = getattr(feature.location, "parts", [feature.location])
     return (
         feature.type,
         _label(feature),
-        getattr(feature.location, "operator", None),
-        tuple(
-            (
-                int(part.start), int(part.end),
-                0 if part.strand is None else int(part.strand),
-            )
-            for part in parts
-        ),
+        *canonical_location_parts(feature.location),
     )
 
 
@@ -160,16 +154,11 @@ def _write(record, fmt, path):
 
 
 def _find_snapgene(explicit=None):
-    candidates = [
-        explicit,
-        os.environ.get("SNAPGENE_EXE"),
-        os.path.join(os.environ.get("ProgramFiles", ""), "SnapGene", "SnapGene.exe"),
-        os.path.join(os.environ.get("ProgramFiles(x86)", ""), "SnapGene", "SnapGene.exe"),
-    ]
-    for candidate in candidates:
-        if candidate and os.path.isfile(candidate):
-            return os.path.abspath(candidate)
-    return None
+    if explicit:
+        candidate = os.path.abspath(explicit)
+        return candidate if os.path.isfile(candidate) else None
+    detected = find_snapgene_executable()
+    return str(detected) if detected is not None else None
 
 
 def _official_convert(executable, input_path, output_path, target_format):
@@ -231,8 +220,11 @@ def validate(source, fmt, snapgene_exe=None, require_snapgene=False, strict=Fals
         official = {"status": "skipped", "passed": None}
         if executable:
             if fmt == "dna":
-                official_path = os.path.join(temp_dir, "snapgene-export.gb")
-                target_format = "GenBank - Standard"
+                # Native primers are a separate packet. Standard GenBank
+                # export omits that packet, so native fidelity must be
+                # checked by an official Native-to-Native save.
+                official_path = os.path.join(temp_dir, "snapgene-export.dna")
+                target_format = "SnapGene DNA"
             else:
                 official_path = os.path.join(temp_dir, "snapgene-export.dna")
                 target_format = "SnapGene DNA"

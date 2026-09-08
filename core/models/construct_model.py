@@ -7,7 +7,7 @@ adapters are responsible for translating user-facing 1-based coordinates.
 import copy
 
 from Bio.Seq import Seq
-from Bio.SeqFeature import CompoundLocation, FeatureLocation
+from Bio.SeqFeature import CompoundLocation, ExactPosition, FeatureLocation
 
 
 MODEL_VERSION = "0.3.0"
@@ -50,6 +50,7 @@ def feature_to_dict(feature, sequence_length=None):
     )
     name = name_values[0] if isinstance(name_values, list) else name_values
     part_dicts = []
+    fuzzy_parts = []
     for part in loc_parts:
         pstrand = 0 if part.strand is None else int(part.strand)
         part_dicts.append({
@@ -59,6 +60,17 @@ def feature_to_dict(feature, sequence_length=None):
             "end": int(part.end),
             "strand": pstrand,
         })
+        if (not isinstance(part.start, ExactPosition) or
+                not isinstance(part.end, ExactPosition)):
+            fuzzy_parts.append(
+                "start=%s,end=%s" % (str(part.start), str(part.end))
+            )
+    if fuzzy_parts and feature.type == "CDS":
+        qualifiers.setdefault("partial", ["true"])
+        note_values = qualifiers.setdefault("note", [])
+        note = "source fuzzy location: %s" % ";".join(fuzzy_parts)
+        if note not in note_values:
+            note_values.append(note)
     wraps = False
     if len(part_dicts) > 1:
         wraps = any(
@@ -216,13 +228,69 @@ class ConstructModel:
         return self
 
     def mutate(self, mutations):
+        original = str(self.record.seq)
         bases = list(str(self.record.seq))
         for pos0, base in mutations:
             if not (0 <= pos0 < len(bases)):
                 raise ValueError("mutation position out of range: %d" % pos0)
             bases[pos0] = str(base)
         self.record.seq = Seq("".join(bases))
+
+        changed_positions = {
+            pos0 for pos0 in range(min(len(original), len(bases)))
+            if original[pos0] != bases[pos0]
+        }
+        if changed_positions:
+            self._refresh_changed_cds_translations(changed_positions)
         return self
+
+    def _refresh_changed_cds_translations(self, changed_positions):
+        """Refresh derived translations for CDS features touched by a point edit.
+
+        A point mutation does not disrupt a feature's coordinates or make it
+        partial, but any existing translation qualifier may become stale.  Keep
+        untouched features byte-for-byte unchanged and remove a touched
+        translation only when the edited CDS cannot be translated reliably.
+        """
+        for feature in self.record.features:
+            if feature.type != "CDS" or feature.location is None:
+                continue
+            parts = _parts(feature.location)
+            if not any(
+                any(int(part.start) <= pos < int(part.end) for pos in changed_positions)
+                for part in parts
+            ):
+                continue
+            if "translation" not in feature.qualifiers:
+                continue
+
+            try:
+                codon_start_value = feature.qualifiers.get("codon_start", ["1"])
+                if isinstance(codon_start_value, (list, tuple)):
+                    codon_start_value = codon_start_value[0]
+                phase = int(codon_start_value) - 1
+                if phase not in (0, 1, 2):
+                    raise ValueError("codon_start must be 1, 2, or 3")
+
+                table_value = feature.qualifiers.get("transl_table", ["1"])
+                if isinstance(table_value, (list, tuple)):
+                    table_value = table_value[0]
+                table = int(table_value)
+                coding = feature.extract(self.record.seq)[phase:]
+                if len(coding) == 0 or len(coding) % 3:
+                    raise ValueError("edited CDS is not complete codons after codon_start")
+                try:
+                    translated = str(coding.translate(table=table, cds=True))
+                except Exception:
+                    # Partial or otherwise non-canonical CDS annotations can
+                    # still carry a useful derived translation.  Fall back to
+                    # ordinary translation, but never preserve stale text.
+                    translated = str(coding.translate(table=table, to_stop=False))
+                    if translated.endswith("*"):
+                        translated = translated[:-1]
+                feature.qualifiers["translation"] = [translated]
+            except Exception:
+                feature.qualifiers.pop("translation", None)
 
     def rotate(self, origin0, topology=None):
         """Move origin0 to coordinate zero and retain every location part."""

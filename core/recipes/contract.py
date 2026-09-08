@@ -41,15 +41,16 @@ class RecipeResult:
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary, merging top-level fields and recipe-specific details."""
         d = asdict(self)
-        det = d.pop("details", {})
-        d.update(det)
-        return d
+        # Recipe-specific detail must never change a contract field's type.
+        # Retain the nested detail and expose non-contract extras for older callers.
+        det = d["details"]
+        return {**det, **d}
 
     def __getitem__(self, key: str) -> Any:
-        if key in self.details:
-            return self.details[key]
         if hasattr(self, key):
             return getattr(self, key)
+        if key in self.details:
+            return self.details[key]
         raise KeyError(key)
 
     def __setitem__(self, key: str, value: Any) -> None:
@@ -62,8 +63,8 @@ class RecipeResult:
         return (key in self.details) or hasattr(self, key)
 
     def get(self, key: str, default: Any = None) -> Any:
-        if key in self.details:
-            return self.details[key]
         if hasattr(self, key):
             return getattr(self, key)
+        if key in self.details:
+            return self.details[key]
         return default

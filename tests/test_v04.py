@@ -12,6 +12,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 from Bio import SeqIO
 from Bio.Seq import Seq
@@ -25,7 +26,7 @@ FIXTURES = ROOT / "fixtures"
 GOLDEN = FIXTURES / "golden"
 sys.path.insert(0, str(SCRIPTS))
 
-from validate_roundtrip import compare_records  # noqa: E402
+from validate_roundtrip import compare_records, validate  # noqa: E402
 
 
 def run_script(name, *args):
@@ -208,22 +209,13 @@ class FailureContractTests(unittest.TestCase):
     def test_roundtrip_reports_and_can_require_qualifier_equality(self):
         if not (FIXTURES / "pDONR201.dna").exists():
             self.skipTest("fixtures/pDONR201.dna not present (academic-only)")
-        completed = run_script(
-            "validate_roundtrip.py", str(FIXTURES / "pDONR201.dna"),
-            "--format", "dna", "--json")
-        self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
-        payload = parsed(completed)
-        self.assertTrue(payload["core_passed"])
-        self.assertTrue(payload["strict_passed"])
-        self.assertFalse(any("qualifiers differ" in w for w in payload["warnings"]))
-
-        completed = run_script(
-            "validate_roundtrip.py", str(FIXTURES / "pDONR201.dna"),
-            "--format", "dna", "--strict", "--json")
-        self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
-        payload = parsed(completed)
-        self.assertTrue(payload["ok"])
-        self.assertTrue(payload["strict_passed"])
+        # This test covers the internal semantic round trip only. Official
+        # SnapGene integration remains covered by explicit integration runs.
+        with mock.patch("validate_roundtrip.find_snapgene_executable", return_value=None):
+            result = validate(str(FIXTURES / "pDONR201.dna"), "dna", strict=True)
+        self.assertTrue(result["core_passed"])
+        self.assertTrue(result["strict_passed"])
+        self.assertFalse(any("qualifiers differ" in w for w in result["warnings"]))
 
     def test_circular_gibson_validates_and_trims_closing_overlap(self):
         a = self.tmp_path / "a.fa"

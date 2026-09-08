@@ -1,122 +1,73 @@
 ---
 name: "snapgene-dna-design"
-description: "SnapGene-compatible DNA plasmid design and molecular biology engineering skill. Inspects plasmids, designs PCR primers, runs isothermal Gibson assembly, restriction cloning, Golden Gate, CRISPR HDR donors, site-directed mutagenesis, in-frame protein tag fusions, and colony verification QC. Exports verified native SnapGene (.dna), GenBank (.gb), and FASTA files. Invoke whenever the user asks to design, inspect, clone, mutate, tag, or verify plasmids and DNA sequences."
+description: "Design, inspect, and verify plasmids and DNA constructs with the repository's recipes and atomic tools. Invoke for cloning, assembly, mutagenesis, tagging, HDR donors, guide vectors, or verification designs."
 ---
 
-# SnapGene DNA Design Skill
+# SnapGene DNA Design
 
-A rigorous, production-grade molecular biology and plasmid design skill runtime for AI coding assistants (Codex, Claude Code, Antigravity, Cursor, ChatGPT).
+Use this skill to turn a molecular-biology request into an inspectable sequence design and an explicit preparation chain. Keep design output, physical source material, and verification evidence separate.
 
-## Architectural Principles
+## Short workflow
 
-1. **Host LLM is the Sole Brain**: You (the LLM in the user's chat window) converse naturally with researchers, understand experimental goals, inspect plasmid features, and select design strategies.
-2. **Skill Runtime Provides Hands & Quality Gates**:
-   - **Atomic Tools (`core/tools/`)**: 38 pure, deterministic biological operations registered in `TOOL_REGISTRY`.
-   - **Standard SOP Recipes (`core/recipes/`)**: 7 gold-standard laboratory SOPs backed by authoritative literature.
-   - **Biological Guardrails (`core/guardrails/`)**: Applicability-aware factual audits (`BIO-01 ~ BIO-10`) reporting `PASS`, `FAIL`, `N/A`, or `UNKNOWN`.
-   - **Authoritative Gate (`core.runtime_gate`)**: Cryptographic SHA-256 hash chains separating draft candidates (`candidate/`) from officially signed deliverables (`authoritative/`).
+1. **Inspect sources.** Identify every source record, topology, feature interval, strand, and coordinate system. Start with:
 
----
+   ```text
+   python scripts/inspect_plasmid.py <source> [<second-source>]
+   ```
 
-## The 5-Step Operational Loop
+   Sequence inputs may be raw DNA, FASTA text, a sequence file, or a `SeqRecord` in direct Python calls. CLI JSON normally uses strings or file paths. Resolve the complete original record before designing PCR.
 
-Always follow this 5-step loop when assisting researchers with plasmid design tasks:
+2. **State intent and material status.** Record what is a complete provided fragment, what must be prepared from a source template, and what is only a design component. A backbone must have an actual PCR or digest preparation row, or be explicitly marked as supplied prepared material. Translate required and forbidden DNA components into the existing `expected_components` / `forbidden_components` fields before delivery. Recipe parameter JSON accepts these fields with explicit component sequences; Pipeline can also resolve source features. User authorization persists; do not ask for the same confirmation again.
+
+3. **Choose a standard recipe first.** Use the exact signatures and branch notes in [references/recipes.md](references/recipes.md). Use the composite pipeline only for a multi-step or non-standard route. Keep the physical order visible:
+
+   ```text
+   complete source -> PCR and/or digest -> actual intermediate -> assembly or ligation -> product checks
+   ```
+
+   A theoretical tag, fusion, or other component result can guide design. It is not a PCR template. PCR must bind the complete original template and its returned product must feed the next digest or assembly step.
+
+   In Gibson fragments mode, the runtime evaluates which forward or reverse primer carries each junction homology arm and keeps the selected layout in the preparation records.
+
+4. **Check biological context.** Verify source boundaries, orientation, cut geometry, junction sequence, topology, reading frame, and primer/template consistency. Distinguish sites consumed by the current reaction from sites required for the product's next use. A recipient or dropout cassette can need its flanking recognition sites even when its coding sequence is intact. Inspect all downstream interfaces before choosing PCR boundaries, then check their retained sequences and actual cut counts in the final file. For expression cloning, inspect the vector's real start point and the complete enzyme-to-insert boundary. Do not select a different downstream CDS to make a translation look valid. For HDR, distinguish insertion from replacement. For a guide vector, verify the full guide structure, including scaffold.
+
+   Treat an annotated CDS as complete unless its metadata explicitly identifies a partial protein, bounded tag, start-codon marker, or fuzzy boundary. For a fusion, record the complete ORF and its contained protein domains before delivery. Absence of a stop codon is a failed check, not evidence of a partial CDS.
+
+5. **Run and inspect artifacts.** Standard entry points are:
+
+   ```text
+   python scripts/run_recipe.py --recipe <recipe> --params-json params.json --out-dir build
+   python scripts/run_pipeline.py --pipeline pipeline.json --out-dir build
+   ```
+
+   Normal execution writes the product candidate and result JSON. When a result contains preparation rows, it also writes actual intermediates under `intermediates/`, source-record primer copies under `annotated_sources/`, and `primer_order_table.tsv`. Inspect the complete oligo sequence, binding core, strand, and interval separately. Long 5-prime additions use `core.tools.amplification.prepare_pcr_fragment`; every successive row names the actual preceding template, complete primers, product, and `annealing_temperature_hint_C`.
+
+   Recipe component requirements use `name`, `expected_sequence` (or `sequence`), and optional `strand` (`1` or `-1`). They are checked against the saved GenBank candidate through the existing goal validator. Failed requirements retain candidate evidence and stop delivery. An absent requirement is not a verified user goal.
+
+   Verification designs use complete-template PCR simulation and actual primer coordinates. Read the returned Tm, junction coverage and Sanger distance; repeated sequence or insufficient flanks can prevent a usable assay. Parental-template discrimination needs an explicit parent control. QC `.dna` files retain source topology, features and the designed primers. For primer search, 60°C is a ranking target; accepted cores may fall within 52–72°C. Complete oligos are checked, and cores beyond 36 nt use Biopython nearest-neighbor calculations with same-condition Primer3 structure checks.
+
+6. **Promote only after confirmation.** `--finalize --confirmed` requests authoritative promotion for a complete construct. A component or QC result remains a component or QC result. Report warnings and unknowns; sequence computation does not establish wet-lab efficiency, expression, or genome-wide specificity.
+
+Use the Recipe or ConstructionTask routes for biological edits. The legacy keyword agent cannot execute promoter/resistance replacement, fusion tagging or HDR from keyword classification and refuses those requests. Its simple sequence-edit previews do not provide a physical preparation protocol.
+
+## Composite pipeline references
+
+Pipeline parameters resolve recursively. Use `$source_id` for a named source, `$step_id` for the prior step output, `$step_id.field` for a result field, and `$step_id.field.0` or another numeric segment for a list index. A whole `$step_id` passes the sequence record when the step produced one, preserving sequence, topology, and features; use field references for scalar or list values. Set `output_step` in the pipeline or pass `--output-step` when later steps are analysis-only and a prior sequence-producing step is the deliverable.
+
+The resolver accepts references inside nested dictionaries and lists. A reference must point to a source or an earlier step. The selected output step must produce a sequence.
+
+## pML104 guide preparation
+
+The dedicated atomic tool is:
 
 ```text
-┌─────────────┐     ┌────────────────┐     ┌──────────────┐     ┌────────────┐     ┌──────────────┐
-│  1. INSPECT │ ──► │  2. ALIGN INTENT│ ──► │ 3. ROUTE/RUN │ ──► │  4. AUDIT  │ ──► │ 5. DELIVER   │
-│ plasmid maps│     │ with user      │     │ Recipe/Pipe  │     │ Guardrails │     │ Sign Off     │
-└─────────────┘     └────────────────┘     └──────────────┘     └────────────┘     └──────────────┘
+prepare_pml104_guide(vector_record_or_seq, spacer_seq)
 ```
 
-### Step 1: Inspect Plasmid Maps & Sequences
-Never guess coordinates, features, or sequence lengths. Immediately run `scripts/inspect_plasmid.py`:
+It requires the complete circular pML104 template and an explicit 20 nt `A/C/G/T` spacer. It follows the pML104 inverse-PCR and KLD route, restores the missing 5-prime part of the guide cassette, and returns preparation primers, the circular product, and `scaffold_complete`. It does not apply the generic BbsI/U6 oligo rule or prepend an extra transcription G. The delivered guide must contain the spacer and the complete scaffold. See the primary pML104 method description [Hu et al. (2018)](https://pmc.ncbi.nlm.nih.gov/articles/PMC5868978/).
 
-```bash
-python scripts/inspect_plasmid.py <vector_file> [<insert_file>]
-```
-- Inspects length, topology (`circular` / `linear`), and GC%.
-- Identifies replication origins (`ori`) and selectable antibiotic markers.
-- Audits CDS reading frames (verifying `length % 3 == 0` and absence of premature stops).
-- Identifies unique single-cut restriction enzyme sites (candidate MCS insertion sites).
+## Pointers
 
-### Step 2: Clarify & Align Intent
-Discuss requirements conversationally with the researcher before running irreversible calculations:
-- For **Protein Tagging**: Confirm N-terminal vs C-terminal fusion, linker type (`G4S`, `EAAAK`), and protease site (`TEV`, `PreScission`, `Thrombin`).
-- For **Restriction Cloning**: Confirm candidate unique enzyme pairs and ensure no internal cuts exist in the insert.
-- For **Gibson Assembly**: Confirm target linearized insertion junction and overlap length (default 22 bp).
-- For **CRISPR HDR**: Confirm cut site coordinate, donor payload, and synonymous PAM silencing strategy.
-
-### Step 3: Route & Execute
-Select the appropriate execution route:
-
-#### Route A: Standard Laboratory Recipes (Recommended)
-For standard molecular biology workflows, run `scripts/run_recipe.py`:
-
-```bash
-# Example: Gibson Assembly
-python scripts/run_recipe.py --recipe recipe_gibson_assembly --params-json params.json --out-dir ./build
-
-# Example: Protein Tagging
-python scripts/run_recipe.py --recipe recipe_protein_tagging --params '{"target_cds_seq_or_file": "ATG...", "tag_name_or_seq": "6xHis", "tag_position": "C-terminal"}' --out-dir ./build
-```
-
-**The 7 Standard SOP Recipes:**
-| Recipe Name | Result Kind | Completeness | Key Literature Citation |
-| :--- | :--- | :--- | :--- |
-| `recipe_gibson_assembly` | `construct` | `complete_construct` | Gibson et al. (2009) *Nat Methods* |
-| `recipe_restriction_cloning` | `construct` | `complete_construct` | Sambrook & Green (2012) *Mol Cloning* |
-| `recipe_golden_gate` | `construct` | `complete_construct` | Engler et al. (2008) *PLoS ONE* |
-| `recipe_crispr_hdr_donor` | `component` | `component_only` | Paquet et al. (2016) *Nature* |
-| `recipe_site_directed_mutagenesis` | `construct` | `complete_construct` | Zheng et al. (2004) *NAR* (alias: `recipe_point_mutagenesis`) |
-| `recipe_protein_tagging` | `component` | `component_only` | Terpe (2003) & Kozak (1986) *Cell* |
-| `recipe_cloning_verification` | `verification` | `qc_only` | Sanger et al. (1977) *PNAS* |
-
-*For complete parameter definitions, see [references/recipes.md](references/recipes.md).*
-
-#### Route B: Custom Composite Pipeline
-For non-standard, multi-step, or exploratory pipelines, formulate a JSON pipeline and run `scripts/run_pipeline.py`:
-
-```bash
-python scripts/run_pipeline.py --pipeline pipeline.json --out-dir ./build
-```
-Any of the 38 atomic tools registered in `TOOL_REGISTRY` (e.g. `digest_sequence`, `simulate_pcr`, `simulate_overlap_assembly`, `extract_subsequence`, `mutate_sequence`) can be dynamically chained.
-
-#### Route C: In-Place Primer Annotation & Editing
-When annotating or editing primers on an existing construct (`.dna` or `.gb`), always use `scripts/annotate_primers.py`:
-```bash
-python scripts/annotate_primers.py <source> --out <dest> --op add --name <name> --seq <seq>
-```
-Supports `add`, `remove`, `replace`, and `clear`. Never reconstruct an existing construct from bare sequence or overwrite it with a blank `SeqRecord`, as this discards pre-existing annotations and SnapGene metadata.
-
-### Step 4: Audit Biological Guardrails
-Every execution automatically evaluates the 10 biological guardrails (`BIO-01` to `BIO-10`):
-- `BIO-01-FRAME`: Reading frame continuity (multiple of 3, zero premature stops).
-- `BIO-02-STOP`: Canonical terminal stop codon present (`TAA`/`TAG`/`TGA`).
-- `BIO-03-ENZYME`: Zero internal restriction cuts by selected cloning enzymes.
-- `BIO-04-STRAND`: Self-consistent coordinate boundaries and strands.
-- `BIO-05-RECLEAVAGE`: Synonymous mutation to disable Cas9 PAM re-cleavage.
-- `BIO-06-POL3_TERMINATION`: No consecutive `TTTT` motifs in U6 Pol III cassettes.
-- `BIO-07-PRIMER_DIMER`: PCR primer pairs free from severe 3'-terminal dimers.
-- `BIO-08-REPLICON_MARKER`: Circular plasmids contain functional ori and antibiotic marker.
-- `BIO-09-METHYLATION`: Flags Dam/Dcm methylation blockade on sensitive enzymes.
-- `BIO-10-HAIRPIN_REPEAT`: Flags extreme inverted repeats ($\ge 30$ bp) and high-GC clusters.
-
-*For detailed evaluation criteria, see [references/guardrails.md](references/guardrails.md).*
-
-### Step 5: Deliver Verified Constructs
-1. **Present Results**: Output the designed primer table (sequences, Tm, lengths), quality checks, and step-by-step laboratory protocol to the researcher.
-2. **Authoritative Promotion**: When the researcher explicitly confirms the design, promote candidate artifacts into `authoritative/` by passing `--finalize --confirmed`:
-
-```bash
-python scripts/run_recipe.py --recipe <name> --params-json <params.json> --out-dir ./build --finalize --confirmed
-```
-This generates:
-- `authoritative/construct.dna`: Native binary SnapGene plasmid file (with features, colors, primers).
-- `authoritative/construct.gb`: Fully annotated GenBank file.
-- `authoritative/construct.fasta`: High-fidelity FASTA nucleotide sequence.
-- `authoritative/DELIVERY-MANIFEST.json`: Cryptographically hashed manifest recording full provenance and guardrail audits.
-
-### CLI Conventions
-- 大多数脚本支持 `--json` 输出结构化数据，供自动化解析与大模型集成。
-
+- Read [references/recipes.md](references/recipes.md) for all seven Recipe signatures, defaults, aliases, and method-specific checks.
+- Read [references/guardrails.md](references/guardrails.md) when a biological check or warning needs its rule and applicability.
+- Read [references/source-policy.md](references/source-policy.md) when provenance or source evidence is unclear.

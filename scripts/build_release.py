@@ -3,8 +3,8 @@
 
 Builds two ZIPs from the same source tree, refreshes
 DEVELOPMENT-MANIFEST.json from the current tree, and writes a fresh
-RELEASE-MANIFEST.json (schema_version = VERSION's minor line) into each
-archive.  The two packages receive package-appropriate
+RELEASE-MANIFEST.json using the stable release-manifest schema contract
+(`schema_version = "0.8.0"`) into each archive.  The two packages receive package-appropriate
 DEVELOPMENT-NOTICE.md / THIRD_PARTY_NOTICE.md content instead of sharing
 one contradictory notice.
 """
@@ -24,6 +24,13 @@ EXCLUDE_ALL = (
 )
 EXCLUDE_PREFIXES = (
     "reports/",
+    "build/",
+    "output/",
+    "dist/",
+    "docs/REAL-WORLD-SKILL-",
+    "docs/REAL-WORKFLOW-REPAIR-",
+    ".venv/",
+    ".codex/",
     "__pycache__/",
     "tmp_",
     ".git/",
@@ -135,12 +142,12 @@ def _development_manifest(root, version):
 
 def _development_notice(version, redistributable):
     package_kind = ("redistributable" if redistributable else "academic-full")
+    prerelease = "dev" in version.lower() or "-rc" in version.lower()
     return (
-        "# Development snapshot\n\n"
+        "# Package status\n\n"
         "Version: SnapGene DNA Design v%s (%s package).\n\n"
-        "Purpose: development snapshot, not a formal release and not an "
-        "installable dependency bundle. The version remains a dev build; it "
-        "has not passed an RC gate.\n\n"
+        "%s Python dependencies and optional external programs must be "
+        "installed separately; follow README.md.\n\n"
         "Backend honesty: Cas-OFFinder, CRISPOR and primer3_core are optional "
         "external runtimes. None of them is bundled. Real-backend gates must "
         "run the real executable/model in this environment and are never "
@@ -150,6 +157,8 @@ def _development_notice(version, redistributable):
         "gates. Re-run every gate after code changes; do not treat older "
         "reports as evidence for this version.\n"
         % (version, package_kind,
+           ("This is a prerelease candidate for validation." if prerelease else
+            "This is a versioned release package. See CHANGELOG.md for the validated scope and known limits."),
            ("this archive contains academic-only SnapGene fixtures and "
             "derived fixtures. Do not publish or redistribute it. See "
             "THIRD_PARTY_NOTICE.md."
@@ -287,6 +296,8 @@ def main():
         _development_manifest(root, version)
 
     entries = _collect(root)
+    if not any(entry["path"] == "DEVELOPMENT-NOTICE.md" for entry in entries):
+        entries.append(_entry("DEVELOPMENT-NOTICE.md", _development_notice(version, True)))
     academic_entries = entries
     # Source notices are replaced by package-specific generated content.
     redist_entries = [entry for entry in entries if entry["redistributable"]]

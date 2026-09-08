@@ -39,6 +39,60 @@ def _python():
     return sys.executable
 
 
+def _verification_payload(completed):
+    try:
+        payload = json.loads(completed.stdout or "")
+    except (TypeError, ValueError):
+        return None
+    if isinstance(payload, dict) and isinstance(payload.get("data"), dict):
+        return payload["data"]
+    return payload if isinstance(payload, dict) else None
+
+
+def _roundtrip_gate(completed, command):
+    """Gate agent verification on core semantics and explicit qualifier risk."""
+    command_name = next(
+        (pathlib.Path(str(argument)).name
+         for argument in command
+         if str(argument).lower().endswith(".py")),
+        "",
+    )
+    if command_name != "validate_roundtrip.py":
+        return None
+    data = _verification_payload(completed)
+    if not data or data.get("core_passed") is not True:
+        return None
+    internal = data.get("internal_roundtrip")
+    official = data.get("official_snapgene_roundtrip")
+    if not isinstance(internal, dict) or internal.get("passed") is not True:
+        return None
+    if not isinstance(official, dict):
+        return None
+    official_status = official.get("status")
+    if official_status == "completed":
+        if official.get("passed") is not True:
+            return None
+    elif official_status != "skipped":
+        return None
+    comparisons = [internal]
+    if official_status == "completed":
+        comparisons.append(official)
+    risks = [comparison.get("qualifier_risk") for comparison in comparisons]
+    if any(risk not in ("none", "safe") for risk in risks):
+        return None
+    safe_differences = []
+    for scope, comparison in (
+        ("internal", internal),
+        ("official", official),
+    ):
+        if comparison.get("qualifier_risk") == "safe":
+            safe_differences.extend(
+                {"scope": scope, **difference}
+                for difference in comparison.get("qualifier_differences", [])
+            )
+    return {"data": data, "safe_qualifier_differences": safe_differences}
+
+
 class Orchestrator:
     def __init__(self, session, out_dir=None):
         self.session = session
@@ -147,7 +201,11 @@ class Orchestrator:
                                force=True)
                     raise DesignSpecError(
                         "formal mode requires real primer3_core")
-        artifacts = self._run_existing_tools(spec)
+        try:
+            artifacts = self._run_existing_tools(spec)
+        except DesignSpecError as error:
+            set_status(spec, "blocked", str(error), force=True)
+            raise
         self.session.artifacts.extend(artifacts)
         set_status(spec, "executed", "existing tools executed")
         return artifacts
@@ -164,15 +222,34 @@ class Orchestrator:
              str(ROOT / "scripts" / "validate_construct.py"),
              str(construct), "--json"],
             [_python(), "-X", "utf8", "-B",
-             str(ROOT / "scripts" / "validate_roundtrip.py"),
-             str(construct), "--format", "snapgene-gb", "--strict", "--json"],
+              str(ROOT / "scripts" / "validate_roundtrip.py"),
+              str(construct), "--format", "snapgene-gb", "--json"],
         ):
             completed = _run(cmd)
-            results[pathlib.Path(cmd[-3]).name] = {
+            command_name = next(
+                (pathlib.Path(str(argument)).name
+                 for argument in cmd
+                 if str(argument).lower().endswith(".py")),
+                "verification.py",
+            )
+            result = {
                 "returncode": completed.returncode,
                 "stdout": (completed.stdout or "")[:2000],
                 "stderr": (completed.stderr or "")[:2000],
             }
+            results[command_name] = result
+            if command_name == "validate_roundtrip.py":
+                accepted = _roundtrip_gate(completed, cmd)
+                if accepted is not None:
+                    result["accepted_safe_qualifier_differences"] = accepted[
+                        "safe_qualifier_differences"
+                    ]
+                    continue
+                set_status(spec, "blocked", "verification failed", force=True)
+                self.report["recovery_actions"].append(
+                    "验证失败：检查往返核心语义和重要限定词差异；交付前必须重跑验证"
+                )
+                raise DesignSpecError("VERIFICATION_FAILED")
             if completed.returncode != 0:
                 set_status(spec, "blocked", "verification failed", force=True)
                 self.report["recovery_actions"].append(
@@ -302,10 +379,10 @@ class Orchestrator:
                     "MUTATION_SPEC_REQUIRED: point_mutation needs an explicit "
                     "mutation spec such as 100:A; the historical default "
                     "100:A has been removed")
-            out = preview_dir / "construct.fa"
+            out = preview_dir / "construct.gb"
             cmd = [_python(), "-X", "utf8", "-B",
-                   str(ROOT / "scripts" / "mutagenesis.py"),
-                   files[0], "--op", obj.get("op", "point"),
+                   str(ROOT / "scripts" / "edit_plasmid.py"),
+                   files[0], "--op", "mutate",
                    "--mutation", mutation,
                    "--out", str(out), "--json"]
         elif obj.get("type") == "gateway-lr":
@@ -341,7 +418,7 @@ class Orchestrator:
             self.report["recovery_actions"] = actions
             raise DesignSpecError(
                 "TOOL_FAILED: %s; recovery=%s"
-                % (completed.stderr[-500:], actions))
+                % ((completed.stderr or completed.stdout or "no diagnostic output")[-1500:], actions))
         if obj.get("type") == "point-mutation" or \
                 obj.get("type") == "gateway-lr":
             self.session.construct_gb = out
@@ -354,6 +431,11 @@ class Orchestrator:
     @staticmethod
     def _intent_for_plan(spec, files, method, lengths):
         obj = spec.get("objective", {})
+        if obj.get("type") in {"promoter-replacement", "resistance-replacement", "fusion-tag", "crispr-hdr-donor"}:
+            raise DesignSpecError(
+                "LEGACY_GOAL_UNSUPPORTED: the keyword preview route cannot execute this biological edit. "
+                "Use run_recipe.py or a ConstructionTask with explicit source features and replacement boundaries."
+            )
         roles = obj.get("file_roles", [])
         backbone_role = next((r for r in roles if r.get("role") == "backbone"), None)
         if backbone_role:

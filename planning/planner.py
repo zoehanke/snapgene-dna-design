@@ -26,6 +26,9 @@ from planning.intent import normalize_intent  # noqa: E402
 from primer_design_engine import (  # noqa: E402
     design_region_primers, restriction_tail,
 )
+from primer3_core_backend import check_complete_oligo_pair  # noqa: E402
+from core.tools.amplification import simulate_pcr, _extract_template_record  # noqa: E402
+from core.models.construct_model import feature_to_dict  # noqa: E402
 from operation_consent import ConsentBroker, TransparencyLog  # noqa: E402
 from validation_crosscheck import overlap_crosscheck, restriction_site_crosscheck  # noqa: E402
 from planning.executor import ExecutionError, execute_assembly  # noqa: E402
@@ -185,13 +188,13 @@ def _find_type_iis_enzyme(fragments):
     return None, None
 
 
-def choose_overlap(upstream, downstream, target_gc=50.0, desired_length=None):
+def choose_overlap(upstream, downstream, target_gc=50.0, desired_length=None, use_downstream=False):
     """Algorithmically choose a 15-40 bp overlap from the upstream end.
 
     Returns (sequence, length, gc, tm, problems).  If no window satisfies
     GC 30-70, the closest-to-50 window is returned with a warning.
     """
-    upstream = str(upstream).upper()
+    upstream = str(downstream if use_downstream else upstream).upper()
     if desired_length is not None:
         desired_length = int(desired_length)
         if desired_length <= 0:
@@ -206,7 +209,7 @@ def choose_overlap(upstream, downstream, target_gc=50.0, desired_length=None):
         return upstream, len(upstream), None, None, ["overlap_shorter_than_15"]
     candidates = []
     for length in range(min_length, min(max_length, len(upstream)) + 1):
-        seq = upstream[-length:]
+        seq = upstream[:length] if use_downstream else upstream[-length:]
         gc = gc_percent(seq)
         try:
             tm_value = mt.Tm_NN(seq)
@@ -267,10 +270,14 @@ def _golden_gate_site_counts(fragments, enzyme_name):
                for fragment in fragments)
 
 
-def _primer_tails(method, fragments, index, junctions, enzymes, circular=False):
+def _primer_tails(method, fragments, index, junctions, enzymes, circular=False, use_downstream=False):
     fwd_tail = ""
     rev_tail = ""
     if method in ("overlap", "gibson"):
+        if use_downstream:
+            if index < len(junctions):
+                rev_tail = str(Seq(junctions[index]["sequence"]).reverse_complement())
+            return fwd_tail, rev_tail
         if index > 0:
             fwd_tail = junctions[index - 1]["sequence"]
         elif circular and junctions:
@@ -289,9 +296,97 @@ def _primer_tails(method, fragments, index, junctions, enzymes, circular=False):
     return fwd_tail, rev_tail
 
 
+def _declared_pcr(spec):
+    """Return explicit PCR-preparation intent, preserving an unspecified state."""
+    for key in ("prepare_by_pcr", "pcr_required", "pcr"):
+        if key in spec:
+            return bool(spec[key])
+    return None
+
+
+def _planned_pcr_template(fragment):
+    """Return the complete source template in the fragment's biological orientation."""
+    source = fragment.get("_source_record")
+    if source is None:
+        raise PlannerError(
+            "PCR_TEMPLATE_REQUIRED: fragment %s has no complete source record"
+            % fragment.get("name", "<unnamed>")
+        )
+    extraction_strand = int(fragment.get("_extraction_strand") or 1)
+    if extraction_strand == 1:
+        return source, fragment.get("source_interval", [0, len(source.seq)]), False
+    # A selected reverse-strand feature is designed in biological 5'->3'
+    # orientation.  Reverse-complement the complete source before simulating;
+    # this keeps the PCR check on a real template rather than on the extracted
+    # ideal fragment.
+    oriented = source.reverse_complement(id=source.id + "-reverse-template")
+    oriented.annotations = dict(source.annotations)
+    oriented.annotations["topology"] = source.annotations.get("topology", "linear")
+    n = len(source.seq)
+    start, end = fragment.get("source_interval", [0, n])
+    if start > end and oriented.annotations.get("topology") == "circular":
+        interval = [(n - start) % n, (n - end) % n]
+    else:
+        interval = [n - end, n - start]
+    return oriented, interval, True
+
+
+def _simulate_fragment_pcr(fragment, forward, reverse, fwd_tail="", rev_tail=""):
+    """Simulate the selected complete primer pair on its original template."""
+    template, interval, reversed_template = _planned_pcr_template(fragment)
+    topology_value = str(template.annotations.get("topology", "linear"))
+    start, end = [int(value) for value in interval]
+    f_core_len = int(forward.get("binding_length") or
+                     forward.get("binding_core_length") or
+                     len(forward.get("binding") or ""))
+    r_core_len = int(reverse.get("binding_length") or
+                     reverse.get("binding_core_length") or
+                     len(reverse.get("binding") or ""))
+    if not f_core_len or not r_core_len:
+        raise PlannerError(
+            "PCR_BINDING_CORE_REQUIRED: selected primers must expose complete binding cores"
+        )
+    # Candidate coordinates are relative to the extracted target; source
+    # boundaries are the auditable default.  Primer3 slide retries retain
+    # their relative offsets when present.
+    f_rel = int(forward.get("bind_start", 0))
+    r_rel = int(reverse.get("bind_start", max(0, (end - start) - r_core_len)))
+    if topology_value.lower() == "circular":
+        f_pos = (start + f_rel) % len(template.seq)
+        r_pos = (start + r_rel) % len(template.seq)
+    else:
+        f_pos = start + f_rel
+        r_pos = start + r_rel
+    result = simulate_pcr(
+        template,
+        forward["sequence"],
+        reverse["sequence"],
+        topology=topology_value,
+        forward_binding_core_length=f_core_len,
+        reverse_binding_core_length=r_core_len,
+        forward_binding_start_0based=f_pos,
+        reverse_binding_start_0based=r_pos,
+    )
+    result["source_interval_0based"] = [start, end]
+    result["source_template_id"] = template.id or template.name
+    result["template_orientation"] = "reverse-complement" if reversed_template else "forward"
+    expected = fwd_tail + fragment["sequence"] + str(Seq(rev_tail).reverse_complement())
+    if result["amplicon"].upper() != expected.upper():
+        raise PlannerError(
+            "PCR_BOUNDARY_MISMATCH: actual complete-oligo PCR does not reproduce the requested preparation sequence"
+        )
+    # Source features may span the restored primer boundary. Transfer them
+    # only after the actual full PCR product matches that exact source interval.
+    source_fragment = _extract_template_record(template, start, len(fragment["sequence"]), topology_value.lower() == "circular")
+    if str(source_fragment.seq).upper() != fragment["sequence"].upper():
+        raise PlannerError("PCR_SOURCE_INTERVAL_MISMATCH: selected sequence is not a contiguous source interval")
+    result["features"] = [feature_to_dict(f._shift(len(fwd_tail)), len(result["amplicon"])) for f in source_fragment.features]
+    return result
+
+
 def plan_assembly(source_paths, intent, primer3_core=None,
                   user_rules_dir=None, consent_broker=None,
-                  operation_log=None):
+                  operation_log=None, _use_downstream_overlap=False):
     """Plan a multi-source assembly with release-iteration consent.
 
     ``consent_broker`` defaults to ``ConsentBroker(policy="ask")``: abnormal
@@ -334,6 +429,8 @@ def plan_assembly(source_paths, intent, primer3_core=None,
         "_source_feature": backbone_feature,
         "_extraction_strand": backbone_strand,
         "_source_wrap": backbone_wraps,
+        "_pcr_explicit": _declared_pcr(backbone_spec),
+        "_pcr_required": None,
     }]
     for spec in intent["fragments"]:
         source_index = int(spec.get("source", 0))
@@ -356,6 +453,8 @@ def plan_assembly(source_paths, intent, primer3_core=None,
             "_source_feature": source_feature,
             "_extraction_strand": extraction_strand,
             "_source_wrap": source_wraps,
+            "_pcr_explicit": _declared_pcr(spec),
+            "_pcr_required": None,
         })
 
     requested = intent["method"]
@@ -425,7 +524,7 @@ def plan_assembly(source_paths, intent, primer3_core=None,
             overlap, length, gc, tm_value, problems = choose_overlap(
                 fragments[index]["sequence"],
                 fragments[next_index]["sequence"],
-                desired_length=requested_overlap)
+                desired_length=requested_overlap, use_downstream=_use_downstream_overlap)
             crosscheck = overlap_crosscheck(overlap)
             if crosscheck["status"] != "consistent":
                 problems.append("overlap_crosscheck_conflict")
@@ -455,73 +554,178 @@ def plan_assembly(source_paths, intent, primer3_core=None,
         context = _feasibility_context(method, fragments, junctions, enzymes)
         feasibility = evaluate_plan(context, user_rules_dir)
 
+    # Gibson/overlap requires a physical PCR intermediate by default. Golden
+    # Gate may consume already flanked native parts; it only requires PCR when
+    # the caller explicitly declares ``prepare_by_pcr``/``pcr_required``.
+    for fragment in fragments:
+        explicit = fragment.get("_pcr_explicit")
+        fragment["_pcr_required"] = (
+            bool(explicit) if explicit is not None
+            else method in ("overlap", "gibson")
+        )
+
     primers = []
     for index, fragment in enumerate(fragments):
+        if not fragment.get("_pcr_required"):
+            primers.append({
+                "fragment": fragment["name"],
+                "method": "native",
+                "pcr_required": False,
+                "template": {
+                    "id": fragment["_source_record"].id
+                    if fragment.get("_source_record") is not None else None,
+                    "sequence": fragment["sequence"],
+                    "source_interval_0based": fragment["source_interval"],
+                },
+                "selected_pair": None,
+                "validation": {},
+            })
+            continue
         fwd_tail, rev_tail = _primer_tails(
             method, fragments, index, junctions, enzymes,
-            circular=intent.get("topology") == "circular")
+            circular=intent.get("topology") == "circular", use_downstream=_use_downstream_overlap)
         try:
             design = design_region_primers(
                 fragment["sequence"], 0, fwd_tail=fwd_tail,
                 rev_tail=rev_tail, top_n=2, primer3_core=primer3_core,
-                consent=consent_broker, operation_log=operation_log)
-            pair = design["pairs"][0] if design["pairs"] else None
-            forward = (design["forward_candidates"][pair["forward_index"]]
-                       if pair else None)
-            reverse = (design["reverse_candidates"][pair["reverse_index"]]
-                       if pair else None)
+                consent=consent_broker, operation_log=operation_log,
+                min_len=15 if _use_downstream_overlap else 18,
+                max_len=36 if _use_downstream_overlap else 27)
+            pair = None
+            rejected_pairs = []
+            for candidate_pair in design["pairs"]:
+                forward = dict(design["forward_candidates"][candidate_pair["forward_index"]])
+                reverse = dict(design["reverse_candidates"][candidate_pair["reverse_index"]])
+                f_offset = int(forward["bind_start"])
+                r_end = int(reverse["bind_end"]) + 1
+                forward["tail"] = fwd_tail + fragment["sequence"][:f_offset]
+                reverse["tail"] = rev_tail + str(Seq(fragment["sequence"][r_end:]).reverse_complement())
+                for oligo in (forward, reverse):
+                    oligo["sequence"] = oligo["tail"] + oligo["binding"]
+                structure = check_complete_oligo_pair(forward["sequence"], reverse["sequence"], primer3_core,
+                    annealing_temperature=min(float(forward["tm"]), float(reverse["tm"]))-5.0)
+                if not structure["passed"]:
+                    rejected_pairs.append(structure)
+                    continue
+                pair = candidate_pair
+                break
+            if pair is None:
+                raise PlannerError(
+                    "PRIMER_PAIR_REQUIRED: no acceptable complete-oligo pair for %s; structural_checks=%s"
+                    % (fragment["name"], rejected_pairs)
+                )
+            # Validate and execute only the selected pair.  Other candidates
+            # remain available for review but cannot block a pair that was
+            # actually selected for delivery.
+            selected_forward_validation = design.get("validation", {}).get(
+                "forward", [])[pair["forward_index"]]
+            selected_reverse_validation = design.get("validation", {}).get(
+                "reverse", [])[pair["reverse_index"]]
+            pcr_product = _simulate_fragment_pcr(fragment, forward, reverse, fwd_tail, rev_tail)
             primers.append({
                 "fragment": fragment["name"],
+                "pcr_required": True,
                 "forward": {
                     "name": fragment["name"] + "-F",
                     "sequence": forward["sequence"] if forward else None,
+                    "binding_core": forward.get("binding") if forward else None,
+                    "binding_core_length": forward.get("binding_length") if forward else None,
+                    "position_0based": forward.get("bind_start") if forward else None,
+                    "strand": 1,
                     "tm": forward.get("tm") if forward else None,
                     "gc": forward.get("gc") if forward else None,
-                    "tail": fwd_tail or None,
+                    "tail": forward["tail"] or None,
                     "use": "PCR 上游引物（5'->3'）",
                 },
                 "reverse": {
                     "name": fragment["name"] + "-R",
                     "sequence": reverse["sequence"] if reverse else None,
+                    "binding_core": reverse.get("binding") if reverse else None,
+                    "binding_core_length": reverse.get("binding_length") if reverse else None,
+                    "position_0based": reverse.get("bind_start") if reverse else None,
+                    "strand": -1,
                     "tm": reverse.get("tm") if reverse else None,
                     "gc": reverse.get("gc") if reverse else None,
-                    "tail": rev_tail or None,
+                    "tail": reverse["tail"] or None,
                     "use": "PCR 下游引物（5'->3'）",
                 },
                 "backend": design["backend"],
                 "validation": design["validation"],
+                "complete_oligo_structure": structure,
+                "boundary_restoration": {"forward_bp": f_offset, "reverse_bp": len(fragment["sequence"]) - r_end},
+                "selected_pair": {
+                    "forward_index": pair["forward_index"],
+                    "reverse_index": pair["reverse_index"],
+                    "product_size": pcr_product["amplicon_length"],
+                    "forward": selected_forward_validation,
+                    "reverse": selected_reverse_validation,
+                },
+                "pcr_product": {
+                    "amplicon": pcr_product["amplicon"],
+                    "amplicon_length": pcr_product["amplicon_length"],
+                    "template": pcr_product.get("template"),
+                    "primers": pcr_product.get("primers", []),
+                    "template_interval_0based": pcr_product["template_interval_0based"],
+                    "template_core_length": pcr_product["template_core_length"],
+                    "forward_binding": pcr_product["forward_binding"],
+                    "reverse_binding": pcr_product["reverse_binding"],
+                    "features": pcr_product.get("features", []),
+                    "topology": pcr_product["topology"],
+                    "template_id": pcr_product.get("template_id"),
+                },
                 "primer3_retry_note": design.get("primer3_retry_note"),
                 "boundary_offsets": design.get("boundary_offsets"),
                 "alternatives": design.get("alternatives"),
                 "operation_log": design.get("operation_log"),
                 "consent": design.get("consent"),
             })
+            fragment["_pcr_product"] = pcr_product
         except Exception as error:  # noqa: BLE001
             primers.append({"fragment": fragment["name"],
                             "error": str(error),
                             "error_type": type(error).__name__})
 
+    if (not _use_downstream_overlap and method in ("gibson", "overlap")
+            and any(item.get("error") for item in primers)):
+        # A different distribution of the same homology can remove a bad
+        # full-oligo hairpin without changing the requested DNA. Try once;
+        # all original Tm, structure, uniqueness and actual-PCR checks remain.
+        retry = plan_assembly(source_paths, intent, primer3_core, user_rules_dir,
+                              consent_broker, operation_log, _use_downstream_overlap=True)
+        retry["assembly_strategy"]["alternatives"].append({
+            "method": method, "reason": "Retried with downstream homology on reverse primers after complete-oligo preparation failed",
+            "previous_primer_errors": [item["error"] for item in primers if item.get("error")],
+        })
+        return retry
+
     primer_tm_bad = False
     primer_structure_bad = False
     for item in primers:
         if "error" in item:
-            primer_tm_bad = True
             continue
+        selected = item.get("selected_pair") or {}
         for side in ("forward", "reverse"):
-            for check in item.get("validation", {}).get(side, []):
-                for problem in check.get("problems", []):
-                    # ``primer_tm_off_target`` means the pair is not centered
-                    # on 60 C but can still be inside the validated 52-72 C
-                    # operating window.  Only the explicit range violation
-                    # is a hard feasibility error; otherwise valid Primer3
-                    # pairs were being rejected unnecessarily.
-                    if problem.startswith("primer_tm_outside_52_72"):
-                        primer_tm_bad = True
-                    if problem.startswith("primer_strong"):
-                        primer_structure_bad = True
+            check = selected.get(side) or {}
+            for problem in check.get("problems", []):
+                # ``primer_tm_off_target`` means the selected pair is not
+                # centered on 60 C but can still be inside the validated
+                # 52-72 C operating window.  Unselected candidates never
+                # participate in the delivery feasibility gate.
+                if problem.startswith("primer_tm_outside_52_72"):
+                    primer_tm_bad = True
+                if problem.startswith("primer_strong"):
+                    primer_structure_bad = True
     context.update({"any_primer_tm_outside_52_72": primer_tm_bad,
                     "any_primer_strong_structure": primer_structure_bad})
     feasibility = evaluate_plan(context, user_rules_dir)
+    preparation_errors = [item for item in primers if item.get("error")]
+    if preparation_errors:
+        feasibility.setdefault("errors", []).append({
+            "rule_id": "pcr-preparation", "constraint": "actual complete-oligo PCR preparation",
+            "severity": "error", "suggestion": "Inspect the reported primer, structure or boundary failure; revise the preparation route without changing the target DNA",
+            "source": "PCR simulation and complete oligo checks", "details": preparation_errors,
+        })
+        feasibility["grade"] = "low"
 
     # A method-specific final construct must not be written from an
     # unverified heuristic primer fallback.  Keep the plan available for
@@ -529,7 +733,8 @@ def plan_assembly(source_paths, intent, primer3_core=None,
     # the real external Primer3 engine.
     unverified_primers = [
         item.get("fragment") for item in primers
-        if item.get("error") or item.get("backend") != "primer3-core"
+        if item.get("pcr_required", True) and
+        not item.get("error") and item.get("backend") != "primer3-core"
     ]
     if unverified_primers:
         feasibility.setdefault("errors", []).append({
@@ -604,6 +809,8 @@ def plan_assembly(source_paths, intent, primer3_core=None,
                 item["source_interval"][0] + 1, item["source_interval"][1]],
             "source_interval_wrap": bool(item.get("_source_wrap")),
             "length": item["length"], "sequence": item["sequence"],
+            "pcr_required": bool(item.get("_pcr_required")),
+            "pcr_product": item.get("_pcr_product"),
         } for item in fragments],
         "assembly_strategy": {
             "method": method,

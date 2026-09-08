@@ -23,11 +23,27 @@ FEATURE_ALIASES: dict[str, list[str]] = {
     "cm": ["cm", "cmr", "cat", "chloramphenicol"],
     "tet": ["tet", "tetr", "tetracycline"],
     "ori": ["ori", "origin", "rep_origin", "pucc_ori", "colie1_ori"],
-    "gfp": ["gfp", "egfp", "sfgfp", "mneongreen"],
+    "gfp": ["gfp", "egfp", "sfgfp"],
     "mcherry": ["mcherry", "rfp", "dsred"],
     "his": ["his", "6xhis", "polyhistidine", "his-tag"],
     "flag": ["flag", "3xflag", "flag-tag"],
 }
+
+
+def canonical_location_parts(location):
+    """Treat contiguous join segments as one interval; preserve order and real gaps."""
+    operator = getattr(location, "operator", None) or ""
+    parts = []
+    for part in location.parts:
+        current = (int(part.start), int(part.end), part.strand or 0)
+        if operator == "join" and parts and parts[-1][2] == current[2]:
+            previous = parts[-1]
+            adjacent = (previous[0] == current[1] if current[2] == -1 else previous[1] == current[0])
+            if adjacent:
+                parts[-1] = (min(previous[0], current[0]), max(previous[1], current[1]), current[2])
+                continue
+        parts.append(current)
+    return (operator if len(parts) > 1 else "", tuple(parts))
 
 
 def get_feature(

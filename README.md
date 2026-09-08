@@ -1,16 +1,20 @@
 # SnapGene DNA Design
 
-A production-grade, **LLM-Native Agent Skill Runtime** for molecular biology, plasmid engineering, and CRISPR design. Built for open-source AI assistants including Codex, Claude Code, Antigravity, Cursor, and ChatGPT.
+**v1.0.0 · 可用大版本 / Usable major release.** Release scope and validation: [release notes](docs/RELEASE-v1.0.0.md).
+
+A skill runtime for plasmid design, PCR, cloning, mutagenesis and local CRISPR/HDR designs. The host assistant chooses a route; the runtime computes reactions and exports annotated GenBank and SnapGene files.
+
+Use complete source records and follow the actual preparation chain. Every assembled fragment must come from a supplied prepared fragment, a simulated PCR using the delivered primers, or an explicit digest. A theoretical fusion or edited sequence is a design component, not a stock PCR template. See [Recipe parameters](references/recipes.md).
 
 ## Key Architecture & Philosophy
 
 - **Host LLM as the Intelligent Brain**: The chat assistant understands user intent in natural language, explores biological strategies, and aligns with the researcher.
 - **Skill Runtime as Hands & Feet**:
   1. **Plasmid Map Inspection (`scripts/inspect_plasmid.py`)**: Fast, token-efficient extraction of plasmid topology, origins, markers, CDS reading frames, and unique cloning cutters.
-  2. **7 Standard SOP Recipes (`scripts/run_recipe.py`)**: Gold-standard laboratory protocols (Gibson, Restriction Cloning, Golden Gate, CRISPR HDR, Mutagenesis, Protein Tagging, Colony Verification) directly cited from CSHL *Molecular Cloning*, *Nature Methods*, *Cell*, and *PNAS*.
-  3. **38 Atomic Tools & Dynamic Pipeline (`scripts/run_pipeline.py`)**: Zero hardcoded dispatch bottlenecks; compose any sequence operation, PCR simulation, or digestion dynamically.
-  4. **Applicability-Aware Guardrails (`BIO-01 ~ BIO-10`)**: Transparent scientific audits reporting `PASS`, `FAIL`, `N/A`, or `UNKNOWN` without false-alarm circular plasmid lockups.
-  5. **Authoritative Delivery Gate (`finalize`)**: Cryptographic SHA-256 hash chains guaranteeing that only verified constructs are signed off into `authoritative/` (`.dna`, `.gb`, `.fasta`, `DELIVERY-MANIFEST.json`).
+  2. **7 Recipe modules (`scripts/run_recipe.py`)**: Gibson, restriction cloning, Golden Gate, CRISPR HDR, mutagenesis, protein tagging and cloning verification, with method references and explicit preparation outputs.
+  3. **41 registered tools & composite pipelines (`scripts/run_pipeline.py`)**: Compose supported sequence, PCR and digestion operations while retaining annotated records.
+  4. **Biological checks (`BIO-01 ~ BIO-10`)**: `PASS`, `FAIL`, `N/A`, or `UNKNOWN`. Complete CDS stop checks apply on circular and linear records; exemptions require explicit partial-feature evidence.
+  5. **Delivery checks (`finalize`)**: Promote candidates with explicit passing evidence into `authoritative/` (`.dna`, `.gb`, `.fasta`, `DELIVERY-MANIFEST.json`). Hashes track file integrity; biological correctness also depends on the preparation chain and functional context.
 
 ---
 
@@ -54,9 +58,9 @@ python scripts/run_pipeline.py --pipeline custom_pipeline.json --out-dir ./build
 |---|---|---|
 | Read & analyze | `parse_dna.py`, `analyze_seq.py`, `align_seq.py`, `align_sanger.py`, `msa.py`, `assemble_contig.py` | Parse SnapGene/GenBank/FASTA/EMBL; stats, reverse complement, translation; global/local alignment; Sanger consensus; MSA; contig assembly |
 | Restriction enzymes | `find_sites.py` | Recognition sites and simulated digests; explicit double-strand cut boundaries |
-| PCR / primers | `design_primers.py`, `primer_design_engine.py`, `primer3_core_backend.py`, `primer_qc.py`, `simulate_pcr.py`, `pcr_strategy.py` | Exact-boundary primer design with Primer3 or labelled heuristic fallback; four-layer retry chain (tailed → binding-only → relaxed-Tm → slide-retry with `boundary_offset_5p/3p`); tails / restriction sites / protective bases; hairpin-dimer QC; PCR simulation; GC/AT/long-template strategies |
+| PCR / primers | `design_primers.py`, `primer_design_engine.py`, `primer3_core_backend.py`, `primer_qc.py`, `simulate_pcr.py`, `pcr_strategy.py`, `core.tools.amplification.prepare_pcr_fragment` | Exact-boundary primer design; complete oligo structure QC; core Tm accepted in the 52–72°C window with 60°C as a ranking target; long additions split into real successive PCR steps with actual templates, intermediates and `annealing_temperature_hint_C`; tails / restriction sites / protective bases; PCR simulation; GC/AT/long-template strategies |
 | Consent & transparency | `operation_consent.py` | Structured confirmation for parameters, relaxations, degradations, no-solution and external writes; `--consent ask/auto`, `--yes`; unconfirmed = not executed; append-only operation log (backend, parameters, input SHA, retry path, output files) |
-| 3+1 Tier Architecture (v0.9.1-dev2) | `core/recipes/*`, `core/tools/*`, `core/guardrails/*`, `core/task.py` | 7 standard SOP recipes (Tier 2), 28 atomic tools (Tier 1), first-principles biological guardrails (Tier 3), and curated wet-lab experience rules (Tier 4) |
+| Recipes and tools | `core/recipes/*`, `core/tools/*`, `core/guardrails/*`, `core/task.py` | 7 recipes, 41 registered tools, and method-specific biological checks |
 | Cloning simulation | `simulate_cloning.py`, `simulate_advanced.py`, `golden_gate.py` | Gibson / digest-ligate; In-Fusion, TA, TOPO, Gateway BP/LR; Type IIS Golden Gate |
 | Plasmid editing | `edit_plasmid.py`, `mutagenesis.py`, `annotate.py`, `draw_map.py`, `convert.py`, `write_dna.py` | Insert/delete/replace/rotate/linearize; site-directed mutagenesis and codon edits; ORF annotation; SVG maps; format conversion; GenBank / SnapGene-GB / native `.dna` / FASTA export |
 | Validation | `validate_construct.py`, `validate_roundtrip.py`, `validation_crosscheck.py` | One-shot QC (topology/length/CDS stops/unique cutters); internal and official SnapGene round-trip; independent Tm / restriction / GC cross-checks |
@@ -88,6 +92,7 @@ Core dependencies:
 - `snapgene_reader==0.1.23`
 - `sgffp==0.21.0`
 - `jsonschema>=4.17,<5`
+- `primer3-py>=2.3.0` for the bundled `primer3_core` discovery path
 
 ### 2.2 Optional dependencies
 
@@ -97,7 +102,6 @@ pip install -r requirements-optional.txt
 
 | Dependency | Used for |
 |---|---|
-| `primer3-py` | Obtains the external `primer3_core` executable. The project never imports its native extension; it runs `primer3_core` as a child process. GPL and **not bundled**. |
 | `numpy`, `pandas`, `matplotlib`, `scikit-learn` | Azimuth V3 feature calculation and model inference |
 | `torch`, `h5py` | DeepCpf1 inference |
 | Cas-OFFinder binary | Real genome off-target search. BSD-3-Clause; download from `https://github.com/snugel/cas-offinder/releases` and pass `--cas-offinder` / `CAS_OFFINDER_EXE`. |
@@ -447,9 +451,9 @@ python scripts/check_env.py
 python -X utf8 -B -m unittest discover -s tests
 ```
 
-Current source tree: **595 tests, 0 failures** — default run `OK
-(skipped=13)`; with all real backends enabled `OK` (0 skipped). Skips are
-optional external backends / academic fixture, each recorded with its reason.
+Run current targeted and release checks after every code change. Test counts,
+failures and optional skips must come from the current command output; older
+reports are not evidence for this checkout.
 
 ### 7.2 Real-backend gates
 
@@ -478,7 +482,7 @@ python -X utf8 -B scripts/coverage_gate.py --mode default --json
 python -X utf8 -B scripts/coverage_gate.py --mode release-real --json
 python -X utf8 -B scripts/mutation_tests.py --json
 python -X utf8 -B scripts/property_tests.py --json
-python -X utf8 -B scripts/build_release.py D:\codex_project\snapgene-dna-design-v0.9.0-work D:\codex_project\output\snapgene-dna-design-v0.9.0 --version 0.9.0
+python -X utf8 -B scripts/build_release.py <repo-root> <output-dir> --version 1.0.0
 python -X utf8 -B scripts/check_redistributable.py output/<redist-zip>
 python -X utf8 -B scripts/check_redistributable.py output/<academic-zip> --academic
 python -X utf8 -B scripts/collect_release_evidence.py
@@ -553,11 +557,9 @@ Results are written as:
   execution/limitation table;
 - `scenario-results.json` — machine-readable ground truth and detail.
 
-Latest run (real primer3_core 2.6.1): **PASS 90 / FAIL 0 / total 90**
-(execution-level only: complete 40 / partial 11 / blocked 39;
-approximations are labelled per row; DOI-cited scenarios 56). PASS includes
-explicitly expected `blocked-as-designed` fail-closed inputs; blocked is not a
-construct success and no final construct is written for those rows.
+Scenario results are run-specific evidence. Rows classify completed,
+partial and blocked-as-designed execution separately; a blocked row is not a
+construct success and does not establish release readiness.
 
 ---
 
@@ -567,8 +569,9 @@ construct success and no final construct is written for those rows.
   computational predictions. Method-specific biochemistry that is not modelled
   (e.g. SLIC exonuclease treatment, CPEC polymerase extension, USER uracil
   excision) is explicitly labelled as an approximation.
-- **Heuristic primer fallback is not Primer3.** It uses Biopython `Tm_NN` and
-  project hairpin/dimer heuristics, and is labelled as unverified in output.
+- **Primer search modes are explicit.** Core search can use Biopython `Tm_NN`
+  under the same buffer conditions and then run complete-oligo Primer3
+  structure QC. It is reported separately from Primer3 candidate search.
 - **On-target models are context-limited.** Azimuth V3 and DeepCpf1 warnings
   (“not specifically validated for yeast”) are always attached.
 - **Cas-OFFinder 3.x is an experimental beta backend.** v2.x is the production default; v3 results are flagged `experimental_backend=true`, `production_ready=false` and must be cross-checked with v2.x or an independent tool before any low-off-target claim.

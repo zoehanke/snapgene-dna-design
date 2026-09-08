@@ -92,6 +92,7 @@ def execute_agent_pipeline(
     user_confirmed: bool = False,
     expected_components: list | None = None,
     forbidden_components: list | None = None,
+    output_step: str | None = None,
 ) -> dict[str, Any]:
     """Execute an agent-formulated composite pipeline deterministically and deliver SnapGene construct."""
     out_path = pathlib.Path(out_dir)
@@ -130,6 +131,7 @@ def execute_agent_pipeline(
         "forbidden_components": forbidden_components or [],
         "pipeline": {
             "steps": pipeline_steps,
+            "output_step": output_step,
         },
         "sources": sources,
         "target": {},
@@ -149,12 +151,32 @@ def execute_agent_pipeline(
 
     # 2. Plan
     vtask, p = plan(vtask)
+    (out_path / "task.json").write_text(json.dumps(vtask, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
+    (out_path / "plan.json").write_text(json.dumps(p, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
 
     # 3. Execute
     exec_res = execute(vtask, p, out_path)
 
     # 4. Three-layer Validate
     report = validate(vtask, p, exec_res)
+
+    preparation = []
+    source_paths = {s["source_id"]: s["path"] for s in sources}
+    for step in p.get("steps", []):
+        details = step.get("details", {})
+        if not isinstance(details, dict):
+            continue
+        if details.get("preparation"):
+            preparation.extend(details["preparation"])
+        elif step.get("tool") == "simulate_pcr" and details.get("template") and details.get("primers"):
+            raw = step.get("params", {}).get("template_path_or_seq", step.get("params", {}).get("template"))
+            template = source_paths.get(raw.lstrip("$"), details["template"]) if isinstance(raw, str) else details["template"]
+            preparation.append({"id": step["step_id"], "method": "PCR", "template": template,
+                                "primers": details["primers"], "product": details})
+    # The same application-level writer serves both entry points. A failure
+    # producing source primer maps occurs before authoritative promotion.
+    from scripts.run_recipe import write_preparation_artifacts
+    preparation_files = write_preparation_artifacts(preparation, out_path)
 
     delivery = None
     if report["overall"] == "verified":
@@ -183,4 +205,7 @@ def execute_agent_pipeline(
         "delivery": delivery,
         "snapgene_status": snapgene_status,
         "authoritative_dir": str(out_path / "authoritative") if delivery else None,
+        "task_file": str(out_path / "task.json"),
+        "plan_file": str(out_path / "plan.json"),
+        "preparation_files": preparation_files,
     }

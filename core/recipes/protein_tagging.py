@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """core/recipes/protein_tagging.py - Standard SOP Recipe for Protein Expression & Tagging.
 
-AUTHORITATIVE SOURCES & CLASSICAL PROTOCOLS:
+LITERATURE SOURCES & PROTOCOL REFERENCES:
 1. Terpe, K. (2003).
    Overview of tag protein fusion: from molecular and biochemical fundamentals to commercial systems.
    Applied Microbiology and Biotechnology, 60(5), pp.523-533. doi:10.1007/s00253-002-1158-6.
@@ -94,7 +94,7 @@ def recipe_protein_tagging(
     terminal_stop_codon: str = "TAA",
     protease_site: str | None = None,
 ) -> dict[str, Any]:
-    """Execute the gold-standard SOP for recombinant protein expression, tagging, and cleavage cassettes.
+    """Execute a literature-grounded route for protein tagging and cleavage cassettes.
 
     Follows Terpe 2003 (Appl Microbiol Biotechnol) and Kozak 1986 (Cell):
     - When C-terminal tagging: automatically strips the target CDS stop codon (TAA/TAG/TGA).
@@ -102,7 +102,7 @@ def recipe_protein_tagging(
     - Verifies linker nucleotide length is divisible by 3 (mod 3 == 0).
     - Optionally incorporates high-efficiency endoprotease cleavage sites (TEV / PreScission).
     - Checks reading frame throughout the entire fused construct without internal pre-mature stop codons.
-    - Emits full provenance and authoritative literature citations.
+    - Emits source provenance and literature citations.
     """
     if protease_cleavage is None and protease_site is not None:
         protease_cleavage = protease_site
@@ -233,7 +233,10 @@ def recipe_protein_tagging(
         product_sequence=product_dna,
         product_topology="linear",
         features=[
-            {"name": f"Fusion_{tag_name_or_seq}", "type": "CDS", "start": 1, "end": len(product_dna), "interval_0based": [0, len(product_dna)], "strand": 1}
+            {"name": f"Fusion_{tag_name_or_seq}", "type": "CDS",
+             "start": len(kozak_dna) + 1, "end": len(product_dna),
+             "interval_0based": [len(kozak_dna), len(product_dna)],
+             "strand": 1}
         ],
         primers=[],
         quality_checks=quality_checks,

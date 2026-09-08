@@ -34,10 +34,8 @@ from agent.orchestrator import Orchestrator  # noqa: E402
 def write_gb(path, name, length, circular=True, features=()):
     rng = random.Random(name)
     terminal_tails = {
-        # The planner derives circular Gibson tails from the source ends.  Use
-        # deterministic, non-palindromic terminal arms so this integration
-        # fixture exercises a real Primer3 pair rather than a deliberate
-        # homopolymer/secondary-structure failure.
+        # Keep the original deterministic sequences. Their unsuitable complete
+        # primers now test rejection, rather than being replaced with easier DNA.
         "pBACK": "GACTGACTGACTGACTGACT",
         "pDONOR": "TCGATCGTACGATCGTAGCA",
     }
@@ -296,6 +294,42 @@ class MethodSelectorTests(unittest.TestCase):
 
 
 class AgentOrchestratorBranchTests(unittest.TestCase):
+    def test_incomplete_roundtrip_evidence_is_rejected(self):
+        from unittest import mock
+        from agent.orchestrator import _roundtrip_gate
+        command = ["python", "scripts/validate_roundtrip.py"]
+        for stdout in ("not JSON", "{}", '{"core_passed": true}'):
+            self.assertIsNone(_roundtrip_gate(mock.Mock(stdout=stdout), command))
+
+    def test_safe_roundtrip_qualifier_difference_is_reported_not_blocking(self):
+        from unittest import mock
+        import agent.orchestrator as orchestrator_module
+        payload = {
+            "data": {
+                "core_passed": True,
+                "internal_roundtrip": {
+                    "passed": True,
+                    "qualifier_risk": "none",
+                    "qualifier_differences": [],
+                },
+                "official_snapgene_roundtrip": {
+                    "status": "completed",
+                    "passed": True,
+                    "qualifier_risk": "safe",
+                    "qualifier_differences": [
+                        {"feature": "ori", "changed": {"note": {}}}
+                    ],
+                },
+            }
+        }
+        completed = mock.Mock(returncode=1, stdout=json.dumps(payload), stderr="")
+        command = ["python", "-X", "utf8", "scripts/validate_roundtrip.py"]
+        accepted = orchestrator_module._roundtrip_gate(completed, command)
+        self.assertIsNotNone(accepted)
+        self.assertEqual(
+            accepted["safe_qualifier_differences"][0]["scope"], "official"
+        )
+
     def test_branch_helpers_and_failures(self):
         from unittest import mock
         with tempfile.TemporaryDirectory() as tmp:
@@ -356,7 +390,7 @@ class AgentOrchestratorBranchTests(unittest.TestCase):
 
 class AgentE2ETests(unittest.TestCase):
     def _run_chain(self, text, tmp, paths=None, mode="exploration",
-                   answer=True, deliver=True):
+                   answer=True, deliver=True, expected_error=None):
         if paths is None:
             paths=[]
             for idx,name in enumerate(("pBACK","pDONOR")):
@@ -374,17 +408,34 @@ class AgentE2ETests(unittest.TestCase):
             orch.confirm()
             orch.resolve_evidence()
             orch.plan()
+            if expected_error:
+                with self.assertRaisesRegex(DesignSpecError, expected_error):
+                    orch.execute()
+                    orch.verify()
+                self.assertEqual(session.spec['status'],'blocked')
+                if expected_error == 'TOOL_FAILED':
+                    plan=json.loads((tmp/'out/construction-plan.json').read_text(encoding='utf-8'))
+                    self.assertTrue(any('complete-oligo' in p.get('error','') or 'structural QC' in p.get('error','') for p in plan['primers']))
+                if expected_error == 'VERIFICATION_FAILED':
+                    # The unchanged random "CDS" is invalid. It must remain
+                    # annotated and fail QC instead of disappearing in FASTA.
+                    rec=SeqIO.read(session.construct_gb,'genbank')
+                    self.assertTrue(any(f.type=='CDS' for f in rec.features))
+                    from scripts.validate_construct import validate
+                    self.assertFalse(validate(rec)['summary']['pass'])
+                return session,None
             orch.execute()
             orch.verify()
             delivery=orch.deliver() if deliver else None
             return session, delivery
         return session, orch, parsed
 
-    def test_10_end_to_end_chains(self):
+    def test_legacy_routes_retain_invalid_input_evidence(self):
         with tempfile.TemporaryDirectory() as tmp:
             tmp=pathlib.Path(tmp)
             coverage_mode = bool(os.environ.get("COVERAGE_PROCESS_START"))
-            # 1..9 complete chains with appropriate files
+            # Preserve original inputs, including unsupported biological goals
+            # and unsuitable primer boundaries. These are rejection tests.
             normal_tasks=[
                 ("把质粒 A 的启动子换成质粒 B 的启动子，宿主是酵母，用 Gibson", None),
                 ("将骨架的抗性基因替换为供体的卡那霉素抗性，宿主大肠杆菌，用 Gibson", None),
@@ -420,9 +471,8 @@ class AgentE2ETests(unittest.TestCase):
                             orch.execute()
                         self.assertEqual(session.spec["status"], "blocked")
                         continue
-                    session, delivery=self._run_chain(text, tmp)
-                    self.assertIn(session.spec["status"], ("verified","delivered"))
-                    self.assertTrue(delivery)
+                    error='LEGACY_GOAL_UNSUPPORTED' if ('启动子' in text or '抗性' in text) else 'TOOL_FAILED'
+                    self._run_chain(text,tmp,expected_error=error)
             if coverage_mode:
                 return
             # Gateway LR with real Gateway fixtures
@@ -439,16 +489,14 @@ class AgentE2ETests(unittest.TestCase):
             mut_path=write_gb(tmp/"template.gb","pTEMPLATE",600,
                               features=[(20,500,"CDS","orf",1)])
             with self.subTest(text="point mutation"):
-                session,delivery=self._run_chain(
+                self._run_chain(
                     "对模板做定点突变 100:A，宿主大肠杆菌",
-                    tmp, paths=[mut_path])
-                self.assertIn(session.spec["status"], ("verified","delivered"))
+                    tmp, paths=[mut_path],expected_error='VERIFICATION_FAILED')
             # CRISPR HDR donor as plan assembly
             with self.subTest(text="CRISPR HDR donor"):
-                session,delivery=self._run_chain(
+                self._run_chain(
                     "为 CRISPR HDR 构建供体质粒，宿主哺乳动物细胞",
-                    tmp, paths=None)
-                self.assertIn(session.spec["status"], ("verified","delivered"))
+                    tmp, paths=None,expected_error='LEGACY_GOAL_UNSUPPORTED')
             # formal mode chain: v0.9.1 legacy formal path is deprecated at
             # the orchestrator level too; only the ConstructionTask runtime
             # may run formal construction.
@@ -479,7 +527,7 @@ class AgentE2ETests(unittest.TestCase):
 
 
 class DesignSpecCliTests(unittest.TestCase):
-    def test_run_design_agent_cli_delivers(self):
+    def test_legacy_cli_cannot_call_concatenation_a_promoter_replacement(self):
         import subprocess
         with tempfile.TemporaryDirectory() as tmp:
             tmp=pathlib.Path(tmp)
@@ -494,11 +542,11 @@ class DesignSpecCliTests(unittest.TestCase):
                  "--json","--out-dir",str(tmp/"out")],
                 capture_output=True,text=True,encoding="utf-8",
                 errors="replace",timeout=180)
-            self.assertEqual(completed.returncode,0,
-                             (completed.stdout+completed.stderr)[-2000:])
+            self.assertNotEqual(completed.returncode,0)
             payload=json.loads(completed.stdout)
-            self.assertEqual(payload["status"],"delivered")
-            self.assertTrue((tmp/"out"/"preview"/"DELIVERY-MANIFEST.json").exists())
+            self.assertEqual(payload["status"],"blocked")
+            self.assertIn('LEGACY_GOAL_UNSUPPORTED',completed.stdout+completed.stderr)
+            self.assertFalse((tmp/"out"/"preview"/"DELIVERY-MANIFEST.json").exists())
             # v0.9.1: the legacy keyword-parser formal path is deprecated and
             # must refuse to execute.
             formal=subprocess.run(

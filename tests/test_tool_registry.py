@@ -47,10 +47,16 @@ class ToolRegistryTests(unittest.TestCase):
         self._tmp.cleanup()
 
     def test_registry_size_and_schema_definitions(self):
-        """Verify registry contains exactly the expected tool count with zero duplicate overwrites."""
-        self.assertEqual(len(TOOL_REGISTRY), 39)
+        """Verify registry contains the current tools with no duplicate definitions."""
+        self.assertEqual(len(TOOL_REGISTRY), 41)
         defs = list_tool_definitions()
-        self.assertEqual(len(defs), 39)
+        self.assertEqual(len(defs), 41)
+        self.assertIn("prepare_pcr_fragment", TOOL_REGISTRY)
+        names = [d["name"] for d in defs]
+        self.assertIn("prepare_pml104_guide", TOOL_REGISTRY)
+        self.assertIn("prepare_pml104_guide", names)
+        self.assertEqual(len(names), len(set(names)))
+        self.assertEqual(set(names), set(TOOL_REGISTRY))
         for d in defs:
             self.assertIn("name", d)
             self.assertIn("category", d)

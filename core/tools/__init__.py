@@ -13,6 +13,7 @@ from core.tools.amplification import (
     calc_primer_tm,
     check_primer_dimers,
     design_overhang_primers,
+    prepare_pcr_fragment,
     simulate_pcr,
 )
 from core.tools.assembly import (
@@ -25,6 +26,7 @@ from core.tools.crispr import (
     design_hdr_donor,
     extract_homology_arms,
     prepare_grna_oligos,
+    prepare_pml104_guide,
 )
 from core.tools.experience_helper import (
     get_experience_categories,
@@ -84,6 +86,7 @@ __all__ = [
     "calc_primer_tm",
     "check_primer_dimers",
     "design_overhang_primers",
+    "prepare_pcr_fragment",
     "anneal_oligos",
     "simulate_pcr",
     "simulate_overlap_assembly",
@@ -91,6 +94,7 @@ __all__ = [
     "simulate_golden_gate",
     "design_crispr_grna",
     "prepare_grna_oligos",
+    "prepare_pml104_guide",
     "design_hdr_donor",
     "extract_homology_arms",
     "get_feature",

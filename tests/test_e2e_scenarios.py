@@ -111,6 +111,8 @@ class ScenarioA_GibsonPlan(unittest.TestCase):
             self.assertTrue(plan["primers"][0]["forward"]["sequence"])
             construct = SeqIO.read(str(tmp / "construct.gb"), "genbank")
             self.assertEqual(len(construct.seq), 2200 + 648)
+            self.assertEqual(str(construct.seq), rnd(2200, 11) + cds)
+            self.assertTrue(all(p['complete_oligo_structure']['passed'] for p in plan['primers']))
             # The full backbone contributes its promoter and existing feature;
             # the selected donor CDS is migrated as a third feature.
             self.assertEqual(len(construct.features), 3)

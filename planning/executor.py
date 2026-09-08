@@ -219,21 +219,28 @@ def _gibson_product(fragments, topology_value, junctions, method_name="gibson"):
     circular = topology_value == "circular"
     n = len(fragments)
     records = []
+    pcr_products = []
     raw_offsets = []
     cursor = 0
     for index, item in enumerate(fragments):
-        raw = str(item["sequence"]).upper()
+        pcr_required = bool(item.get("_pcr_required", True))
+        pcr = item.get("_pcr_product") or item.get("pcr_product")
+        if pcr_required and (not pcr or not pcr.get("amplicon")):
+            raise ExecutionError(
+                "PCR_PRODUCT_REQUIRED",
+                "assembly fragment %r has no simulated product from its selected primers"
+                % item.get("name", index),
+                {"fragment": item.get("name", index)},
+            )
+        raw = str(pcr["amplicon"] if pcr_required else item["sequence"]).upper()
+        if pcr_required:
+            pcr_products.append(pcr)
         raw_offsets.append(cursor)
-        cursor += len(raw)
-        if circular:
-            left = str(junctions[index - 1]["sequence"])
-        else:
-            left = str(junctions[index - 1]["sequence"]) if index else ""
-        # The planner chooses each overlap from the preceding fragment's
-        # template end.  It is therefore already present on that fragment;
-        # only the downstream PCR product needs the 5' tail.  Adding a second
-        # right-hand tail here would create an extra, false junction sequence.
-        records.append(_record(item["name"], left + raw, "linear"))
+        cursor += len(str(item["sequence"]))
+        # The complete 5' tails are already present in the selected-primer
+        # PCR product. Feeding the ideal source fragment here would discard
+        # the delivered primer sequences.
+        records.append(_record(item["name"], raw, "linear"))
 
     try:
         product, _fragments, contributions, warnings = gibson(
@@ -243,6 +250,13 @@ def _gibson_product(fragments, topology_value, junctions, method_name="gibson"):
         raise ExecutionError(code, str(error), getattr(error, "details", {}))
 
     expected = "".join(str(item["sequence"]).upper() for item in fragments)
+    # Homology may be carried on either primer. A circular molecule can then
+    # start at a different base; rotate the actual product, never replace it.
+    if circular and len(product.seq) == len(expected) and str(product.seq).upper() != expected:
+        offset = (str(product.seq).upper()*2).find(expected)
+        if 0 <= offset < len(product):
+            product = product[offset:] + product[:offset]
+            product.annotations["topology"] = "circular"
     # The selected overlap is already present at the end of the preceding
     # source fragment.  The downstream PCR product receives a synthetic left
     # tail, which the simulator removes.  Therefore each raw source fragment
@@ -276,6 +290,19 @@ def _gibson_product(fragments, topology_value, junctions, method_name="gibson"):
         "method": method_name,
         "overlap_length": overlap,
         "contributions": contributions,
+        "pcr_products": [
+            {
+                "amplicon_length": int(
+                    pcr.get("amplicon_length", len(pcr.get("amplicon", "")))
+                ),
+                "template": pcr.get("template"),
+                "primers": pcr.get("primers", []),
+                "template_interval_0based": pcr.get("template_interval_0based"),
+                "forward_binding": pcr.get("forward_binding"),
+                "reverse_binding": pcr.get("reverse_binding"),
+            }
+            for pcr in pcr_products
+        ],
         "warnings": warnings,
         "circular": circular,
     }
@@ -285,13 +312,23 @@ def _golden_gate_product(fragments, topology_value, enzymes):
     if not enzymes:
         raise ExecutionError("GOLDEN_GATE_ENZYME_REQUIRED",
                              "Golden Gate execution requires a Type IIS enzyme")
-    from scripts.golden_gate import assemble
-    from scripts.sg_common import get_enzyme
 
     records = []
     for index, item in enumerate(fragments):
+        pcr_required = bool(item.get("_pcr_required", True))
+        pcr = item.get("_pcr_product") or item.get("pcr_product")
+        if pcr_required and (not pcr or not pcr.get("amplicon")):
+            raise ExecutionError(
+                "PCR_PRODUCT_REQUIRED",
+                "Golden Gate fragment %r has no simulated product from its selected primers"
+                % item.get("name", index),
+                {"fragment": item.get("name", index)},
+            )
         topo = "circular" if index == 0 else "linear"
-        records.append(_record(item["name"], item["sequence"], topo))
+        sequence = pcr["amplicon"] if pcr_required else item["sequence"]
+        records.append(_record(item["name"], sequence, topo))
+    from scripts.golden_gate import assemble
+    from scripts.sg_common import get_enzyme
     try:
         final, junctions, parts, notes, _models = assemble(
             records, [item["name"] for item in fragments],

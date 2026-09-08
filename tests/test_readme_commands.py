@@ -20,8 +20,12 @@ class ReadmeCommandTests(unittest.TestCase):
 
     def test_skill_does_not_claim_every_script_has_json(self):
         skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
-        self.assertNotIn("所有脚本输出 JSON（`--json`）", skill)
-        self.assertIn("大多数脚本", skill)
+        for claim in (
+            "所有脚本输出 JSON（`--json`）",
+            "所有脚本都支持 `--json`",
+            "every script has --json",
+        ):
+            self.assertNotIn(claim, skill)
 
     def test_representative_readme_commands_run(self):
         commands = [

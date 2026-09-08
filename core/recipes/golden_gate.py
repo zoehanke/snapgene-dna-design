@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """core/recipes/golden_gate.py - Standard SOP Recipe for Type IIS Golden Gate Assembly.
 
-AUTHORITATIVE SOURCES & CLASSICAL PROTOCOLS:
+LITERATURE SOURCES & PROTOCOL REFERENCES:
 1. Engler, C., Kandzia, R. and Marillonnet, S. (2008).
    A One Pot, One Step, PCR-Based Cloning Method for Synthetic Biology.
    PLoS ONE, 3(11), p.e3647. doi:10.1371/journal.pone.0003647.
@@ -43,25 +43,31 @@ AUTHORITATIVE_SOURCES = [
 
 
 def recipe_golden_gate(
-    fragments: list[str],
+    fragments: list[str | dict[str, Any]],
     enzyme: str = "BsaI",
     circular: bool = True,
+    enzyme_name: str | None = None,
+    circular_product: bool | None = None,
 ) -> dict[str, Any]:
-    """Execute the gold-standard SOP for Type IIS Golden Gate assembly.
+    """Execute a literature-grounded Type IIS Golden Gate assembly route.
 
     Follows Engler et al. (2008 PLoS ONE) and Potapov et al. (2018 ACS Synth Biol):
     - Digestion with Type IIS enzyme (BsaI/BsmBI), ensuring recognition sites are stripped.
     - Orthogonal 4-bp overhang verification at each junction.
     - Simulates scarless one-pot assembly into a final construct devoid of internal cut sites.
-    - Emits full provenance and authoritative literature citations.
+    - Emits source provenance and literature citations.
     """
+    if enzyme_name is not None:
+        enzyme = enzyme_name
+    if circular_product is not None:
+        circular = bool(circular_product)
     res = simulate_golden_gate(fragments=fragments, enzyme=enzyme, circular=circular)
 
     # Potapov 2018 quality check: ensure overhangs are non-palindromic
     palindromic_overhangs = []
     from Bio.Seq import Seq
     for j in res.get("junctions", []):
-        ov = j.get("left_overhang", "")
+        ov = j.get("overhang_sequence") or j.get("from_overhang") or j.get("left_overhang", "")
         if ov and ov == str(Seq(ov).reverse_complement()):
             palindromic_overhangs.append(ov)
 
@@ -71,13 +77,23 @@ def recipe_golden_gate(
             f"Palindromic 4-bp overhangs detected ({palindromic_overhangs}): high risk of self-ligation or inverted insertion (Potapov et al. 2018)."
         )
 
+    remaining_sites = res.get("recognition_sites_remaining", [])
+    all_junctions_compatible = all(
+        bool(j.get("compatible", j.get("compatibility") == "ok"))
+        for j in res.get("junctions", [])
+    )
     quality_checks = {
         "fragment_count": len(fragments),
         "enzyme_used": enzyme,
-        "all_junctions_compatible": all(j.get("compatible", False) for j in res.get("junctions", [])),
-        "recognition_sites_cleaved_from_product": True,
+        "all_junctions_compatible": all_junctions_compatible,
+        "recognition_sites_cleaved_from_product": len(remaining_sites) == 0,
         "zero_palindromic_overhangs": len(palindromic_overhangs) == 0,
+        "remaining_recognition_sites": remaining_sites,
     }
+    if remaining_sites:
+        warnings.append(
+            f"{len(remaining_sites)} {enzyme} recognition site(s) remain in the assembled product; this is a sequence-derived failure."
+        )
 
     protocol_steps = [
         {"step": 1, "action": f"Set up one-pot Golden Gate reaction with fragments, T4 DNA ligase, and {enzyme}."},
@@ -101,6 +117,7 @@ def recipe_golden_gate(
             "recipe": "recipe_golden_gate",
             "product_length": res["product_length"],
             "junctions": res.get("junctions", []),
+            "fragments": res.get("fragments", []),
             "quality_checks": quality_checks,
             "authoritative_sources": AUTHORITATIVE_SOURCES,
         },

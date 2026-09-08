@@ -17,18 +17,26 @@ Hard Invariant:
 from __future__ import annotations
 
 import argparse
-import copy
 import hashlib
 import json
 import os
 import pathlib
 import sys
-from typing import Any, List, Tuple
+from typing import Any, Tuple
 
 from Bio import SeqIO
 from Bio.Seq import Seq
-from Bio.SeqFeature import FeatureLocation, SeqFeature
+from Bio.SeqFeature import SeqFeature
 from Bio.SeqRecord import SeqRecord
+
+_PROJECT_ROOT = str(pathlib.Path(__file__).resolve().parents[1])
+if _PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, _PROJECT_ROOT)
+from core.tools.snapgene_io import (
+    _primer_location,
+    annotate_record_primers,
+    normalize_primer_definition,
+)
 
 
 def _strand_char(strand: int | str | None) -> str:
@@ -43,7 +51,28 @@ def _strand_int(strand: int | str | None) -> int:
     return 1
 
 
-def find_unique_binding_site(template_seq: str, primer_seq: str) -> Tuple[int, str]:
+def _circular_matches(template_seq: str, primer_seq: str) -> list[Tuple[int, str]]:
+    tpl = template_seq.upper()
+    p = primer_seq.upper()
+    if not p or len(p) > len(tpl):
+        return []
+    search = tpl + tpl[: len(p) - 1]
+    matches: list[Tuple[int, str]] = []
+    for strand, needle in (
+        ("+", p),
+        ("-", str(Seq(p).reverse_complement()).upper()),
+    ):
+        for pos in range(len(tpl)):
+            if search[pos : pos + len(p)] == needle:
+                matches.append((pos, strand))
+    return matches
+
+
+def find_unique_binding_site(
+    template_seq: str,
+    primer_seq: str,
+    circular: bool = False,
+) -> Tuple[int, str]:
     """Find unique binding site on forward or reverse complement strand.
 
     Rules:
@@ -53,27 +82,19 @@ def find_unique_binding_site(template_seq: str, primer_seq: str) -> Tuple[int, s
     """
     tpl = template_seq.upper()
     p = primer_seq.upper()
-    p_rc = str(Seq(p).reverse_complement()).upper()
-
-    matches: List[Tuple[int, str]] = []
-
-    # Forward strand matches
-    idx = 0
-    while True:
-        pos = tpl.find(p, idx)
-        if pos == -1:
-            break
-        matches.append((pos, "+"))
-        idx = pos + 1
-
-    # Reverse complement strand matches
-    idx = 0
-    while True:
-        pos = tpl.find(p_rc, idx)
-        if pos == -1:
-            break
-        matches.append((pos, "-"))
-        idx = pos + 1
+    if circular:
+        matches = _circular_matches(tpl, p)
+    else:
+        p_rc = str(Seq(p).reverse_complement()).upper()
+        matches = []
+        for strand, needle in (("+", p), ("-", p_rc)):
+            idx = 0
+            while True:
+                pos = tpl.find(needle, idx)
+                if pos == -1:
+                    break
+                matches.append((pos, strand))
+                idx = pos + 1
 
     if len(matches) == 0:
         raise ValueError(
@@ -96,6 +117,121 @@ def _get_gb_primer_name(feat: SeqFeature) -> str:
     return str(feat.id or "")
 
 
+def _read_genbank_utf8(path: str | pathlib.Path) -> SeqRecord:
+    with open(str(path), "r", encoding="utf-8-sig") as handle:
+        return SeqIO.read(handle, "genbank")
+
+
+def _gb_add_primer(record: SeqRecord, definition: dict[str, Any]) -> tuple[SeqRecord, dict[str, Any]]:
+    payload = normalize_primer_definition(record, definition)
+    return annotate_record_primers(record, [payload]), payload
+
+
+def _assert_gb_primer_payloads(record: SeqRecord, payloads: list[dict[str, Any]]) -> None:
+    for payload in payloads:
+        matches = [
+            feature
+            for feature in record.features
+            if feature.type in ("primer_bind", "primer")
+            and _get_gb_primer_name(feature) == payload["name"]
+        ]
+        if len(matches) != 1:
+            raise RuntimeError(
+                "GenBank primer read-back expected one '%s', found %d"
+                % (payload["name"], len(matches))
+            )
+        feature = matches[0]
+        full = _first_qualifier_for_feature(feature, "primer_sequence", "primer_seq")
+        core = _first_qualifier_for_feature(feature, "binding_sequence", "binding_seq")
+        if full is None or "".join(full.split()).upper() != payload["sequence"].upper():
+            raise RuntimeError(
+                "GenBank primer '%s' full sequence changed during write"
+                % payload["name"]
+            )
+        if core is None or "".join(core.split()).upper() != payload["binding_sequence"].upper():
+            raise RuntimeError(
+                "GenBank primer '%s' binding sequence changed during write"
+                % payload["name"]
+            )
+        expected_location = _primer_location(
+            payload["binding_interval_0based"][0],
+            payload["binding_interval_0based"][1],
+            payload["strand_int"],
+            len(record.seq),
+            payload["topology"],
+        )
+        if str(feature.location) != str(expected_location):
+            raise RuntimeError(
+                "GenBank primer '%s' binding location changed during write"
+                % payload["name"]
+            )
+
+
+def _first_qualifier_for_feature(feature: SeqFeature, *keys: str) -> str | None:
+    for key in keys:
+        values = feature.qualifiers.get(key)
+        if values:
+            value = values[0] if isinstance(values, list) else values
+            return str(value)
+    return None
+
+
+def _native_add_primer(sg, record: SeqRecord, definition: dict[str, Any]) -> dict[str, Any]:
+    from sgffp import SgffBindingSite, SgffPrimer
+
+    payload = normalize_primer_definition(record, definition)
+    start, end = payload["binding_interval_0based"]
+    sg.primers.add(
+        SgffPrimer(
+            name=payload["name"],
+            sequence=payload["sequence"],
+            binding_sites=[
+                SgffBindingSite(
+                    start=start,
+                    end=end,
+                    bound_strand=payload["strand"],
+                    annealed_bases=payload["binding_sequence"],
+                )
+            ],
+        )
+    )
+    return payload
+
+
+def _assert_native_primer_payloads(check_obj, payloads: list[dict[str, Any]]) -> None:
+    for payload in payloads:
+        matches = [primer for primer in check_obj.primers if primer.name == payload["name"]]
+        if len(matches) != 1:
+            raise RuntimeError(
+                "Native primer read-back expected one '%s', found %d"
+                % (payload["name"], len(matches))
+            )
+        primer = matches[0]
+        if primer.sequence.upper() != payload["sequence"].upper():
+            raise RuntimeError(
+                "Native primer '%s' full sequence changed during write"
+                % payload["name"]
+            )
+        sites = [site for site in primer.binding_sites if not site.simplified]
+        if len(sites) != 1:
+            raise RuntimeError(
+                "Native primer '%s' read-back has %d binding sites"
+                % (payload["name"], len(sites))
+            )
+        site = sites[0]
+        start, end = payload["binding_interval_0based"]
+        if (
+            site.start != start
+            or site.end != end
+            or site.bound_strand != payload["strand"]
+            or site.annealed_bases.upper() != payload["binding_sequence"].upper()
+        ):
+            raise RuntimeError(
+                "Native primer '%s' binding metadata changed during write"
+                % payload["name"]
+            )
+
+
 def annotate_primers_dna(
     source_path: str | pathlib.Path,
     out_path: str | pathlib.Path,
@@ -114,20 +250,17 @@ def annotate_primers_dna(
     prev_primers_count = len(sg.primers)
     prev_features_count = len(sg.features)
 
+    topology = getattr(sg.sequence.data, "topology", None) or "linear"
+    record = SeqRecord(
+        Seq(seq_str),
+        id="native",
+        annotations={"molecule_type": "DNA", "topology": topology},
+    )
+    pending_payloads: list[dict[str, Any]] = []
+
     if op == "add":
         for p_def in primers_to_add:
-            p_name = p_def["name"]
-            p_seq = p_def["sequence"].upper()
-            bind_pos = p_def.get("bind_position")
-            strand = p_def.get("strand")
-
-            if bind_pos is None:
-                pos, st = find_unique_binding_site(seq_str, p_seq)
-            else:
-                pos = int(bind_pos)
-                st = _strand_char(strand)
-
-            sg.add_primer(p_name, p_seq, bind_position=pos, bind_strand=st)
+            pending_payloads.append(_native_add_primer(sg, record, p_def))
 
     elif op == "remove":
         if not target_name:
@@ -155,19 +288,10 @@ def annotate_primers_dna(
                 f"Ambiguous primer name '{target_name}': found {len(matches)} matches. Refusing to replace."
             )
 
-        p_name = new_primer.get("name") or target_name
-        p_seq = new_primer["sequence"].upper()
-        bind_pos = new_primer.get("bind_position")
-        strand = new_primer.get("strand")
-
-        if bind_pos is None:
-            pos, st = find_unique_binding_site(seq_str, p_seq)
-        else:
-            pos = int(bind_pos)
-            st = _strand_char(strand)
-
         sg.primers.remove(matches[0])
-        sg.add_primer(p_name, p_seq, bind_position=pos, bind_strand=st)
+        replacement = dict(new_primer)
+        replacement["name"] = replacement.get("name") or target_name
+        pending_payloads.append(_native_add_primer(sg, record, replacement))
 
     elif op == "clear":
         sg.primers.clear()
@@ -189,6 +313,8 @@ def annotate_primers_dna(
             f"Hard invariant violated: sequence altered during primer {op}! "
             f"Expected {hash_before[:12]}..., got {hash_after[:12]}..."
         )
+    if pending_payloads:
+        _assert_native_primer_payloads(check_obj, pending_payloads)
 
     return {
         "status": "success",
@@ -213,35 +339,19 @@ def annotate_primers_gb(
     new_primer: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """In-place primer modification for GenBank (.gb/.gbk) files."""
-    record = SeqIO.read(str(source_path), "genbank")
+    record = _read_genbank_utf8(source_path)
     seq_str = str(record.seq).upper()
     hash_before = hashlib.sha256(seq_str.encode("ascii")).hexdigest()
 
     prev_features_count = len(record.features)
     prev_primers = [f for f in record.features if f.type in ("primer_bind", "primer")]
     prev_primers_count = len(prev_primers)
+    pending_payloads: list[dict[str, Any]] = []
 
     if op == "add":
         for p_def in primers_to_add:
-            p_name = p_def["name"]
-            p_seq = p_def["sequence"].upper()
-            bind_pos = p_def.get("bind_position")
-            strand = p_def.get("strand")
-
-            if bind_pos is None:
-                pos, st = find_unique_binding_site(seq_str, p_seq)
-            else:
-                pos = int(bind_pos)
-                st = _strand_char(strand)
-
-            strand_val = _strand_int(st)
-            loc = FeatureLocation(pos, pos + len(p_seq), strand=strand_val)
-            feat = SeqFeature(
-                loc,
-                type="primer_bind",
-                qualifiers={"label": [p_name], "note": [f"sequence: {p_seq}"]},
-            )
-            record.features.append(feat)
+            record, payload = _gb_add_primer(record, p_def)
+            pending_payloads.append(payload)
 
     elif op == "remove":
         if not target_name:
@@ -277,25 +387,15 @@ def annotate_primers_gb(
                 f"Ambiguous primer name '{target_name}': found {len(matches)} matches. Refusing to replace."
             )
 
-        p_name = new_primer.get("name") or target_name
-        p_seq = new_primer["sequence"].upper()
-        bind_pos = new_primer.get("bind_position")
-        strand = new_primer.get("strand")
-
-        if bind_pos is None:
-            pos, st = find_unique_binding_site(seq_str, p_seq)
-        else:
-            pos = int(bind_pos)
-            st = _strand_char(strand)
-
-        strand_val = _strand_int(st)
-        loc = FeatureLocation(pos, pos + len(p_seq), strand=strand_val)
-        new_feat = SeqFeature(
-            loc,
-            type="primer_bind",
-            qualifiers={"label": [p_name], "note": [f"sequence: {p_seq}"]},
-        )
-        record.features[matches[0][0]] = new_feat
+        replacement = dict(new_primer)
+        replacement["name"] = replacement.get("name") or target_name
+        updated_record, payload = _gb_add_primer(record, replacement)
+        # Preserve the original feature position in the feature list while
+        # replacing only that primer definition.
+        added_feature = updated_record.features.pop()
+        updated_record.features[matches[0][0]] = added_feature
+        record = updated_record
+        pending_payloads.append(payload)
 
     elif op == "clear":
         record.features = [
@@ -309,7 +409,7 @@ def annotate_primers_gb(
         SeqIO.write(record, fh, "genbank")
 
     # Re-read output and enforce sequence invariance
-    check_rec = SeqIO.read(str(out_path), "genbank")
+    check_rec = _read_genbank_utf8(out_path)
     seq_after = str(check_rec.seq).upper()
     hash_after = hashlib.sha256(seq_after.encode("ascii")).hexdigest()
 
@@ -320,6 +420,8 @@ def annotate_primers_gb(
             f"Hard invariant violated: sequence altered during primer {op}! "
             f"Expected {hash_before[:12]}..., got {hash_after[:12]}..."
         )
+    if pending_payloads:
+        _assert_gb_primer_payloads(check_rec, pending_payloads)
 
     current_primers = [
         f for f in check_rec.features if f.type in ("primer_bind", "primer")
@@ -353,10 +455,20 @@ def main():
     parser.add_argument("--name", help="Primer name (for remove/replace, or single add)")
     parser.add_argument("--seq", help="Primer sequence (for single add or replace)")
     parser.add_argument(
+        "--binding-seq", "--binding-sequence", dest="binding_sequence",
+        help="Actual 3' annealing core in primer 5' to 3' orientation",
+    )
+    parser.add_argument(
         "--bind-pos",
         type=int,
         default=None,
         help="0-based start binding coordinate (optional; auto-binds if omitted)",
+    )
+    parser.add_argument(
+        "--bind-end",
+        type=int,
+        default=None,
+        help="0-based half-open binding end coordinate",
     )
     parser.add_argument(
         "--strand",
@@ -409,7 +521,9 @@ def main():
                 {
                     "name": args.name,
                     "sequence": args.seq,
+                    "binding_sequence": args.binding_sequence,
                     "bind_position": args.bind_pos,
+                    "bind_end": args.bind_end,
                     "strand": args.strand,
                 }
             ]
@@ -424,7 +538,9 @@ def main():
         new_primer_def = {
             "name": args.name,
             "sequence": args.seq,
+            "binding_sequence": args.binding_sequence,
             "bind_position": args.bind_pos,
+            "bind_end": args.bind_end,
             "strand": args.strand,
         }
 

@@ -21,6 +21,7 @@ from core.registry import get_task_handler
 from core.runtime_execute import compute_execution_sha256
 from core.runtime_plan import compute_plan_sha256
 from core.task import canonical_json, task_sha256
+from core.tools.sequence_ops import DNA_IUPAC_ALPHABET, validate_cds_feature
 
 
 def _validate_requested_components(task: dict, product_record) -> tuple[list[dict], list[str]]:
@@ -133,36 +134,27 @@ def _validate_artifact(execution: dict, plan: dict) -> tuple[bool, SeqIO.SeqReco
     if gb_seq != fa_seq:
         errors.append(f"GenBank sequence ({len(gb_seq)} bp) does not match FASTA sequence ({len(fa_seq)} bp)")
 
+    for label, sequence in (("GenBank", gb_seq), ("FASTA", fa_seq)):
+        invalid = sorted(set(sequence) - DNA_IUPAC_ALPHABET)
+        if invalid:
+            errors.append(
+                f"{label} product contains non-IUPAC DNA symbol(s): {invalid}"
+            )
+
     exp_topo = plan.get("product_topology", "circular")
     actual_topo = gb_rec.annotations.get("topology", "linear")
     if actual_topo != exp_topo:
         errors.append(f"Topology mismatch: expected {exp_topo}, observed {actual_topo}")
 
-    # Validate CDS translations, frames, and stop codons
+    # Validate CDS translations, frames, and stop codons with the shared CDS
+    # contract so malformed metadata cannot fall back to another table/frame.
     for feat in gb_rec.features:
         if feat.type == "CDS":
-            feat_lbl = feat.qualifiers.get("label", feat.qualifiers.get("gene", [feat.type]))[0]
-            table_qual = feat.qualifiers.get("transl_table", ["11"])[0]
-            try:
-                table_id = int(table_qual)
-            except ValueError:
-                table_id = 11
-            try:
-                sub_seq = feat.extract(gb_rec.seq)
-                if len(sub_seq) == 0:
-                    errors.append(f"CDS_EMPTY: CDS '{feat_lbl}' is empty (0 bp)")
-                elif len(sub_seq) % 3 != 0:
-                    errors.append(f"CDS_FRAME_INVALID: CDS '{feat_lbl}' length ({len(sub_seq)} bp) is not a multiple of 3")
-                else:
-                    trans = str(sub_seq.translate(table=table_id, to_stop=False))
-                    claimed = feat.qualifiers.get("translation", [""])[0]
-                    if claimed and claimed.rstrip("*") != trans.rstrip("*"):
-                        errors.append(
-                            f"CDS_TRANSLATION_MISMATCH: Claimed translation for CDS '{feat_lbl}' "
-                            f"does not match computed translation using transl_table={table_id}"
-                        )
-            except Exception as exc:
-                errors.append(f"CDS translation failed: {exc}")
+            audit = validate_cds_feature(feat, gb_rec.seq)
+            errors.extend(
+                f"{item['code']}: {item['message']}"
+                for item in audit["errors"]
+            )
 
     return (len(errors) == 0), gb_rec, errors
 

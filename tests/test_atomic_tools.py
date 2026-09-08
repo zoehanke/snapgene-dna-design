@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pathlib
+import random
 import tempfile
 import unittest
 
@@ -138,15 +139,16 @@ class AtomicToolsTests(unittest.TestCase):
         self.assertEqual(premature["premature_stop_positions"], [3])
 
     def test_simulate_pcr_with_overhangs(self):
-        template = "A" * 20 + "GATTACA" * 4 + "C" * 20
-        f_primer = "GAATTC" + "A" * 18
-        r_primer = "GCGGCCGC" + "G" * 18
+        rng = random.Random(20260907)
+        template = "".join(rng.choice("ACGT") for _ in range(180))
+        f_primer = "GAATTC" + template[:20]
+        r_primer = "GCGGCCGC" + str(Seq(template[-20:]).reverse_complement())
 
         res = simulate_pcr(template, f_primer, r_primer)
         amplicon = res["amplicon"]
         self.assertTrue(amplicon.startswith("GAATTC"))
         self.assertTrue(amplicon.endswith("GCGGCCGC"))
-        self.assertIn("GATTACA", amplicon)
+        self.assertIn(template[20:40], amplicon)
 
     def test_simulate_overlap_assembly(self):
         f1 = "A" * 40 + "TTTTTGGGGGAAAAACCCCC"
@@ -269,7 +271,8 @@ class AtomicToolsTests(unittest.TestCase):
         self.assertEqual(tm_res["length"], 20)
 
         # Design primers with 20 bp Gibson homology arms
-        template = "ATGCGATCGATCGATC" * 10
+        rng = random.Random(20260908)
+        template = "".join(rng.choice("ACGT") for _ in range(180))
         pair = design_overhang_primers(
             template,
             start=10,
@@ -328,8 +331,8 @@ class AtomicToolsTests(unittest.TestCase):
 
     def test_crispr_hdr_donor_design(self):
         from core.tools import design_hdr_donor
-        # Cut position at bp 50
-        target = "A" * 50 + "T" * 50
+        # Cut position at bp 50; spacer starts at cut-17 and has a real CGG PAM.
+        target = "A" * 53 + "CGG" + "C" * 44
         res = design_hdr_donor(
             target_seq_or_file=target,
             cut_position_0based=50,
@@ -421,6 +424,4 @@ class AtomicToolsTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
-
 

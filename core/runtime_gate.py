@@ -257,16 +257,15 @@ def _promote_verified_candidate(
             raise GateRejected("GATE_DNA_WRITE_FAILED", write_dna.stderr[-500:])
 
         # Three-Format Semantic Consistency Verification (P1-01)
-        rec_gb = SeqIO.read(str(gb_dst), "genbank")
-        rec_fa = SeqIO.read(str(fa_dst), "fasta")
+        with gb_dst.open(encoding="utf-8", errors="replace") as handle:
+            rec_gb = SeqIO.read(handle, "genbank")
+        with fa_dst.open(encoding="utf-8", errors="replace") as handle:
+            rec_fa = SeqIO.read(handle, "fasta")
         try:
-            rec_dna = SeqIO.read(str(dna_dst), "snapgene")
-        except Exception:
-            try:
-                from snapgene_reader import snapgene_file_to_seqrecord
-                rec_dna = snapgene_file_to_seqrecord(str(dna_dst))
-            except Exception as exc:
-                raise GateRejected("GATE_DNA_READBACK_FAILED", f"Failed to read back generated .dna: {exc}")
+            from core.tools.snapgene_io import read_native_dna_record
+            rec_dna = read_native_dna_record(dna_dst)
+        except Exception as exc:
+            raise GateRejected("GATE_DNA_READBACK_FAILED", f"Failed to read back generated .dna: {exc}")
 
         gb_seq = str(rec_gb.seq).upper()
         fa_seq = str(rec_fa.seq).upper()
@@ -276,6 +275,21 @@ def _promote_verified_candidate(
             raise GateRejected(
                 "GATE_THREE_FORMAT_SEQUENCE_MISMATCH",
                 f"Sequence mismatch across formats: GB ({len(gb_seq)} bp), FASTA ({len(fa_seq)} bp), DNA ({len(dna_seq)} bp)",
+            )
+
+        def feature_geometry(record):
+            from core.tools.feature_ops import canonical_location_parts
+            return sorted(
+                (feature.type, *canonical_location_parts(feature.location),
+                 str(feature.extract(record.seq)).upper())
+                for feature in record.features if feature.type != "source"
+            )
+
+        if (rec_gb.annotations.get("topology", "linear") != rec_dna.annotations.get("topology", "linear")
+                or feature_geometry(rec_gb) != feature_geometry(rec_dna)):
+            raise GateRejected(
+                "GATE_DNA_FEATURE_MISMATCH",
+                "Native export changed topology, feature intervals, strands or extracted feature sequences; keep the GenBank candidate for inspection",
             )
 
         # Optional SnapGene desktop official roundtrip verification
@@ -397,8 +411,14 @@ def finalize_candidate_construct(
     from core.guardrails.checklist import quick_biological_sanity_check
     with gb_path.open(encoding="utf-8") as handle:
         candidate_record = SeqIO.read(handle, "genbank")
+    context = sanity_check.get("validation_context")
+    candidate_hash = hashlib.sha256(str(candidate_record.seq).upper().encode("ascii")).hexdigest()
+    if (not isinstance(context, dict) or "is_cds" not in context or
+            candidate_hash != sanity_check.get("sequence_sha256") or
+            context.get("topology") != candidate_record.annotations.get("topology", "linear")):
+        raise GateRejected("GATE_GUARDRAILS_FAILED", "Candidate sequence/topology or validation context does not match the supplied report")
     actual_sanity = quick_biological_sanity_check(
-        candidate_record, topology=candidate_record.annotations.get("topology", "linear"), is_cds=False,
+        candidate_record, **context,
     )
     if actual_sanity["all_applicable_pass"] is not True or sanity_check.get("sequence_length") != len(candidate_record):
         raise GateRejected("GATE_GUARDRAILS_FAILED", "Annotated candidate failed biological guardrails or does not match the supplied report")
@@ -410,7 +430,7 @@ def finalize_candidate_construct(
         "recipe": metadata.get("recipe", "unknown"),
         "product_length": metadata.get("product_length", 0),
         "product_topology": metadata.get("product_topology", "circular"),
-        "guardrails": sanity_check,
+        "guardrails": actual_sanity,
         "metadata": metadata,
     }
 

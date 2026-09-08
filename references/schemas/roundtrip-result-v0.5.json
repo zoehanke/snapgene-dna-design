@@ -43,6 +43,7 @@
       "required": ["feature"],
       "properties": {
         "feature": {"type": "string"},
+        "location_operator": {"type": ["string", "null"]},
         "location": {"type": "string"},
         "missing_keys": {"type": "array", "items": {"type": "string"}},
         "unexpected_keys": {"type": "array", "items": {"type": "string"}},

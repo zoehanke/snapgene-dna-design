@@ -70,7 +70,7 @@ def _validate_primer(primer, side, tail="", target_tm=60.0):
     hetero_any = float(heterodimer.get("tm_any") or heterodimer.get("score") or 0.0)
     # Primer3 defaults: PRIMER_MAX_HAIRPIN_TH=47.0,
     # PRIMER_MAX_SELF_ANY_TH=47.0.
-    if hairpin_tm >= 47.0 or self_any >= 47.0 or hetero_any >= 47.0:
+    if hairpin_tm >= tm-10.0 or self_any >= tm-10.0 or hetero_any >= tm-10.0:
         problems.append("primer_strong_secondary_structure")
     crosscheck = None
     if binding:

@@ -79,7 +79,8 @@ def inspect_dna(file_path_or_record: str | pathlib.Path | SeqRecord) -> dict[str
             "name": name,
             "type": f.type,
             "interval_0based": [start0, end0],
-            "length": end0 - start0 if end0 >= start0 else (n - start0 + end0),
+            "length": len(f),
+            "parts_0based": [[int(part.start), int(part.end)] for part in f.location.parts],
             "strand": strand,
             "translation": translation,
             "color": color,
@@ -124,19 +125,19 @@ def summarize_backbone(file_path_or_record: str | pathlib.Path | SeqRecord) -> d
         fn = f["name"].lower()
         ft = f["type"].lower()
 
-        if ft in ("rep_origin", "origin") or "ori" in fn or "origin" in fn:
+        if ft in ("rep_origin", "origin"):
             origins.append({
                 "name": f["name"],
                 "interval_0based": f["interval_0based"],
                 "strand": f["strand"],
             })
-        elif ft in ("promoter",) or "promoter" in fn:
+        elif ft == "promoter" or (ft in ("misc_feature", "regulatory") and "promoter" in fn):
             promoters.append({
                 "name": f["name"],
                 "interval_0based": f["interval_0based"],
                 "strand": f["strand"],
             })
-        else:
+        elif ft in ("cds", "gene"):
             for kw, desc in res_keywords.items():
                 if kw in fn:
                     resistances.append({

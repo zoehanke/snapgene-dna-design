@@ -2,22 +2,24 @@
 """validate_construct.py - One-shot construct QC.
 
 Checks a sequence file and reports problems with severity levels:
-  error   - coordinate out of bounds, CDS frame error, premature stop
+  error   - coordinate out of bounds, invalid CDS metadata/frame/start/stop,
+            unknown base, translation mismatch, premature stop
   warning - non-unique cutter, missing primers, unusual length
   ok      - check passed
 
 Output: JSON (--json) or a readable report. Exit code 1 if any error.
 """
 import argparse
-import re
 
 from Bio.Seq import Seq
-from Bio.Data import CodonTable
 
 from sg_common import enzyme_sites, features_to_dict, get_enzyme, jprint, load_seq, topology
 
 # Enzymes commonly used as single-cutters (for unique-cutter check).
 QC_ENZYMES = ["EcoRI", "BamHI", "HindIII", "XbaI", "NotI", "XhoI", "SalI", "PstI", "KpnI", "SacI"]
+
+
+from core.tools.sequence_ops import validate_cds_feature
 
 
 def _cds_translation(seq, start0, end0, strand):
@@ -59,117 +61,50 @@ def validate(record):
                     % (f["type"], s["start"], s["end"], n)})
                 break
 
-        # CDS frame + premature stop
+        # CDS frame, metadata, translation and start/stop checks
         if f["type"] == "CDS" and start and end:
-            coding = feature.extract(record.seq)
-            qualifiers = feature.qualifiers or {}
-            label_text = str(f.get("name") or "").strip().lower()
-            partial_value = str(qualifiers.get("partial", [""])[0]).lower()
-            is_partial = partial_value in ("true", "1", "yes", "partial")
-            # Short fusion tags are CDS fragments by design, not standalone
-            # open reading frames.  Their source records commonly omit
-            # ``partial`` even though they cannot contain an independent ATG
-            # and stop.  Recognize only the explicit, bounded tag vocabulary;
-            # arbitrary CDS labels remain subject to the strict start/stop
-            # gate.
-            is_fusion_tag = label_text in {
-                "v5 tag", "6xhis", "6x his", "his-tag", "his tag",
-                "ha tag", "flag tag", "myc tag",
-            } and len(coding) <= 120
-            # Public plasmid records often describe a deliberately truncated
-            # CDS as a "fragment" in product/gene/note without adding the
-            # GenBank ``partial`` qualifier (for example lacZalpha fragments
-            # in TA vectors).  Treat that explicit annotation as partial; do
-            # not waive checks for arbitrary short or oddly named CDSs.
-            fragment_text = " ".join(
-                str(value)
-                for key in ("product", "gene", "note", "label")
-                for value in (qualifiers.get(key, [])
-                              if isinstance(qualifiers.get(key, []), list)
-                              else [qualifiers.get(key, [])])
-            ).lower()
-            is_annotated_fragment = "fragment" in fragment_text
-            is_partial = is_partial or is_fusion_tag or is_annotated_fragment
-            is_pseudo = "pseudo" in qualifiers or str(
-                qualifiers.get("pseudogene", [""])[0]).lower() in (
-                    "true", "1", "yes")
-            try:
-                codon_start = int(qualifiers.get("codon_start", [1])[0])
-            except (TypeError, ValueError):
-                codon_start = 1
-            coding = coding[max(0, codon_start - 1):]
-            span = len(coding)
-            if span % 3 != 0:
+            audit = validate_cds_feature(feature, record.seq)
+            error_checks = {
+                "CDS_FRAME_INVALID": "cds_frame",
+                "CDS_PREMATURE_STOP": "cds_premature_stop",
+                "CDS_START_CODON_INVALID": "cds_start_codon",
+                "CDS_TERMINAL_STOP_MISSING": "cds_stop_codon",
+                "CDS_TRANSLATION_MISMATCH": "cds_translation_mismatch",
+                "CDS_UNKNOWN_BASES": "cds_unknown_bases",
+                "INVALID_CODON_START": "cds_codon_start",
+                "INVALID_TRANSL_TABLE": "cds_transl_table",
+                "CDS_EXTRACTION_FAILED": "cds_extraction",
+            }
+            for error in audit["errors"]:
                 checks.append({
-                    "check": "cds_frame", "status": "error", "feature": name,
-                    "detail": "%s extracted length %d not multiple of 3"
-                    % (f["type"], span)})
-            else:
-                try:
-                    table = int(qualifiers.get("transl_table", [1])[0])
-                except (TypeError, ValueError):
-                    table = 1
-                aa = str(coding.translate(table=table))
-                expected_translation = qualifiers.get("translation")
-                if expected_translation:
-                    # GenBank readers may preserve a line-wrap separator as
-                    # a comma (and may split a qualifier into several values).
-                    # A translated protein itself cannot contain commas, so
-                    # canonicalize only whitespace/comma separators and join
-                    # all values before comparing with the deterministic
-                    # translation.  Other punctuation remains visible and
-                    # therefore still fails closed as a mismatch.
-                    if isinstance(expected_translation, (list, tuple)):
-                        expected_translation = "".join(
-                            str(value) for value in expected_translation)
-                    else:
-                        expected_translation = str(expected_translation)
-                    expected_translation = re.sub(
-                        r"[\\s,]+", "", expected_translation)
-                    if expected_translation != aa:
-                        checks.append({
-                            "check": "cds_translation_mismatch",
-                            "status": "error", "feature": name,
-                            "detail": "qualifier translation %s != extracted translation %s"
-                            % (expected_translation, aa),
-                        })
-                if not is_partial and not is_pseudo:
-                    try:
-                        start_codons = set(
-                            CodonTable.unambiguous_dna_by_id[table].start_codons)
-                    except (KeyError, AttributeError):
-                        start_codons = {"ATG"}
-                    if str(coding[:3]).upper() not in start_codons:
-                        checks.append({
-                            "check": "cds_start_codon", "status": "error",
-                            "feature": name,
-                            "detail": "complete CDS starts with %s, expected one of %s"
-                            % (str(coding[:3]).upper(),
-                               ",".join(sorted(start_codons))),
-                        })
-                elif is_partial or is_pseudo:
-                    checks.append({
-                        "check": "cds_start_codon", "status": "ok",
-                        "feature": name,
-                        "detail": "start-codon requirement waived by partial/pseudo qualifier",
-                    })
-                if "*" in aa[:-1]:
-                    checks.append({
-                        "check": "cds_premature_stop", "status": "error", "feature": name,
-                        "detail": "internal stop codon at aa position %d"
-                        % (aa.index("*") + 1)})
-                elif aa.endswith("*"):
-                    checks.append({"check": "cds_frame", "status": "ok",
-                                   "feature": name, "detail": "in-frame, terminal stop"})
-                elif is_partial or is_pseudo:
-                    checks.append({"check": "cds_frame", "status": "warning",
-                                   "feature": name, "detail": "no stop codon (may be partial)"})
-                else:
-                    checks.append({
-                        "check": "cds_stop_codon", "status": "error",
-                        "feature": name,
-                        "detail": "complete CDS lacks a terminal stop codon",
-                    })
+                    "check": error_checks.get(error["code"], "cds_validation"),
+                    "status": "error",
+                    "feature": name,
+                    "detail": error["message"],
+                })
+            if audit["valid"] and audit["terminal_stop"]:
+                checks.append({
+                    "check": "cds_frame", "status": "ok", "feature": name,
+                    "detail": "in-frame, terminal stop",
+                })
+            elif audit["valid"] and audit["partial"]:
+                checks.append({
+                    "check": "cds_frame", "status": "warning", "feature": name,
+                    "detail": "partial CDS validated with explicit evidence",
+                })
+            for warning in audit["warnings"]:
+                checks.append({
+                    "check": "cds_translation_compatibility" if warning["code"] == "CDS_TRANSLATION_COMPATIBILITY" else "cds_partial_codon",
+                    "status": "warning",
+                    "feature": name,
+                    "detail": warning["message"],
+                })
+            if audit["partial"] and not audit["start_codon_valid"]:
+                checks.append({
+                    "check": "cds_start_codon", "status": "ok", "feature": name,
+                    "detail": "start-codon requirement waived by evidence: %s"
+                    % "; ".join(audit["partial_evidence"]),
+                })
 
     # unique cutter check
     for enz_name in QC_ENZYMES:

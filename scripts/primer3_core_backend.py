@@ -21,6 +21,44 @@ class Primer3CoreError(RuntimeError):
     """Raised when primer3_core cannot complete or returns invalid output."""
 
 
+def check_complete_oligo_pair(forward, reverse, core_path=None, annealing_temperature=None):
+    """Measure the actual complete oligos through Primer3 check_primers."""
+    core_path = core_path or discover_primer3_core()
+    if not core_path:
+        raise Primer3CoreError("Full-oligo structural QC requires primer3_core")
+    if max(len(forward), len(reverse)) > 60:
+        raise Primer3CoreError("Primer3 cannot measure complete oligos above 60 nt; structural QC remains incomplete")
+    # A common partition satisfies the engine's core + overhang size limit.
+    # Only structural metrics are used here; binding-core Tm is measured by
+    # the design call on the real template, not on this bookkeeping partition.
+    core_length = min(36, len(forward), len(reverse))
+    raw = run_boulder(core_path, {
+        "PRIMER_TASK": "check_primers", "PRIMER_PICK_ANYWAY": 1,
+        "SEQUENCE_PRIMER": forward[-core_length:],
+        "SEQUENCE_PRIMER_REVCOMP": reverse[-core_length:],
+        "SEQUENCE_OVERHANG_LEFT": forward[:-core_length],
+        "SEQUENCE_OVERHANG_RIGHT": reverse[:-core_length],
+        "PRIMER_MIN_SIZE": min(18, core_length),
+        "PRIMER_OPT_SIZE": min(20, core_length), "PRIMER_MAX_SIZE": core_length,
+        "PRIMER_SECONDARY_STRUCTURE_ALIGNMENT": 1,
+    })
+    metrics = {}
+    for side, prefix in (("forward", "PRIMER_LEFT_0"), ("reverse", "PRIMER_RIGHT_0")):
+        metrics[side] = {key: float(raw[prefix + suffix]) for key, suffix in (
+            ("hairpin_tm", "_HAIRPIN_TH"), ("self_any_tm", "_SELF_ANY_TH"), ("self_end_tm", "_SELF_END_TH"))}
+    metrics["pair"] = {"any_tm": float(raw["PRIMER_PAIR_0_COMPL_ANY_TH"]),
+                       "end_tm": float(raw["PRIMER_PAIR_0_COMPL_END_TH"])}
+    # 47 C is the Primer3 default for its usual design window, not a
+    # temperature-independent biological cutoff. When the caller supplies
+    # its planned annealing temperature, retain a 5 C structure margin.
+    limit = 47.0 if annealing_temperature is None else float(annealing_temperature) - 5.0
+    passed = all(value < limit for section in metrics.values() for value in section.values())
+    return {"passed": passed, "scope": "complete oligos including all 5prime tails",
+            "engine": "Primer3 check_primers", "metrics": metrics,
+            "annealing_temperature_C": annealing_temperature, "structure_limit_C": limit,
+            "conditions": {"monovalent_mM": 50, "divalent_mM": 1.5, "dNTP_mM": 0.6, "DNA_nM": 50}}
+
+
 def _candidate_names():
     return ("primer3_core.exe", "primer3_core")
 
@@ -445,6 +483,13 @@ def design_anchored_pairs(core_path, sequence, region_start, target_tm,
         if rev_tail:
             tags["SEQUENCE_OVERHANG_RIGHT"] = rev_tail
 
+    # Candidate generation must not discard a valid high-Tm pair using the
+    # low end of the requested window. The full-oligo check then applies the
+    # stricter margin for the actual selected pair's lower binding Tm.
+    structure_limit = tm_max - 10.0
+    for key in ("PRIMER_MAX_HAIRPIN_TH", "PRIMER_MAX_SELF_ANY_TH", "PRIMER_MAX_SELF_END_TH",
+                "PRIMER_PAIR_MAX_COMPL_ANY_TH", "PRIMER_PAIR_MAX_COMPL_END_TH"):
+        tags[key] = structure_limit
     raw = run_boulder(core_path, tags, timeout=timeout)
     count = _int(raw, "PRIMER_PAIR_NUM_RETURNED")
     forward = []

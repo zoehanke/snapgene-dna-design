@@ -1,154 +1,240 @@
-# Standard Laboratory SOP Recipes Reference (`core/recipes/`)
+# Recipe parameter reference
 
-This reference document specifies the parameter schemas, biological mechanisms, quality checks, output contracts, and authoritative literature citations for all 7 standard laboratory recipes.
+This file mirrors the callable signatures in `core/recipes/`. The CLI accepts JSON values, so use strings or existing sequence-file paths there. Direct Python calls may also pass `SeqRecord` objects and the input resolver accepts serialized records where the implementation allows them. Recipe functions return a `RecipeResult` with sequence, topology, features, primers, checks, warnings, protocol steps, citations, and recipe-specific `details`; the CLI serializes that result.
 
----
+## Common preparation rule
+
+Treat a source template, a prepared fragment, and a designed component as different things.
+
+```text
+complete source -> PCR and/or restriction digest -> actual intermediate -> assembly or ligation
+```
+
+Every backbone must either have a preparation row with its actual PCR or digest route, or be declared as supplied prepared material. A theoretical tag, fusion, guide component, or donor design does not become a physical PCR template. When a PCR is required, return to the complete original template and verify both primers against it.
+
+The standard entry point is:
+
+```text
+python scripts/run_recipe.py --recipe <recipe_name> --params-json params.json --out-dir build
+```
+
+When `details.preparation` is present, the CLI also writes actual products to `build/intermediates/`, primer-annotated source copies to `build/annotated_sources/`, and `build/primer_order_table.tsv`. The order table carries the complete oligo, binding sequence, interval, strand, and Tm fields. Long 5-prime additions are split by `core.tools.amplification.prepare_pcr_fragment` into successive PCR rows; each row records the actual prior template, product and `annealing_temperature_hint_C`. `--finalize --confirmed` is only meaningful for a complete construct and requires the user's existing authorization.
+
+Recipe CLI parameter JSON may also include `expected_components` and `forbidden_components`. These common fields do not belong to the direct Recipe function signature. Each item provides `name`, an explicit `expected_sequence` or `sequence`, and optionally `strand` (`1` or `-1`). The CLI reuses the existing goal validator on the saved GenBank candidate, records `goal_check`, and rejects failed requirements before promotion. Keep current-reaction enzyme sites separate from downstream interfaces that must survive the design.
 
 ## 1. `recipe_gibson_assembly`
 
-**Module:** `core.recipes.gibson`  
-**Purpose:** Isothermal seamless assembly of DNA fragments via exonuclease-chewback, polymerase-fill, and ligase-seal.  
-**Result Kind:** `construct` | **Completeness:** `complete_construct`  
-**Citations:**
-- Gibson, D.G. et al. (2009). *Enzymatic assembly of DNA molecules up to several hundred kilobases*. Nature Methods, 6(5), 343–345. doi:10.1038/nmeth.1318.
-- NEB NEBuilder HiFi DNA Assembly Guidelines (2014).
+**Callable:** `core.recipes.gibson.recipe_gibson_assembly`
+**Returns:** `construct`, `complete_construct`
+**Use for:** overlap assembly from real source-derived fragments.
 
-### Parameters
-| Name | Type | Default | Description |
-| :--- | :--- | :--- | :--- |
-| `vector_linear_seq` | `str` | *required* | Linearized vector nucleotide sequence string. |
-| `insert_template_seq` | `str` | *required* | Insert donor template nucleotide sequence string. |
-| `insert_start` | `int` | *required* | 0-based start coordinate of insert on template. |
-| `insert_end` | `int` | *required* | 0-based end coordinate of insert on template. |
-| `overlap_length` | `int` | `22` | Homology arm length in bp (gold standard 20–25 bp). |
-| `circular_product` | `bool` | `True` | Whether assembled product should be circular plasmid. |
+### Signature parameters
 
-### CLI Example
-```bash
-python scripts/run_recipe.py --recipe recipe_gibson_assembly --params-json gibson_params.json --out-dir ./build --finalize --confirmed
+| Parameter | Type | Default | Meaning |
+|---|---|---:|---|
+| `vector_linear_seq` | `Any` | `None` | Legacy pre-linearized vector input. Use only when the vector is already supplied in the required linear form. |
+| `insert_template_seq` | `Any` | `None` | Legacy insert source template. |
+| `insert_start` | `int \| None` | `None` | Legacy half-open start on the insert template. |
+| `insert_end` | `int \| None` | `None` | Legacy half-open end on the insert template. |
+| `overlap_length` | `int` | `22` | Requested homology length. The implementation bounds it to 15–35 bp. |
+| `circular_product` | `bool` | `True` | Close the final junction when `True`. |
+| `fragments` | `list[dict[str, Any]] \| None` | `None` | Recommended mode. Ordered full-template fragment specifications. |
+
+### Recommended `fragments` mode
+
+Use complete source templates for every fragment, including the backbone:
+
+```json
+{
+  "fragments": [
+    {"id": "backbone", "template": "backbone.gb", "start": 100, "end": 4500},
+    {"id": "insert", "template": "insert.gb", "start": 20, "end": 820}
+  ],
+  "overlap_length": 22,
+  "circular_product": true
+}
 ```
 
----
+Each item requires `template` (or the implementation's `source` alias), `start` (or `start_0based`), and `end` (or `end_0based`). Coordinates are half-open; a circular source may use a wrapping interval. The function chooses, for each junction, whether forward or reverse primer carries the homology arm, prepares every fragment from its complete source, and assembles the returned PCR products. Long additions become real successive PCR rows whose next template is the preceding product. `details.preparation` records the selected layout, complete primers, actual products and annealing hints. Do not pass an already-designed theoretical fusion as `template`.
+
+The legacy four-input mode accepts a pre-linearized vector and prepares only the insert. Its result records that vector preparation was provided externally and warns that the all-fragment chain is incomplete. Prefer explicit `fragments` when the vector must be amplified or when provenance of every assembly fragment matters.
+
+**Checks to inspect:** actual PCR products, overlap junctions, accepted core Tm in the 52–72°C window, complete-oligo structure QC, primer dimer warning, product topology, and `all_fragments_pcr_prepared` / `preparation_complete`. A 60°C core target is a ranking preference, not a universal promise.
+
+**Reading:** Gibson et al., *Nature Methods* (2009), DOI `10.1038/nmeth.1318`; NEB NEBuilder HiFi protocol.
 
 ## 2. `recipe_restriction_cloning`
 
-**Module:** `core.recipes.restriction_cloning`  
-**Purpose:** Directional or non-directional restriction digestion and T4 DNA ligation.  
-**Result Kind:** `construct` | **Completeness:** `complete_construct`  
-**Citations:**
-- Green, M.R. and Sambrook, J. (2012). *Molecular Cloning: A Laboratory Manual* (4th ed.). Cold Spring Harbor Laboratory Press. Chapters 1 & 3.
-- New England Biolabs (NEB). *Cleavage of Oligonucleotides with Restriction Endonucleases*.
+**Callable:** `core.recipes.restriction_cloning.recipe_restriction_cloning`
+**Returns:** `construct`, `complete_construct`
+**Use for:** PCR insert preparation, restriction digest, and T4 ligation.
 
-### Parameters
-| Name | Type | Default | Description |
-| :--- | :--- | :--- | :--- |
-| `vector_record_or_seq` | `str` or file | *required* | Vector plasmid sequence, file path, or SeqRecord. |
-| `insert_template_or_seq` | `str` or file | *required* | Insert donor sequence, file path, or SeqRecord. |
-| `insert_start` | `int` | *required* | 0-based start coordinate of insert on template. |
-| `insert_end` | `int` | *required* | 0-based end coordinate of insert on template. |
-| `enzyme5` | `str` | *required* | 5' restriction enzyme name (e.g. `EcoRI`, `NdeI`, `BamHI`). |
-| `enzyme3` | `str` | *required* | 3' restriction enzyme name (e.g. `HindIII`, `XhoI`, `NotI`). |
-| `vector_cut5_coord` | `int` | `None` | Optional explicit 0-based cut coordinate on vector. |
-| `vector_cut3_coord` | `int` | `None` | Optional explicit 0-based cut coordinate on vector. |
-| `protective_bases` | `str` | `None` | Flanking protective bases upstream of enzyme recognition site. |
+### Signature parameters
 
----
+| Parameter | Type | Default | Meaning |
+|---|---|---:|---|
+| `vector_source` | `str \| pathlib.Path` | required | Vector file or sequence input. |
+| `insert_template` | `str \| pathlib.Path` | required | Complete insert source template. |
+| `insert_start` | `int` | required | Half-open start on the insert template. |
+| `insert_end` | `int` | required | Half-open end on the insert template. |
+| `enzyme5` | `str` | `EcoRI` | 5-prime cloning enzyme. |
+| `enzyme3` | `str` | `BamHI` | 3-prime cloning enzyme. |
+| `insert_enzyme5` | `str | None` | `None` | Optional insert-side 5-prime enzyme for compatible cohesive ends such as BspHI with an NcoI vector; defaults to `enzyme5`. |
+| `insert_enzyme3` | `str | None` | `None` | Optional insert-side 3-prime enzyme; defaults to `enzyme3`. |
+| `insert_prefix` | `str` | `""` | Product-side sequence placed before the selected insert in the forward primer tail and expression-boundary check. |
+| `insert_suffix` | `str` | `""` | Product-side sequence placed after the selected insert; the reverse-primer tail uses its reverse complement. |
+| `coding_sequence` | `bool \| None` | `None` | Whether to apply coding-boundary checks. `None` infers coding intent from a target beginning with `ATG`. |
+| `expression_start` | `bool \| None` | `None` | Records whether the caller asserts the expression start. `False` records a warning when the enzyme supplies an initiation boundary. |
+| `orientation` | `str` | `auto` | Orientation passed to digest-ligation simulation. |
+
+The function prepares the insert from the complete source with `prepare_pcr_fragment`, then simulates vector and insert digestion followed by ligation. Long primer additions are split into real successive PCR steps and each step exports its actual template, complete primers, product and annealing hint. The supplied vector is the digest substrate; if it must first be PCR-linearized, prepare it as an earlier pipeline step and pass that actual intermediate.
+
+### NcoI/NdeI expression boundary
+
+When `enzyme5` is `NcoI` or `NdeI` and the target is coding, the implementation checks the real enzyme-derived start boundary together with `insert_prefix`, the selected target interval, and `insert_suffix`. It checks the resulting sequence for an `ATG` start, frame remainder, internal stops, and terminal stop state. Inspect `quality_checks.expression_boundary` and the actual vector junction. Do not replace the selected interval with another downstream CDS to make translation pass. An incompatible expression boundary is a design failure that must be resolved against the original vector record.
+
+**Checks to inspect:** internal enzyme cuts, directional end compatibility, methylation warnings, actual PCR product, `expression_boundary_compatible`, and ligation product sequence.
+
+**Reading:** Green and Sambrook, *Molecular Cloning*, 4th ed.; NEB restriction-enzyme guidance.
 
 ## 3. `recipe_golden_gate`
 
-**Module:** `core.recipes.golden_gate`  
-**Purpose:** Type IIS restriction-ligation modular assembly (BsaI, BsmBI/Esp3I, BbsI, PaqCI).  
-**Result Kind:** `construct` | **Completeness:** `complete_construct`  
-**Citations:**
-- Engler, C., Kandzia, R. and Marillonnet, S. (2008). *A one pot, one step, modular cloning method for DNA assembly*. PLoS ONE, 3(11), e3647.
-- Potapov, V. et al. (2018). *Comprehensive profiling of four base overhang ligation fidelity by T4 DNA ligase*. ACS Synthetic Biology, 7(11), 2665–2674.
+**Callable:** `core.recipes.golden_gate.recipe_golden_gate`
+**Returns:** `construct`, `complete_construct`
+**Use for:** Type IIS digest and one-pot ligation of already specified fragments.
 
-### Parameters
-| Name | Type | Default | Description |
-| :--- | :--- | :--- | :--- |
-| `fragments` | `list[str]` | *required* | List of DNA fragment sequence strings carrying Type IIS recognition sites. |
-| `enzyme_name` | `str` | `"BsaI"` | Type IIS enzyme name (`BsaI`, `BsmBI`, `Esp3I`, `BbsI`). |
-| `circular_product` | `bool` | `True` | Whether assembled product is circular. |
+### Signature parameters
 
----
+| Parameter | Type | Default | Meaning |
+|---|---|---:|---|
+| `fragments` | `list[str \| dict[str, Any]]` | required | At least two sequence/file/record or serialized fragment inputs carrying the Type IIS sites and overhangs. |
+| `enzyme` | `str` | `BsaI` | Type IIS enzyme used by the simulator. |
+| `circular` | `bool` | `True` | Circular product when `True`. |
+| `enzyme_name` | `str \| None` | `None` | Compatibility alias. When supplied, overrides `enzyme`. |
+| `circular_product` | `bool \| None` | `None` | Compatibility alias. When supplied, overrides `circular`. |
+
+This recipe performs the digest and assembly simulation. It does not invent a PCR preparation for fragments. If a source fragment or backbone needs amplification, run a preceding PCR tool or pipeline step and pass that returned product. Every backbone must be an actual digest input or be explicitly supplied as a prepared fragment.
+
+**Checks to inspect:** actual cut products, junction compatibility, palindromic overhang warnings, and recognition sites remaining in the product.
+
+**Reading:** Engler et al., *PLoS ONE* (2008), DOI `10.1371/journal.pone.0003647`; Potapov et al., *ACS Synthetic Biology* (2018), DOI `10.1021/acssynbio.8b00333`.
 
 ## 4. `recipe_crispr_hdr_donor`
 
-**Module:** `core.recipes.crispr_hdr`  
-**Purpose:** Design high-efficiency ssODN or double-stranded HDR donor repair templates with synonymous PAM mutation.  
-**Result Kind:** `component` | **Completeness:** `component_only`  
-**Citations:**
-- Ran, F.A. et al. (2013). *Genome engineering using the CRISPR-Cas9 system*. Nature Protocols, 8(11), 2281–2308.
-- Paquet, D. et al. (2016). *Efficient introduction of specific homozygous and heterozygous mutations using CRISPR/Cas9*. Nature, 533(7601), 125–129.
+**Callable:** `core.recipes.crispr_hdr.recipe_crispr_hdr_donor`
+**Returns:** `component`, `component_only`
+**Use for:** ssODN, short annealed dsDNA, or larger donor design around a Cas9 cut.
 
-### Parameters
-| Name | Type | Default | Description |
-| :--- | :--- | :--- | :--- |
-| `target_seq_or_file` | `str` or file | *required* | Genomic target locus sequence or file. |
-| `cut_position_0based` | `int` | *required* | 0-based DSB cleavage coordinate (3 bp upstream of NGG). |
-| `edit_dna` | `str` | *required* | Payload sequence to insert or substitute at the cut site. |
-| `donor_type` | `str` | `"ssODN"` | `"ssODN"` (single-stranded) or `"dsDNA"` / `"plasmid"`. |
-| `homology_arm_len` | `int` | `50` | Length of left and right homology arms in bp. |
-| `grna_seq` | `str` | `""` | 20 nt spacer sequence (used to identify PAM and introduce synonymous mutation). |
-| `target_is_cds` | `bool` | `False` | Whether target locus is inside a coding CDS. |
-| `cds_frame_offset` | `int` | `0` | Reading frame offset (0, 1, or 2) relative to cut site. |
+### Signature parameters
 
----
+| Parameter | Type | Default | Meaning |
+|---|---|---:|---|
+| `target_seq_or_file` | `str \| pathlib.Path \| SeqRecord` | required | Original target locus record or sequence. |
+| `cut_position_0based` | `int` | required | Cas cleavage boundary. |
+| `edit_dna` | `str` | required | Inserted or replacement payload. |
+| `donor_type` | `str` | `ssODN` | `ssODN`, `dsDNA` (including `double-stranded DNA` / `double-stranded donor`), or `plasmid` / `double-stranded plasmid donor`. |
+| `grna_seq` | `str` | `""` | Optional spacer used to match the original target and assess PAM re-cleavage. |
+| `grna_strand` | `int` | `1` | Guide strand, `1` or `-1`. |
+| `custom_arm_length` | `int \| None` | `None` | Override left and right homology-arm length. |
+| `target_is_cds` | `bool` | `False` | Apply CDS-aware PAM-silencing checks. |
+| `cds_frame_offset` | `int` | `0` | Frame offset used for CDS-aware synonymous changes. |
+| `edit_start_0based` | `int \| None` | `None` | Start of an explicit edit interval. |
+| `edit_end_0based` | `int \| None` | `None` | End of an explicit edit interval. Must be supplied with `edit_start_0based`. |
 
-## 5. `recipe_site_directed_mutagenesis` (alias: `recipe_point_mutagenesis`)
+If both edit boundaries are omitted, `edit_dna` is an insertion at `cut_position_0based` for compatibility with the original API. Supplying both boundaries uses a half-open interval `[edit_start_0based, edit_end_0based)`: equal boundaries are an insertion and unequal boundaries are a replacement. Do not use an empty `edit_dna` to stand in for a replacement.
 
-**Module:** `core.recipes.mutagenesis`  
-**Purpose:** Site-directed mutagenesis primer design (QuikChange / Zheng 2004 protocol).  
-**Result Kind:** `construct` | **Completeness:** `complete_construct`  
-**Citations:**
-- Zheng, L., Baumann, U. and Reymond, J.L. (2004). *An efficient one-step site-directed and site-saturation mutagenesis protocol*. Nucleic Acids Research, 32(14), e115.
+Default arm lengths are 50 bp for `ssODN` and short `dsDNA`, and 600 bp for a plasmid donor. A short `dsDNA` result at or below 200 bp includes complete top and bottom oligos and an annealing description. A plasmid donor is a component design; its vector backbone must be supplied or built in a separate preparation route.
 
-### Parameters
-| Name | Type | Default | Description |
-| :--- | :--- | :--- | :--- |
-| `template_record_or_seq` | `str` or file | *required* | Parental plasmid sequence or file. |
-| `mutation_start_0based` | `int` | *required* | 0-based start coordinate of target codon/base to mutate. |
-| `mutation_end_0based` | `int` | *required* | 0-based end coordinate of target codon/base to mutate. |
-| `desired_seq` | `str` | *required* | Replacement nucleotide sequence. |
-| `flanking_match_len` | `int` | `15` | Symmetrical matching flanking bases on each side (>= 10–15 bp). |
+**Checks to inspect:** `edit_mode`, replacement interval and length, donor type, arm lengths, guide match, PAM-silencing state, and the complete donor sequence. This recipe does not create a guide expression plasmid.
 
----
+**Reading:** Ran et al., *Nature Protocols* (2013), DOI `10.1038/nprot.2013.143`; Paquet et al., *Nature* (2016), DOI `10.1038/nature17664`.
+
+## Core tool: `prepare_pcr_fragment`
+
+**Callable:** `core.tools.amplification.prepare_pcr_fragment`
+
+| Parameter | Type | Default | Meaning |
+|---|---|---:|---|
+| `template` | sequence input | required | Complete source `SeqRecord`, sequence or file. |
+| `start` / `end` | `int` | required | 0-based half-open source interval; circular sources may wrap. |
+| `fwd_tail` / `rev_tail` | `str` | `""` | 5-prime additions in forward-primer orientation. |
+| `name` | `str` | `fragment` | Preparation row identifier. |
+| `target_tm` | `float` | `60.0` | Ranking target; accepted complete cores are checked within 52–72°C. |
+
+The result contains the actual sequence, `pcr`, `design`, complete primers and ordered `preparation` rows. If a tail would exceed the complete-oligo length limit, each successive PCR uses the preceding real product as its template and records the product and `annealing_temperature_hint_C`. A design failure remains a failure.
+
+## Core tool: `prepare_pml104_guide`
+
+**Callable:** `core.tools.crispr.prepare_pml104_guide`
+
+| Parameter | Type | Default | Meaning |
+|---|---|---:|---|
+| `vector_record_or_seq` | `str \| pathlib.Path \| SeqRecord` | required | Complete circular pML104 template. |
+| `spacer_seq` | `str` | required | Exactly 20 `A/C/G/T` bases in the guide orientation. |
+
+The tool performs the pML104 inverse-PCR and KLD preparation route, restores the missing 5-prime guide-cassette sequence, and returns the circular product, complete preparation primers, and `scaffold_complete`. It does not prepend a generic U6 transcription G. Check the spacer and the full scaffold in the product before delivery. Primary method reference: [Hu et al. (2018)](https://pmc.ncbi.nlm.nih.gov/articles/PMC5868978/).
+
+## 5. `recipe_site_directed_mutagenesis`  (alias: `recipe_point_mutagenesis`)
+
+**Callable:** `core.recipes.mutagenesis.recipe_site_directed_mutagenesis`
+**Returns:** `construct`, `complete_construct`
+**Use for:** QuikChange mutagenic oligos or inverse-PCR mutagenesis.
+
+### Signature parameters
+
+| Parameter | Type | Default | Meaning |
+|---|---|---:|---|
+| `template_seq_or_file` | `str \| pathlib.Path \| SeqRecord` | required | Complete parental plasmid record or sequence. |
+| `start_0based` | `int` | required | Half-open mutation start. |
+| `end_0based` | `int` | required | Half-open mutation end. Equal boundaries insert. |
+| `alt_seq` | `str` | required | Replacement or inserted DNA. |
+| `target_flank_bp` | `int` | `15` | Requested flanking length used to build and check primers. |
+| `method` | `str` | `quikchange` | `quikchange` or `inverse_pcr`. Hyphens are normalized to underscores. |
+
+`method="quikchange"` designs complete complementary mutagenic oligos and counts actual sequence differences against the original template. `method="inverse_pcr"` designs a full-plasmid PCR intermediate from the original circular template, then models circularization and verifies the resulting product. A QuikChange complementary pair is expected by that method; do not apply an unrelated generic dimer rejection rule as if the intended complementarity were a failed product.
+
+Inspect `details.preparation`, `details.pcr_evidence`, method-specific primer rows, the DpnI reminder, and the feature-preserving product. The source template must be the complete parental record, including when the edit crosses the circular origin.
+
+**Reading:** Zheng et al., *Nucleic Acids Research* (2004), DOI `10.1093/nar/gnh110`; Green and Sambrook, Ch. 13; Agilent QuikChange instructions.
 
 ## 6. `recipe_protein_tagging`
 
-**Module:** `core.recipes.protein_tagging`  
-**Purpose:** In-frame fusion of affinity tags, epitopes, or fluorescent proteins with linker and protease cleavage sites.  
-**Result Kind:** `component` | **Completeness:** `component_only`  
-**Citations:**
-- Terpe, K. (2003). *Overview of tag protein fusion: from molecular and biochemical fundamentals to commercial systems*. Appl Microbiol Biotechnol, 60(5), 523–533.
-- Kozak, M. (1986). *Point mutations define a sequence flanking the AUG initiator codon that modulates translation by eukaryotic ribosomes*. Cell, 44(2), 283–292.
-- Waugh, D.S. (2011). *An overview of enzymatic reagents for removal of affinity tags*. Protein Expr Purif, 80(2), 283–293.
+**Callable:** `core.recipes.protein_tagging.recipe_protein_tagging`
+**Returns:** `component`, `component_only`
+**Use for:** in-frame tag, linker, and optional protease-site design.
 
-### Parameters
-| Name | Type | Default | Description |
-| :--- | :--- | :--- | :--- |
-| `target_cds_seq_or_file` | `str` or file | *required* | Target coding sequence or file. |
-| `tag_name_or_seq` | `str` | `"6xHis"` | Standard tag name (`6xHis`, `FLAG`, `HA`, `Myc`, `V5`, `StrepII`, `GST`, `MBP`, `mCherry`, `EGFP`) or custom DNA sequence. |
-| `tag_position` | `str` | `"C-terminal"` | `"C-terminal"` (strips CDS stop) or `"N-terminal"` (strips tag stop). |
-| `linker_type` | `str` | `None` | Standard linker (`flexible_G4S_x1`, `flexible_G4S_x2`, `flexible_G4S_x3`, `rigid_EAAAK_x2`, `rigid_EAAAK_x3`) or custom sequence. |
-| `protease_site` | `str` | `None` | Optional protease cleavage site (`TEV`, `PreScission`, `Thrombin`). |
-| `include_kozak` | `bool` | `False` | Prepend Kozak consensus motif (`GCCACC`) for N-terminal mammalian expression. |
+### Signature parameters
 
----
+| Parameter | Type | Default | Meaning |
+|---|---|---:|---|
+| `target_cds_seq_or_file` | `str \| pathlib.Path \| SeqRecord` | required | Complete target CDS record or sequence. |
+| `tag_name_or_seq` | `str` | `6xHis` | Standard tag name or custom DNA sequence. |
+| `tag_position` | `str` | `C-terminal` | `C-terminal` or `N-terminal`. |
+| `linker_type` | `str` | `flexible_G4S_x2` | Standard linker key or custom DNA sequence. |
+| `protease_cleavage` | `str \| None` | `None` | `TEV`, `PreScission`, or `Thrombin`. |
+| `include_kozak` | `bool` | `False` | Prepend `GCCACC` when requested. |
+| `terminal_stop_codon` | `str` | `TAA` | Stop codon appended when needed. |
+| `protease_site` | `str \| None` | `None` | Compatibility alias used only when `protease_cleavage` is not supplied. |
+
+The result is a design component, not a vector or a physical PCR product. Use it to define the desired fusion, then design PCR from the complete original CDS/vector source. Inspect the actual target start, stop handling, linker frame, and internal stops.
+
+**Reading:** Terpe, *Applied Microbiology and Biotechnology* (2003); Kozak, *Cell* (1986); Waugh, *Protein Expression and Purification* (2011).
 
 ## 7. `recipe_cloning_verification`
 
-**Module:** `core.recipes.verification`  
-**Purpose:** Quality control design for recombinant clones: junction-crossing colony PCR screening primers, Sanger sequencing primer layout, and diagnostic restriction digest band prediction.  
-**Result Kind:** `verification` | **Completeness:** `qc_only`  
-**Citations:**
-- Green, M.R. and Sambrook, J. (2012). *Molecular Cloning: A Laboratory Manual* (4th ed.). Chapters 1 & 8.
-- Sanger, F. et al. (1977). *DNA sequencing with chain-terminating inhibitors*. PNAS, 74(12), 5463–5467.
+**Callable:** `core.recipes.verification.recipe_cloning_verification`
+**Returns:** `verification`, `qc_only`
+**Use for:** junction PCR, Sanger primer placement, and optional diagnostic digest prediction.
 
-### Parameters
-| Name | Type | Default | Description |
-| :--- | :--- | :--- | :--- |
-| `recombinant_plasmid_or_seq` | `str` or file | *required* | Recombinant plasmid sequence or file. |
-| `insert_junction_start_0based` | `int` | *required* | 0-based coordinate where insert begins. |
-| `insert_junction_end_0based` | `int` | *required* | 0-based coordinate where insert ends. |
-| `diagnostic_enzymes` | `list[str]` | `None` | Optional list of enzymes for analytical restriction digest gel electrophoresis. |
+### Signature parameters
+
+| Parameter | Type | Default | Meaning |
+|---|---|---:|---|
+| `recombinant_plasmid_seq_or_file` | `str \| pathlib.Path \| SeqRecord` | required | Complete recombinant record or sequence. |
+| `insert_start_0based` | `int` | required | Insert start in the recombinant record. |
+| `insert_end_0based` | `int` | required | Insert end in the recombinant record. |
+| `diagnostic_enzymes` | `list[str] \| None` | `None` | Optional enzymes for simulated diagnostic digest. |
+
+This recipe returns a QC design plus an annotated copy of the source, including `.dna` with the designed primers. It retains source topology and existing features. PCR length comes from full-template exact-match simulation; primers are restricted to the actual backbone and insert. It refuses ambiguous binding. If an upstream Sanger primer is unavailable, it tries a reverse primer facing the junction. The reported distance is measured from the real 3′ end. Short inserts can require a matched lower-Tm pair within 52–72°C. Parental-template specificity and mismatch-tolerant off-target binding are not established by this local exact-match assay.
+
+**Reading:** Green and Sambrook, Ch. 1 and Ch. 8; Sanger et al., *PNAS* (1977).

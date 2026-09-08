@@ -17,6 +17,8 @@ from Bio.Seq import Seq
 from Bio.SeqFeature import CompoundLocation, FeatureLocation, SeqFeature
 from Bio.SeqRecord import SeqRecord
 
+from core.tools.snapgene_io import normalize_primer_qualifiers, read_native_dna_record
+
 # Standard IUPAC nucleotide alphabet (including ambiguity codes)
 DNA_ALPHABET = set("ACGTRYSWKMBDHVN")
 
@@ -26,17 +28,13 @@ def _read_record_from_file(p: pathlib.Path) -> SeqRecord:
     suffix = p.suffix.lower()
     if suffix in (".dna",):
         try:
-            return SeqIO.read(str(p), "snapgene")
-        except Exception:
-            try:
-                from snapgene_reader import snapgene_file_to_seqrecord
-                return snapgene_file_to_seqrecord(str(p))
-            except Exception as exc:
-                raise ValueError(f"Failed to parse SnapGene .dna file '{p}': {exc}") from exc
+            return read_native_dna_record(p)
+        except Exception as exc:
+            raise ValueError(f"Failed to parse SnapGene .dna file '{p}': {exc}") from exc
     elif suffix in (".gb", ".gbk", ".genbank"):
         try:
             with p.open(encoding="utf-8") as handle:
-                return SeqIO.read(handle, "genbank")
+                return normalize_primer_qualifiers(SeqIO.read(handle, "genbank"))
         except Exception as exc:
             raise ValueError(f"Failed to parse GenBank file '{p}': {exc}") from exc
     else:
@@ -83,10 +81,15 @@ def resolve_sequence_input(
         sequence = value.get("sequence", value.get("product_sequence", value.get("amplicon")))
         if not isinstance(sequence, str):
             raise ValueError("Sequence result must contain a sequence string")
-        rec = SeqRecord(Seq(sequence.upper()), id=record_id, annotations={
-            "molecule_type": "DNA",
-            "topology": value.get("product_topology", value.get("topology", default_topology)),
-        })
+        annotations = dict(value.get("annotations") or {})
+        annotations.setdefault("molecule_type", "DNA")
+        annotations["topology"] = value.get("product_topology", value.get(
+            "topology", annotations.get("topology", default_topology)))
+        identifier = str(value.get("id") or record_id)
+        rec = SeqRecord(Seq(sequence.upper()), id=identifier,
+                        name=str(value.get("name") or identifier),
+                        description=str(value.get("description") or ""),
+                        annotations=annotations)
         for feature in value.get("features", []):
             location = feature.get("location") or {}
             parts = location.get("parts")

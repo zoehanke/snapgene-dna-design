@@ -17,6 +17,7 @@ factual sanity audit to prevent LLM hallucinations:
 from __future__ import annotations
 
 import pathlib
+import hashlib
 import re
 from typing import Any
 
@@ -26,7 +27,10 @@ from Bio.SeqRecord import SeqRecord
 from core.tools.amplification import check_primer_dimers
 from core.tools.inspection import inspect_dna
 from core.tools.restriction import find_restriction_sites
-from core.tools.sequence_ops import check_reading_frame
+from core.tools.sequence_ops import (
+    check_reading_frame,
+    validate_cds_feature,
+)
 
 FOUNDATIONAL_CHECKLIST = [
     {
@@ -218,24 +222,21 @@ def scan_plasmid_maintenance_elements(
     if isinstance(record_or_seq, SeqRecord) and record_or_seq.features:
         for feat in record_or_seq.features:
             ftype = feat.type.lower()
-            text_corpus = f"{ftype} "
-            for k, v in feat.qualifiers.items():
-                text_corpus += " ".join(str(x) for x in v).lower() + " "
+            text_corpus = " ".join(str(x) for key in ("label", "gene", "product")
+                                   for x in feat.qualifiers.get(key, [])).lower()
+            label = next((str(x) for key in ("label", "gene", "product")
+                          for x in feat.qualifiers.get(key, []) if x), feat.type)
+            def named_as(keywords):
+                return any(re.search(r"(?<![a-z0-9])" + re.escape(kw) + r"(?![a-z0-9])", text_corpus)
+                           for kw in keywords)
 
-            if ftype in ("rep_origin", "origin") or any(kw in text_corpus for kw in ori_keywords):
-                label = feat.qualifiers.get("label", [feat.type])[0]
+            if ftype in ("rep_origin", "origin") or (ftype == "misc_feature" and named_as(ori_keywords) and "promoter" not in text_corpus):
                 if label not in ori_found:
                     ori_found.append(label)
 
-            if any(kw in text_corpus for kw in marker_keywords):
-                label = feat.qualifiers.get("label", [feat.type])[0]
+            if ftype in ("cds", "gene", "misc_feature") and named_as(marker_keywords) and "promoter" not in text_corpus:
                 if label not in marker_found:
                     marker_found.append(label)
-
-    seq_str = str(record_or_seq.seq if isinstance(record_or_seq, SeqRecord) else record_or_seq).upper()
-    if not ori_found:
-        if "TTGAGATCCTTTTTTTCTGCGCG" in seq_str or "AGATTAGCGGATCCT" in seq_str or "GTTTTCCCAGTCACGAC" in seq_str:
-            ori_found.append("Inferred-pUC/ColE1-core")
 
     has_ori = len(ori_found) > 0
     has_marker = len(marker_found) > 0
@@ -406,6 +407,7 @@ def quick_biological_sanity_check(
     check_secondary_structure: bool = False,
     is_cds: bool = True,
     expected_orientation: str | None = None,
+    primer_method: str = "pcr",
 ) -> dict[str, Any]:
     """Lightweight objective factual scan to assist the agent in catching obvious biological glitches.
 
@@ -438,7 +440,7 @@ def quick_biological_sanity_check(
     if isinstance(record_or_seq, SeqRecord):
         cds_features = [
             f for f in getattr(record_or_seq, "features", [])
-            if str(f.type).lower() in ("cds", "gene")
+            if str(f.type).lower() == "cds"
         ]
 
     # If circular and no CDS features are annotated, do not treat whole plasmid as a single CDS
@@ -449,22 +451,33 @@ def quick_biological_sanity_check(
     rf_result = None
     if cds_features:
         for f in cds_features:
+            audit = validate_cds_feature(f, record_or_seq.seq)
             s0 = int(f.location.start)
             e0 = int(f.location.end)
             strand = int(f.location.strand or 1)
-            cds_dna = str(f.extract(record_or_seq.seq)).upper()
-            name = f.qualifiers.get("label", f.qualifiers.get("gene", [f.type]))[0]
-
-            rf = check_reading_frame(cds_dna, start_offset=0)
             annotated_cds_audits.append({
-                "name": name,
+                "partial_evidence": audit["partial_evidence"],
+                "partial": audit["partial"],
+                "name": audit["name"],
                 "interval_0based": [s0, e0],
                 "strand": strand,
-                "length_bp": len(cds_dna),
-                "is_multiple_of_three": rf["is_multiple_of_three"],
-                "has_premature_stop": rf["has_premature_stop"],
-                "premature_stop_positions": rf["premature_stop_positions"],
-                "terminal_stop": rf["terminal_stop"],
+                "length_bp": len(audit["raw_sequence"]),
+                "is_multiple_of_three": audit["is_multiple_of_three"],
+                "has_premature_stop": audit["has_premature_stop"],
+                "premature_stop_positions": audit["premature_stop_positions"],
+                "terminal_stop": audit["terminal_stop"],
+                "start_codon": audit["start_codon"],
+                "start_codon_valid": audit["start_codon_valid"],
+                "has_unknown_bases": audit["has_unknown_bases"],
+                "translation": audit["translation"],
+                "codon_start": audit["codon_start"],
+                "codon_start_valid": audit["codon_start_valid"],
+                "transl_table": audit["transl_table"],
+                "transl_table_valid": audit["transl_table_valid"],
+                "translation_qualifier_compatible": audit["translation_qualifier_compatible"],
+                "validation_errors": audit["errors"],
+                "validation_warnings": audit["warnings"],
+                "valid": audit["valid"],
             })
     elif is_cds:
         rf_result = check_reading_frame(seq_str, start_offset=cds_start_offset)
@@ -472,7 +485,7 @@ def quick_biological_sanity_check(
     # 2. Restriction Enzyme Conflicts (BIO-03)
     enzyme_conflicts = []
     if cloning_enzymes:
-        res_sites = find_restriction_sites(seq_str, enzymes=cloning_enzymes)
+        res_sites = find_restriction_sites(record_or_seq, enzymes=cloning_enzymes, topology=rec_top)
         for enz_name, details in res_sites.get("enzymes", {}).items():
             if details["cut_count"] > 0:
                 enzyme_conflicts.append({
@@ -497,11 +510,26 @@ def quick_biological_sanity_check(
     # 5. PCR Primer Dimers (BIO-07)
     primer_dimer_res = None
     if primers and len(primers) >= 2:
-        p_check = check_primer_dimers(primers[0], primers[1])
+        pair_checks = []
+        for index in range(0, len(primers) - 1, 2):
+            forward, reverse = primers[index:index + 2]
+            if primer_method.lower() == "quikchange" and str(Seq(forward).reverse_complement()).upper() == reverse.upper():
+                # The intended complementary heteroduplex is the SDM mechanism.
+                # Unintended self-dimers still receive the ordinary check.
+                checks = [check_primer_dimers(forward, forward), check_primer_dimers(reverse, reverse)]
+                pair_check = dict(max(checks, key=lambda c: c["max_3prime_complementarity"]))
+                pair_check["expected_quikchange_heteroduplex"] = True
+                pair_check["self_dimer_checks"] = checks
+            else:
+                pair_check = check_primer_dimers(forward, reverse)
+            pair_checks.append(pair_check)
+        p_check = max(pair_checks, key=lambda c: c["max_3prime_complementarity"])
         primer_dimer_res = {
-            "high_dimer_risk": p_check["high_dimer_risk"],
+            "high_dimer_risk": any(c["high_dimer_risk"] for c in pair_checks),
             "max_3prime_complementarity": p_check["max_3prime_complementarity"],
             "analysis": p_check,
+            "pairs": pair_checks,
+            "method": primer_method,
         }
 
     # 6. Plasmid Maintenance Elements (BIO-08)
@@ -530,10 +558,39 @@ def quick_biological_sanity_check(
                 msg = f"BIO-01: Annotated CDS '{name}' ({coords}) contains {len(audit['premature_stop_positions'])} premature stop codon(s)."
                 issues_found.append(msg)
                 critical_issues.append({"code": "BIO-01-PREMATURE_STOP", "message": msg, "severity": "CRITICAL"})
-            if not audit["terminal_stop"]:
-                msg = f"BIO-02: Annotated CDS '{name}' ({coords}) does not end with a canonical stop codon (TAA/TAG/TGA)."
+            if audit["has_unknown_bases"]:
+                msg = f"BIO-01: Annotated CDS '{name}' ({coords}) contains ambiguous or unknown DNA bases."
                 issues_found.append(msg)
-                warnings_list.append({"code": "BIO-02-TERMINAL_STOP_MISSING", "message": msg, "severity": "WARNING"})
+                critical_issues.append({"code": "BIO-01-UNKNOWN_BASE", "message": msg, "severity": "CRITICAL"})
+            if (not audit["start_codon_valid"] and not audit["partial"]
+                    and audit["codon_start_valid"] and audit["transl_table_valid"]):
+                msg = f"BIO-01: Complete annotated CDS '{name}' ({coords}) starts with {audit['start_codon'] or '<missing>'}, which is invalid for translation table {audit['transl_table']}."
+                issues_found.append(msg)
+                critical_issues.append({"code": "BIO-01-START_CODON", "message": msg, "severity": "CRITICAL"})
+            if (not audit["terminal_stop"] and not audit["partial"]
+                    and audit["codon_start_valid"] and audit["transl_table_valid"]):
+                msg = f"BIO-02: Annotated CDS '{name}' ({coords}) does not end with a canonical stop codon for translation table {audit['transl_table']}."
+                issues_found.append(msg)
+                critical_issues.append({"code": "BIO-02-TERMINAL_STOP_MISSING", "message": msg, "severity": "CRITICAL"})
+            for error in audit["validation_errors"]:
+                code = error["code"]
+                if code in {
+                    "CDS_FRAME_INVALID",
+                    "CDS_PREMATURE_STOP",
+                    "CDS_UNKNOWN_BASES",
+                    "CDS_START_CODON_INVALID",
+                    "CDS_TERMINAL_STOP_MISSING",
+                }:
+                    continue
+                msg = f"BIO-01: Annotated CDS '{name}' ({coords}) validation failed: {error['message']}"
+                issues_found.append(msg)
+                critical_issues.append({"code": f"BIO-01-{code.removeprefix('CDS_')}", "message": msg, "severity": "CRITICAL"})
+            for warning in audit["validation_warnings"]:
+                warnings_list.append({
+                    "code": f"BIO-01-{warning['code'].removeprefix('CDS_')}",
+                    "message": f"BIO-01: Annotated CDS '{name}' ({coords}): {warning['message']}",
+                    "severity": "WARNING",
+                })
     elif rf_result is not None:
         if not rf_result["is_multiple_of_three"]:
             msg = "BIO-01: CDS sequence length is not a multiple of 3 (frameshift)."
@@ -543,6 +600,18 @@ def quick_biological_sanity_check(
             msg = f"BIO-01: Detected {len(rf_result['premature_stop_positions'])} premature stop codon(s)."
             issues_found.append(msg)
             critical_issues.append({"code": "BIO-01-PREMATURE_STOP", "message": msg, "severity": "CRITICAL"})
+        if rf_result["has_unknown_bases"]:
+            msg = "BIO-01: CDS sequence contains ambiguous or unknown DNA bases."
+            issues_found.append(msg)
+            critical_issues.append({"code": "BIO-01-UNKNOWN_BASE", "message": msg, "severity": "CRITICAL"})
+        if not rf_result["start_codon_valid"]:
+            msg = "BIO-01: CDS sequence starts with an invalid initiator codon."
+            issues_found.append(msg)
+            critical_issues.append({"code": "BIO-01-START_CODON", "message": msg, "severity": "CRITICAL"})
+        for error in rf_result["errors"]:
+            msg = f"BIO-01: Direct CDS validation failed: {error['message']}"
+            issues_found.append(msg)
+            critical_issues.append({"code": f"BIO-01-{error['code']}", "message": msg, "severity": "CRITICAL"})
         if not rf_result["terminal_stop"]:
             msg = "BIO-02: No canonical terminal stop codon (TAA/TAG/TGA) at sequence 3' end."
             issues_found.append(msg)
@@ -585,14 +654,18 @@ def quick_biological_sanity_check(
 
     if annotated_cds_audits:
         clean_for_expression = all(
-            a["is_multiple_of_three"] and not a["has_premature_stop"] and a["terminal_stop"]
+            a["valid"] if "valid" in a else (
+                a["is_multiple_of_three"] and not a["has_premature_stop"]
+                and a["has_unknown_bases"] is False
+                and (a["start_codon_valid"] or a["partial"])
+                and (a["terminal_stop"] or a["partial"])
+                and not a["validation_errors"]
+            )
             for a in annotated_cds_audits
         ) and len(enzyme_conflicts) == 0
     elif rf_result is not None:
         clean_for_expression = (
-            rf_result["is_multiple_of_three"]
-            and not rf_result["has_premature_stop"]
-            and rf_result["terminal_stop"]
+            rf_result["valid"]
             and len(enzyme_conflicts) == 0
         )
     else:
@@ -664,18 +737,22 @@ def quick_biological_sanity_check(
         bio04_applicable = False
         bio04_details = "No target orientation constraint specified; feature coordinates syntactically valid" if observed_orientations else "No strand or feature annotations present to evaluate orientation"
 
+    complete_cds_audits = [a for a in annotated_cds_audits if not a["partial_evidence"]]
+    stop_applicable = bool(rf_result is not None or complete_cds_audits)
+    stop_present = (rf_result["terminal_stop"] if rf_result is not None else
+                    all(a["terminal_stop"] for a in complete_cds_audits))
     guardrail_status_table = {
         "BIO-01-FRAME": {
             "title": "Reading Frame & Premature Stops",
-            "status": "PASS" if ((annotated_cds_audits and all(a["is_multiple_of_three"] and not a["has_premature_stop"] for a in annotated_cds_audits)) or (rf_result is not None and rf_result["is_multiple_of_three"] and not rf_result["has_premature_stop"])) else ("N/A" if not annotated_cds_audits and not is_cds else "FAIL"),
+            "status": "PASS" if ((annotated_cds_audits and all(a["valid"] for a in annotated_cds_audits)) or (rf_result is not None and rf_result["valid"])) else ("N/A" if not annotated_cds_audits and not is_cds else "FAIL"),
             "applicable": bool(annotated_cds_audits or is_cds),
             "details": f"{len(annotated_cds_audits)} annotated CDS(s) audited" if annotated_cds_audits else ("Direct CDS audited" if is_cds else "Non-coding sequence / whole plasmid"),
         },
         "BIO-02-STOP": {
             "title": "Stop Codon Integrity",
-            "status": "PASS" if ((annotated_cds_audits and all(a["terminal_stop"] for a in annotated_cds_audits)) or (rf_result is not None and rf_result["terminal_stop"])) else ("N/A" if not annotated_cds_audits and not is_cds else "WARN"),
-            "applicable": bool(annotated_cds_audits or is_cds),
-            "details": "Canonical stop codon present" if ((annotated_cds_audits and all(a["terminal_stop"] for a in annotated_cds_audits)) or (rf_result and rf_result["terminal_stop"])) else ("N/A" if not annotated_cds_audits and not is_cds else "Terminal stop missing (warning: permitted for non-stop fusions/intermediate fragments)"),
+            "status": ("PASS" if stop_present else "FAIL") if stop_applicable else "N/A",
+            "applicable": stop_applicable,
+            "details": ("Canonical stop codon present" if stop_present else "Complete CDS lacks a terminal stop") if stop_applicable else "No complete CDS asserted; explicit partial evidence is recorded per feature",
         },
         "BIO-03-ENZYME": {
             "title": "Internal Restriction Cut Conflict",
@@ -735,6 +812,19 @@ def quick_biological_sanity_check(
 
     return {
         "sequence_length": len(seq_str),
+        "sequence_sha256": hashlib.sha256(seq_str.encode("ascii")).hexdigest(),
+        "validation_context": {
+            "cds_start_offset": cds_start_offset,
+            "cloning_enzymes": cloning_enzymes,
+            "crispr_grna_seq": crispr_grna_seq,
+            "check_u6_termination": check_u6_termination,
+            "primers": list(primers) if primers else None,
+            "topology": rec_top,
+            "check_secondary_structure": check_secondary_structure,
+            "is_cds": is_cds,
+            "expected_orientation": expected_orientation,
+            "primer_method": primer_method,
+        },
         "is_multiple_of_three": is_m3,
         "has_premature_stop": has_stop,
         "premature_stop_positions": premature_stops,

@@ -19,6 +19,9 @@ ROOT = HERE.parent
 
 
 def main():
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
     parser = argparse.ArgumentParser()
     parser.add_argument("--allow-primer3-skip", action="store_true",
                         help="allow real-primer3 tests to skip (not release evidence)")

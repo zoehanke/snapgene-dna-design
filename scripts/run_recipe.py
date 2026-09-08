@@ -4,7 +4,7 @@
 
 Usage:
     python scripts/run_recipe.py --recipe recipe_gibson_assembly --params-json params.json --out-dir ./build
-    python scripts/run_recipe.py --recipe recipe_protein_tagging --params '{"target_cds_or_file": "ATG...", "tag_name_or_seq": "6xHis"}'
+    python scripts/run_recipe.py --recipe recipe_protein_tagging --params '{"target_cds_seq_or_file": "ATG...", "tag_name_or_seq": "6xHis"}'
     python scripts/run_recipe.py --recipe recipe_gibson_assembly --params-json params.json --out-dir ./build --finalize --confirmed
 
 Outputs:
@@ -15,6 +15,7 @@ Outputs:
 from __future__ import annotations
 
 import argparse
+import csv
 import hashlib
 import json
 import pathlib
@@ -32,6 +33,53 @@ from core.guardrails.checklist import quick_biological_sanity_check
 from core.recipes.contract import RecipeResult
 from core.tools.snapgene_io import export_plasmid
 from core.io.input_resolution import resolve_sequence_record
+
+
+def write_preparation_artifacts(preparation: list[dict], out_dir: str | pathlib.Path) -> dict:
+    """Write the actual prepared fragments, source primer maps and order table."""
+    from Bio import SeqIO
+    from core.tools.snapgene_io import annotate_record_primers
+    out = pathlib.Path(out_dir)
+    outputs, orders = [], []
+    for index, item in enumerate(preparation, 1):
+        product = resolve_sequence_record(item["product"])
+        template = resolve_sequence_record(item["template"])
+        primers = item.get("primers", [])
+        if not primers:
+            raise ValueError(f"Preparation '{item.get('id', index)}' has no actual primers")
+        prefix = f"preparation_{index:02d}"
+        fragment = export_plasmid(product, out / "intermediates", prefix,
+                                  product.annotations.get("topology", "linear"))
+        source_copy = annotate_record_primers(template, primers)
+        source_files = export_plasmid(source_copy, out / "annotated_sources", prefix + "_source",
+                                      template.annotations.get("topology", "linear"))
+        # When the input is Native, preserve its non-modeled packets as well.
+        original = item["template"]
+        if isinstance(original, (str, pathlib.Path)) and pathlib.Path(original).suffix.lower() == ".dna":
+            from scripts.annotate_primers import annotate_primers_dna
+            annotate_primers_dna(original, source_files["dna_file"], "add", primers)
+        fa = out / "intermediates" / (prefix + ".fasta")
+        with fa.open("w", encoding="utf-8", errors="replace") as handle:
+            SeqIO.write(product, handle, "fasta")
+        outputs.append({"id": item.get("id", prefix), "method": item.get("method", "PCR"),
+                        "product": fragment, "fasta": str(fa), "annotated_source": source_files})
+        for primer in primers:
+            orders.append({"preparation": item.get("id", prefix), "template": template.id,
+                           "name": primer.get("name", "primer"),
+                           "sequence_5to3": primer.get("sequence") or primer.get("seq"),
+                           "binding_sequence_5to3": primer.get("binding_sequence") or primer.get("binding_core", ""),
+                           "binding_interval_0based": json.dumps(primer.get("binding_interval_0based")),
+                           "strand": primer.get("strand"),
+                           "tm_C": primer.get("binding_core_tm", primer.get("tm", primer.get("qc_tm", ""))),
+                           "annealing_hint_C": item.get("annealing_temperature_hint_C", "")})
+    if not orders:
+        return {"steps": [], "primer_order_table": None}
+    order_file = out / "primer_order_table.tsv"
+    with order_file.open("w", encoding="utf-8", errors="replace", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=list(orders[0]), delimiter="\t")
+        writer.writeheader()
+        writer.writerows(orders)
+    return {"steps": outputs, "primer_order_table": str(order_file)}
 
 
 def get_recipe_function(recipe_name: str):
@@ -52,6 +100,10 @@ def run_recipe_cli(
     user_confirmed: bool = False,
 ) -> dict[str, Any]:
     fn, canonical_name = get_recipe_function(recipe_name)
+    params = dict(params)
+    requirements = {key: params.pop(key, []) for key in ("expected_components", "forbidden_components")}
+    if any(not isinstance(value, list) for value in requirements.values()):
+        raise ValueError("expected_components and forbidden_components must be lists")
     out_path = pathlib.Path(out_dir).resolve()
     candidate_dir = out_path / "candidate"
     candidate_dir.mkdir(parents=True, exist_ok=True)
@@ -63,6 +115,9 @@ def run_recipe_cli(
     prod_seq = res.product_sequence or res.get("product_dna_sequence") or ""
     topo = res.product_topology or "linear"
     product_record = resolve_sequence_record({"sequence": prod_seq, "topology": topo, "features": res.features})
+    if res.result_kind == "verification" and res.primers:
+        from core.tools.snapgene_io import annotate_record_primers
+        product_record = annotate_record_primers(product_record, res.primers)
 
     # Only treat as CDS if explicitly designated or standard coding recipe
     is_cds = False
@@ -74,11 +129,15 @@ def run_recipe_cli(
 
     # Extract execution context
     cloning_enz = params.get("enzyme") or params.get("enzymes") or res.details.get("enzyme") or res.details.get("enzymes")
+    if canonical_name == "recipe_restriction_cloning":
+        cloning_enz = None  # Ordinary cloning retains its flanking sites; the recipe checks actual digests.
     if cloning_enz and isinstance(cloning_enz, str):
         cloning_enz = [cloning_enz]
     grna_seq = params.get("grna_seq") or params.get("target_grna_seq") or res.details.get("grna_seq") or ""
     pr_seqs = [p.get("sequence") or p.get("seq") for p in (res.primers or []) if (p.get("sequence") or p.get("seq"))]
-    u6_term = bool(canonical_name == "recipe_crispr_hdr_donor" or params.get("check_u6_termination"))
+    u6_term = bool(params.get("check_u6_termination"))
+    method = str(res.details.get("method") or params.get("method") or
+                 ("quikchange" if "mutagenesis" in canonical_name or canonical_name == "recipe_point_mutagenesis" else "pcr"))
 
     sanity = quick_biological_sanity_check(
         product_record,
@@ -88,6 +147,7 @@ def run_recipe_cli(
         crispr_grna_seq=grna_seq,
         primers=pr_seqs if len(pr_seqs) >= 2 else None,
         check_u6_termination=u6_term,
+        primer_method=method,
     )
 
     # 3. Save Candidate Artifacts
@@ -97,7 +157,7 @@ def run_recipe_cli(
         fa_path.write_text(f">{canonical_name} length={len(prod_seq)} topology={topo}\n{prod_seq}\n", encoding="utf-8")
         candidate_files.append(str(fa_path))
 
-    if res.is_plasmid_construct() and prod_seq:
+    if prod_seq:
         export_res = export_plasmid(
             record_or_seq=product_record,
             out_dir=candidate_dir,
@@ -107,11 +167,42 @@ def run_recipe_cli(
         candidate_files.append(export_res["gb_file"])
         candidate_files.append(export_res["dna_file"])
 
+    preparation_files = write_preparation_artifacts(res.details.get("preparation", []), out_path)
+    if res.details.get("edited_target_record"):
+        edited = resolve_sequence_record(res.details["edited_target_record"])
+        edited_files = export_plasmid(edited, candidate_dir, "expected_edited_target",
+                                     edited.annotations.get("topology", "linear"))
+        candidate_files.extend([edited_files["gb_file"], edited_files["dna_file"]])
+        preparation_files["expected_edited_target"] = edited_files
+    oligos = [(name, res.details.get(name)) for name in ("top_oligo", "bottom_oligo")]
+    if any(sequence for _, sequence in oligos):
+        oligo_path = out_path / "donor_oligo_order_table.tsv"
+        with oligo_path.open("w", encoding="utf-8", errors="replace", newline="") as handle:
+            writer = csv.writer(handle, delimiter="\t")
+            writer.writerow(["name", "sequence_5to3", "length_nt", "method"])
+            for name, sequence in oligos:
+                if sequence:
+                    writer.writerow([name, sequence, len(sequence), "oligo synthesis and annealing"])
+        preparation_files["donor_oligo_order_table"] = str(oligo_path)
+
     result_json_path = candidate_dir / f"{canonical_name}_result.json"
     result_dict = res.to_dict()
     result_dict["sanity_check"] = sanity
+    result_dict["preparation_files"] = preparation_files
+    goal_check = {"status": "not_requested", "checks": [], "errors": []}
+    if any(requirements.values()):
+        from Bio import SeqIO
+        from core.runtime_validate import _validate_requested_components
+        with (candidate_dir / f"{canonical_name}.gb").open(encoding="utf-8", errors="replace") as handle:
+            actual_candidate = SeqIO.read(handle, "genbank")
+        traces, errors = _validate_requested_components(requirements, actual_candidate)
+        goal_check = {"status": "failed" if errors else "passed", "checks": traces, "errors": errors}
+    result_dict["goal_check"] = goal_check
     result_json_path.write_text(json.dumps(result_dict, indent=2, ensure_ascii=False, default=str), encoding="utf-8")
     candidate_files.append(str(result_json_path))
+    if goal_check["errors"]:
+        from core.errors import GateRejected
+        raise GateRejected("GATE_GOAL_FAILED", "; ".join(goal_check["errors"]))
 
     authoritative_delivery = None
     if finalize_requested:
@@ -140,6 +231,7 @@ def run_recipe_cli(
                 "completeness": res.completeness,
                 "product_length": len(prod_seq),
                 "product_topology": topo,
+                "goal_check": goal_check,
             },
             sanity_check=sanity,
             user_confirmed=user_confirmed,
@@ -156,6 +248,8 @@ def run_recipe_cli(
         "authoritative_delivery": authoritative_delivery,
         "recipe_result": res,
         "sanity_check": sanity,
+        "preparation_files": preparation_files,
+        "goal_check": goal_check,
     }
 
 
@@ -168,6 +262,8 @@ def format_markdown_summary(exec_summary: dict[str, Any]) -> str:
     lines.append(f"- **Result Kind**: `{exec_summary['result_kind']}` ({exec_summary['completeness']})")
     if exec_summary["product_length"] > 0:
         lines.append(f"- **Product Sequence Length**: {exec_summary['product_length']} bp ({exec_summary['product_topology']})")
+    if exec_summary.get("goal_check", {}).get("status") != "not_requested":
+        lines.append(f"- **Requested components**: {exec_summary['goal_check']['status']}")
 
     # Primers Table
     if res.primers:
@@ -211,6 +307,9 @@ def format_markdown_summary(exec_summary: dict[str, Any]) -> str:
 
 
 def main():
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
     parser = argparse.ArgumentParser(
         description="Run standard molecular biology recipes (Gibson, Restriction Cloning, Golden Gate, Mutagenesis, etc.)."
     )
@@ -262,6 +361,8 @@ def main():
                 "authoritative_delivery": summary["authoritative_delivery"],
                 "recipe_result": summary["recipe_result"].to_dict(),
                 "sanity_check": summary["sanity_check"],
+                "preparation_files": summary["preparation_files"],
+                "goal_check": summary["goal_check"],
             }
             print(json.dumps(out_data, indent=2, ensure_ascii=False, default=str))
         else:

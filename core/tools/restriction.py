@@ -376,11 +376,16 @@ def digest_type_iis(
     s = str(fragment_seq).strip().upper()
     hits = restriction_hits(Seq(s), enz, circular=False)
 
-    if len(hits) < 2:
-        raise ValueError(f"Type IIS fragment must have at least 2 flanking sites; found {len(hits)}")
+    hits = [h for h in hits if h.get("cuts_within_sequence", True)]
+    if len(hits) != 2:
+        detail = "internal Type IIS site(s) require explicit redesign" if len(hits) > 2 else "two in-sequence flanking sites are required"
+        raise ValueError(f"Type IIS fragment requires exactly 2 in-sequence flanking sites; found {len(hits)} ({detail})")
 
     hits.sort(key=lambda h: h["recognition_start0"])
     h_left, h_right = hits[0], hits[-1]
+
+    if h_left.get("strand", 1) != 1 or h_right.get("strand", -1) != -1:
+        raise ValueError("Type IIS sites must face inward: forward site on the left and reverse site on the right")
 
     t_left = h_left["top_cut_boundary_0based"]
     b_left = h_left["bottom_cut_boundary_0based"]

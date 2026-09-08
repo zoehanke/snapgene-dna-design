@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """core/recipes/verification.py - Standard SOP Recipe for Cloning QC, Colony PCR & Sanger Verification.
 
-AUTHORITATIVE SOURCES & CLASSICAL PROTOCOLS:
+LITERATURE SOURCES & PROTOCOL REFERENCES:
 1. Green, M.R. and Sambrook, J. (2012).
    Molecular Cloning: A Laboratory Manual. 4th ed.
    Cold Spring Harbor Laboratory Press, Cold Spring Harbor, NY.
@@ -20,16 +20,17 @@ from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
 from core.recipes.contract import RecipeResult
-from core.tools.amplification import calc_primer_tm, check_primer_dimers
+from core.tools.amplification import calc_primer_tm, check_primer_dimers, simulate_pcr, _find_primer_binding
+from core.models.construct_model import feature_to_dict
 from core.tools.inspection import _load_record
-from core.tools.restriction import find_restriction_sites
+from core.tools.restriction import digest_sequence
 
 AUTHORITATIVE_SOURCES = [
     {
         "citation": "Green, M.R. and Sambrook, J. (2012). Molecular Cloning: A Laboratory Manual (4th ed.). Chapters 1 & 8.",
         "institution": "Cold Spring Harbor Laboratory (CSHL)",
         "rules_enforced": [
-            "Colony PCR screening primers MUST anchor across the junction (one primer in vector backbone, one in insert) to eliminate false-positive signals from residual parental template.",
+            "Place screening primers across the vector-insert junction; parental-template discrimination requires a separate control.",
             "Recommended colony PCR amplicon size is 300-800 bp for rapid high-throughput agarose gel resolution.",
             "Diagnostic restriction digest band sizes must differ by at least 15-20% to be visually distinguishable on standard 1% agarose gels.",
         ],
@@ -53,8 +54,10 @@ def _optimize_verification_primer(
     target_tm: float = 60.0,
     search_window: int = 35,
     min_len: int = 18,
-    max_len: int = 24,
+    max_len: int = 30,
     circular: bool = True,
+    allowed_interval: tuple[int, int] | None = None,
+    junction: int | None = None,
 ) -> dict[str, Any] | None:
     """Thermodynamically search and optimize a verification primer around target_pos."""
     n = len(seq)
@@ -63,7 +66,7 @@ def _optimize_verification_primer(
 
     if circular:
         offsets = range(-search_window, search_window + 1)
-        starts = [(target_pos + off) % n for off in offsets]
+        starts = [target_pos + off for off in offsets]
     else:
         s_min = max(0, target_pos - search_window)
         s_max = min(n - min_len, target_pos + search_window)
@@ -72,17 +75,22 @@ def _optimize_verification_primer(
     candidates = []
     for s in starts:
         for l in range(min_len, max_len + 1):
+            if allowed_interval and not (allowed_interval[0] <= s and s + l <= allowed_interval[1]):
+                continue
+            distance = junction - (s + l) if strand == 1 and junction is not None else s - junction if junction is not None else None
+            if distance is not None and not 50 <= distance <= 100:
+                continue
             if not circular and (s + l > n):
                 break
             if circular:
-                if s + l <= n:
-                    chunk = seq[s : s + l]
-                else:
-                    chunk = seq[s:] + seq[: (s + l) % n]
+                pos = s % n
+                chunk = (seq + seq)[pos:pos + l]
             else:
                 chunk = seq[s : s + l]
 
             p = chunk if strand == 1 else str(Seq(chunk).reverse_complement())
+            if len(_find_primer_binding(seq, p, circular=circular, binding_core_length=l)) != 1:
+                continue
             info = calc_primer_tm(p)
             tm = info["tm"]
             gc = info["gc_percent"]
@@ -98,7 +106,8 @@ def _optimize_verification_primer(
                 "sequence": p,
                 "tm": tm,
                 "gc_percent": gc,
-                "interval_0based": [s, (s + l) if not circular else ((s + l) % n)],
+                "interval_0based": [s if not circular else s % n, (s + l) if not circular else ((s + l) % n)],
+                "interval_unwrapped_0based": [s, s + l],
                 "length": l,
                 "strand": strand,
                 "score": score,
@@ -115,14 +124,14 @@ def recipe_cloning_verification(
     insert_start_0based: int,
     insert_end_0based: int,
     diagnostic_enzymes: list[str] | None = None,
-) -> dict[str, Any]:
-    """Execute the gold-standard SOP for recombinant cloning QC, colony PCR, and Sanger sequencing primer layout.
+) -> RecipeResult:
+    """Design local junction PCR, Sanger primers and diagnostic digests.
 
-    Follows Sambrook *Molecular Cloning* 4th ed. and Sanger 1977 (PNAS):
+    Uses conventional PCR and Sanger screening with explicit design preferences:
     - Designs colony PCR primers spanning the 5' vector-insert cloning junction (one in vector, one in insert).
     - Designs Sanger sequencing primer anchored 50-100 bp upstream of the junction, avoiding the 30-50 bp dye-blob blind zone.
     - Simulates diagnostic restriction digestion and checks whether band sizes differ by >= 15% for clean gel resolution.
-    - Emits full provenance and authoritative literature citations.
+    - Emits source provenance and literature citations.
     """
     rec = _load_record(recombinant_plasmid_seq_or_file)
     seq = str(rec.seq).upper()
@@ -139,6 +148,10 @@ def recipe_cloning_verification(
 
     ins_s = insert_start_0based % n if is_circ else insert_start_0based
     ins_e = insert_end_0based % n if is_circ else insert_end_0based
+    if not is_circ and not (0 <= ins_s < ins_e <= n):
+        raise ValueError("Insert coordinates must define a nonempty interval within the linear template")
+    if is_circ and ins_s == ins_e:
+        raise ValueError("Insert occupies the whole circular template; no backbone junction is defined")
     if is_circ:
         ins_len = (n - ins_s + ins_e) if ins_e <= ins_s else (ins_e - ins_s)
     else:
@@ -163,15 +176,18 @@ def recipe_cloning_verification(
 
         fwd_anchor = max(0, ins_s - fwd_offset)
         rev_anchor = min(n - 1, ins_s + rev_offset)
-        sanger_anchor = max(0, ins_s - sanger_dist)
+        sanger_anchor = max(0, ins_s - sanger_dist - 20)
     else:
         fwd_offset = min(180, max(30, (n - ins_len) // 4))
         rev_offset = min(220, max(30, ins_len // 3))
         sanger_dist = 70
 
-        fwd_anchor = (ins_s - fwd_offset) % n
-        rev_anchor = (ins_s + rev_offset) % n
-        sanger_anchor = (ins_s - sanger_dist) % n
+        fwd_anchor = ins_s - fwd_offset
+        rev_anchor = ins_s + rev_offset
+        sanger_anchor = ins_s - sanger_dist - 20
+
+    backbone_interval = (ins_s - (n - ins_len) if is_circ else 0, ins_s)
+    insert_interval = (ins_s, ins_s + ins_len)
 
     # 2. Thermodynamically optimize primers
     fwd_primer_res = _optimize_verification_primer(
@@ -180,6 +196,7 @@ def recipe_cloning_verification(
         strand=1,
         target_tm=60.0,
         circular=is_circ,
+        allowed_interval=backbone_interval,
     )
     rev_primer_res = _optimize_verification_primer(
         seq=seq,
@@ -187,6 +204,7 @@ def recipe_cloning_verification(
         strand=-1,
         target_tm=60.0,
         circular=is_circ,
+        allowed_interval=insert_interval,
     )
     sanger_primer_res = _optimize_verification_primer(
         seq=seq,
@@ -194,10 +212,24 @@ def recipe_cloning_verification(
         strand=1,
         target_tm=58.0,
         circular=is_circ,
+        allowed_interval=backbone_interval,
+        junction=ins_s,
     )
+    if sanger_primer_res is None:
+        sanger_primer_res = _optimize_verification_primer(
+            seq, ins_s + 70, strand=-1, target_tm=58.0, circular=is_circ,
+            allowed_interval=insert_interval, junction=ins_s,
+        )
 
     if not fwd_primer_res or not rev_primer_res:
-        raise ValueError("Failed to design thermodynamically valid primers spanning the junction.")
+        raise ValueError("No unique primer pair found within the backbone and insert junction search regions; repeat ambiguity or insufficient flanks")
+    if abs(fwd_primer_res["tm"] - rev_primer_res["tm"]) > 3 and 52 <= rev_primer_res["tm"] <= 72:
+        matched_forward = _optimize_verification_primer(
+            seq, fwd_anchor, strand=1, target_tm=rev_primer_res["tm"],
+            circular=is_circ, allowed_interval=backbone_interval,
+        )
+        if matched_forward:
+            fwd_primer_res = matched_forward
 
     fwd_primer_seq = fwd_primer_res["sequence"]
     fwd_tm = fwd_primer_res["tm"]
@@ -206,35 +238,31 @@ def recipe_cloning_verification(
     sanger_primer_seq = sanger_primer_res["sequence"] if sanger_primer_res else ""
     sanger_tm = sanger_primer_res["tm"] if sanger_primer_res else 0.0
 
-    # Calculate exact predicted amplicon size
-    f_start = fwd_primer_res["interval_0based"][0]
-    r_end = rev_primer_res["interval_0based"][1]
-    if is_circ:
-        amplicon_size = (r_end - f_start) % n
-        if amplicon_size <= 0:
-            amplicon_size += n
-    else:
-        amplicon_size = abs(r_end - f_start)
+    pcr = simulate_pcr(rec, fwd_primer_seq, rev_primer_seq, topology=topo,
+                       forward_binding_core_length=len(fwd_primer_seq),
+                       reverse_binding_core_length=len(rev_primer_seq))
+    amplicon_size = pcr["amplicon_length"]
+    f_start = pcr["template_interval_0based"][0]
+    junction_offset = (ins_s - f_start) % n if is_circ else ins_s - f_start
+    crosses_junction = len(fwd_primer_seq) <= junction_offset <= amplicon_size - len(rev_primer_seq)
+    sanger_dist = None
+    if sanger_primer_res:
+        a, b = sanger_primer_res["interval_unwrapped_0based"]
+        sanger_dist = ins_s - b if sanger_primer_res["strand"] == 1 else a - ins_s
+    if sanger_primer_res is None:
+        warnings.append("No unique Sanger primer facing the junction at 50-100 bp distance; provide more flanking sequence or an alternative sequencing strategy.")
 
     colony_dimers = check_primer_dimers(fwd_primer_seq, rev_primer_seq)
 
     # 3. Diagnostic Restriction Digest Simulation
     enzymes_to_test = diagnostic_enzymes or ["EcoRI", "BamHI", "HindIII"]
-    re_res = find_restriction_sites(seq, enzymes=enzymes_to_test)
     diagnostic_bands = []
 
-    for enz_name, e_info in re_res.get("enzymes", {}).items():
+    for enz_name in enzymes_to_test:
+        e_info = digest_sequence(seq, enz_name, circular=is_circ)
         cut_cnt = e_info.get("cut_count", 0)
-        cuts = e_info.get("cuts", [])
-        if cut_cnt >= 2:
-            positions = sorted([c["top_cut_boundary_0based"] for c in cuts])
-            bands = []
-            for i in range(len(positions)):
-                p1 = positions[i]
-                p2 = positions[(i + 1) % len(positions)]
-                b_size = (p2 - p1) if p2 > p1 else (n - p1 + p2)
-                bands.append(b_size)
-            bands = sorted(bands, reverse=True)
+        if cut_cnt >= 1:
+            bands = sorted((fragment["length"] for fragment in e_info["fragments"]), reverse=True)
 
             resolvable = True
             for i in range(len(bands) - 1):
@@ -251,12 +279,13 @@ def recipe_cloning_verification(
 
     quality_checks = {
         "sanger_distance_from_junction_bp": sanger_dist,
-        "sanger_primer_avoids_dye_blob_zone": (50 <= sanger_dist <= 100),
-        "colony_pcr_crosses_junction": True,
+        "sanger_primer_avoids_dye_blob_zone": (sanger_dist is not None and 50 <= sanger_dist <= 100),
+        "colony_pcr_crosses_junction": crosses_junction,
         "colony_pcr_amplicon_length_conforming": (200 <= amplicon_size <= 850),
         "colony_pcr_delta_tm": abs(round(fwd_tm - rev_tm, 1)),
         "forward_primer_tm": fwd_tm,
         "reverse_primer_tm": rev_tm,
+        "colony_pcr_primer_tm_compatible": (52 <= fwd_tm <= 72 and 52 <= rev_tm <= 72 and abs(fwd_tm-rev_tm) <= 3),
         "primer_dimers_safe": not colony_dimers["high_dimer_risk"],
     }
 
@@ -276,7 +305,7 @@ def recipe_cloning_verification(
         "reverse_interval_0based": rev_primer_res["interval_0based"],
         "expected_amplicon_size_bp": amplicon_size,
         "dimer_risk": colony_dimers["high_dimer_risk"],
-        "notes": "One primer in backbone, one in insert; strictly prevents unwashed template false-positives (Sambrook Ch. 8).",
+        "notes": "One primer in backbone, one in insert. Exact-match PCR checked on the complete recombinant template; parental-template specificity has not been tested.",
     }
 
     primers_list = [
@@ -286,6 +315,9 @@ def recipe_cloning_verification(
             "tm": fwd_tm,
             "gc_percent": fwd_primer_res["gc_percent"],
             "role": "colony_pcr_screening",
+            "binding_core": fwd_primer_seq,
+            "binding_interval_0based": fwd_primer_res["interval_0based"],
+            "strand": 1,
         },
         {
             "name": "Colony_PCR_Rev_Insert",
@@ -293,20 +325,26 @@ def recipe_cloning_verification(
             "tm": rev_tm,
             "gc_percent": rev_primer_res["gc_percent"],
             "role": "colony_pcr_screening",
+            "binding_core": rev_primer_seq,
+            "binding_interval_0based": rev_primer_res["interval_0based"],
+            "strand": -1,
         },
     ]
     if sanger_primer_seq:
         primers_list.append({
-            "name": "Sanger_Seq_Fwd",
+            "name": "Sanger_Seq_Fwd" if sanger_primer_res["strand"] == 1 else "Sanger_Seq_Rev",
             "sequence": sanger_primer_seq,
             "tm": sanger_tm,
             "gc_percent": sanger_primer_res["gc_percent"] if sanger_primer_res else 0.0,
             "role": "sanger_sequencing",
+            "binding_core": sanger_primer_seq,
+            "binding_interval_0based": sanger_primer_res["interval_0based"],
+            "strand": sanger_primer_res["strand"],
         })
 
     protocol_steps = [
         {"step": 1, "action": f"Pick candidate colonies and perform colony PCR using primers {fwd_primer_seq[:10]}... and {rev_primer_seq[:10]}... (expected size: {amplicon_size} bp)."},
-        {"step": 2, "action": "Run 1.0% agarose gel electrophoresis to confirm positive insert presence (no template false-positives)."},
+        {"step": 2, "action": "Compare the expected PCR band with a parental-template negative control; confirm candidate clones by sequencing."},
         {"step": 3, "action": "Isolate high-purity plasmid DNA from positive clones and run diagnostic restriction digests."},
         {"step": 4, "action": "Perform Sanger sequencing using primer anchored upstream of junction to confirm mutation/junction fidelity."},
     ]
@@ -317,7 +355,7 @@ def recipe_cloning_verification(
         completeness="qc_only",
         product_sequence=str(rec.seq),
         product_topology=topo,
-        features=[],
+        features=[feature_to_dict(f, n) for f in rec.features],
         primers=primers_list,
         quality_checks=quality_checks,
         warnings=warnings,
@@ -334,12 +372,15 @@ def recipe_cloning_verification(
                 "tm": sanger_tm,
                 "gc_percent": sanger_primer_res["gc_percent"] if sanger_primer_res else 0.0,
                 "interval_0based": sanger_primer_res["interval_0based"] if sanger_primer_res else [],
-                "distance_upstream_of_junction_bp": sanger_dist,
-                "notes": f"Anchored ~{sanger_dist} bp upstream of junction to avoid 30-50 bp dye-blob blind zone (Sanger et al. 1977).",
+                "strand": sanger_primer_res["strand"] if sanger_primer_res else None,
+                "distance_from_junction_bp": sanger_dist,
+                "distance_upstream_of_junction_bp": sanger_dist if sanger_primer_res and sanger_primer_res["strand"] == 1 else None,
+                "notes": f"Actual distance from primer 3' end to junction: {sanger_dist} bp." if sanger_dist is not None else "No suitable sequencing primer found.",
             },
             "colony_pcr_primers": primers_dict,
             "junction_pcr_primers": primers_dict,
             "diagnostic_restriction_digests": diagnostic_bands,
+            "colony_pcr_simulation": pcr,
             "quality_checks": quality_checks,
             "warnings": warnings,
             "sop_reminders": sop_reminders,

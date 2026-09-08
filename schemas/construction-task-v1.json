@@ -51,6 +51,9 @@
         "steps": {
           "type": "array"
         },
+        "output_step": {
+          "type": ["string", "null"]
+        },
         "questions": {
           "type": "array"
         }

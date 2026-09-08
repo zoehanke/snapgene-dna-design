@@ -57,26 +57,29 @@ def write_gb(rec, directory, name):
     return str(path)
 
 
-def fake_primer_result(fragment, tail=""):
+def fake_primer_result(fragment, fwd_tail="", rev_tail=""):
+    fragment = str(fragment).upper()
+    fwd_binding = fragment[:18]
+    rev_binding = str(Seq(fragment[-18:]).reverse_complement())
     return {
         "schema_version": "0.9.0", "backend": "primer3-core",
         "backend_status": "available", "primer3_version": "2.6.1",
         "primer3_failure": None,
         "region": {"start": 0, "end": len(fragment), "length": len(fragment)},
-        "fwd_tail": "", "rev_tail": "",
+        "fwd_tail": fwd_tail, "rev_tail": rev_tail,
         "forward_candidates": [{
-            "side": "forward", "binding": "ACGTACGTACGTACGTAC",
-            "tail": "", "sequence": "ACGTACGTACGTACGTAC",
-            "tm": 60.0, "gc": 50.0, "length": 18, "binding_length": 18,
+            "side": "forward", "binding": fwd_binding,
+            "tail": fwd_tail, "sequence": fwd_tail + fwd_binding,
+            "tm": 60.0, "gc": 50.0, "length": len(fwd_tail) + 18, "binding_length": 18,
             "bind_start": 0, "bind_end": 17,
             "hairpin": {"tm": 0.0}, "self_dimer": {"tm_any": 0.0},
             "heterodimer": {"tm_any": 0.0}, "recommended": "high",
             "_backend": "primer3-core"}],
         "reverse_candidates": [{
-            "side": "reverse", "binding": "TGCATGCATGCATGCATG",
-            "tail": "", "sequence": "TGCATGCATGCATGCATG",
-            "tm": 60.0, "gc": 50.0, "length": 18, "binding_length": 18,
-            "bind_start": 0, "bind_end": 17,
+            "side": "reverse", "binding": rev_binding,
+            "tail": rev_tail, "sequence": rev_tail + rev_binding,
+            "tm": 60.0, "gc": 50.0, "length": len(rev_tail) + 18, "binding_length": 18,
+            "bind_start": len(fragment) - 18, "bind_end": len(fragment) - 1,
             "hairpin": {"tm": 0.0}, "self_dimer": {"tm_any": 0.0},
             "heterodimer": {"tm_any": 0.0}, "recommended": "high",
             "_backend": "primer3-core"}],
@@ -142,7 +145,7 @@ class M1PlannerTests(unittest.TestCase):
         return (write_gb(backbone, tmp, "backbone.gb"),
                 write_gb(donor, tmp, "donor.gb"))
 
-    def test_two_fragment_overlap_plan(self):
+    def test_mocked_core_metrics_cannot_certify_bad_complete_oligos(self):
         with tempfile.TemporaryDirectory() as tmp:
             sources = self._sources(pathlib.Path(tmp))
             intent = normalize_intent({
@@ -152,11 +155,15 @@ class M1PlannerTests(unittest.TestCase):
             with mock.patch(
                     "planning.planner.design_region_primers",
                     side_effect=lambda seq, start, **kwargs:
-                        fake_primer_result(seq)):
+                        fake_primer_result(seq, kwargs.get("fwd_tail", ""),
+                                           kwargs.get("rev_tail", ""))):
                 plan = planner_plan_assembly(sources, intent)
-            self.assertEqual(plan["status"], "complete")
+            # The unchanged fixture's complete oligos have measured hairpins
+            # above 47 C. Mocked core-only zeroes cannot certify this plan.
+            self.assertEqual(plan["status"], "blocked")
             self.assertEqual(plan["assembly_strategy"]["method"], "overlap")
-            self.assertEqual(plan["feasibility"]["grade"], "high")
+            self.assertTrue(any('structural_checks' in p.get('error','') for p in plan['primers']))
+            self.assertIsNone(plan['final_construct']['sequence'])
             self.assertEqual(len(plan["fragment_assignments"]), 2)
             self.assertTrue(plan["assembly_strategy"]["overlap_junctions"][0]
                             ["length"] >= 15)
@@ -174,7 +181,8 @@ class M1PlannerTests(unittest.TestCase):
             with mock.patch(
                     "planning.planner.design_region_primers",
                     side_effect=lambda seq, start, **kwargs:
-                        fake_primer_result(seq)):
+                        fake_primer_result(seq, kwargs.get("fwd_tail", ""),
+                                           kwargs.get("rev_tail", ""))):
                 plan = planner_plan_assembly([source], intent)
             self.assertEqual(plan["assembly_strategy"]["method"], "gibson")
             self.assertTrue(any(alt["reason"].find("overlap") >= 0
@@ -203,7 +211,8 @@ class M1PlannerTests(unittest.TestCase):
             with mock.patch(
                     "planning.planner.design_region_primers",
                     side_effect=lambda seq, start, **kwargs:
-                        fake_primer_result(seq)):
+                        fake_primer_result(seq, kwargs.get("fwd_tail", ""),
+                                           kwargs.get("rev_tail", ""))):
                 plan = planner_plan_assembly([vector_path, insert_path], intent)
             self.assertEqual(plan["assembly_strategy"]["method"],
                              "golden_gate")
@@ -227,7 +236,8 @@ class M1PlannerTests(unittest.TestCase):
             with mock.patch(
                     "planning.planner.design_region_primers",
                     side_effect=lambda seq, start, **kwargs:
-                        fake_primer_result(seq)):
+                        fake_primer_result(seq, kwargs.get("fwd_tail", ""),
+                                           kwargs.get("rev_tail", ""))):
                 plan = planner_plan_assembly([source], intent)
             extracted = plan["fragment_assignments"][1]["sequence"]
             self.assertEqual(extracted,
@@ -453,7 +463,8 @@ class AdditionalV09CoverageTests(unittest.TestCase):
             with mock.patch(
                     "planning.planner.design_region_primers",
                     side_effect=lambda seq, start, **kwargs:
-                        fake_primer_result(seq)):
+                        fake_primer_result(seq, kwargs.get("fwd_tail", ""),
+                                           kwargs.get("rev_tail", ""))):
                 plan = planner_plan_assembly([source], intent)
             self.assertEqual(plan["assembly_strategy"]["method"], "gibson")
 
@@ -575,7 +586,8 @@ class AdditionalV09CoverageTests(unittest.TestCase):
             with mock.patch(
                     "planning.planner.design_region_primers",
                     side_effect=lambda seq, start, **kwargs:
-                        fake_primer_result(seq)):
+                        fake_primer_result(seq, kwargs.get("fwd_tail", ""),
+                                           kwargs.get("rev_tail", ""))):
                 plan = planner_plan_assembly(sources, intent)
             self.assertEqual(
                 list(Draft202012Validator(schema).iter_errors(plan)), [])
@@ -592,7 +604,8 @@ class AdditionalV09CoverageTests(unittest.TestCase):
             with mock.patch(
                     "planning.planner.design_region_primers",
                     side_effect=lambda seq, start, **kwargs:
-                        fake_primer_result(seq)):
+                        fake_primer_result(seq, kwargs.get("fwd_tail", ""),
+                                           kwargs.get("rev_tail", ""))):
                 plan = planner_plan_assembly([source], intent)
             self.assertEqual(plan["assembly_strategy"]["method"], "gibson")
 

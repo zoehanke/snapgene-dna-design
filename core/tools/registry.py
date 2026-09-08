@@ -65,27 +65,17 @@ class ToolSpec:
         return self.callable(*bound.args, **bound.kwargs)
 
     def extract_sequence(self, result: Any) -> str:
-        """Extract primary DNA/protein sequence string from tool result if applicable."""
+        """Extract an explicitly declared DNA sequence from a tool result."""
+        if self.result_type == "protein":
+            return ""
         if isinstance(result, SeqRecord):
             return str(result.seq).upper()
         if isinstance(result, str):
-            return result
-        if isinstance(result, dict):
-            if self.sequence_output_key and self.sequence_output_key in result:
-                return str(result[self.sequence_output_key])
-            for candidate in [
-                "sequence",
-                "dna",
-                "amplicon",
-                "product_sequence",
-                "fusion_sequence",
-                "mutated_seq",
-                "donor_sequence",
-                "duplex_core",
-                "protein_sequence",
-            ]:
-                if candidate in result and isinstance(result[candidate], str):
-                    return result[candidate]
+            return result if self.result_type == "string" else ""
+        if isinstance(result, dict) and self.sequence_output_key:
+            sequence = result.get(self.sequence_output_key)
+            if isinstance(sequence, str):
+                return sequence
         return ""
 
 
@@ -125,6 +115,7 @@ def init_default_registry() -> None:
         calc_primer_tm,
         check_primer_dimers,
         design_overhang_primers,
+        prepare_pcr_fragment,
         simulate_pcr,
     )
     from core.tools.assembly import (
@@ -137,6 +128,7 @@ def init_default_registry() -> None:
         design_hdr_donor,
         extract_homology_arms,
         prepare_grna_oligos,
+        prepare_pml104_guide,
     )
     from core.tools.experience_helper import (
         get_experience_categories,
@@ -449,6 +441,11 @@ def init_default_registry() -> None:
                     "fwd_5prime_overhang": {"type": "string", "default": ""},
                     "rev_5prime_overhang": {"type": "string", "default": ""},
                     "target_tm": {"type": "number", "default": 60.0},
+                    "min_core_len": {"type": "integer"},
+                    "max_core_len": {"type": "integer"},
+                    "prefer_primer3": {"type": "boolean"},
+                    "circular": {"type": "boolean"},
+                    "topology": {"type": "string", "enum": ["circular", "linear"]},
                 },
                 "required": ["template_record_or_seq", "start", "end"],
             },
@@ -472,6 +469,27 @@ def init_default_registry() -> None:
             result_type="dict",
         ),
         ToolSpec(
+            name="prepare_pcr_fragment",
+            callable=prepare_pcr_fragment,
+            category="compute",
+            description="Prepare an exact template interval with added tails using validated complete primers. Long additions use successive real PCR intermediates; returns all preparation steps and primers.",
+            parameters_schema={
+                "type": "object",
+                "properties": {
+                    "template": {"type": "string"},
+                    "start": {"type": "integer", "minimum": 0},
+                    "end": {"type": "integer", "minimum": 0},
+                    "fwd_tail": {"type": "string", "default": ""},
+                    "rev_tail": {"type": "string", "default": ""},
+                    "name": {"type": "string", "default": "fragment"},
+                    "target_tm": {"type": "number", "default": 60.0},
+                },
+                "required": ["template", "start", "end"],
+            },
+            result_type="dict",
+            sequence_output_key="sequence",
+        ),
+        ToolSpec(
             name="simulate_pcr",
             callable=simulate_pcr,
             category="compute",
@@ -482,7 +500,12 @@ def init_default_registry() -> None:
                     "template_path_or_seq": {"type": "string"},
                     "f_primer": {"type": "string"},
                     "r_primer": {"type": "string"},
-                    "topology": {"type": "string", "enum": ["circular", "linear"], "default": "linear"},
+                    "topology": {"type": ["string", "null"], "enum": ["circular", "linear", None]},
+                    "forward_binding_core_length": {"type": "integer", "minimum": 1},
+                    "reverse_binding_core_length": {"type": "integer", "minimum": 1},
+                    "forward_binding_start_0based": {"type": "integer", "minimum": 0},
+                    "reverse_binding_start_0based": {"type": "integer", "minimum": 0},
+                    "min_binding_len": {"type": "integer", "minimum": 1},
                 },
                 "required": ["template_path_or_seq", "f_primer", "r_primer"],
             },
@@ -536,7 +559,7 @@ def init_default_registry() -> None:
                     "insert_source": {"type": "string"},
                     "vector_enzymes": {"type": "array", "items": {"type": "string"}},
                     "insert_enzymes": {"type": "array", "items": {"type": "string"}},
-                    "orientation": {"type": "string", "enum": ["forward", "reverse"], "default": "forward"},
+                    "orientation": {"type": "string", "enum": ["auto", "forward", "reverse"], "default": "auto"},
                 },
                 "required": ["vector_source", "insert_source", "vector_enzymes"],
             },
@@ -613,6 +636,20 @@ def init_default_registry() -> None:
             result_type="dict",
         ),
         ToolSpec(
+            name="prepare_pml104_guide",
+            callable=prepare_pml104_guide,
+            category="compute",
+            description="Build a pML104 guide vector from its full circular template by actual inverse PCR and KLD; restores the required sgRNA scaffold.",
+            parameters_schema={
+                "type": "object",
+                "properties": {"vector_record_or_seq": {"type": "string"},
+                               "spacer_seq": {"type": "string"}},
+                "required": ["vector_record_or_seq", "spacer_seq"],
+            },
+            sequence_output_key="product_sequence",
+            result_type="dict",
+        ),
+        ToolSpec(
             name="design_hdr_donor",
             callable=design_hdr_donor,
             category="compute",
@@ -626,6 +663,12 @@ def init_default_registry() -> None:
                     "left_arm_length": {"type": "integer", "default": 50},
                     "right_arm_length": {"type": "integer", "default": 50},
                     "grna_seq": {"type": "string", "default": ""},
+                    "grna_strand": {"type": "integer", "enum": [1, -1]},
+                    "edit_start_0based": {"type": "integer", "minimum": 0},
+                    "edit_end_0based": {"type": "integer", "minimum": 0},
+                    "donor_type": {"type": "string"},
+                    "target_is_cds": {"type": "boolean"},
+                    "cds_frame_offset": {"type": "integer"},
                 },
                 "required": ["target_seq_or_file", "cut_position_0based", "edit_dna"],
             },
@@ -645,6 +688,9 @@ def init_default_registry() -> None:
                     "cut_position_0based": {"type": "integer"},
                     "left_arm_length": {"type": "integer", "default": 50},
                     "right_arm_length": {"type": "integer", "default": 50},
+                    "edit_dna": {"type": "string"},
+                    "edit_start_0based": {"type": "integer", "minimum": 0},
+                    "edit_end_0based": {"type": "integer", "minimum": 0},
                 },
                 "required": ["target_seq_or_file", "cut_position_0based"],
             },
@@ -724,7 +770,7 @@ def init_default_registry() -> None:
                 "required": ["seq"],
             },
             param_aliases={"seq_or_record": "seq", "dna_seq": "seq", "table_id": "table"},
-            result_type="string",
+            result_type="protein",
         ),
         ToolSpec(
             name="get_codon_synonyms",

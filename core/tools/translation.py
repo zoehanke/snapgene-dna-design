@@ -13,16 +13,22 @@ from Bio.SeqRecord import SeqRecord
 from core.tools.restriction import get_enzyme, restriction_hits
 
 
-def reverse_complement(seq: str) -> str:
+def reverse_complement(seq: str | SeqRecord) -> str | SeqRecord:
     """Compute the reverse complement of a DNA nucleotide string."""
+    from core.io.input_resolution import DNA_ALPHABET
+    bases = str(seq.seq).upper() if isinstance(seq, SeqRecord) else "".join(str(seq).split()).upper()
+    if any(base not in DNA_ALPHABET for base in bases):
+        raise ValueError("reverse_complement requires DNA bases; load a file as a source record first")
     if isinstance(seq, SeqRecord):
         return seq.reverse_complement(id=True, name=True, description=True, annotations=True)
-    return str(Seq(str(seq).strip().upper()).reverse_complement())
+    return str(Seq(bases).reverse_complement())
 
 
-def translate_dna(seq: str, frame: int = 1, table: int = 1) -> str:
+def translate_dna(seq: str | SeqRecord, frame: int = 1, table: int = 1) -> str:
     """Translate DNA sequence into amino acid peptide in specified reading frame (1, 2, 3, -1, -2, -3)."""
-    s = str(seq).strip().upper()
+    if frame not in (1, 2, 3, -1, -2, -3):
+        raise ValueError("frame must be one of 1, 2, 3, -1, -2, -3")
+    s = str(seq.seq).upper() if isinstance(seq, SeqRecord) else "".join(str(seq).split()).upper()
     if frame < 0:
         s = str(Seq(s).reverse_complement())
         shift = abs(frame) - 1

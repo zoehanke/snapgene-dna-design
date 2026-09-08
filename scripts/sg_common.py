@@ -9,6 +9,7 @@ import argparse
 import io
 import json
 import os
+import pathlib
 import sys
 
 if sys.stdout and hasattr(sys.stdout, "reconfigure"):
@@ -32,6 +33,15 @@ def _safe_print_json(data):
 from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
+
+_PROJECT_ROOT = str(pathlib.Path(__file__).resolve().parents[1])
+if _PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, _PROJECT_ROOT)
+from core.tools.snapgene_io import (
+    enrich_native_primer_features,
+    normalize_primer_qualifiers,
+    read_native_dna_record,
+)
 
 KNOWN_EXTS = (
     ".dna", ".gb", ".genbank", ".fa", ".fasta", ".fna", ".fsa", ".embl", ".emb",
@@ -130,15 +140,14 @@ def normalize_dna(text, label="sequence"):
 def _read_one(path, fmt):
     """Read exactly one record while ensuring the file handle is closed."""
     if fmt == "snapgene":
-        with open(path, "rb") as handle:
-            return SeqIO.read(handle, fmt)
+        return read_native_dna_record(path)
     try:
         with open(path, "r", encoding="utf-8-sig") as handle:
-            return SeqIO.read(handle, fmt)
+            return normalize_primer_qualifiers(SeqIO.read(handle, fmt))
     except UnicodeDecodeError:
         # Legacy INSDC files are sometimes stored as a single-byte encoding.
         with open(path, "r", encoding="latin-1") as handle:
-            return SeqIO.read(handle, fmt)
+            return normalize_primer_qualifiers(SeqIO.read(handle, fmt))
 
 
 def load_seq(source):
@@ -174,7 +183,7 @@ def load_seq(source):
                     from snapgene_reader import snapgene_file_to_seqrecord
                     with open(path, "rb") as handle:
                         rec = snapgene_file_to_seqrecord(fileobject=handle)
-                    return rec, "snapgene"
+                    return enrich_native_primer_features(rec, path), "snapgene"
                 except Exception as e:
                     raise ValueError(
                         "Cannot parse SnapGene file %s: %s" % (path, e)
@@ -238,9 +247,6 @@ def gc_percent(seq):
             return 0.0
         return (s.count("G") + s.count("C")) / len(s) * 100
 
-
-import pathlib
-import sys
 
 _ROOT = str(pathlib.Path(__file__).resolve().parents[1])
 if _ROOT not in sys.path:

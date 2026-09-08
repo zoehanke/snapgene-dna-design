@@ -479,13 +479,17 @@ class ValidateConstructGapTests(unittest.TestCase):
         self.assertEqual(validate_construct._cds_translation(seq, 0, 3, 1), "K")
         self.assertEqual(validate_construct._cds_translation(seq, 0, 3, -1), "F")
 
-    def test_codon_start_and_transl_table_fallbacks(self):
+    def test_invalid_codon_start_and_transl_table_are_rejected(self):
         cds = SeqFeature(FeatureLocation(0, 12, strand=1), type="CDS",
                          qualifiers={"label": ["c"],
                                      "codon_start": ["not-an-int"],
                                      "transl_table": ["not-an-int"]})
         result = validate_construct.validate(record("ATGGCTAAATAA", features=[cds]))
-        self.assertTrue(result["summary"]["pass"])
+        self.assertFalse(result["summary"]["pass"])
+        error_checks = {item["check"] for item in result["checks"]
+                        if item["status"] == "error"}
+        self.assertIn("cds_codon_start", error_checks)
+        self.assertIn("cds_transl_table", error_checks)
 
     def test_terminal_stop_and_multicutter_and_unknown_enzyme(self):
         cds = SeqFeature(FeatureLocation(0, 12, strand=1), type="CDS",
@@ -560,8 +564,11 @@ class RoundTripGapTests(unittest.TestCase):
             rec, _fmt = load_seq(str(input_path))
             for feature in rec.features:
                 feature.qualifiers.pop("gene", None)
-            with open(output_path, "w", encoding="utf-8") as handle:
-                SeqIO.write(rec, handle, "genbank")
+            if target_format == "SnapGene DNA":
+                validate_roundtrip._write(rec, "dna", output_path)
+            else:
+                with open(output_path, "w", encoding="utf-8") as handle:
+                    SeqIO.write(rec, handle, "genbank")
 
         with mock.patch("validate_roundtrip._find_snapgene",
                         return_value="C:\\fake\\SnapGene.exe"), \
@@ -583,8 +590,9 @@ class RoundTripGapTests(unittest.TestCase):
             self.skipTest("rich fixtures not present")
         fixture = FIXTURES / "rich_multivalue.gb"
         run_cli("validate_roundtrip.py", str(fixture), "--format", "snapgene-gb")
-        run_cli("validate_roundtrip.py", str(fixture), "--format", "dna",
-                "--strict")
+        # Official SnapGene may rewrite safe qualifier presentation details;
+        # the default core gate must still pass and report those differences.
+        run_cli("validate_roundtrip.py", str(fixture), "--format", "dna")
         run_cli("validate_roundtrip.py", str(self.dir / "missing.gb"), "--json",
                 expect_fail=True)
 

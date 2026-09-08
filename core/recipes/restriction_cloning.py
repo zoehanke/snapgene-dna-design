@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """core/recipes/restriction_cloning.py - Standard SOP Recipe for Restriction Cloning & T4 Ligation.
 
-AUTHORITATIVE SOURCES & CLASSICAL PROTOCOLS:
+LITERATURE SOURCES & PROTOCOL REFERENCES:
 1. Green, M.R. and Sambrook, J. (2012).
    Molecular Cloning: A Laboratory Manual. 4th ed.
    Cold Spring Harbor Laboratory Press, Cold Spring Harbor, NY.
@@ -16,8 +16,11 @@ from __future__ import annotations
 import pathlib
 from typing import Any
 
+from Bio.Seq import Seq
+from Bio.SeqFeature import FeatureLocation, SeqFeature
+
 from core.recipes.contract import RecipeResult
-from core.tools.amplification import design_overhang_primers, simulate_pcr
+from core.tools.amplification import prepare_pcr_fragment
 from core.tools.assembly import simulate_digest_ligation
 from core.io.input_resolution import resolve_sequence_record
 from core.tools.restriction import (
@@ -25,6 +28,9 @@ from core.tools.restriction import (
     find_restriction_sites,
     get_enzyme,
 )
+from core.models.construct_model import feature_to_dict
+from core.io.input_resolution import resolve_sequence_input
+from core.recipes.gibson import _pcr_product_record, _preparation_template, _primer_delivery
 
 
 def are_restriction_ends_compatible(enz1: Any, enz2: Any) -> bool:
@@ -106,8 +112,15 @@ def recipe_restriction_cloning(
     insert_end: int,
     enzyme5: str = "EcoRI",
     enzyme3: str = "BamHI",
+    insert_enzyme5: str | None = None,
+    insert_enzyme3: str | None = None,
+    insert_prefix: str = "",
+    insert_suffix: str = "",
+    coding_sequence: bool | None = None,
+    expression_start: bool | None = None,
+    orientation: str = "auto",
 ) -> dict[str, Any]:
-    """Execute the gold-standard SOP for restriction endonuclease cloning and T4 ligation.
+    """Execute a literature-grounded restriction cloning and T4 ligation route.
 
     Follows Green & Sambrook (Molecular Cloning 4th ed.) and NEB Technical Guidelines:
     - Appends standard NEB 5' protective bases to prevent incomplete PCR fragment digestion.
@@ -115,49 +128,52 @@ def recipe_restriction_cloning(
     - Scans for Dam/Dcm methylation overlap conflicts at the cloning junctions.
     - Simulates directional digestion and T4 ligation.
     - Warns about DpnI template digestion and vector dephosphorylation.
-    - Emits full provenance and authoritative literature citations.
+    - Emits source provenance and literature citations.
     """
+    insert_prefix = str(insert_prefix or "").strip().upper()
+    insert_suffix = str(insert_suffix or "").strip().upper()
+    insert_enzyme5 = insert_enzyme5 or enzyme5
+    insert_enzyme3 = insert_enzyme3 or enzyme3
     enz5_obj = get_enzyme(enzyme5)
     enz3_obj = get_enzyme(enzyme3)
+    insert_enz5_obj = get_enzyme(insert_enzyme5)
+    insert_enz3_obj = get_enzyme(insert_enzyme3)
 
     site5 = str(getattr(enz5_obj, "site", "")).upper()
     site3 = str(getattr(enz3_obj, "site", "")).upper()
+    insert_site5 = str(getattr(insert_enz5_obj, "site", "")).upper()
+    insert_site3 = str(getattr(insert_enz3_obj, "site", "")).upper()
 
     # Directional cloning validation: enzymes must not produce compatible cohesive or blunt ends
     ends_compatible = are_restriction_ends_compatible(enz5_obj, enz3_obj)
     is_directional = (enzyme5 != enzyme3) and not ends_compatible
 
     # 1. Look up standard NEB 5' protective bases
-    prot5 = STANDARD_PROTECTIVE_BASES.get(enzyme5, "CGC")
-    prot3 = STANDARD_PROTECTIVE_BASES.get(enzyme3, "CGC")
+    prot5 = STANDARD_PROTECTIVE_BASES.get(insert_enzyme5, "CGC")
+    prot3 = STANDARD_PROTECTIVE_BASES.get(insert_enzyme3, "CGC")
 
-    fwd_tail = prot5 + site5
-    rev_tail = prot3 + site3
+    # Prefix/suffix are part of the real oligos.  Reverse-primer tails are
+    # written 5'->3', so reverse-complement the desired product suffix before
+    # attaching it to the 5' end of that primer.
+    fwd_tail = prot5 + insert_site5 + insert_prefix
+    rev_tail = prot3 + insert_site3 + str(Seq(insert_suffix).reverse_complement())
 
-    # 2. Call Tier 1 atomic tool: design primers with protective tails and restriction sites
-    primers = design_overhang_primers(
-        template_record_or_seq=insert_template,
-        start=insert_start,
-        end=insert_end,
-        target_tm=60.0,
-        fwd_5prime_overhang=fwd_tail,
-        rev_5prime_overhang=rev_tail,
-    )
+    insert_record, insert_sequence = resolve_sequence_input(insert_template)
+    target_sequence = insert_sequence[int(insert_start):int(insert_end)].upper()
+    if not target_sequence:
+        raise ValueError("Restriction-cloning insert interval is empty")
 
+    prepared = prepare_pcr_fragment(insert_record, insert_start, insert_end,
+                                    fwd_tail, rev_tail, name="insert")
+    primers = prepared["design"]
     fwd_p = primers["forward_primer"]["full_sequence"]
     rev_p = primers["reverse_primer"]["full_sequence"]
-
-    # 3. Call Tier 1 atomic tool: PCR amplification simulation
-    pcr_res = simulate_pcr(
-        template_path_or_seq=insert_template,
-        f_primer=fwd_p,
-        r_primer=rev_p,
-        topology="linear",
-    )
+    pcr_res = prepared["pcr"]
     amplicon = pcr_res["amplicon"]
 
     # 4. Check for Dam/Dcm methylation overlap on vector and insert
-    re_check_vector = find_restriction_sites(vector_source, enzymes=[enzyme5, enzyme3])
+    vector_record, _vector_sequence = resolve_sequence_input(vector_source)
+    re_check_vector = find_restriction_sites(vector_record, enzymes=[enzyme5, enzyme3])
     warnings = []
     if not is_directional:
         warnings.append(
@@ -172,14 +188,102 @@ def recipe_restriction_cloning(
                     f"Methylation conflict in vector at {enz_name}: {', '.join(s['methylation_warnings'])}. May inhibit digestion in standard Dam+/Dcm+ E. coli hosts (Sambrook Ch. 1)."
                 )
 
+    is_coding = bool(coding_sequence) if coding_sequence is not None else target_sequence.startswith("ATG")
+    expression_boundary_warnings = []
+    expression_compatible = None
+    expression_sequence = ""
+    expression_prefix = ""
+    expression_translation = ""
+    expression_stop = False
+
     # 5. Call Tier 1 atomic tool: simulate directional digestion and ligation
     ligation_res = simulate_digest_ligation(
         vector_source=vector_source,
         insert_source=resolve_sequence_record(pcr_res),
         vector_enzymes=[enzyme5, enzyme3],
-        insert_enzymes=[enzyme5, enzyme3],
-        orientation="forward",
+        insert_enzymes=[insert_enzyme5, insert_enzyme3],
+        orientation=orientation,
     )
+
+    # Project the original vector initiation site through the actual duplex
+    # cuts. A compatible enzyme can destroy the recognition motif; searching
+    # the final insert for that motif or for a convenient ATG is incorrect.
+    product_features = list(ligation_res.get("features", []))
+    product_sequence = str(ligation_res["product_sequence"]).upper()
+    product_orientation = ligation_res["insert_orientation"]
+    insert_offset = ligation_res["insert_feature_offset"]
+    retained_start, retained_end = ligation_res["insert_retained_interval_0based"]
+    expression_boundary_applicable = is_coding and enzyme5 in ("NcoI", "NdeI")
+    expression_info = {"product_expression_sequence_found": None,
+                       "applicable": expression_boundary_applicable}
+    if expression_boundary_applicable:
+        reverse = product_orientation == "reverse"
+        vector_site = str(Seq(site5).reverse_complement()) if reverse else site5
+        atg_index = vector_site.index("ATG")
+        cut_local = int(enz5_obj.fst5)
+        if reverse:
+            # The reverse product's top strand is the original insert's
+            # bottom strand. The initiation triplet can lie in the retained
+            # vector overhang, before the insert's bottom-strand boundary.
+            distance = len(vector_site) - atg_index - cut_local
+            start_in_amplicon = retained_start - distance
+        else:
+            start_in_amplicon = retained_start + atg_index - cut_local
+        payload_end = len(fwd_tail) + len(target_sequence) + len(insert_suffix)
+        if not 0 <= start_in_amplicon < payload_end <= len(amplicon):
+            raise ValueError("Vector initiation site cannot be mapped onto the actual PCR product")
+        expression_sequence = amplicon[start_in_amplicon:payload_end]
+        expression_prefix = amplicon[start_in_amplicon:len(prot5) + len(insert_site5)]
+        try:
+            expression_translation = str(Seq(expression_sequence).translate(cds=True)) + "*"
+        except Exception as exc:
+            raise ValueError(f"{enzyme5} native expression boundary is incompatible with the complete insert: {exc}") from exc
+        expression_stop = True
+        expression_compatible = True
+        if reverse:
+            high = insert_offset + (retained_end - retained_start) - (start_in_amplicon - retained_start)
+            expression_low = high - len(expression_sequence)
+        else:
+            expression_low = insert_offset + start_in_amplicon - retained_start
+        n = len(product_sequence)
+        if len(expression_sequence) > n:
+            raise ValueError("Expression CDS would exceed one complete product molecule")
+
+        def coding_location(offset, length):
+            low = (expression_low + (len(expression_sequence) - offset - length if reverse else offset)) % n
+            strand = -1 if reverse else 1
+            end = low + length
+            if end <= n:
+                return FeatureLocation(low, end, strand=strand)
+            from Bio.SeqFeature import CompoundLocation
+            parts = [FeatureLocation(low, n, strand=strand), FeatureLocation(0, end - n, strand=strand)]
+            return CompoundLocation(list(reversed(parts)) if reverse else parts, operator="join")
+
+        location = coding_location(0, len(expression_sequence))
+        actual_expression = str(location.extract(Seq(product_sequence)))
+        if actual_expression != expression_sequence:
+            raise ValueError("Assembled expression sequence differs from the actual PCR and vector initiation context")
+        expression_info.update({"product_expression_sequence_found": True,
+                                "expression_strand": -1 if reverse else 1,
+                                "actual_expression_start": expression_low % n,
+                                "start_in_amplicon_0based": start_in_amplicon})
+
+        def add_expression_feature(label, feature_type, offset, length):
+            qualifiers = {"label": [label], "note": ["mapped from the original vector initiation site through actual duplex cuts"]}
+            if feature_type == "CDS":
+                qualifiers["translation"] = [expression_translation[:-1]]
+            feature = SeqFeature(coding_location(offset, length), type=feature_type, qualifiers=qualifiers)
+            product_features.append(feature_to_dict(feature, n))
+
+        add_expression_feature("expression CDS", "CDS", 0, len(expression_sequence))
+        prefix_start = len(prot5) + len(insert_site5) - start_in_amplicon
+        prefix_end = len(fwd_tail) - start_in_amplicon
+        for label, peptide, feature_type in (("His6 tag", "HHHHHH", "misc_feature"),
+                                             ("TEV cleavage site", "ENLYFQG", "misc_feature")):
+            position = expression_translation.find(peptide)
+            if position >= 0 and prefix_start <= position * 3 and position * 3 + len(peptide) * 3 <= prefix_end:
+                add_expression_feature(label, feature_type, position * 3, len(peptide) * 3)
+    ligation_res["features"] = product_features
 
     # Standard Sambrook wet-lab SOP reminders
     sop_reminders = [
@@ -191,21 +295,42 @@ def recipe_restriction_cloning(
     quality_checks = {
         "directional_cloning": is_directional,
         "ends_compatible": ends_compatible,
+        "vector_enzymes": [enzyme5, enzyme3],
+        "insert_enzymes": [insert_enzyme5, insert_enzyme3],
         "protective_bases_added": {"5prime": prot5, "3prime": prot3},
         "binding_core_delta_tm": primers["binding_core_delta_tm"],
         "delta_tm_within_standard_2C": primers["binding_core_delta_tm"] <= 2.0,
         "assembled_successfully": bool(ligation_res.get("product_sequence")),
+        "insert_orientation": ligation_res.get("insert_orientation"),
+        "vector_replacement_interval_0based": ligation_res.get("vector_replacement_interval_0based"),
+        "expression_boundary_compatible": expression_compatible,
+        "expression_boundary": {
+            "enzyme5": enzyme5,
+            "insert_enzyme5": insert_enzyme5,
+            "enzyme_site": site5,
+            "applicable": expression_boundary_applicable,
+            "site_contains_atg": "ATG" in site5,
+            "insert_enzyme_site": insert_site5,
+            "initiation_asserted": expression_start,
+            "selected_interval_starts_atg": target_sequence.startswith("ATG"),
+            "expression_prefix": expression_prefix,
+            "expression_sequence": expression_sequence,
+            "translation": expression_translation,
+            "terminal_stop": expression_stop,
+            "product_expression_sequence_found": expression_info["product_expression_sequence_found"],
+            "payload_length_bp": len(expression_sequence),
+            "payload_frame_remainder": len(expression_sequence) % 3,
+            "warnings": expression_boundary_warnings,
+        },
     }
 
-    primers_list = [
-        {"name": "forward_primer", "seq": primers["forward_primer"]["full_sequence"], "tm": primers["forward_primer"]["binding_core_tm"]},
-        {"name": "reverse_primer", "seq": primers["reverse_primer"]["full_sequence"], "tm": primers["reverse_primer"]["binding_core_tm"]},
-    ]
+    primers_list = prepared["primers"]
+    preparation = prepared["preparation"]
 
     protocol_steps = [
-        {"step": 1, "action": "PCR amplify insert using designed primers with 5' restriction tails and protective bases."},
+        {"step": 1, "action": f"Prepare the insert through {len(preparation)} PCR step(s), in the listed order; each intermediate is the next template."},
         {"step": 2, "action": "Treat PCR product with DpnI (37°C, 20 min) to digest template plasmid."},
-        {"step": 3, "action": f"Digest vector and insert with {enzyme5} and {enzyme3}."},
+        {"step": 3, "action": f"Digest vector with {enzyme5}/{enzyme3} and PCR insert with {insert_enzyme5}/{insert_enzyme3}."},
         {"step": 4, "action": "Perform T4 DNA ligation at 16°C overnight or room temperature for 2 hours (1:3 vector:insert ratio)."},
         {"step": 5, "action": "Transform ligation mixture into competent cells."},
     ]
@@ -230,6 +355,13 @@ def recipe_restriction_cloning(
                 "reverse": primers["reverse_primer"],
                 "protective_bases": {"fwd": prot5, "rev": prot3},
             },
+            "preparation": preparation,
+            "insert_prefix": insert_prefix,
+            "insert_suffix": insert_suffix,
+            "insert_enzymes": [insert_enzyme5, insert_enzyme3],
+            "expression_boundary": quality_checks["expression_boundary"],
+            "orientation": ligation_res.get("insert_orientation"),
+            "vector_replacement_interval_0based": ligation_res.get("vector_replacement_interval_0based"),
             "sop_reminders": sop_reminders,
             "quality_checks": quality_checks,
             "authoritative_sources": AUTHORITATIVE_SOURCES,
