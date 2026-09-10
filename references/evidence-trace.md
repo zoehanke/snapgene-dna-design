@@ -1,6 +1,6 @@
-# Evidence Trace v0.1
+# Evidence Trace v0.2
 
-Optional local sidecar for scientific decisions, evidence and actual program results. It does not change DNA design, decide safety, or capture hidden model reasoning. Runtime has no new package dependencies.
+Optional local sidecar for scientific decisions, evidence and actual program results. It does not change DNA design, decide safety, or capture hidden model reasoning. Phase 2 adds structured input-choice coverage and context comparison, not general biological interpretation. Runtime has no new package dependencies.
 
 The skill's host workflow enables tracing for new design tasks unless the user opts out. Direct CLI/Python use remains opt-in for compatibility and on/off comparisons. Failure policy is normal by default in both cases.
 
@@ -46,7 +46,7 @@ The recording interface rejects user-supplied `validation` and `artifact` nodes.
 ## Views and failures
 
 - Timeline shows requirements, decisions, checks and representative final files. Detail links reveal source statements, claims, conditions, limitations, revisions and affected artifacts. Artifact/Validation associations are run-level, not a claim that every check applies to every file or sequence region.
-- Review Queue lists recorded limitations, missing evidence and failed/unknown checks. It does not make automatic applicability or safety judgments.
+- Review Queue lists recorded limitations, missing evidence and failed/unknown checks. Phase 2 adds conservative structured-context comparisons, while keeping their scope and uncertainty visible; it makes no safety judgment.
 - Run selection freezes the recorded decision versions and evidence relationships available for that run. “全部历史与修订” shows the complete recorded history.
 - Default `normal` mode continues DNA work on Trace-only failures and emits `TRACE_INCOMPLETE` to stderr. `--trace-mode strict` explicitly enables stopping at observation boundaries. Existing Core failures keep their own behavior; completed files are never rolled back by Trace.
 - `Trace integrity: complete` means record completeness within declared coverage. It does not mean every decision was captured, evidence is sufficient, the design is safe or wet-lab success is established.
@@ -71,3 +71,21 @@ python scripts/demo_evidence_trace.py --template <complete-pBP-eGFP.gb> --out-di
 ```
 
 Uses the existing Q3-derived full-template mutagenesis task: Y66H, a recorded design revision adding Y145F, and a separate actual PCR Pipeline. Generates authoritative artifacts, source primer annotations, a timeline and on/off byte comparisons. Supply the unchanged 2808 bp template described in `tests/data/README.md`; source material is not bundled into the runtime package. Source-verification receipts are historical checks from 2026-09-10, not fresh network verification by the demo. No fluorescence performance or safety benefit is claimed.
+
+## Phase 2: capture coverage and applicability
+
+Before execution, check the current task/pipeline/recipe parameter file without changing it:
+
+```text
+python scripts/trace_design.py coverage --trace-dir work/evidence-trace --design-json params.json
+```
+
+Use the same working directory as the execution command. Preflight sees explicit JSON fields; runtime observations also include resolved Recipe defaults. Known source, boundary, orientation, method, mutation, component/order, topology and selected parameter fields are observed. Ordinary analysis helpers are excluded. Unrecognized fields and internal heuristic choices are outside this coverage; zero observations means unknown coverage.
+
+For precise association use targets such as `{"start_0based":198,"end_0based":201,"alt_seq":"CAT","method":"inverse_pcr"}` or `{"step_id":"pcr","parameter":"start","value":6}`. A field reference without its value, repeated values without step scope, or missing rationale produces needs review. Matching does not validate the quality or truth of the rationale. No record is generated to patch missing model reasoning.
+
+Contexts belong separately to the source Statement and task Claim. Supported keys are `organism`, `strain`, `host` (or `chassis`), `construct_context`, `temperature`, `medium`, `assay`, `intended_use`. Temperature accepts Celsius numbers, strings such as `30 C`/`86 F`, or explicit `{min,max,unit}` ranges. Categorical lists mean declared sets; partial overlap stays partial. Missing context is unknown, not a guessed default. Only E. coli, S. cerevisiae and S. eubayanus have explicit abbreviation normalization; this is not a taxonomy resolver.
+
+Computed assessments keep raw contexts, every dimension's result/reason, the required dimensions and `structured-context-v0.2.0`. Default scope is all eight dimensions; a link's explicit `required_dimensions` narrows the comparison, not the biological claim. Source verification, declared applicability and computed assessment are displayed separately. A different host/strain/use yields an extrapolation warning, not an unsafe verdict.
+
+The default renderer shows the five-stage reading spine and folds Evidence/Applicability into relation groups with two-item previews. Focus Mode narrows the selected Decision/Claim/Evidence branch. Review groups issues by Decision; observations with no Decision are grouped separately by actual input subject. Advanced Graph retains the scoped original relations. Empty or not-requested program checks are not presented as failures.

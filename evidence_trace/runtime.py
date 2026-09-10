@@ -128,6 +128,22 @@ class TraceRun:
         elif stage in {"execute", "preparation", "finalize"}:
             self.capture_files(value)
 
+    def capture_choices(self, stage, fn, args, kwargs, result):
+        from evidence_trace.coverage import extract_choices
+        if stage == "task":
+            data, subject = input_snapshot(result), "task"
+        elif stage == "recipe_execute":
+            bound = inspect.signature(fn).bind(*args, **kwargs)
+            bound.apply_defaults()
+            data = input_snapshot(dict(bound.arguments))
+            data["recipe_name"] = fn.__name__
+            subject = "recipe"
+        else:
+            return
+        for choice in extract_choices(data, subject=subject):
+            self.event("design_choice_observed", {"stage": stage, "choice": choice,
+                "observation": "Actual accepted call inputs; no rationale inferred."})
+
     def capture_files(self, value):
         if isinstance(value, dict):
             if value.get("directory") and isinstance(value.get("files"), list):
@@ -191,6 +207,7 @@ def observe(stage, fn, *args, **kwargs):
         run.safe(lambda: run.event("stage_failed", {"stage": stage, "error": str(exc)}), may_stop=False)
         raise
     run.safe(lambda: run.capture(stage, value))
+    run.safe(lambda: run.capture_choices(stage, fn, args, kwargs, value))
     return value
 
 

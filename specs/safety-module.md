@@ -4,10 +4,10 @@
 
 This spec owns lasting product decisions, constraints and open questions; stage plans own implementation steps and completion evidence. Before creating, continuing or replacing a plan, read the [development index](../docs/development-plans/README.md), the relevant plan and its predecessor's handoff. Carry each unresolved item forward explicitly, defer it with a reason, or record an accepted cancellation. A new plan does not silently reset this spec or earlier decisions.
 
-Current shared integration plan: [Phase 1 Evidence Trace v0.1](../docs/development-plans/safety-phase-1-trace-v0.1.md), implemented and engineering-validated; user trial feedback pending. Later phases require separate plans; the full safety roadmap remains in the safety spec.
+Current plan: [Phase 2 Evidence Applicability & Trace Usability](../docs/development-plans/safety-phase-2-applicability-v0.2.md). Phase 1 UI/capture feedback is carried into this phase; later phases still require separate plans.
 
 
-Status: Phase 1 implemented and engineering-validated, 2026-09-10. User trial feedback remains pending. The user's sixteen clarifications define its scope. These supersede the earlier five-node model and blocking-on-initial-log-failure proposal. [Development plan](../docs/development-plans/safety-phase-1-trace-v0.1.md) records implementation details; [core-skill.md](core-skill.md) defines the main product.
+Status: Evidence Trace v0.2 implemented and engineering-validated; actual Phase 2 results and limits are recorded in its plan. Phase 1's sixteen clarifications remain the foundation. These supersede the earlier five-node model and blocking-on-initial-log-failure proposal. [Development plan](../docs/development-plans/safety-phase-1-trace-v0.1.md) records implementation details; [core-skill.md](core-skill.md) defines the main product.
 
 ## Purpose and project relationship
 
@@ -20,6 +20,17 @@ Genome Resurrection motivates separating sequence design, functional restoration
 - Core exposes task/plan/execution hashes, validation, component evidence and artifact manifests. Recipe paths expose different results and promotion; not every route has a ConstructionTask chain.
 - Existing provenance, operation logs and preparation records are reusable foundations.
 - `evidence_trace/` and `scripts/trace_design.py` implement the append-only store, conditional evidence links, revisions and offline views. Entry-point observers cover Recipe, Pipeline and ConstructionTask; Core/Handlers were not changed. Current correctness gates are not comprehensive biosafety assessment.
+
+## Phase 2 decisions and implementation
+
+- Default UI is a deterministic, shipped renderer: `Requirement → Decision → Claim → Validation → Artifact`, with collapsible Evidence/Applicability branches, Focus Mode and Decision-grouped Review Queue. `view.js` and `view.css` are embedded offline; `design.md` is a development reference, never a host page-generation prompt. Main-chain order is navigation, not an inferred causal proof.
+- `coverage.py` extracts known consequential fields from actual accepted ConstructionTask/Pipeline inputs and resolved Recipe arguments/defaults. `design_choice_observed` is an observation event, not a Decision. Existing Phase 1 logs may derive observations from saved submitted inputs; this does not establish successful execution.
+- `explained` means explicit target field/value and scope match plus a nonblank recorded rationale. Field-only or ambiguous association is `needs review`; no reliable association is `unexplained design choice`. Counts are structural coverage, not reasoning quality or a safety percentage. No post-hoc rationale is generated. Custom decision_kind remains unrestricted.
+- Host workflow records genuine decisions as they occur and can run the read-only `trace_design.py coverage --design-json ...` preflight. Gaps do not gate normal DNA execution; existing data may be clarified without inventing past reasoning.
+- `applicability.py` compares Statement.context with Claim.context across organism, strain, host/chassis, construct_context, temperature, medium, assay and intended_use. Each dimension retains raw values, MATCH/DIFFERENT/PARTIAL/UNKNOWN and a reason. Source verification and declared applicability are untouched; computed assessment is a separate derived object carrying contexts, scope and algorithm version.
+- Default assessment considers all eight dimensions. Direct requires matching declared relevant dimensions and a comparable biological context; partial retains missing/overlapping/condition-different dimensions; organism/strain/host/construct/use differences require extrapolation; insufficient comparable biological context is unknown. A link may explicitly narrow required_dimensions, which must remain visible. This is a conservative context policy, not proof of biological transferability.
+- Normalization handles case/whitespace, three explicit common species abbreviations, Celsius/Fahrenheit and declared ranges/sets. No general taxonomy, strain equivalence, paper interpretation or environmental prediction is implied. Free text/unknown formats remain Needs interpretation.
+- Old events are not migrated or overwritten. Runtime/version-bound decisions and relations remain frozen per run; chain/coverage/assessments are rebuilt from facts with projection version 0.2. Normal-mode failures remain non-blocking; Core, planners, Handlers and authoritative files are unchanged.
 
 ## Locked Phase 1 decisions
 
@@ -70,8 +81,8 @@ Dangerous-sequence screening may later supply Evidence. Phase 1 excludes risk sc
 
 ## Open implementation choices
 
-- Actual user review effort and further host ergonomics. The skill enables Trace for new designs unless opted out; direct CLI/Python activation remains optional. Normal failure policy is default. See [usage](../references/evidence-trace.md).
-- Efficient source verification without mandatory network retrieval; which explicit gaps merit the initial Review Queue.
+- Quantified user review effort and further host ergonomics after the Phase 2 changes. The skill enables Trace for new designs unless opted out; direct CLI/Python activation remains optional. Normal failure policy is default. See [usage](../references/evidence-trace.md).
+- Broader source verification and semantic context extraction without mandatory network retrieval; capture coverage beyond the recognized structured fields.
 - The Q3-derived GFP revision demo meets the engineering demonstration minimum. User trial feedback and later comparisons establishing safety benefit remain outstanding.
 
 Earlier permission-control and standalone project-review proposals are not the active plan. Alternative implementations remain eligible if they preserve these outcomes and responsibility boundaries.

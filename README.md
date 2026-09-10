@@ -2,7 +2,7 @@
 
 **v1.0.0 · 可用大版本 / Usable major release.** Release scope and validation: [release notes](docs/RELEASE-v1.0.0.md).
 
-Current development adds **Evidence Trace v0.1** as an optional sidecar to the existing design runtime. Record decisions and conditional evidence, capture actual validation and artifacts, and inspect an offline timeline. Normal-mode trace failures do not block DNA design. See [usage and limits](references/evidence-trace.md) and the [Phase 1 plan](docs/development-plans/safety-phase-1-trace-v0.1.md). This extension does not alter the historical v1.0.0 release or claim biological safety.
+Current development adds **Evidence Trace v0.2** as an optional sidecar to the existing design runtime. Record decisions and conditional evidence, capture actual validation and artifacts, and inspect an offline timeline. Normal-mode trace failures do not block DNA design. See [usage and limits](references/evidence-trace.md) and the [Phase 2 plan](docs/development-plans/safety-phase-2-applicability-v0.2.md). This extension does not alter the historical v1.0.0 release or claim biological safety.
 
 A skill runtime for plasmid design, PCR, cloning, mutagenesis and local CRISPR/HDR designs. The host assistant chooses a route; the runtime computes reactions and exports annotated GenBank and SnapGene files.
 

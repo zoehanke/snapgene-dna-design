@@ -1,0 +1,61 @@
+/* Fixed offline interaction code. Trace data supplies content, not markup or layout. */
+const G=JSON.parse(document.getElementById('trace-data').textContent);
+const N=new Map(G.nodes.map(n=>[n.key,n])), $=id=>document.getElementById(id);
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const text=v=>v===null||v===undefined?'未提供':Array.isArray(v)?v.map(text).join('；'):typeof v==='object'?(v.source_path||Object.entries(v).map(([k,x])=>k+'：'+text(x)).join('\n')):String(v);
+const kinds={requirement:'Requirement',decision:'Decision',claim:'Claim',validation:'Validation',artifact:'Artifact',source:'Source',statement:'Evidence Statement'};
+const checks={biological_sanity:'序列与生物学自检',requested_components:'指定组件检查',artifact_valid:'文件验证',computation_valid:'计算验证',goal_valid:'目标验证'};
+let view='chain',chosen=null,focusNode=null,selectedNode=null;
+const name=n=>n?.text||n?.title||checks[n?.check]||n?.check||n?.relative_path?.split('/').pop()||n?.id||'未记录';
+const state=()=>G.chain_views.find(v=>v.run_id===$('run').value)||G.chain_views[0]||{chains:[],unexplained_choices:[]};
+const chain=()=>state().chains.find(c=>c.decision===chosen)||state().chains[0];
+function status(n){if(n.kind==='source')return `<span class="pill ${n.verification_status==='verified'?'':'warn'}">${n.verification_status==='verified'?'来源已核验':'来源未核验'}</span>`;
+if(n.kind==='validation')return `<span class="pill ${[true,'PASS','passed','verified'].includes(n.result)?'':n.result===false?'conflict':'warn'}">${n.result===true?'程序检查 PASS':n.result==='not_requested'?'未请求此检查':esc(text(n.result))}</span>`;return ''}
+function node(key){const n=N.get(key);return n?`<button class="node ${key===selectedNode?'active':''}" data-node="${esc(key)}"><span class="kind">${kinds[n.kind]} · 修订 ${n.revision}</span><span class="name">${esc(name(n))}</span>${status(n)}</button>`:'<div class="empty-node">未记录</div>'}
+function group(keys){return keys.length?node(keys[0])+(keys.length>1?`<details><summary>另外 ${keys.length-1} 项</summary>${keys.slice(1).map(node).join('')}</details>`:''):'<div class="empty-node">未记录 / 不适用</div>'}
+function field(label,value){return value===undefined?'':`<div class="detail-field"><dt>${esc(label)}</dt><dd>${esc(text(value))}</dd></div>`}
+function urlLink(url,label){try{if(!['http:','https:'].includes(new URL(url).protocol))return ''}catch{return ''}return `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(label)}</a>`}
+function assessment(a){if(!a)return '<span class="pill warn">unknown · 尚无可比较 context</span>';return `<span class="pill ${a.status==='direct'?'':'warn'}">${esc(a.status)}</span><p class="muted">${esc(a.reason)}</p><details><summary>逐维上下文比较</summary><table class="comparison"><thead><tr><th>维度</th><th>证据 / 当前任务</th><th>结果</th></tr></thead><tbody>${a.dimensions.map(d=>`<tr><td>${esc(d.dimension)}${d.required?'':'<small>（未纳入汇总）</small>'}</td><td>${esc(text(d.source))}<br>→ ${esc(text(d.target))}</td><td>${esc(d.result)}<br>${esc(d.reason)}</td></tr>`).join('')}</tbody></table><p class="muted">${esc(a.algorithm_version)} · Needs interpretation：${a.needs_interpretation?'是':'否'}。该比较不验证来源或 Claim。</p></details>`}
+function evidence(branch){const e=branch.link,s=N.get(branch.statement);return `<div class="evidence"><p class="muted">关联 Claim：${esc(name(N.get(branch.claim)))}</p><button class="link-button" data-node="${esc(branch.statement)}">${esc(name(s))}</button>${field('Aspect / strength',`${e.aspect||'未声明侧面'} / ${e.strength||'unknown'}`)}${field('Conditions',e.conditions)}${field('Limitations',e.limitations)}<p class="muted">声明 applicability：${esc(e.applicability||'unknown')} · ${esc(e.declared_by||'未注明')}</p>${assessment(branch.assessment)}<p>${branch.sources.map(k=>node(k)).join('')}</p></div>`}
+function branchSet(c){const grouped={support:[],constrain:[],oppose:[],contextualize:[]};let branches=c.evidence;
+if($('focus').checked&&focusNode&&N.get(focusNode)?.kind!=='decision')branches=branches.filter(e=>e.claim===focusNode||e.statement===focusNode||e.sources.includes(focusNode));
+branches.forEach(e=>(grouped[e.link.relation]||grouped.contextualize).push(e));
+const titles={support:'Supporting',constrain:'Limiting',oppose:'Opposing',contextualize:'Context'};
+return `<div class="branches"><p class="section-label">Evidence / Applicability 旁支 · 先预览，按需展开</p><div class="branch-grid">${Object.entries(grouped).map(([k,items])=>`<details class="branch"><summary>${titles[k]} ${items.length} 条关系</summary>${items.slice(0,2).map(evidence).join('')}${items.length>2?`<details><summary>查看另外 ${items.length-2} 条</summary>${items.slice(2).map(evidence).join('')}</details>`:''}${!items.length?'<p class="muted">没有记录，不等于不存在。</p>':''}</details>`).join('')}</div></div>`}
+function mainChain(c){let claims=c.claims;if($('focus').checked&&focusNode){if(claims.includes(focusNode))claims=[focusNode];else if(['statement','source'].includes(N.get(focusNode)?.kind))claims=[...new Set(c.evidence.filter(b=>b.statement===focusNode||b.sources.includes(focusNode)).map(b=>b.claim))]}const artifacts=c.artifacts.filter(k=>N.get(k)?.role==='authoritative'&&N.get(k)?.path.endsWith('.dna'));const columns=[['Requirement',c.requirements],['Decision',[c.decision]],['Claim',claims],['Validation',c.validations],['Artifact',artifacts.length?artifacts:c.artifacts]];
+return `<div class="chain-row">${columns.map(([label,keys])=>`<div class="chain-cell"><p class="section-label">${label}</p>${group(keys)}</div>`).join('')}</div><p class="muted">${esc(c.association_scope)}</p>${branchSet(c)}`}
+function reviewCards(){
+ const groups=new Map();(state().unexplained_choices||[]).forEach(c=>{if(!groups.has(c.subject))groups.set(c.subject,[]);groups.get(c.subject).push(c)});
+ const decisions=state().chains.filter(c=>c.review.length).map(c=>`<div class="review-card"><button data-decision="${esc(c.decision)}">${esc(name(N.get(c.decision)))}</button><ul>${[...new Set(c.review.map(q=>q.reason))].map(r=>`<li>${esc(r)}</li>`).join('')}</ul></div>`).join('');
+ return decisions+[...groups].map(([subject,items])=>`<div class="review-card"><strong>unexplained design choice · ${esc(subject)}</strong><ul>${items.map(c=>`<li><button class="link-button" data-choice="${esc(c.id)}">${esc(c.parameter)} = ${esc(text(c.value))}</button></li>`).join('')}</ul><small>没有对应的原始解释，不生成假的 Decision。</small></div>`).join('');
+}
+function showChoice(id){const c=state().choices.find(c=>c.id===id);if(!c)return;$('detail').innerHTML='<h2>Observed Design Choice</h2>'+field('实际对象',c.subject)+field('输入字段',c.input_path)+field('实际值',c.value)+field('来源文件 SHA-256',c.value?.source_sha256)+field('观察来源',c.observation_basis)+field('运行状态',c.run_outcome)+field('覆盖状态',c.status)+field('原因',c.reason)+'<p class="gap">这是程序观察，不是模型 Decision；没有补写 rationale。</p>';}
+
+function redraw(){const v=state(),c=chain(),q=$('search').value.toLowerCase();chosen=c?.decision||null;
+$('integrity').textContent='记录完整性：'+(G.integrity==='complete'?'完整':'不完整');const cov=v.coverage;
+$('coverage').textContent=cov&&cov.observed?`${cov.observed} observed · ${cov.explained} explained · ${cov.need_review} review`:'unknown · 无实际输入记录';
+const counts={partial:0,extrapolated:0,unknown:0};v.chains.flatMap(c=>c.evidence).forEach(e=>{const k=e.assessment?.status||'unknown';if(k in counts)counts[k]++});$('applicability').textContent=`${counts.partial} partial · ${counts.extrapolated} extrapolated · ${counts.unknown} unknown`;
+$('view-title').textContent={chain:'Main Chain',review:'Decision Review Queue',artifacts:'Final Output & Validation',graph:'Advanced Graph'}[view];
+$('decision-picker').innerHTML=`<div class="picker">${v.chains.filter(c=>name(N.get(c.decision)).toLowerCase().includes(q)).map(c=>`<button class="${c.decision===chosen?'active':''}" data-decision="${esc(c.decision)}">${esc(name(N.get(c.decision)))}</button>`).join('')}</div>`;
+$('queue').innerHTML=reviewCards()||'<p class="muted">当前未发现记录问题，不代表设计安全。</p>';
+let html='';if(view==='review')html=reviewCards();else if(view==='artifacts')html=[...new Set(v.artifacts||v.chains.flatMap(c=>c.artifacts))].map(node).join('');
+else if(view==='graph'){const keys=new Set(v.chains.flatMap(c=>[c.decision,...c.requirements,...c.claims,...c.validations,...c.artifacts,...c.evidence.flatMap(b=>[b.statement,...b.sources])]));html='<p class="muted">高级关系视图；默认主干不依赖这个网络。</p>'+(v.edges||G.edges).filter(e=>keys.has(e.from)&&keys.has(e.to)).map(e=>`<div class="flow">${node(e.from)}<span>→ ${esc(e.relation)} →</span>${node(e.to)}</div>`).join('')}
+else if(c){html=$('focus').checked?mainChain(c):v.chains.filter(c=>name(N.get(c.decision)).toLowerCase().includes(q)).map(c=>`<div class="overview"><h3>${esc(name(N.get(c.decision)))}</h3>${mainChain(c)}</div>`).join('')}
+else html='<div class="gap">未记录 Decision。实际选择可在 Review Queue 查看；系统不会替模型编造解释。</div>'+group(v.artifacts||[]);
+if(G.issues.length)html+=`<details class="gap"><summary>记录完整性问题 ${G.issues.length}</summary>${G.issues.map(i=>`<p>${esc(i)}</p>`).join('')}</details>`;
+$('content').innerHTML=html||'<p class="muted">无对应记录。</p>';
+}
+function show(key){const n=N.get(key);if(!n)return;selectedNode=key;
+const connects=c=>c.decision===key||c.claims.includes(key)||c.evidence.some(e=>e.statement===key||e.sources.includes(key))||c.artifacts.includes(key)||c.validations.includes(key);const related=connects(chain()||{claims:[],evidence:[],artifacts:[],validations:[]})?chain():state().chains.find(connects);if(related)chosen=related.decision;
+focusNode=['decision','claim','statement','source'].includes(n.kind)?key:null;
+let html=`<p class="eyebrow">${esc(kinds[n.kind])} · 修订 ${n.revision}</p><h2>${esc(name(n))}</h2>${status(n)}`;
+for(const [k,label] of Object.entries({rationale:'Reason',context:'声明上下文',targets:'对应实际选择',conditions:'Conditions',limitations:'Limitations',actor:'记录者',recorded_at:'记录时间',verification:'Source identity verification',locator:'原文定位',result:'真实程序结果',tool_version:'程序版本',sha256:'文件 SHA-256',validation_scope:'关联范围'}))html+=field(label,n[k]);
+if(n.url)html+='<p>'+urlLink(n.url,'打开来源')+'</p>';if(n.doi)html+='<p>'+urlLink('https://doi.org/'+n.doi,'DOI '+n.doi)+'</p>';if(n.pmid)html+='<p>'+urlLink('https://pubmed.ncbi.nlm.nih.gov/'+n.pmid+'/','PMID '+n.pmid)+'</p>';
+if(n.kind==='artifact'){html+=field('文件位置',n.path);const path=n.path?.replaceAll('\\','/');if(path&&/^(?:[A-Za-z]:\/|\/)/.test(path)&&!path.startsWith('//'))html+=`<a href="${esc('file:///'+path.replace(/^\//,'').split('/').map((x,i)=>i===0&&/^[A-Za-z]:$/.test(x)?x:encodeURIComponent(x)).join('/'))}">打开产物</a>`;html+='<h3>回到关联决定</h3>'+(n.references?.decision_ids||[]).map(node).join('')}
+if(n.kind==='claim'||n.kind==='statement')html+=(related?.evidence||[]).filter(e=>e.claim===key||e.statement===key).map(evidence).join('');
+if(n.kind==='decision'){html+='<h3>Claim 与依据</h3>'+(related?.claims||[]).map(node).join('');html+='<h3>实际选择的记录覆盖</h3>'+(related?.choices||[]).map(c=>`<p>${esc(c.parameter)} = ${esc(text(c.value))}<br><span class="pill ${c.status==='explained'?'':'warn'}">${esc(c.status)}</span></p>`).join('')}
+if(n.details)html+=`<details><summary>原始程序检查详情</summary><pre>${esc(text(n.details))}</pre></details>`;
+$('detail').innerHTML=html;redraw();}
+$('run').innerHTML=G.chain_views.map(v=>`<option value="${esc(v.run_id||'')}">${esc(G.runs.find(r=>r.id===v.run_id)?.route||'尚未运行')} / ${esc((v.run_id||'draft').slice(0,8))}</option>`).join('');if(G.runs.length)$('run').value=G.runs[G.runs.length-1].id;
+document.addEventListener('click',e=>{const o=e.target.closest('[data-choice]');if(o){showChoice(o.dataset.choice);return}const d=e.target.closest('[data-decision]');if(d){chosen=d.dataset.decision;focusNode=null;show(chosen);return}const n=e.target.closest('[data-node]');if(n){show(n.dataset.node);return}const tab=e.target.closest('[data-view]');if(tab){view=tab.dataset.view;document.querySelectorAll('[data-view]').forEach(b=>b.setAttribute('aria-selected',b===tab));redraw()}});
+$('focus').addEventListener('change',()=>{focusNode=null;redraw()});$('run').addEventListener('change',()=>{chosen=null;focusNode=null;selectedNode=null;redraw();if(chain())show(chain().decision)});$('search').addEventListener('input',redraw);redraw();if(chain())show(chain().decision);
