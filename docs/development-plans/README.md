@@ -6,12 +6,13 @@
 
 | 计划 | 模块目标版本 | 文档修订 | 状态 | 前序 |
 |---|---|---|---|---|
+| [Phase 3：Living Evidence Document & Change Impact](safety-phase-3-change-impact-v0.3.md) | Evidence Trace v0.3 | r2 | 实现及本地工程验收完成 | Phase 2 |
 | [Phase 2：Evidence Applicability & Trace Usability](safety-phase-2-applicability-v0.2.md) | Evidence Trace v0.2 | r3 | 工程实现及本阶段验收完成 | Phase 1 |
 | [Phase 1：Evidence Trace](safety-phase-1-trace-v0.1.md) | v0.1 | r3 | 工程验收完成，试用反馈已转化为 Phase 2 UI/Capture 改进 | 无已执行阶段 |
 
-Phase 2 UI/交互规范：[design.md](design.md)；视觉参考：[evidence-trace-phase2-reference.svg](evidence-trace-phase2-reference.svg)。
+当前 UI/交互规范：[design.md](design.md)；Phase 2 历史参考：[evidence-trace-phase2-reference.svg](evidence-trace-phase2-reference.svg)。
 
-相关 spec：[主 skill](../../specs/core-skill.md)、[安全模块](../../specs/safety-module.md)。Phase 3 至 Phase 6 尚未创建执行计划，完整路线图留在安全 spec。
+相关 spec：[主 skill](../../specs/core-skill.md)、[安全模块](../../specs/safety-module.md)。Phase 4 至 Phase 6 尚未创建执行计划，完整路线图留在安全 spec。
 
 ## 文件职责与版本
 

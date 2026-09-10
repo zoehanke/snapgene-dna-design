@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import copy
 import pathlib
 import uuid
 
@@ -31,14 +32,14 @@ def load_events(directory):
 
 
 def project(events, errors=()):
-    nodes, edges, runs, latest, queue = {}, [], {}, {}, []
+    nodes, edges, runs, latest, queue, changes = {}, [], {}, {}, [], []
     problems = list(errors)
     for event in events:
         p = event["payload"]
         kind = event["event_type"]
         if kind == "node_recorded":
             node = {**p, "recorded_at": event["timestamp"], "actor": event["actor"],
-                    "run_id": event.get("run_id")}
+                    "run_id": event.get("run_id"), "recorded_sequence": event["sequence"]}
             nodes[node["key"]] = node
             latest[node["id"]] = node["key"]
             for field, refs in node.get("references", {}).items():
@@ -59,6 +60,8 @@ def project(events, errors=()):
             edges.append({**p, "recorded_sequence": event["sequence"]})
             if p.get("relation") in {"oppose", "constrain", "unknown"} or p.get("applicability", "unknown") != "direct" or p.get("limitations"):
                 queue.append({"node": p["to"], "reason": "依据有限制或适用性待复核", "link": p})
+        elif kind == "change_recorded":
+            changes.append({**p, "event_sequence": event["sequence"], "actor": event["actor"]})
         elif kind == "run_started":
             runs[event["run_id"]] = {**p, "id": event["run_id"], "stages": [], "status": "unfinished"}
         elif kind == "trace_error":
@@ -81,7 +84,7 @@ def project(events, errors=()):
                   or nodes.get(e["to"], {}).get("run_id") == run["id"]]
         run["review_queue"] = [q for q in queue if q["node"] in keys and q["reason"] != "判断缺少证据陈述"
                                and (not q.get("link") or any(e.get("id") == q["link"]["id"] for e in scoped))]
-        for key in keys:
+        for key in sorted(keys):
             if nodes.get(key, {}).get("kind") == "claim" and not any(e["to"] == key and "statement_id" in e for e in scoped):
                 run["review_queue"].append({"node": key, "reason": "判断缺少证据陈述"})
         if not run.get("decision_refs"):
@@ -91,7 +94,8 @@ def project(events, errors=()):
         if run["status"] == "unfinished":
             problems.append(f"{run['id']}: run has no finish event")
     return {"schema_version": "evidence-trace-v0.1", "nodes": list(nodes.values()),
-            "edges": edges, "runs": list(runs.values()), "latest": latest,
+            "edges": edges, "runs": list(runs.values()), "latest": latest, "changes": changes,
+            "audit_events": copy.deepcopy(events),
             "review_queue": queue, "issues": problems,
             "integrity": "incomplete" if problems else "complete",
             "coverage": "Submitted decisions and observed runtime stages only; not model internal reasoning."}
@@ -141,7 +145,28 @@ class Recorder:
                 refs[field].append(key)
         node.update(key=f"{node['id']}@{revision}", revision=revision, previous=previous, references=refs)
         self.append("node_recorded", node, actor)
+        if previous:
+            from evidence_trace.impact import revision_changes
+            for change in revision_changes(by_key[previous], node):
+                self.append("change_recorded", change, actor)
         return node["key"]
+
+    def compare_runs(self, from_run, to_run):
+        from evidence_trace.impact import run_changes
+        graph = project(self.events)
+        runs = {r["id"]: r for r in graph["runs"]}
+        if from_run == to_run or from_run not in runs or to_run not in runs:
+            raise ValueError("Choose two distinct recorded runs")
+        if list(runs).index(from_run) >= list(runs).index(to_run):
+            raise ValueError("Change direction must follow recorded run order")
+        existing = {(c["from_revision"], c["to_revision"], c["changed_field"], c.get("subject")) for c in graph["changes"]}
+        recorded = []
+        for change in run_changes(runs[from_run], runs[to_run]):
+            identity = (from_run, to_run, change["changed_field"], change.get("subject"))
+            if identity not in existing:
+                self.append("change_recorded", change)
+                recorded.append(change["id"])
+        return recorded
 
     def link(self, link, actor="user"):
         graph = project(self.events)

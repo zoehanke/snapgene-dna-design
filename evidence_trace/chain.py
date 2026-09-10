@@ -64,5 +64,6 @@ def build_chains(graph):
                          "need_review": sum(o["status"] != "explained" for o in coverage),
                          "scope": "Known structured input fields; not complete biological reasoning coverage."}})
     result["chain_views"] = views
-    result["projection_version"] = "0.2.0"
-    return result
+    result["projection_version"] = "0.3.0"
+    from evidence_trace.impact import attach_impacts
+    return attach_impacts(result)

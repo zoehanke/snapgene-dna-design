@@ -1,4 +1,4 @@
-# Evidence Trace v0.2
+# Evidence Trace v0.3
 
 Optional local sidecar for scientific decisions, evidence and actual program results. It does not change DNA design, decide safety, or capture hidden model reasoning. Phase 2 adds structured input-choice coverage and context comparison, not general biological interpretation. Runtime has no new package dependencies.
 
@@ -89,3 +89,29 @@ Contexts belong separately to the source Statement and task Claim. Supported key
 Computed assessments keep raw contexts, every dimension's result/reason, the required dimensions and `structured-context-v0.2.0`. Default scope is all eight dimensions; a link's explicit `required_dimensions` narrows the comparison, not the biological claim. Source verification, declared applicability and computed assessment are displayed separately. A different host/strain/use yields an extrapolation warning, not an unsafe verdict.
 
 The default renderer shows the five-stage reading spine and folds Evidence/Applicability into relation groups with two-item previews. Focus Mode narrows the selected Decision/Claim/Evidence branch. Review groups issues by Decision; observations with no Decision are grouped separately by actual input subject. Advanced Graph retains the scoped original relations. Empty or not-requested program checks are not presented as failures.
+
+## Phase 3: Living Evidence Document and Change Impact
+
+Document / Mind Map / Split share one state owner: selected run, Decision, node and expansion state. Document reads each Decision as Why → Evidence → Applicability → Validation → Change Impact → Output. Mind Map is a primary, full-page SVG reading mode; Split connects the map and chapter. Fixed shipped renderer code controls layout. Changes and Review are contextual reading aids, not dashboards or safety scores.
+
+Changes are append-only records carrying ID, from_revision, to_revision, changed_field, old_value, new_value, presence flags and recorded_at. Record context/targets/scientific-statement revisions are captured when submitted. Accepted inputs and recorded product sequence/topology anchors are compared automatically only for the same Task ID/kind or the same Recipe name. No new sequence computation is introduced. Comparisons are recorded differences, not proof that an earlier scientific conclusion was wrong.
+
+For another baseline pair, explicitly compare existing runs:
+
+```text
+python scripts/trace_design.py compare --trace-dir work/evidence-trace --from-run <earlier-run-id> --to-run <later-run-id>
+```
+
+Repeating the same pair does not duplicate Changes. Earlier logs are not backfilled on render. A missing observation differs from an absent field: incomplete observation coverage produces UNKNOWN, not an invented addition/deletion. All original records and program results remain intact.
+
+Impacts expose separate judgment and actions. AFFECTED requires an explicit dependency; broad run-level edges produce NEEDS REVIEW. Missing relations yield UNKNOWN. UNAFFECTED requires a declared complete, comparable dependency range with no contradictory path. Optional `depends_on_fields` names fields/categories; `dependency_scope_complete` asserts completeness within the recorded baseline, not universal scientific independence. Program-produced validation records have limited known dependency fields and do not assert completeness.
+
+REASSESS asks to reconsider a Claim/Decision, RECHECK asks to inspect Evidence/Applicability, RERUN recommends repeating a program check, STALE identifies an old-context record, and NEEDS REVIEW signals uncertain impact. Recommendations do not run tools, change PASS to FAIL, gate DNA design or mark a newer revision automatically resolved.
+
+To replay the full-template PCR/context revision demonstration:
+
+```text
+python scripts/demo_evidence_trace_phase3.py --template <complete-pBP-eGFP.gb> --out-dir <new-directory>
+```
+
+The demo compares Trace on/off native files and primer tables for both PCR boundaries. Its context and purpose are explicitly authored demonstration inputs; it makes no expression or safety claim. Independent 5/15/30-second user timing remains a UX target, not a result inferred from browser tests.

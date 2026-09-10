@@ -97,10 +97,18 @@ class TraceRun:
             self.recorder.append(kind, payload)
 
     def validation(self, name, result, details):
+        dependencies = {
+            "artifact_valid": ["sequence", "topology", "features"],
+            "computation_valid": ["source", "sequence", "boundary", "orientation", "component", "method", "mutation", "order", "topology"],
+            "goal_valid": ["sequence", "component", "boundary", "orientation"],
+            "biological_sanity": ["sequence", "topology", "features"],
+            "requested_components": ["sequence", "component", "orientation"],
+        }
         key = self.recorder.record({"id": f"V-{self.run_id}-{len(self.validations)+1}", "kind": "validation",
             "check": name, "result": result, "details": snapshot(details),
             "tool": "snapgene-dna-design", "tool_version": self.core_version,
-            "decision_ids": self.decisions}, runtime=True, actor="runtime")
+            "decision_ids": self.decisions, "depends_on_fields": dependencies.get(name, []),
+            "dependency_scope_complete": False}, runtime=True, actor="runtime")
         self.validations.append(key)
 
     def capture(self, stage, value):
@@ -127,6 +135,8 @@ class TraceRun:
                 self.capture_files(value.get(key))
         elif stage in {"execute", "preparation", "finalize"}:
             self.capture_files(value)
+        if stage in {"execute", "recipe_result"}:
+            self.compare_previous()
 
     def capture_choices(self, stage, fn, args, kwargs, result):
         from evidence_trace.coverage import extract_choices
@@ -143,6 +153,17 @@ class TraceRun:
         for choice in extract_choices(data, subject=subject):
             self.event("design_choice_observed", {"stage": stage, "choice": choice,
                 "observation": "Actual accepted call inputs; no rationale inferred."})
+        self.compare_previous()
+
+    def compare_previous(self):
+        from evidence_trace.impact import comparison_identity
+        if self.recorder:
+            runs = project(self.recorder.events)["runs"]
+            current = next((r for r in runs if r["id"] == self.run_id), None)
+            identity = comparison_identity(current) if current else None
+            previous = [r for r in runs if r["id"] != self.run_id and identity is not None and comparison_identity(r) == identity]
+            if previous:
+                self.recorder.compare_runs(previous[-1]["id"], self.run_id)
 
     def capture_files(self, value):
         if isinstance(value, dict):

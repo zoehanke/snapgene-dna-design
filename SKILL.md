@@ -50,7 +50,7 @@ Use this skill to turn a molecular-biology request into an inspectable sequence 
 
 Use the Recipe or ConstructionTask routes for biological edits. The legacy keyword agent cannot execute promoter/resistance replacement, fusion tagging or HDR from keyword classification and refuses those requests. Its simple sequence-edit previews do not provide a physical preparation protocol.
 
-## Evidence Trace (v0.2 sidecar)
+## Evidence Trace (v0.3 sidecar)
 
 For new design tasks, use Evidence Trace unless the user opts out; read-only inspection does not require a trace. Record key decisions and their brief rationale as they occur using `scripts/trace_design.py record`, then pass the same `--trace-dir` to the normal Recipe, Pipeline or ConstructionTask entry point. Read [references/evidence-trace.md](references/evidence-trace.md) for the small record format and commands. Keep Source, reported Evidence Statement, task Claim and Decision separate; label model inference and unverified citations honestly. Do not invent a source, rationale or applicability statement to fill a gap. Ordinary file operations do not belong in the decision timeline.
 
@@ -58,7 +58,7 @@ Before execution, use `python scripts/trace_design.py coverage --trace-dir <trac
 
 For applicability, record structured contexts separately on Evidence Statements and Claims. Do not fill missing organism, strain, host, construct context, temperature, medium, assay or intended use with guessed defaults. The program compares declared contexts; it neither verifies papers nor proves the Claim. Source-verification receipts remain separate.
 
-Trace observes program results and files; it does not choose parameters or change Core rules. Normal mode preserves DNA execution on Trace failure and reports `TRACE_INCOMPLETE`; strict mode is explicit. The fixed offline Evidence Chain supports Focus Mode, folded evidence/applicability branches, Decision-grouped review, historical runs and artifact backtracking. The host must not generate HTML from design.md. Record completeness is not a safety verdict. When tracing was not enabled, do not claim the task's decisions were recorded.
+Trace observes program results and files; it does not choose parameters or change Core rules. Normal mode preserves DNA execution on Trace failure and reports `TRACE_INCOMPLETE`; strict mode is explicit. The fixed offline Living Evidence Document provides Document / Mind Map / Split projections sharing selection and expansion state. Record genuine context/target revisions as they occur; Change Impact links differences to old records and recommends checks without changing conclusions or executing RERUN. Automatic comparisons require matching task identity or Recipe; use the documented compare command for another baseline. The host must not generate HTML from design.md or mark uncertain dependencies unaffected. Record completeness is not a safety verdict. When tracing was not enabled, do not claim the task's decisions were recorded.
 
 ## Composite pipeline references
 

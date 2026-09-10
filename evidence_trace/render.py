@@ -29,18 +29,16 @@ def render(directory, graph):
 
 
 PAGE = '''<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1"><title>Evidence Chain · 设计依据</title>
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Living Evidence Document</title>
 <style>__STYLE__</style></head><body>
-<header><strong>Evidence Trace <small>0.2</small></strong><nav aria-label="视图">
-<button data-view="chain" aria-selected="true">Evidence Chain</button><button data-view="review">Review Queue</button>
-<button data-view="artifacts">Artifacts</button><button data-view="graph">Advanced Graph</button></nav></header>
-<div class="intro"><div><p class="eyebrow">DNA DESIGN / SCIENTIFIC DECISIONS</p><h1>Design Evidence Chain</h1><p>先看设计主干，再展开证据条件与记录缺口。</p></div>
-<div class="controls"><select id="run" aria-label="选择运行"></select><input id="search" type="search" aria-label="搜索决定" placeholder="搜索决定或实际选择…"></div></div>
-<section class="stats" aria-label="三个独立状态"><div><span>Trace Integrity</span><strong id="integrity"></strong><small>记录完整性，不代表安全</small></div>
-<div><span>Decision Coverage</span><strong id="coverage"></strong><small>实际输入的记录覆盖，不是安全分数</small></div>
-<div><span>Evidence Applicability</span><strong id="applicability"></strong><small>上下文比较，不验证 Claim</small></div></section>
-<main><section class="canvas"><div class="canvas-head"><h2 id="view-title">Main Chain</h2><label><input type="checkbox" id="focus" checked> Focus Mode</label></div>
-<div id="decision-picker"></div><div id="content"></div></section>
-<aside><section id="detail" class="panel" aria-live="polite"><h2>Decision Details</h2><p>选择记录查看依据。</p></section><section class="panel"><h2>Review Queue</h2><div id="queue"></div></section></aside></main>
-<footer>主干表示阅读顺序。Validation / Artifact 为运行级关联，不表示程序证明了相邻 Claim。来源核验、上下文匹配与适用性分别展示。页面离线运行。</footer>
+<header class="mast"><a class="brand" href="#" aria-label="Evidence Trace"><span class="mark">ET</span> Evidence Trace <small>0.3</small></a>
+<div class="mode-switch" role="tablist" aria-label="阅读模式"><button data-mode="document" role="tab">Document</button><button data-mode="map" role="tab">Mind Map</button><button data-mode="split" role="tab">Split</button></div>
+<select id="run" aria-label="运行版本"></select></header>
+<div class="workspace"><aside class="outline"><div class="outline-head">CONTENTS <span id="chapter-count"></span></div><input id="search" type="search" placeholder="查找决定…" aria-label="查找决定"><nav id="chapters" aria-label="Decision 目录"></nav>
+<div class="outline-head secondary">WORKSPACE</div><nav class="tools" aria-label="辅助阅读"><button data-panel="review">Review Queue</button><button data-panel="changes">Changes</button><button data-panel="artifacts">Artifact Trace</button><details><summary>Advanced</summary><button data-panel="graph">Advanced Graph</button><button data-panel="audit">Audit Log</button></details></nav>
+<div class="outline-foot">Living Evidence Document<br><span>记录、依据与重新检查的线索。</span></div></aside>
+<main><div class="reading-head"><div><p class="eyebrow" id="eyebrow">RESEARCH RECORD</p><h1 id="page-title">设计依据</h1></div><p id="status-line" aria-live="polite"></p></div>
+<div id="reading" class="reading"><section id="map-pane" class="map-pane" aria-label="Decision 思维导图"></section><section id="document-pane" class="document-pane" aria-label="科研证据文档"></section></div>
+<footer class="reading-foot">STALE 表示旧上下文；影响标记不修改科学结论或原始程序检查。RERUN 仅为建议。</footer></main></div>
+<dialog id="drawer" aria-label="记录详情"><button id="close-drawer" aria-label="关闭详情">×</button><div id="drawer-body"></div></dialog>
 <script id="trace-data" type="application/json">__TRACE_DATA__</script><script>__SCRIPT__</script></body></html>'''
