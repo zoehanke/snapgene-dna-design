@@ -5,6 +5,8 @@
 - 长期约束：[safety spec](../../specs/safety-module.md)、[core spec](../../specs/core-skill.md)；界面：[design.md](design.md)。
 - 分支：`codex/real-workflow-readiness-20260907`，不修改 main；实现、验证后 commit/push 并核对同一提交 CI。
 
+后续交接（2026-09-11）：用户反馈页面不适合人类阅读，采集与 UI 改进转入 [Phase 3 补救计划](safety-phase-3-readability-v0.3.1.md)。本文保留 v0.3 工程记录；原单 Decision 导图不再作为下一版布局目标，原工程验收不等于阅读验收。
+
 ## 目标与边界
 
 Evidence Trace 是 **Living Evidence Document**，不是 Dashboard。Mind Map 是一级阅读模式。Change Impact 只指出需要重新检查的范围，不自动改科学结论、Core 参数、Validation 或产物，不执行建议的重算。
