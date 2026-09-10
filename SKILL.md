@@ -50,6 +50,12 @@ Use this skill to turn a molecular-biology request into an inspectable sequence 
 
 Use the Recipe or ConstructionTask routes for biological edits. The legacy keyword agent cannot execute promoter/resistance replacement, fusion tagging or HDR from keyword classification and refuses those requests. Its simple sequence-edit previews do not provide a physical preparation protocol.
 
+## Evidence Trace (optional, v0.1)
+
+For new design tasks, use Evidence Trace unless the user opts out; read-only inspection does not require a trace. Record key decisions and their brief rationale as they occur using `scripts/trace_design.py record`, then pass the same `--trace-dir` to the normal Recipe, Pipeline or ConstructionTask entry point. Read [references/evidence-trace.md](references/evidence-trace.md) for the small record format and commands. Keep Source, reported Evidence Statement, task Claim and Decision separate; label model inference and unverified citations honestly. Do not invent a source, rationale or applicability statement to fill a gap. Ordinary file operations do not belong in the decision timeline.
+
+Trace observes program results and files; it does not choose parameters or change Core rules. Normal mode preserves DNA execution on Trace failure and reports `TRACE_INCOMPLETE`; strict mode is explicit. The offline timeline supports decision detail, evidence limitations, historical run selection and artifact backtracking. Record completeness is not a safety verdict. When tracing was not enabled, do not claim the task's decisions were recorded.
+
 ## Composite pipeline references
 
 Pipeline parameters resolve recursively. Use `$source_id` for a named source, `$step_id` for the prior step output, `$step_id.field` for a result field, and `$step_id.field.0` or another numeric segment for a list index. A whole `$step_id` passes the sequence record when the step produced one, preserving sequence, topology, and features; use field references for scalar or list values. Set `output_step` in the pipeline or pass `--output-step` when later steps are analysis-only and a prior sequence-producing step is the deliverable.

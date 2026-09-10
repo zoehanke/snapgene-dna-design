@@ -18,6 +18,8 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+from evidence_trace.runtime import (observe, observe_value, traced_run, add_trace_arguments, trace_options, TraceStopped)
+
 from core import (ConstructionTaskSession, execute, finalize,
                   validate, validate_construction_task)
 from core import plan as plan_task
@@ -31,9 +33,19 @@ def main(argv=None):
     parser.add_argument("--base-dir", default=None)
     parser.add_argument("--out-dir", required=True)
     parser.add_argument("--json", action="store_true")
+    add_trace_arguments(parser)
     args = parser.parse_args(argv)
 
     out = pathlib.Path(args.out_dir)
+    try:
+        return _run(args, out, **trace_options(args))
+    except TraceStopped as exc:
+        print(str(exc), file=sys.stderr)
+        return 4
+
+
+@traced_run("construction-task")
+def _run(args, out):
     out.mkdir(parents=True, exist_ok=True)
     try:
         raw_task = json.loads(pathlib.Path(args.task_json).read_text(
@@ -87,15 +99,15 @@ def main(argv=None):
         return 3
 
     try:
-        task = validate_construction_task(
+        task = observe("task", validate_construction_task,
             session.task, base_dir=args.base_dir)
-        task, plan = plan_task(task, base_dir=args.base_dir)
-        execution = execute(task, plan, out)
-        report = validate(task, plan, execution)
+        task, plan = observe("plan", plan_task, task, base_dir=args.base_dir)
+        execution = observe("execute", execute, task, plan, out)
+        report = observe("validate", validate, task, plan, execution)
         delivery = None
         if report["overall"] == "verified":
             try:
-                delivery = finalize(task, plan, execution, report, out)
+                delivery = observe("finalize", finalize, task, plan, execution, report, out)
             except GateRejected as exc:
                 result = {
                     "status": "blocked",
@@ -134,6 +146,8 @@ def main(argv=None):
         }
         _emit(result, args, out)
         return 0 if delivery else 2
+    except TraceStopped:
+        raise
     except CoreError as exc:
         result = {
             "status": exc.status,
@@ -152,6 +166,7 @@ def main(argv=None):
 
 
 def _emit(result, args, out):
+    observe_value("outcome", result)
     (out / "result.json").write_text(
         json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
     if args.json:

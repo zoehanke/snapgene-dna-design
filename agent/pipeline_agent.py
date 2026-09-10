@@ -13,6 +13,8 @@ import json
 import pathlib
 from typing import Any
 
+from evidence_trace.runtime import (observe, observe_value, traced_run, add_trace_arguments, trace_options, TraceStopped)
+
 from core import execute, finalize, plan, validate, validate_construction_task
 from core.guardrails.checklist import (
     get_biological_self_audit_checklist,
@@ -82,6 +84,7 @@ def build_agent_planning_prompt(
     }
 
 
+@traced_run("pipeline")
 def execute_agent_pipeline(
     task_id: str,
     pipeline_steps: list[dict[str, Any]],
@@ -147,18 +150,18 @@ def execute_agent_pipeline(
     }
 
     # 1. Validate
-    vtask = validate_construction_task(task)
+    vtask = observe("task", validate_construction_task, task)
 
     # 2. Plan
-    vtask, p = plan(vtask)
+    vtask, p = observe("plan", plan, vtask)
     (out_path / "task.json").write_text(json.dumps(vtask, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
     (out_path / "plan.json").write_text(json.dumps(p, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
 
     # 3. Execute
-    exec_res = execute(vtask, p, out_path)
+    exec_res = observe("execute", execute, vtask, p, out_path)
 
     # 4. Three-layer Validate
-    report = validate(vtask, p, exec_res)
+    report = observe("validate", validate, vtask, p, exec_res)
 
     preparation = []
     source_paths = {s["source_id"]: s["path"] for s in sources}
@@ -176,13 +179,13 @@ def execute_agent_pipeline(
     # The same application-level writer serves both entry points. A failure
     # producing source primer maps occurs before authoritative promotion.
     from scripts.run_recipe import write_preparation_artifacts
-    preparation_files = write_preparation_artifacts(preparation, out_path)
+    preparation_files = observe("preparation", write_preparation_artifacts, preparation, out_path)
 
     delivery = None
     if report["overall"] == "verified":
         if user_confirmed:
             # 5. Authoritative Finalize
-            delivery = finalize(vtask, p, exec_res, report, out_path)
+            delivery = observe("finalize", finalize, vtask, p, exec_res, report, out_path)
             status = delivery["status"]
         else:
             status = "verified-candidate"

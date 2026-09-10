@@ -28,6 +28,8 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from evidence_trace.runtime import (observe, observe_value, traced_run, add_trace_arguments, trace_options, TraceStopped)
+
 import core.recipes as recipes
 from core.guardrails.checklist import quick_biological_sanity_check
 from core.recipes.contract import RecipeResult
@@ -92,6 +94,7 @@ def get_recipe_function(recipe_name: str):
     raise ValueError(f"Unknown recipe '{recipe_name}'. Available recipes: {', '.join(available)}")
 
 
+@traced_run("recipe")
 def run_recipe_cli(
     recipe_name: str,
     params: dict[str, Any],
@@ -109,7 +112,7 @@ def run_recipe_cli(
     candidate_dir.mkdir(parents=True, exist_ok=True)
 
     # 1. Execute Recipe
-    res: RecipeResult = fn(**params)
+    res: RecipeResult = observe("recipe_execute", fn, **params)
 
     # 2. Biological Guardrails Check with contextual parameters
     prod_seq = res.product_sequence or res.get("product_dna_sequence") or ""
@@ -150,6 +153,8 @@ def run_recipe_cli(
         primer_method=method,
     )
 
+    observe_value("sanity", sanity)
+
     # 3. Save Candidate Artifacts
     candidate_files = []
     if prod_seq:
@@ -167,7 +172,7 @@ def run_recipe_cli(
         candidate_files.append(export_res["gb_file"])
         candidate_files.append(export_res["dna_file"])
 
-    preparation_files = write_preparation_artifacts(res.details.get("preparation", []), out_path)
+    preparation_files = observe("preparation", write_preparation_artifacts, res.details.get("preparation", []), out_path)
     if res.details.get("edited_target_record"):
         edited = resolve_sequence_record(res.details["edited_target_record"])
         edited_files = export_plasmid(edited, candidate_dir, "expected_edited_target",
@@ -197,6 +202,7 @@ def run_recipe_cli(
             actual_candidate = SeqIO.read(handle, "genbank")
         traces, errors = _validate_requested_components(requirements, actual_candidate)
         goal_check = {"status": "failed" if errors else "passed", "checks": traces, "errors": errors}
+    observe_value("goal_check", goal_check)
     result_dict["goal_check"] = goal_check
     result_json_path.write_text(json.dumps(result_dict, indent=2, ensure_ascii=False, default=str), encoding="utf-8")
     candidate_files.append(str(result_json_path))
@@ -221,7 +227,7 @@ def run_recipe_cli(
             raise FileNotFoundError(f"Candidate files missing for promotion: {cand_gb}, {cand_fa}")
 
         from core.runtime_gate import finalize_candidate_construct
-        authoritative_delivery = finalize_candidate_construct(
+        authoritative_delivery = observe("finalize", finalize_candidate_construct,
             candidate_gb=cand_gb,
             candidate_fasta=cand_fa,
             out_dir=out_path,
@@ -321,6 +327,7 @@ def main():
     parser.add_argument("--confirmed", action="store_true", help="Explicit user confirmation for authoritative release")
     parser.add_argument("--json", action="store_true", help="Output complete report in JSON format")
 
+    add_trace_arguments(parser)
     args = parser.parse_args()
 
     params = {}
@@ -348,6 +355,7 @@ def main():
             out_dir=args.out_dir,
             finalize_requested=args.finalize,
             user_confirmed=args.confirmed,
+            **trace_options(args),
         )
         if args.json:
             out_data = {

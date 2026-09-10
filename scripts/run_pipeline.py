@@ -23,6 +23,8 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from evidence_trace.runtime import (observe, observe_value, traced_run, add_trace_arguments, trace_options, TraceStopped)
+
 from agent.pipeline_agent import execute_agent_pipeline
 
 
@@ -116,6 +118,7 @@ def _report_failure(
 ) -> int:
     """Write and emit structured failure state for every handled CLI error."""
     result = _write_failure_result(out_path, error, task_id=task_id)
+    observe_value("outcome", result)
     if args.json:
         print(json.dumps(result, indent=2, ensure_ascii=False))
     else:
@@ -140,9 +143,20 @@ def main():
     parser.add_argument("--open-snapgene", action="store_true", help="Launch desktop SnapGene viewer on generated construct")
     parser.add_argument("--json", action="store_true", help="Output results in JSON format")
 
+    add_trace_arguments(parser)
     args = parser.parse_args()
 
     out_path = pathlib.Path(args.out_dir).resolve()
+    try:
+        return _run(args, out_path, **trace_options(args))
+    except TraceStopped as exc:
+        print(str(exc), file=sys.stderr)
+        return 4
+
+
+@traced_run("pipeline")
+def _run(args, out):
+    out_path = out
     out_path.mkdir(parents=True, exist_ok=True)
 
     pipe_path = pathlib.Path(args.pipeline)
@@ -209,6 +223,7 @@ def main():
         result["requested_topology"] = requested_topology
         result["actual_topology"] = result.get("actual_topology", result.get("product_topology"))
 
+        observe_value("outcome", result)
         (out_path / "pipeline_result.json").write_text(
             json.dumps(result, indent=2, ensure_ascii=False, default=str), encoding="utf-8")
 
@@ -230,6 +245,8 @@ def main():
                 print("- **Authoritative Delivery**: Not produced; see validation and confirmation status above")
         return 0 if result.get("validation_report", {}).get("overall") == "verified" else 1
 
+    except TraceStopped:
+        raise
     except Exception as exc:
         return _report_failure(
             args,
