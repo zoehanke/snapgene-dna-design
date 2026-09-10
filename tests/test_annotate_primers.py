@@ -7,6 +7,7 @@ Validates that primer add, remove, replace, and clear operations on existing
 import hashlib
 import json
 import os
+import random
 import shutil
 import tempfile
 import unittest
@@ -28,27 +29,36 @@ from scripts.annotate_primers import (
 class TestAnnotatePrimers(unittest.TestCase):
     def setUp(self):
         self.temp_dir = tempfile.mkdtemp(prefix="test_primers_")
-        self.pdonr_fixture = Path("fixtures/pDONR201.dna")
-        self.assertTrue(self.pdonr_fixture.exists(), "fixtures/pDONR201.dna must exist")
+        self.addCleanup(shutil.rmtree, self.temp_dir, ignore_errors=True)
+        # Owned Native fixture, generated through sgffp rather than our editor.
+        # Ordinary primer-edit tests must not depend on a private SnapGene library.
+        rng = random.Random(20260910)
+        sequence = "".join(rng.choice("ACGT") for _ in range(1200))
+        record = SgffObject.new(sequence, topology="circular")
+        for i in range(9):
+            record.features.add(SgffFeature(name=f"synthetic_feature_{i}", type="misc_feature",
+                strand="-" if i % 2 else "+", segments=[SgffSegment(i * 100, i * 100 + 80)]))
+        self.native_fixture = Path(self.temp_dir) / "synthetic-annotated.dna"
+        SgffWriter.to_file(record, str(self.native_fixture))
 
     def tearDown(self):
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     def test_dna_add_preserves_construct(self):
         """Test 1: Adding primer on .dna preserves sequence, all 9 features, and major blocks."""
-        src_obj = SgffReader.from_file(str(self.pdonr_fixture))
+        src_obj = SgffReader.from_file(str(self.native_fixture))
         orig_seq = str(src_obj.sequence.data.value).upper()
         orig_hash = hashlib.sha256(orig_seq.encode("ascii")).hexdigest()
         orig_feat_names = [f.name for f in src_obj.features]
-        self.assertEqual(len(orig_feat_names), 9, "pDONR201 should have 9 features")
+        self.assertEqual(len(orig_feat_names), 9, "The owned Native fixture must exercise nine annotations")
         orig_blocks = set(src_obj.blocks.keys())
 
         # Select a unique 20-mer from the sequence for forward binding
         primer_seq = orig_seq[100:120]
-        out_dna = Path(self.temp_dir) / "pdonr_annotated.dna"
+        out_dna = Path(self.temp_dir) / "synthetic_annotated.dna"
 
         result = annotate_primers_dna(
-            source_path=self.pdonr_fixture,
+            source_path=self.native_fixture,
             out_path=out_dna,
             op="add",
             primers_to_add=[{"name": "test_fwd", "sequence": primer_seq}],

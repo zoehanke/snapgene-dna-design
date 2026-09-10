@@ -64,6 +64,7 @@ These are confirmed product priorities, revisable through an explicit product de
 - Biological defaults need sources and applicability. Heuristics, unavailable backends and incomplete reference searches remain explicit.
 - Sequence/file validation does not establish wet-lab success, expression, whole-genome specificity or biological safety. Hash agreement establishes integrity, not biological correctness.
 - Existing external-service consent and distribution/license restrictions apply. Local computation alone does not imply that the host assistant never transmits sequence data.
+- Mandatory regressions must run from a clean Git checkout using tracked or generated test inputs. Private/ignored DNA fixtures require an explicit optional invocation, not an implicit local dependency; synthetic tests do not establish wet-lab function.
 
 ## Open questions
 
