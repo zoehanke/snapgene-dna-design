@@ -35,6 +35,8 @@ class TestAnnotatePrimers(unittest.TestCase):
         rng = random.Random(20260910)
         sequence = "".join(rng.choice("ACGT") for _ in range(1200))
         record = SgffObject.new(sequence, topology="circular")
+        record.notes.description = "Synthetic Native metadata: 中文, café, Σ"
+        record.properties.set("SequenceProperties", {"@name": "synthetic", "Label": "retained properties"})
         for i in range(9):
             record.features.add(SgffFeature(name=f"synthetic_feature_{i}", type="misc_feature",
                 strand="-" if i % 2 else "+", segments=[SgffSegment(i * 100, i * 100 + 80)]))
@@ -52,6 +54,7 @@ class TestAnnotatePrimers(unittest.TestCase):
         orig_feat_names = [f.name for f in src_obj.features]
         self.assertEqual(len(orig_feat_names), 9, "The owned Native fixture must exercise nine annotations")
         orig_blocks = set(src_obj.blocks.keys())
+        self.assertTrue({0, 6, 8, 10}.issubset(orig_blocks), "Fixture must exercise the original major packet types")
 
         # Select a unique 20-mer from the sequence for forward binding
         primer_seq = orig_seq[100:120]
@@ -83,8 +86,9 @@ class TestAnnotatePrimers(unittest.TestCase):
         # Verify major blocks remain
         new_blocks = set(new_obj.blocks.keys())
         for b in [0, 10, 6, 8]:
-            if b in orig_blocks:
-                self.assertIn(b, new_blocks, f"Major block {b} must be retained")
+            self.assertIn(b, new_blocks, f"Major block {b} must be retained")
+        for b in [6, 8]:
+            self.assertEqual(new_obj.blocks[b], src_obj.blocks[b], f"Metadata block {b} content must be retained")
 
         # Verify primer was added
         self.assertEqual(len(new_obj.primers), 1)
