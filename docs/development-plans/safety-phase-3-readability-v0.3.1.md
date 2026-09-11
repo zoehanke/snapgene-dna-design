@@ -1,7 +1,7 @@
 # Phase 3 补救：Design Decision Trace 与可读性重构
 
-- 目标模块版本：Evidence Trace v0.3.1；文档 r2，2026-09-11。
-- 状态：计划已编写，尚未实施。本次仅生成计划及更新索引、前序交接链接。
+- 目标模块版本：Evidence Trace v0.3.1；文档 r3，2026-09-12。
+- 状态：规范与采集层已实施；Reader Demo 案例适用性已获用户确认，真人试读待进行。阅读投影和 renderer 重构尚未开始，整阶段未完成。
 - 前序：[Phase 3 v0.3 完成记录](safety-phase-3-change-impact-v0.3.md)。本计划接替其采集和阅读体验工作，不进入 Phase 4。
 - 长期约束：[安全 spec](../../specs/safety-module.md)、[主 skill spec](../../specs/core-skill.md)；现有界面：[design.md](design.md)。
 - 来源：用户提供的《Phase 3 补救开发建议：Evidence Trace 重构》及“页面不适合人类读”的实际反馈。
@@ -12,6 +12,8 @@
 **Evidence Trace 是事实与证据记录系统；Design Decision Trace 是其默认的人类可读组织方式。** 模块名称仍为 Evidence Trace，不拆成两套系统。Researcher Projection 是实现这一阅读组织方式的确定性代码层。
 
 这轮解决“记录很多，但读者仍要自己拼出设计过程”。默认页面应讲清：目标是什么，谁选择或修改了什么，为什么，依据和限制是什么，程序检查了什么，最后得到哪个文件。
+
+阅读从项目/研究背景、当前任务及“为什么需要这份 Trace”开始，再进入决定。工程正确性案例与人类可读性案例分开：GFP +3 bp 只验证 Change Impact、文件回溯及模式一致性，不承担主要 UX 验收。
 
 先整理采集来源和一份真实案例的理想阅读稿，团队能读懂后再实现页面。保留现有事件、证据关系和 Change Impact，增加一个确定性的阅读整理层；不重造生物安全引擎，也不靠 LLM 临时编故事填满页面。
 
@@ -95,12 +97,14 @@
 
 1. **整理数据与规范。** 建立上面的字段三级展示映射，核对实际入口、历史字段与缺口；同步两个 spec 和 design.md，明确本轮替代范围。暂停 Phase 4。
 2. **完成级别和来源采集。** 在现有 wrapper、Recorder、CLI/宿主说明中实现全局级别、mode_at_capture、选择者与说明来源。将选择匹配与原始说明覆盖分开；不向 Handler 埋点。
-3. **先做人能读懂的案例稿。** 使用已有完整模板 PCR 边界修订案例的真实记录，手工整理完整决策链、完整导图、单步展开、复核队列。缺少真实用户否决/确认就不补造；另用明确标注的角色演示检查该分支。此步不写页面代码。由未参与设计的团队成员试读，记录稿件版本、答题、耗时与卡住位置。
+3. **先选完整研究案例，再做阅读稿。** Reader Demo 必须有明确研究背景和任务、实际有意义的选择、可追溯的理由/依据，以及程序检查与待人工确认的科学问题边界。先确认案例本身成立，再组织主链、导图、单步展开和复核队列，之后才安排真人试读。当前 [GFP 三变体同背景比较案例](safety-phase-3-reading-draft.md) 已获项目负责人确认，等待真人试读；[GFP +3 bp 旧稿](safety-phase-3-engineering-case.md) 仅保留工程用途，其旧试读请求作废。没有真实用户介入就不编造；历史产物、当前提出的解释和本次验证分别标记。此步不写页面代码。
 4. **实现阅读投影。** 保留原事件与链接，形成共享步骤列表、摘要和待办，测试来源、晚补录、旧数据和多条件证据不被混淆。
 5. **先 Document，再完整 Mind Map。** 先保证能从头读懂，再做主干布局、分支展开和 Split 连续定位。最后整理 Review Queue、人话版影响、统一高级入口。
 6. **真实工作流验证与交接。** 完成三档对照、故障隔离、浏览器与团队计时；更新计划实际结果、限制、两个 spec、design.md 和索引。验证后 commit/push 到指定分支，核对该提交 CI；没有用户阅读证据不能只报“验收完成”。
 
 **真人试读是硬 gate：第 3 步静态案例稿未通过，禁止进入第 5 步及任何 renderer/HTML 重构。** 无人试读、尚无反馈、模型自评或自动测试通过均不算通过；按试读前确定的标准记录结果，未通过先改稿再试。只有已通过的阅读稿才能作为页面实现依据，不能先写页面再补验收。
+
+该 gate 之前还须完成案例适用性确认；“记录真实”不能替代“研究故事完整”。默认页面先解释研究目的和多人/程序共同参与留下记录的必要性，缺少背景时明确缺口，不能由 renderer 猜出一个项目故事。
 
 预计修改范围：`evidence_trace/` 的采集、派生和 renderer；`scripts/trace_design.py` 及三个现有运行入口必要的接线；`SKILL.md`、`references/evidence-trace.md`、相关测试与演示脚本。Core、planner、Handler、执行参数及 authoritative artifact 不在修改范围。
 
@@ -124,9 +128,22 @@
 - **承接**：阅读负担、5/15/30 秒未实测、宿主采集负担、说明来源不清。本轮直接处理。
 - **保留**：追加日志、原有版本/产物锚点、Source/Statement/Claim/Decision 分离、Applicability 限定与保守 Change Impact、normal 故障隔离。
 - **已知限制继续公开**：只覆盖程序可见输入和明确提交的说明；结构化字段有限；来源核验不等于科学适用；单写入者、原产物路径、外部服务同意与许可要求不变。
-- **待实施前确定**：单个全局配置位置、旧 CLI 激活参数的兼容规则、试读参与人数与判定方法。它们不扩展为会话管理或配置框架。
+- **已确定实现选择**：全局设置为 `~/.snapgene-dna-design/trace.json`，开发默认 full；`SNAPGENE_TRACE_CONFIG` 只定位隔离安装/测试的同一设置文件。旧 trace 布尔参数不再覆盖全局级别；Off 下目录或输入参数不重新启用采集。normal/strict 语义不变。CLI 使用 `trace_design.py config --set-level ...`。没有修改用户安装版或用户全局设置。
+- **待外部结果**：Reader Demo 案例已于 2026-09-12 获用户确认；两名未参与案例者按稿末预先写明的标准试读仍待进行。案例认可不能代替理解与计时结果。
 - **待正式发布决定**：默认采集级别及 Full 额外模型负担是否可接受；开发默认 Full 不等于发布默认 Full。
 - **延期**：Phase 4 Assurance Case、Defeater、Mitigation、Conclusion Boundary、宏观框架、Safety Score、safe/unsafe、自动 observer 服务和多人协作。本轮不启动。
 - **完成记录待填**：具体改动、真实运行/试读证据、失败与修正、遗留限制、提交及 CI。静态稿未获真人试读通过时写“静态稿试读待通过，renderer 重构未启动”；实现后仍需单独记录实际页面的阅读验收结果。
 
 r2 修订：明确模块与阅读投影关系、默认展示判断原则、Observed 保留已有理由、Full 随原响应生成、全局设置仅影响新采集及静态试读硬 gate。
+
+r3 修订：采集层开始实施；工程案例与 Reader Demo 分离，新增案例适用性确认；默认阅读从研究背景和 Trace 用途开始。
+
+## 当前实现与交接记录
+
+- `settings.py`、wrapper 与 CLI：统一三档采集，冻结运行级别，保留旧参数接受能力但由全局设置决定采集。坏配置按原 normal/strict 策略处理。
+- `provenance.py`、Recorder 与 coverage：区分提交者/选择者及说明来源；新事件有 mode_at_capture；事后说明独立追加并绑定确切旧版本；目标匹配与原始说明覆盖分开。旧日志不被重写，未知来源不自动认证。
+- 新人类阅读 UI 尚未实现。旧 renderer 保留，新的 provenance/supplement 通过 inspect 和派生 JSON 可查；旧 `explained` 是匹配加已提交文本的兼容字段，不代表原始说明已经核实。
+- Trace 相关 50 项测试通过，包含新增 10 项采集测试。三个真实入口分别做 Off / Observed / Full 对照，三格式文件一致；Pipeline/Recipe 的引物表一致，ConstructionTask 按其原生计划步骤比较制备信息和验证状态。最初测试误假定三个入口都导出同名引物表，已改为验证各入口原生契约，未改 Core。
+- GFP +3 bp 工程演示已重跑：旧/新版各自的开关对照、正式 Change、RERUN 建议与 UNKNOWN 保留，共 11 项检查通过，位于 `output/evidence-trace-readability-capture/`。此前命名为 off 的旧 demo 已改用隔离全局设置，避免 Full 默认值令对照失真。
+- 两次本地全量日志均无完成终态，不计为通过；保留 `output/trace-capture-full-suite.log` 和 `output/trace-capture-full-suite-2.log`。全量结果以本轮提交对应的 CI 为准，提交/CI 结果在最终交接中记录。
+- 采集不包含新增模型服务。Full 的同响应说明靠宿主按 SKILL 提交；真实宿主额外 token 与用户理解效率尚未测量。Phase 4 不启动。

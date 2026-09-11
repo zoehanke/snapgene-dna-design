@@ -169,7 +169,8 @@ class ChainTests(unittest.TestCase):
                 [{"source_id": "src", "path": str(template)}], out_dir=out,
                 product_topology="circular", user_confirmed=True, **options)
         base = self.path / "off"
-        self.assertEqual(run(base)["status"], "delivered")
+        with mock.patch("evidence_trace.runtime.get_level", return_value="off"):
+            self.assertEqual(run(base)["status"], "delivered")
         for i, target in enumerate(("evidence_trace.coverage.extract_choices", "evidence_trace.chain.assess", "evidence_trace.render.build_chains")):
             with self.subTest(target=target), mock.patch(target, side_effect=RuntimeError("phase2 sidecar fault")) as patched:
                 out = self.path / str(i)

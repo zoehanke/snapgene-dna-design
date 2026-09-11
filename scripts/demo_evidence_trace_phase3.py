@@ -1,6 +1,8 @@
 """Real full-template PCR revision plus declared context change; no wet-lab claim."""
 import argparse
 import json
+import os
+import tempfile
 from pathlib import Path
 import sys
 
@@ -9,9 +11,10 @@ sys.path.insert(0, str(ROOT))
 from agent.pipeline_agent import execute_agent_pipeline
 from evidence_trace.recorder import Recorder, project
 from evidence_trace.chain import build_chains
+from evidence_trace.settings import set_level
 
 
-def main():
+def run_demo():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--template", required=True)
     parser.add_argument("--out-dir", required=True)
@@ -39,6 +42,7 @@ def main():
         {"statement_id": "E01", "claim_id": "C01", "relation": "constrain", "aspect": "用途外推", "applicability": "unknown", "limitations": ["不能从序列文件推出表达表现"]}]})
 
     def run(end, mode):
+        set_level("off" if mode == "off" else "full")
         output = out / f"end-{end}-{mode}"
         result = execute_agent_pipeline("gfp-fragment", [
             {"step_id": "pcr", "tool": "prepare_pcr_fragment", "params": {"template": "$src", "start": 6, "end": end, "name": "gfp-fragment"}}],
@@ -75,6 +79,20 @@ def main():
                "scope": "Declared context changes and actual PCR boundary revision; no automatic scientific conclusion."}
     (out / "demo-summary.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps(summary, ensure_ascii=False, indent=2))
+
+
+def main():
+    # Demonstrate actual global modes in an isolated installation, never user settings.
+    previous = os.environ.get("SNAPGENE_TRACE_CONFIG")
+    with tempfile.TemporaryDirectory(prefix="trace-demo-config-") as temporary:
+        os.environ["SNAPGENE_TRACE_CONFIG"] = str(Path(temporary) / "trace.json")
+        try:
+            run_demo()
+        finally:
+            if previous is None:
+                os.environ.pop("SNAPGENE_TRACE_CONFIG", None)
+            else:
+                os.environ["SNAPGENE_TRACE_CONFIG"] = previous
 
 
 if __name__ == "__main__":

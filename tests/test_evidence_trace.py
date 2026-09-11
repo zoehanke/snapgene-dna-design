@@ -120,7 +120,9 @@ class TraceRuntimeTests(unittest.TestCase):
 
     def test_pipeline_ab_real_files_and_runtime_records(self):
         a, b = self.path / "off", self.path / "on"
-        untraced = pipeline(a)
+        with mock.patch("evidence_trace.runtime.get_level", return_value="off"):
+            untraced = pipeline(a)
+        self.assertFalse((a / "evidence-trace").exists())
         traced = pipeline(b, trace=True, trace_input=context())
         self.assertEqual(untraced["status"], traced["status"])
         self.assert_artifacts_equal(a, b)
@@ -140,7 +142,8 @@ class TraceRuntimeTests(unittest.TestCase):
                   "end_0based": 201, "alt_seq": "CAT", "method": "inverse_pcr", "target_flank_bp": 25}
         a, b = self.path / "off", self.path / "on"
         original = copy.deepcopy(params)
-        run_recipe_cli("site_directed_mutagenesis", params, a, True, True)
+        with mock.patch("evidence_trace.runtime.get_level", return_value="off"):
+            run_recipe_cli("site_directed_mutagenesis", params, a, True, True)
         run_recipe_cli("site_directed_mutagenesis", params, b, True, True, trace=True, trace_input=context())
         self.assertEqual(params, original)
         self.assert_artifacts_equal(a, b)

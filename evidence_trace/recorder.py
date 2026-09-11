@@ -7,6 +7,8 @@ import pathlib
 import uuid
 
 from evidence_trace.models import REF_FIELDS, now, validate_node
+from evidence_trace.settings import get_level, LEVELS
+from evidence_trace.provenance import decision_provenance
 
 
 def load_events(directory):
@@ -33,13 +35,17 @@ def load_events(directory):
 
 def project(events, errors=()):
     nodes, edges, runs, latest, queue, changes = {}, [], {}, {}, [], []
+    explanations = []
     problems = list(errors)
     for event in events:
         p = event["payload"]
         kind = event["event_type"]
         if kind == "node_recorded":
             node = {**p, "recorded_at": event["timestamp"], "actor": event["actor"],
-                    "run_id": event.get("run_id"), "recorded_sequence": event["sequence"]}
+                    "run_id": event.get("run_id"), "recorded_sequence": event["sequence"],
+                    "mode_at_capture": event.get("mode_at_capture", "unknown")}
+            if node["kind"] == "decision":
+                node["provenance"] = decision_provenance(node)
             nodes[node["key"]] = node
             latest[node["id"]] = node["key"]
             for field, refs in node.get("references", {}).items():
@@ -50,7 +56,7 @@ def project(events, errors=()):
             if node["kind"] == "source" and node.get("verification_status", "unverified") != "verified":
                 queue.append({"node": node["key"], "reason": "来源未核验"})
             if node["kind"] == "decision":
-                if not node.get("rationale"):
+                if not node.get("rationale") and node["mode_at_capture"] != "observed":
                     queue.append({"node": node["key"], "reason": "缺少决策说明"})
                 if not node.get("references", {}).get("claim_ids"):
                     queue.append({"node": node["key"], "reason": "缺少判断依据"})
@@ -60,10 +66,15 @@ def project(events, errors=()):
             edges.append({**p, "recorded_sequence": event["sequence"]})
             if p.get("relation") in {"oppose", "constrain", "unknown"} or p.get("applicability", "unknown") != "direct" or p.get("limitations"):
                 queue.append({"node": p["to"], "reason": "依据有限制或适用性待复核", "link": p})
+        elif kind == "explanation_added":
+            explanations.append({**p, "recorded_at": event["timestamp"], "actor": event["actor"],
+                                 "recorded_sequence": event["sequence"],
+                                 "mode_at_capture": event.get("mode_at_capture", "unknown")})
         elif kind == "change_recorded":
             changes.append({**p, "event_sequence": event["sequence"], "actor": event["actor"]})
         elif kind == "run_started":
-            runs[event["run_id"]] = {**p, "id": event["run_id"], "stages": [], "status": "unfinished"}
+            runs[event["run_id"]] = {**p, "id": event["run_id"], "stages": [], "status": "unfinished",
+                                     "mode_at_capture": event.get("mode_at_capture", "unknown")}
         elif kind == "trace_error":
             problems.append(p["message"])
         elif event.get("run_id") in runs:
@@ -95,16 +106,20 @@ def project(events, errors=()):
             problems.append(f"{run['id']}: run has no finish event")
     return {"schema_version": "evidence-trace-v0.1", "nodes": list(nodes.values()),
             "edges": edges, "runs": list(runs.values()), "latest": latest, "changes": changes,
-            "audit_events": copy.deepcopy(events),
+            "audit_events": copy.deepcopy(events), "explanations": explanations,
             "review_queue": queue, "issues": problems,
             "integrity": "incomplete" if problems else "complete",
             "coverage": "Submitted decisions and observed runtime stages only; not model internal reasoning."}
 
 
 class Recorder:
-    def __init__(self, directory):
+    def __init__(self, directory, *, mode_at_capture=None):
+        self.mode_at_capture = get_level() if mode_at_capture is None else mode_at_capture
+        if self.mode_at_capture not in LEVELS:
+            raise ValueError("Unknown capture level")
         self.directory = pathlib.Path(directory).resolve()
-        self.directory.mkdir(parents=True, exist_ok=True)
+        if self.mode_at_capture != "off":
+            self.directory.mkdir(parents=True, exist_ok=True)
         self.events, errors = load_events(self.directory)
         if errors:
             raise ValueError("Refusing to append to damaged log: " + "; ".join(errors))
@@ -112,10 +127,13 @@ class Recorder:
         self.run_id = None
 
     def append(self, event_type, payload, actor="runtime"):
+        if self.mode_at_capture == "off":
+            raise ValueError("Trace collection is off; no event appended")
         event = {"schema_version": "evidence-trace-v0.1", "event_id": uuid.uuid4().hex,
                  "trace_id": self.trace_id, "run_id": self.run_id,
                  "sequence": len(self.events) + 1, "timestamp": now(),
-                 "actor": actor, "event_type": event_type, "payload": payload}
+                 "actor": actor, "event_type": event_type, "payload": payload,
+                 "mode_at_capture": self.mode_at_capture}
         # Serialize before writing; a bad record cannot create a half JSON line.
         line = json.dumps(event, ensure_ascii=False, allow_nan=False)
         with (self.directory / "events.jsonl").open("a", encoding="utf-8", newline="\n") as handle:
@@ -189,6 +207,24 @@ class Recorder:
             self.record(node, actor=bundle.get("actor", "host-assistant"))
         for link in bundle.get("links", []):
             self.link(link, actor=bundle.get("actor", "host-assistant"))
+        for explanation in bundle.get("explanations", []):
+            self.explain(explanation, actor=bundle.get("actor", "host-assistant"))
+
+    def explain(self, explanation, actor="host-assistant"):
+        """Append supplied post-hoc assistance without modifying a Decision revision."""
+        p = copy.deepcopy(explanation)
+        graph = project(self.events)
+        nodes = {n["key"]: n for n in graph["nodes"]}
+        key = p.get("decision_ref")
+        if key not in nodes or nodes[key]["kind"] != "decision":
+            raise ValueError("Assistance needs an exact recorded decision_ref including revision")
+        refs = p.get("basis_refs")
+        if not isinstance(refs, list) or not refs or any(ref not in nodes for ref in refs):
+            raise ValueError("Assistance needs existing record revision basis_refs")
+        if not str(p.get("text") or "").strip():
+            raise ValueError("Assistance needs text")
+        p.update(id=uuid.uuid4().hex, explanation_origin="post_hoc_assistance", label="事后辅助解释")
+        return self.append("explanation_added", p, actor)["payload"]["id"]
 
     def render(self):
         from evidence_trace.render import render

@@ -144,7 +144,8 @@ class ChangeTests(unittest.TestCase):
                 [{"source_id": "src", "path": str(template)}], product_topology="circular",
                 out_dir=out, user_confirmed=True, **options)
         off, on = self.path / "off", self.path / "on"
-        self.assertEqual(run(off)["status"], "delivered")
+        with patch("evidence_trace.runtime.get_level", return_value="off"):
+            self.assertEqual(run(off)["status"], "delivered")
         with patch("evidence_trace.impact.assess_impacts", side_effect=ValueError("impact failure")):
             self.assertEqual(run(on, trace=True)["status"], "delivered")
         for ext in ("gb", "dna", "fasta"):

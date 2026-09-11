@@ -68,6 +68,7 @@ def normalize(value):
 
 
 def match_choices(choices, decisions):
+    from evidence_trace.provenance import decision_provenance
     output = []
     for choice in choices:
         candidates = []
@@ -90,12 +91,18 @@ def match_choices(choices, decisions):
                 if expected is not None and not exact:
                     continue
                 ambiguous_scope = not scope and sum(c["parameter"] == field and normalize(c["value"]) == normalize(choice["value"]) for c in choices) > 1 and parameter != choice["input_path"]
-                candidates.append((decision, exact and not ambiguous_scope and bool(str(decision.get("rationale") or "").strip())))
-        exact = [d for d, ok in candidates if ok]
+                candidates.append((decision, exact and not ambiguous_scope))
+        matched = [d for d, ok in candidates if ok]
+        exact = [d for d in matched if str(d.get("rationale") or "").strip()]
         associated = list(dict.fromkeys(d["key"] for d, _ in candidates))
         status = "explained" if exact else "needs review" if candidates else "unexplained design choice"
+        provenance = [{"decision_ref": d["key"], **decision_provenance(d)} for d in matched]
         output.append({**choice, "status": status, "decision_refs": associated,
-                       "reason": "明确目标和值匹配且有原始 rationale" if exact else "仅字段关联、作用域含糊或缺 rationale" if candidates else "没有可可靠关联的 Decision.targets；未补造解释"})
+                       "target_match": "matched" if matched else "ambiguous" if candidates else "unmatched",
+                       "matched_decision_refs": list(dict.fromkeys(d["key"] for d in matched)),
+                       "explanation_provenance": provenance,
+                       "original_explanation_recorded": any(p["original_explanation_recorded"] for p in provenance),
+                       "reason": "明确目标和值匹配且有已提交说明；来源另列" if exact else "仅字段关联、作用域含糊或缺 rationale" if candidates else "没有可可靠关联的 Decision.targets；未补造解释"})
     return output
 
 

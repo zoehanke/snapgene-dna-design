@@ -2,11 +2,40 @@
 
 Optional local sidecar for scientific decisions, evidence and actual program results. It does not change DNA design, decide safety, or capture hidden model reasoning. Phase 2 adds structured input-choice coverage and context comparison, not general biological interpretation. Runtime has no new package dependencies.
 
-The skill's host workflow enables tracing for new design tasks unless the user opts out. Direct CLI/Python use remains opt-in for compatibility and on/off comparisons. Failure policy is normal by default in both cases.
+## Collection levels (v0.3.1 capture; reading UI still v0.3)
+
+Evidence Trace is the fact/evidence system; Design Decision Trace is its default human-readable organization. Capture remediation is available; renderer reconstruction awaits human approval of the [static reading draft](../docs/development-plans/safety-phase-3-reading-draft.md).
+
+One global setting applies to subsequent captures in the public Recipe, Pipeline and ConstructionTask wrappers. Development default is `full`; no settings file is created merely by reading the default. `normal/strict` remains the independent failure policy.
+
+```text
+python scripts/trace_design.py config
+python scripts/trace_design.py config --set-level observed
+```
+
+Use `off`, `observed` or `full`. Settings live at `~/.snapgene-dna-design/trace.json`. `SNAPGENE_TRACE_CONFIG` can locate that single file for an isolated installation/test; it is not a conversation/session override. This task does not modify the user's installed skill or global setting.
+
+- Off creates no new trace. Legacy `--trace`, `trace=True/False`, `--trace-dir`, `--trace-input` and strict failure policy do not override this collection setting. The boolean trace flag is accepted for old callers but no longer selects collection; use the global config command. Read/inspect/render existing logs remains available while off.
+- Observed automatically records available runtime facts and preserves supplied user reasons or explanations already in the design response. It never asks the model for an extra rationale. Program context remains separate from claimed motives.
+- Full includes Observed and asks the host to submit 1–2 sentences of public rationale with the original design response. No separate Trace model call. Missing explanation remains missing.
+- New events record `mode_at_capture`; each running capture keeps its initial level. Global changes affect subsequent captures only. Legacy events with no recorded level/authorship remain unknown.
+- Malformed/unreadable settings emit `TRACE_INCOMPLETE` and preserve DNA work in normal mode; strict stops at the entry boundary. Neither path silently claims complete capture.
+
+For an attributed Decision add `decision_actor` (`user` or `ai`), `decision_source: {"reference": "supplied-message-or-response-reference", "excerpt": "optional relevant original text"}` and `explanation_origin` (`user_statement` or `ai_concurrent`) alongside its genuine `rationale`. `actor` still identifies the record submitter. Use `unknown` or omit attribution when unavailable. A reference is a supplied provenance assertion, not an authenticated identity or hidden reasoning transcript.
+
+Explicitly supplied post-hoc assistance uses a separate bundle array:
+
+```json
+{"actor":"host-assistant","explanations":[{"decision_ref":"D1@1","basis_refs":["D1@1"],"text":"Only this boundary choice was recorded; its original motivation is unavailable."}]}
+```
+
+Append with the existing `record` command. Exact stored revisions are required; the supplement is always labeled `事后辅助解释`. It never changes the Decision, original rationale, original-explanation coverage or Validation. `inspect` exposes supplements and decision provenance; graph.json retains them. Their new human UI awaits the trial gate.
+
+Coverage now separately exposes `target_match`, `matched_decision_refs`, `explanation_provenance` and `original_explanation_recorded`. Historical `status=explained` only denotes target matching plus submitted text for the old UI, not authenticated original rationale. No-rationale Observed capture is distinct from lost supplied explanation.
 
 ## Normal use
 
-1. Write a small JSON bundle when making consequential choices. Record user requirements, the source's reported statement, the task-specific claim and the decision's brief rationale. Do not reconstruct unrecorded reasoning after execution.
+1. Check the global level, then submit available user requirements, source statements, task claims and consequential choices. Preserve existing reasons in Observed; include brief concurrent public rationale in Full. Later assistance must use the separate supplement contract above.
 2. Append through `trace_design.py record`. Reusing a logical record ID creates a revision; old records and run references remain intact. References must exist when recorded, so create sources/requirements before their dependents.
 3. Run the normal Recipe, Pipeline or ConstructionTask command with the same `--trace-dir`. Program validation and files are recorded automatically. Open `index.html` printed to stderr.
 
@@ -82,7 +111,7 @@ python scripts/trace_design.py coverage --trace-dir work/evidence-trace --design
 
 Use the same working directory as the execution command. Preflight sees explicit JSON fields; runtime observations also include resolved Recipe defaults. Known source, boundary, orientation, method, mutation, component/order, topology and selected parameter fields are observed. Ordinary analysis helpers are excluded. Unrecognized fields and internal heuristic choices are outside this coverage; zero observations means unknown coverage.
 
-For precise association use targets such as `{"start_0based":198,"end_0based":201,"alt_seq":"CAT","method":"inverse_pcr"}` or `{"step_id":"pcr","parameter":"start","value":6}`. A field reference without its value, repeated values without step scope, or missing rationale produces needs review. Matching does not validate the quality or truth of the rationale. No record is generated to patch missing model reasoning.
+For precise association use targets such as `{"start_0based":198,"end_0based":201,"alt_seq":"CAT","method":"inverse_pcr"}` or `{"step_id":"pcr","parameter":"start","value":6}`. Field-only or ambiguous scope is not an exact target match. Missing original explanation is reported separately from a match. Matching does not validate the quality or truth of rationale. No record is generated to patch missing model reasoning.
 
 Contexts belong separately to the source Statement and task Claim. Supported keys are `organism`, `strain`, `host` (or `chassis`), `construct_context`, `temperature`, `medium`, `assay`, `intended_use`. Temperature accepts Celsius numbers, strings such as `30 C`/`86 F`, or explicit `{min,max,unit}` ranges. Categorical lists mean declared sets; partial overlap stays partial. Missing context is unknown, not a guessed default. Only E. coli, S. cerevisiae and S. eubayanus have explicit abbreviation normalization; this is not a taxonomy resolver.
 

@@ -77,4 +77,6 @@ def validate_node(node, runtime=False):
     elif kind not in {"validation", "artifact"} and not node.get("text"):
         raise ValueError(f"{kind} needs text")
     # decision_kind deliberately has no enum: it classifies, never limits design.
+    from evidence_trace.provenance import validate_provenance
+    validate_provenance(node)
     json.dumps(node, ensure_ascii=False, allow_nan=False)

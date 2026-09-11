@@ -4,7 +4,11 @@
 
 This spec owns lasting product decisions, constraints and open questions; stage plans own implementation steps and completion evidence. Before creating, continuing or replacing a plan, read the [development index](../docs/development-plans/README.md), the relevant plan and its predecessor's handoff. Carry each unresolved item forward explicitly, defer it with a reason, or record an accepted cancellation. A new plan does not silently reset this spec or earlier decisions.
 
-Current shared integration plan: [Phase 3 Living Evidence Document & Change Impact](../docs/development-plans/safety-phase-3-change-impact-v0.3.md), following Phase 1 engineering acceptance and UI/capture feedback. Later phases require separate plans.
+Current shared integration plan: [Phase 3 readability remediation](../docs/development-plans/safety-phase-3-readability-v0.3.1.md). The existing v0.3 renderer remains pending human approval of a static reading draft. Later phases require separate plans.
+
+Accepted integration change: Evidence Trace remains the fact/evidence system; Design Decision Trace is its default human-readable organization. One global off/observed/full collection level applies to new captures. Observed retains supplied reasons without requesting extra AI explanation; full adds brief rationale in the original design response, never a separate Trace model call. Recording actor is distinct from decision actor, and later assistance cannot replace original explanation. Collection level is independent of normal/strict failure policy; Core parameters, results, validation and artifacts remain unchanged. Detailed capture and human-trial contracts live in [safety-module.md](safety-module.md).
+
+Reader Demo starts with a sourced research background and meaningful task, then decisions and evidence. Case suitability precedes human reading acceptance; an engineering regression does not establish readability. Historical outputs and newly observed validation remain distinguishable.
 
 
 Context updated: 2026-09-10. This document records product intent and decisions; it is not a fixed architecture or a claim that every implemented path is correct. See [safety-module.md](safety-module.md) for Evidence Trace v0.3 behavior and limits.

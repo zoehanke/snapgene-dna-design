@@ -6,14 +6,14 @@
 
 | 计划 | 模块目标版本 | 文档修订 | 状态 | 前序 |
 |---|---|---|---|---|
-| [Phase 3 补救：Design Decision Trace 与可读性重构](safety-phase-3-readability-v0.3.1.md) | Evidence Trace v0.3.1 | r2 | 当前计划，尚未实施；静态稿须通过真人试读后重构 renderer | Phase 3 v0.3 |
+| [Phase 3 补救：Design Decision Trace 与可读性重构](safety-phase-3-readability-v0.3.1.md) | Evidence Trace v0.3.1 | r3 | 采集层已实施；Reader Demo 案例已确认，真人试读待进行，renderer 未重构 | Phase 3 v0.3 |
 | [Phase 3：Living Evidence Document & Change Impact](safety-phase-3-change-impact-v0.3.md) | Evidence Trace v0.3 | r2 | 工程完成；阅读问题转入补救计划 | Phase 2 |
 | [Phase 2：Evidence Applicability & Trace Usability](safety-phase-2-applicability-v0.2.md) | Evidence Trace v0.2 | r3 | 工程实现及本阶段验收完成 | Phase 1 |
 | [Phase 1：Evidence Trace](safety-phase-1-trace-v0.1.md) | v0.1 | r3 | 工程验收完成，试用反馈已转化为 Phase 2 UI/Capture 改进 | 无已执行阶段 |
 
 当前 UI/交互规范：[design.md](design.md)；Phase 2 历史参考：[evidence-trace-phase2-reference.svg](evidence-trace-phase2-reference.svg)。
 
-补救计划记录下一次实现采用的采集/阅读变更；现有 spec 和 design.md 仍描述 v0.3。启动补救实现时同步它们，不能将计划能力当作已实现功能。Phase 4 暂停，先完成采集与可读性补救。
+补救的采集规则和阅读目标已同步 spec/design.md；当前 HTML 仍是 v0.3。GFP +3 bp 只作工程回归，[Reader Demo](safety-phase-3-reading-draft.md) 已确认案例，下一步做真人试读，通过后才重构 renderer。Phase 4 暂停。
 
 相关 spec：[主 skill](../../specs/core-skill.md)、[安全模块](../../specs/safety-module.md)。Phase 4 至 Phase 6 尚未创建执行计划，完整路线图留在安全 spec。
 

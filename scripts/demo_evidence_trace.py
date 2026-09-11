@@ -1,6 +1,7 @@
 """Reproducible Q3-derived Trace demo; uses a supplied complete pBP-eGFP record."""
 import argparse
 import json
+import os
 import pathlib
 import subprocess
 import sys
@@ -33,7 +34,11 @@ def main():
 
     def run(script, *parts):
         command = [sys.executable, "-X", "utf8", "-B", str(ROOT / "scripts" / script), *map(str, parts)]
-        done = subprocess.run(command, cwd=ROOT, capture_output=True, text=True, encoding="utf-8", errors="replace")
+        target = str(parts[parts.index("--out-dir") + 1]) if "--out-dir" in parts else ""
+        level = "off" if target.endswith("-off") else "full"
+        config = write("demo-trace-settings.json", {"trace_level": level})
+        done = subprocess.run(command, cwd=ROOT, capture_output=True, text=True, encoding="utf-8", errors="replace",
+                              env={**os.environ, "SNAPGENE_TRACE_CONFIG": config})
         commands.append({"command": command, "exit_code": done.returncode, "stderr": done.stderr})
         write("commands.json", commands)
         if done.returncode:

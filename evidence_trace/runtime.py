@@ -11,6 +11,7 @@ import uuid
 
 from evidence_trace.models import file_digest, snapshot
 from evidence_trace.recorder import Recorder, project
+from evidence_trace.settings import get_level
 
 _CURRENT = contextvars.ContextVar("evidence_trace_run", default=None)
 
@@ -35,9 +36,9 @@ class TraceStopped(RuntimeError):
 
 
 def add_trace_arguments(parser):
-    parser.add_argument("--trace", action="store_true", help="Record design provenance (normal mode)")
-    parser.add_argument("--trace-dir", help="Shared Evidence Trace directory; implies --trace")
-    parser.add_argument("--trace-input", help="JSON containing decision/evidence records; implies --trace")
+    parser.add_argument("--trace", action="store_true", help="Legacy flag; global trace_level controls collection")
+    parser.add_argument("--trace-dir", help="Shared Evidence Trace directory; does not override global off")
+    parser.add_argument("--trace-input", help="JSON decision/evidence records; ignored when global trace_level is off")
     parser.add_argument("--trace-mode", choices=["normal", "strict"], default="normal")
 
 
@@ -47,7 +48,7 @@ def trace_options(args):
 
 
 class TraceRun:
-    def __init__(self, out_dir, route, directory=None, bundle=None, mode="normal"):
+    def __init__(self, out_dir, route, directory=None, bundle=None, mode="normal", level=None):
         self.out = pathlib.Path(out_dir).resolve()
         self.directory = pathlib.Path(directory).resolve() if directory else self.out / "evidence-trace"
         self.route, self.mode = route, mode
@@ -65,7 +66,7 @@ class TraceRun:
             reserved = [self.out / x for x in ("candidate", "intermediate", "intermediates", "authoritative", "annotated_sources")]
             if self.directory == self.out or any(self.directory.is_relative_to(p) for p in reserved):
                 raise ValueError("Trace directory overlaps design artifact directories")
-            self.recorder = Recorder(self.directory)
+            self.recorder = Recorder(self.directory, mode_at_capture=level)
             if bundle:
                 data = json.loads(pathlib.Path(bundle).read_text(encoding="utf-8-sig")) if isinstance(bundle, (str, pathlib.Path)) else bundle
                 self.recorder.ingest(data)
@@ -244,16 +245,25 @@ def traced_run(route):
     def decorate(fn):
         @functools.wraps(fn)
         def wrapped(*args, **kwargs):
-            enabled = kwargs.pop("trace", False)
+            kwargs.pop("trace", None)  # Legacy collection flag; never a per-call level override.
             directory = kwargs.pop("trace_dir", None)
             bundle = kwargs.pop("trace_input", None)
             mode = kwargs.pop("trace_mode", "normal")
-            if not (enabled or directory or bundle or mode == "strict") or _CURRENT.get() is not None:
+            if _CURRENT.get() is not None:
+                return fn(*args, **kwargs)
+            try:
+                level = get_level()
+            except (OSError, ValueError) as exc:
+                if mode == "strict":
+                    raise TraceStopped("TRACE_INCOMPLETE: " + str(exc)) from exc
+                print("TRACE_INCOMPLETE: " + str(exc), file=sys.stderr)
+                return fn(*args, **kwargs)
+            if level == "off":
                 return fn(*args, **kwargs)
             bound = inspect.signature(fn).bind(*args, **kwargs)
             bound.apply_defaults()
             out = bound.arguments.get("out_dir", bound.arguments.get("out"))
-            run = TraceRun(out, route, directory, bundle, mode)
+            run = TraceRun(out, route, directory, bundle, mode, level)
             token = _CURRENT.set(run)
             error = None
             try:
