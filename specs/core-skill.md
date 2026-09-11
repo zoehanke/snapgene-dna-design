@@ -10,6 +10,8 @@ Accepted integration change: Evidence Trace remains the fact/evidence system; De
 
 Reader Demo starts with a sourced research background and meaningful task, then decisions and evidence. Case suitability precedes human reading acceptance; an engineering regression does not establish readability. Historical outputs and newly observed validation remain distinguishable.
 
+Human understanding takes priority over completeness of default display, while preserving the complete underlying record and Core correctness. Readers must understand purpose, AI/user contributions, evidence limits and actual check scope without opening detailed records; the safety spec owns these UX acceptance rules.
+
 
 Context updated: 2026-09-10. This document records product intent and decisions; it is not a fixed architecture or a claim that every implemented path is correct. See [safety-module.md](safety-module.md) for Evidence Trace v0.3 behavior and limits.
 
