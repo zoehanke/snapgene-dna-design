@@ -6,14 +6,14 @@
 
 Improve researchers' ability to understand and review designs while preserving a future iGEM safety contribution. Genome Resurrection motivates distinguishing DNA presence, functional restoration and autonomy; none is established merely by a successful construct file. No safety score, safe/unsafe verdict, hidden-thought viewer or ecological prediction is provided.
 
-This spec owns lasting Trace contracts. [Core spec](core-skill.md) owns DNA behavior; [design.md](../docs/development-plans/design.md) is the sole reader/UI guideline; [development index](../docs/development-plans/README.md) and [current plan](../docs/development-plans/safety-phase-3-readability-v0.3.1.md) own implementation status, checks and predecessor handoff. Carry unresolved items forward explicitly. Avoid duplicating UI rules across these files.
+This spec owns lasting Trace contracts. [Core spec](core-skill.md) owns DNA behavior; [design.md](../docs/development-plans/design.md) owns reader/UI rules; the [standard framework](../docs/development-plans/evidence-trace-reader-template.md) is the required pre-implementation structural reference for optional reading blocks, not a compulsory form; [development index](../docs/development-plans/README.md) and [current plan](../docs/development-plans/safety-phase-3-readability-v0.3.1.md) own implementation status, checks and predecessor handoff. Carry unresolved items forward explicitly. Avoid duplicating UI rules across these files.
 
 ## Current implementation and selected scope
 
 - `evidence_trace/` and entry-point wrappers capture Recipe, Pipeline and ConstructionTask facts; events, source statements, conditional links, revisions, existing hashes and artifact manifests are reusable.
 - Global collection levels, decision provenance and separately appended assistance are implemented. Phase 2 applicability and Phase 3 Change Impact remain available.
 - HTML still uses v0.3 Decision-centered chapters. Unified process projection, conditional sections, revised review semantics and process Mind Map are planned, not implemented. See [v0.3 handoff](../docs/development-plans/safety-phase-3-change-impact-v0.3.md).
-- The GFP comparison Reader Demo has case approval, not human comprehension acceptance. GFP +3 bp remains an engineering regression. Phase 4 is paused.
+- The GFP comparison static Reader Demo was accepted by the project owner at step 2 on 2026-09-13. No two-reader answers or timing measurements were supplied; final HTML comprehension remains unverified. GFP +3 bp remains an engineering regression. Phase 4 is paused.
 
 ## Locked design boundary
 

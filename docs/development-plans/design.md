@@ -1,8 +1,8 @@
 # Evidence Trace：人类阅读与界面规范
 
-r6，2026-09-13。当前阅读规则的唯一来源；取代旧固定六栏与单 Decision 环形布局。旧实现见 Git 历史及 [Phase 3 记录](safety-phase-3-change-impact-v0.3.md)。本规范面向后续固定 renderer，当前 HTML 尚未重构。
+r7，2026-09-13。当前阅读规则的唯一来源；取代旧固定六栏与单 Decision 环形布局。旧实现见 Git 历史及 [Phase 3 记录](safety-phase-3-change-impact-v0.3.md)。本规范面向后续固定 renderer，当前 HTML 尚未重构。
 
-[安全 spec](../../specs/safety-module.md) 定义事实边界，[当前计划](safety-phase-3-readability-v0.3.1.md) 定义实施与验收，[Reader Demo](safety-phase-3-reading-draft.md) 提供具体样稿。不另建重复 reader guideline，也不把此文件作为宿主运行时生成网页的提示词。
+[安全 spec](../../specs/safety-module.md) 定义事实边界，[当前计划](safety-phase-3-readability-v0.3.1.md) 定义实施与验收，[Reader Demo](safety-phase-3-reading-draft.md) 提供具体样稿。实现阅读结构前还须读 [标准空白框架](evidence-trace-reader-template.md)：本文件定义阅读规则，框架定义可选结构，案例检验填入后的效果。结构或显示规则变化时同步相应文档，不重复整段规范；完整框架不代表栏目必须全部出现。此文件不作为宿主运行时生成网页的提示词。
 
 ## 为谁服务
 
