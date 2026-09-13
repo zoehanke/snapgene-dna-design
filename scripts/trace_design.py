@@ -19,13 +19,14 @@ def main():
         if hasattr(stream, "reconfigure"):
             stream.reconfigure(encoding="utf-8", errors="replace")
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("action", choices=["config", "record", "render", "inspect", "coverage", "compare"])
+    p.add_argument("action", choices=["config", "record", "render", "inspect", "reader", "coverage", "compare"])
     p.add_argument("--trace-dir")
     p.add_argument("--set-level", choices=LEVELS, help="Change the single global collection setting (config only)")
     p.add_argument("--input", help="JSON bundle with nodes and links (record only)")
     p.add_argument("--design-json", help="Preflight task, pipeline or recipe parameter JSON; never executes it")
     p.add_argument("--from-run", help="Recorded baseline run for compare")
     p.add_argument("--to-run", help="Later recorded run for compare")
+    p.add_argument("--run-id", help="Reader projection for one recorded run (reader only)")
     args = p.parse_args()
     try:
         if args.action == "config":
@@ -36,6 +37,8 @@ def main():
             return 0
         if args.set_level:
             p.error("--set-level is only valid with config")
+        if args.run_id and args.action != "reader":
+            p.error("--run-id is only valid with reader")
         if not args.trace_dir:
             p.error("--trace-dir is required for trace operations")
         if args.action in {"record", "compare"} and get_level() == "off":
@@ -69,6 +72,11 @@ def main():
             graph = render(pathlib.Path(args.trace_dir), graph)
         else:
             graph = build_chains(graph)
+        if args.action == "reader":
+            from evidence_trace.reader import reader_for_run
+            reader = reader_for_run(graph["reader"], args.run_id) if args.run_id else graph["reader"]
+            print(json.dumps(reader, ensure_ascii=False, indent=2))
+            return 2 if errors else 0
         response = {"trace_integrity": graph["integrity"], "issues": graph["issues"],
                           "records": len(graph["nodes"]), "runs": len(graph["runs"]),
                           "explanations": graph.get("explanations", []),

@@ -174,6 +174,13 @@ class CaptureTests(unittest.TestCase):
                     self.assertFalse(errors)
                     self.assertTrue(all(e["mode_at_capture"] == level for e in events))
                     self.assertTrue(any(n["kind"] == "validation" for n in project(events)["nodes"]))
+                    reader = json.loads((out / "evidence-trace/graph.json").read_text(encoding="utf-8"))["reader"]
+                    formal = [s for s in reader["steps"] if s.get("role") == "authoritative"]
+                    self.assertEqual(len(formal), 1, route)
+                    self.assertEqual({Path(f["path"]).suffix for f in formal[0]["files"]}, {".dna", ".gb", ".fasta"})
+                    self.assertTrue(any(s.get("checks") for s in reader["steps"]))
+                    self.assertFalse(any(s["kind"] == "choice" for s in reader["steps"]))
+                    self.assertFalse(reader["review"])
                     by_event = {e["event_id"]: e for e in events}
                     for node in project(events)["nodes"]:
                         if node["kind"] in {"validation", "artifact"}:

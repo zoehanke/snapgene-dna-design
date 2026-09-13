@@ -125,5 +125,6 @@ def choices_for_run(run):
     unique = {}
     for choice in observed:
         choice = {"observation_basis": "Saved submitted input; execution is not inferred", "run_outcome": run.get("status"), **choice}
-        unique[choice["id"]] = choice
+        # Identical inputs in different recorded calls are distinct observations.
+        unique[(choice["id"], choice.get("stage_ref"))] = choice
     return list(unique.values())

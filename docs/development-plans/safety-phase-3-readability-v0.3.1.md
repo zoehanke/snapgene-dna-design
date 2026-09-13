@@ -1,7 +1,7 @@
 # Phase 3.1：统一设计过程与人类可读性补救
 
-- 目标：Evidence Trace v0.3.1；文档 r8，2026-09-13。文档修订不等于发布版本升级。
-- 当前状态：采集基础已实现；第二步已由项目负责人审阅确认通过。双人试读与计时未执行。第三步来源、阶段与关联修正已实现并通过相关回归；下一项为第四步。统一阅读投影和 renderer 尚未重构，阶段未完成。
+- 目标：Evidence Trace v0.3.1；文档 r9，2026-09-13。文档修订不等于发布版本升级。
+- 当前状态：采集基础已实现；第二步已由项目负责人审阅确认通过。双人试读与计时未执行。第四步统一阅读投影与数据映射已实现，相关回归通过；下一项为第五步 HTML。renderer 尚未切换，阶段未完成。
 - 分支：`codex/real-workflow-readiness-20260907`；开始前同步远端，禁止改 main。实施结果验证后 commit/push 并核对对应 CI。
 - 先读：[索引](README.md)、[core spec](../../specs/core-skill.md)、[safety spec](../../specs/safety-module.md)、[前序完成/交接](safety-phase-3-change-impact-v0.3.md)。
 - [design.md](design.md) 定义阅读/UI 规则；[标准空白框架](evidence-trace-reader-template.md) 是实现前必读的阅读结构契约，定义可选步骤和旁支，不能据此强制填满栏目；[Reader Demo](safety-phase-3-reading-draft.md) 是案例，不是所有任务的栏目模板。本计划只记录工作、验收和交接，不复制完整 UI 规则。
@@ -32,7 +32,7 @@
 | 1. 统一规范 | safety spec 保留事实/来源/影响契约，core spec 保留主线边界，design.md 合并 reader guideline；删除当前规范中的旧六栏/环形布局要求 | 本次文档已整理，历史规则留在 Git 与旧阶段记录 |
 | 2. 真人审阅静态稿 | 审阅自然请求、用户约束与 AI 取舍、依据和程序检查边界；案例来源下沉详情 | 2026-09-13 项目负责人确认“第二步我觉得可以了”；按该意见验收通过，未声称完成双人计时 |
 | 3. 必要采集与语义修正 | 复用现有来源字段和事件；补背景/用户介入/程序引用；纠正 coverage 缺口、记录完整性和待办混用；保留阶段锚点 | 已实现；63 项 Trace 回归及真实案例通过，未修改 Core 验证 |
-| 4. 统一阅读投影 | 整理四类阅读步骤、实际分支和条件性旁支；保留来源、运行及旧修订引用；可在现有 chain 中替换职责，必要时只独立一个 reader.py | 尚未实施；无 Decision 的 Observed 运行也能正常阅读 |
+| 4. 统一阅读投影 | reader.py 生成四类步骤、条件性旁支、运行筛选与分组待办；映射契约说明原始字段去向 | 已实现；无 Decision 及部分漏记均可呈现，真实三档入口及投影测试通过 |
 | 5. 替换 renderer | 先 Document，再整体 Mind Map、Split、Review；共享步骤选择/展开，统一详细记录入口 | 尚未实施；必须先满足步骤 2 的真人门槛 |
 | 6. 集成交付 | 可执行 Reader Demo、相关回归、三档对照、浏览器及真人页面试读；补实际结果和遗留项、提交并检查 CI | 尚未实施；不得将本次规范或静态稿称为已完成 UI |
 
@@ -122,3 +122,29 @@ r7 修订：记录项目负责人对第二步的明确验收；与未执行的�
 本次未修改 renderer、DNA Core 或 main；用户对 Reader Demo 的未提交修改保持原样。第二步的负责人验收保持有效，未补造计时数据。第三步结束不等于第四至六步完成。
 
 r8 修订：完成第三步实现、相关回归和真实工程案例，记录新来源、阶段、范围及缺口语义；下一项为统一阅读投影。
+
+## 第四步实际实现与交接
+
+数据层与阅读层的完整对应表见 [映射文档](../../references/evidence-trace-reader-mapping.md)。它是接口说明；design.md 继续保存阅读规则，标准框架继续保存可选结构，不新建重复 UX 规范系统。
+
+- 新增纯函数 reader.py：从现有图、条件证据、运行及阶段记录派生 context、steps、runs、relations、review 和 diagnostics。Requirement/Decision 对应要求/选择；检查与有意义的程序发现合并进过程；Source/Statement/Claim 留在对应选择的依据旁支。
+- 一次返回的检查只显示一次。未请求检查不生成空步骤；普通 partial/unknown 适用性保留为条件边界，不每条变成待办。失败、明确反对关系、缺失判断依据与变化问题按步骤聚合。
+- 多格式文件只在同运行、角色、目录、名称与生成事件相同时合并；同名不同生成记录仍区分。无正式交付时可显示已有候选；不会把候选升级为正式产物。
+- 复用现有路径与内容锚点识别材料引用；多匹配只记歧义。历史输入材料在运行筛选时放 related_steps，明确 reference_only，不算本次新产物或新检查。
+- 运行筛选同时过滤证据、后补解释、变化和每条待办。未关联的参数按调用形成程序输入事实；内容相同的不同调用保留独立观察。排布锚点使用 anchor_sequence，不冒充实际发生时刻。
+- 增加只读 `trace_design.py reader --trace-dir ... [--run-id ...]`，正常派生 graph.json 同时含 reader。没有新事件、模型调用、哈希机制或依赖。
+- 旧 chain_views 暂留给尚未修改的 v0.3 HTML；reader 是第五步的统一数据入口。第五步切换后淘汰旧六栏/单节点 UI 及相应旧阅读依赖，不长期维护两套默认阅读逻辑。
+
+| 验证 | 结果 | 证据 |
+|---|---|---|
+| Trace 相关回归 | 83 项通过；包含新投影测试与三条真实入口三档文件对照 | output/trace-step4-final-tests.log |
+| 投影专项最终复核 | 20 项通过，覆盖来源标签、无/部分 Decision、重复调用、检查聚合、晚补、旧运行筛选、文件版本、候选、歧义、只读 CLI、正常模式故障隔离 | output/trace-step4-reader-final.log |
+| 实际日志映射 | 真实两次运行生成 15 个唯一阅读步骤；各运行筛选均 8 步，原 events.jsonl 字节不变 | output/trace-step4-scope-check.json、trace-step4-reader-final.json |
+| 本地全量中间快照 | 818 项，805 通过、13 跳过；随后只修改阅读筛选细节及专项测试，最终完整结果以提交 CI 为准，不与上面计数相加 | output/trace-step4-full-suite.log |
+| 当前提交 CI | 提交后核对同一提交的六组检查；最终答复报告实际结果 | PR checks |
+
+仍未完成：第五步 HTML、浏览器交互和最终真人理解验收；正式可执行 Reader Demo 属于第六步。此次实际日志是工程回归材料，不宣称新 Reader Demo 已获得真人 UX 证据。源文本缺失不会自动补出研究背景；旧无锚点记录保守保留；细粒度生物学因果仍不推断。
+
+本次未修改 renderer 文件、Core 或 main，用户对 Reader Demo 的未提交修改保持原样。下一项是第五步 Document / Mind Map / Split / Review 的界面切换。
+
+r9 修订：完成第四步统一阅读数据及映射接口，记录回归与交接；HTML 尚未重构。

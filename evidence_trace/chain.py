@@ -71,4 +71,7 @@ def build_chains(graph):
     result["chain_views"] = views
     result["projection_version"] = "0.3.0"
     from evidence_trace.impact import attach_impacts
-    return attach_impacts(result)
+    result = attach_impacts(result)
+    from evidence_trace.reader import build_reader
+    result["reader"] = build_reader(result)
+    return result

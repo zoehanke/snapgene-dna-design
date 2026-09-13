@@ -4,7 +4,7 @@
 
 This spec owns lasting product decisions, constraints and open questions; stage plans own implementation steps and completion evidence. Before creating, continuing or replacing a plan, read the [development index](../docs/development-plans/README.md), the relevant plan and its predecessor's handoff. Carry each unresolved item forward explicitly, defer it with a reason, or record an accepted cancellation. A new plan does not silently reset this spec or earlier decisions.
 
-Current integration plan: [Phase 3.1 remediation](../docs/development-plans/safety-phase-3-readability-v0.3.1.md). Capture levels and explanation provenance are implemented; the unified reading projection and replacement HTML are not. A human-approved static reading draft is required before renderer work.
+Current integration plan: [Phase 3.1 remediation](../docs/development-plans/safety-phase-3-readability-v0.3.1.md). Capture levels, provenance and unified reading projection are implemented; replacement HTML is not. Static step 2 has project-owner approval; final-page comprehension still requires its own acceptance.
 
 Context updated: 2026-09-13. This spec defines the DNA product and its boundaries, not a fixed architecture or a universal correctness claim. [safety-module.md](safety-module.md) owns Trace contracts; [design.md](../docs/development-plans/design.md) owns reader behavior; read the [standard framework](../docs/development-plans/evidence-trace-reader-template.md) before implementing reading structures. Static step 2 has project-owner acceptance; final HTML acceptance remains pending.
 

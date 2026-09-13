@@ -12,7 +12,7 @@ This spec owns lasting Trace contracts. [Core spec](core-skill.md) owns DNA beha
 
 - `evidence_trace/` and entry-point wrappers capture Recipe, Pipeline and ConstructionTask facts; events, source statements, conditional links, revisions, existing hashes and artifact manifests are reusable.
 - Global collection levels, decision provenance and separately appended assistance are implemented. Phase 2 applicability and Phase 3 Change Impact remain available.
-- Source/phase links, explicit per-run context and separate capture/coverage/explanation diagnostics are implemented. HTML still uses v0.3 Decision-centered chapters; unified process projection, conditional sections and process Mind Map are not implemented. See [v0.3 handoff](../docs/development-plans/safety-phase-3-change-impact-v0.3.md).
+- Source/phase links, explicit per-run context, separate diagnostics and the unified reader projection are implemented. Reader steps, conditional branches, run selection and grouped review share one dataset; [mapping](../references/evidence-trace-reader-mapping.md) defines the interface. HTML still uses v0.3 Decision-centered chapters; the new Document/Map/Split renderer is not implemented. See [v0.3 handoff](../docs/development-plans/safety-phase-3-change-impact-v0.3.md).
 - The GFP comparison static Reader Demo was accepted by the project owner at step 2 on 2026-09-13. No two-reader answers or timing measurements were supplied; final HTML comprehension remains unverified. GFP +3 bp remains an engineering regression. Phase 4 is paused.
 
 ## Locked design boundary
@@ -73,6 +73,10 @@ Sections are conditional on actual content and the user's goal. A simple deliver
 Record integrity concerns recorded events, not completeness of reasoning or user context. Missing submitted requirements/Decisions are coverage gaps; missing Full explanations are explanation gaps; a not-requested check is not failure. A user requirement can be sufficient recorded basis without a compulsory Claim. The reading layer must keep these distinctions rather than hiding a fault or manufacturing a task problem.
 
 The shipped renderer is deterministic. Narrative grouping cannot invent biology or causal relations; readable summaries retain exact source references. Old logs remain readable without being relabeled as fully explained. Reader wording, branch behavior, layout and examples live only in design.md.
+
+The reader projects unique requirement/choice/program/artifact steps from existing records. Unmatched inputs are program observations even when some Decisions exist. Checks group by actual return; file formats group only with the same generation context. Same-name generations remain distinct, candidates stay non-authoritative, ambiguous material origins remain unresolved. Ordering anchors are not occurrence timestamps or causal proof.
+
+Run selection filters steps, evidence, later assistance, change knowledge and individual review items together. General partial/unknown applicability remains evidence context rather than an automatic task failure. Explicit opposition, missing judgment basis, actual failures and change follow-up remain reviewable. Raw records and log faults stay accessible; no extra model interpretation or fact store is introduced.
 
 Before renderer/HTML reconstruction, a static case must pass human comprehension review under predeclared criteria. Case approval is distinct from reading approval; absent feedback, model self-review and browser tests cannot pass the gate. Simulated dialogue is labeled once; replayed results and new execution are distinguishable. A final executable Reader Demo must capture real program results for its run.
 

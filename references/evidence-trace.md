@@ -4,7 +4,7 @@ Optional local sidecar for scientific decisions, evidence and actual program res
 
 ## Collection levels (v0.3.1 capture; reading UI still v0.3)
 
-Evidence Trace is the fact/evidence system; Design Decision Trace is its default human-readable organization. Capture, source/phase links and separate gaps are available. Static step 2 has project-owner approval; the unified reading projection and renderer replacement remain pending.
+Evidence Trace is the fact/evidence system; Design Decision Trace is its default human-readable organization. Capture, source/phase links, separate gaps and the unified reader projection are available. Static step 2 has project-owner approval; the v0.3 HTML has not switched to the new projection.
 
 One global setting applies to subsequent captures in the public Recipe, Pipeline and ConstructionTask wrappers. Development default is `full`; no settings file is created merely by reading the default. `normal/strict` remains the independent failure policy.
 
@@ -71,7 +71,7 @@ The graph and `inspect` separate:
 - `association_gaps` in chain views: ambiguous/unmatched target links; separate from missing rationale.
 - `review_queue`: actual check failures/unknown results and recorded evidence questions. Not-requested checks and lack of a compulsory Claim are not automatic failures.
 
-An intact event log can therefore be complete while coverage is limited. A Decision grounded in a user requirement does not need a fabricated paper/Claim chain. `target_matched` and `original_explanation_recorded` counts remain distinct from review status. The current v0.3 UI still has legacy layouts; the new reading projection in the next step will consume these separate fields.
+An intact event log can therefore be complete while coverage is limited. A Decision grounded in a user requirement does not need a fabricated paper/Claim chain. `target_matched` and `original_explanation_recorded` counts remain distinct from review status. The current v0.3 UI still has legacy layouts. The reader projection now consumes these fields; see the [mapping and reader CLI](evidence-trace-reader-mapping.md). Its Review groups differ from legacy review_queue: ordinary applicability limits remain branches, while concrete failures, opposition, missing judgment basis and change follow-up remain review items.
 
 ## Normal use
 
