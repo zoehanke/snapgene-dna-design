@@ -6,12 +6,12 @@
 
 | 计划 | 模块目标版本 | 文档修订 | 状态 | 前序 |
 |---|---|---|---|---|
-| [Phase 3 补救：Design Decision Trace 与可读性重构](safety-phase-3-readability-v0.3.1.md) | Evidence Trace v0.3.1 | r4 | 理解优先约束已补齐；案例已确认，真人试读待进行，renderer 未重构 | Phase 3 v0.3 |
+| [Phase 3 补救：Design Decision Trace 与可读性重构](safety-phase-3-readability-v0.3.1.md) | Evidence Trace v0.3.1 | r5 | 规范已统一，静态稿 r5 待真人试读，renderer 未重构 | Phase 3 v0.3 |
 | [Phase 3：Living Evidence Document & Change Impact](safety-phase-3-change-impact-v0.3.md) | Evidence Trace v0.3 | r2 | 工程完成；阅读问题转入补救计划 | Phase 2 |
 | [Phase 2：Evidence Applicability & Trace Usability](safety-phase-2-applicability-v0.2.md) | Evidence Trace v0.2 | r3 | 工程实现及本阶段验收完成 | Phase 1 |
 | [Phase 1：Evidence Trace](safety-phase-1-trace-v0.1.md) | v0.1 | r3 | 工程验收完成，试用反馈已转化为 Phase 2 UI/Capture 改进 | 无已执行阶段 |
 
-当前 UI/交互规范：[design.md](design.md)；Phase 2 历史参考：[evidence-trace-phase2-reference.svg](evidence-trace-phase2-reference.svg)。
+当前唯一阅读/UI 规范：[design.md](design.md)；Phase 2 历史参考：[evidence-trace-phase2-reference.svg](evidence-trace-phase2-reference.svg)。
 
 补救的采集规则和阅读目标已同步 spec/design.md；当前 HTML 仍是 v0.3。GFP +3 bp 只作工程回归，[Reader Demo](safety-phase-3-reading-draft.md) 已确认案例，下一步做真人试读，通过后才重构 renderer。Phase 4 暂停。
 
@@ -21,7 +21,7 @@
 
 - **Spec**：目标、已确认决定、约束、开放问题和跨阶段路线图。不因换计划重置。
 - **阶段计划**：一次只执行一个阶段，写具体改动、验收、完成证据和交接项。阶段内可以分多个实现步骤。
-- **Design**：给首次实现使用的固定 UI/交互规范；实现后由版本化代码负责页面，不作为宿主 LLM 运行时页面生成提示词。
+- **Design**：唯一 reader guideline，保存主链/旁支、条件性栏目、语言、交互与少量正反例；不另建重复指南，也不作为宿主运行时页面生成提示词。
 - **索引**：标明当前计划、前序、状态与文档修订。历史计划保留并标记完成或被替代，避免多个“当前版本”。
 - 文件名采用 `<module>-phase-<n>-<name>-v<目标版本>.md`。目标模块版本与主 skill 版本、文档修订号分开；文档改动不会升级软件。
 - 同一计划修订原文件、递增 r1/r2，并简记改动。新阶段或实质替代计划另建文件，双向链接前后计划；旧文件不覆盖。Git 保存文件内历史。
