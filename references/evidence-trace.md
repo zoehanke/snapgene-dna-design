@@ -4,7 +4,7 @@ Optional local sidecar for scientific decisions, evidence and actual program res
 
 ## Collection levels (v0.3.1 capture; reading UI still v0.3)
 
-Evidence Trace is the fact/evidence system; Design Decision Trace is its default human-readable organization. Capture remediation is available; renderer reconstruction awaits human approval of the [static reading draft](../docs/development-plans/safety-phase-3-reading-draft.md).
+Evidence Trace is the fact/evidence system; Design Decision Trace is its default human-readable organization. Capture, source/phase links and separate gaps are available. Static step 2 has project-owner approval; the unified reading projection and renderer replacement remain pending.
 
 One global setting applies to subsequent captures in the public Recipe, Pipeline and ConstructionTask wrappers. Development default is `full`; no settings file is created merely by reading the default. `normal/strict` remains the independent failure policy.
 
@@ -29,9 +29,49 @@ Explicitly supplied post-hoc assistance uses a separate bundle array:
 {"actor":"host-assistant","explanations":[{"decision_ref":"D1@1","basis_refs":["D1@1"],"text":"Only this boundary choice was recorded; its original motivation is unavailable."}]}
 ```
 
-Append with the existing `record` command. Exact stored revisions are required; the supplement is always labeled `事后辅助解释`. It never changes the Decision, original rationale, original-explanation coverage or Validation. `inspect` exposes supplements and decision provenance; graph.json retains them. Their new human UI awaits the trial gate.
+Append with the existing `record` command. The target Decision must name an exact revision; basis_refs can name exact existing node revisions or event IDs. The supplement is always labeled `事后辅助解释`. It never changes the Decision, original rationale, original-explanation coverage or Validation. `inspect` exposes supplements and provenance; graph.json retains them. Their new human UI is still pending.
 
 Coverage now separately exposes `target_match`, `matched_decision_refs`, `explanation_provenance` and `original_explanation_recorded`. Historical `status=explained` only denotes target matching plus submitted text for the old UI, not authenticated original rationale. No-rationale Observed capture is distinct from lost supplied explanation.
+
+## Source, phase and run scope (Phase 3.1 step 3)
+
+Requirements can retain a real user source and context without changing ConstructionTask or Recipe inputs:
+
+```json
+{"actor":"host-assistant","nodes":[{
+  "id":"R1","kind":"requirement","text":"保留原骨架",
+  "requirement_source":{"reference":"user-message-1","form":"verbatim","excerpt":"保留原骨架"},
+  "context":{"research_question":"比较候选","task_goal":"生成所需构建"}
+}]}
+```
+
+`requirement_source.form` is verbatim, summary or unknown; a supplied verbatim excerpt must equal the recorded text. Source references are declarations, not authenticated user identity. No source means unknown even if `actor` says user. Context retains only supplied background; programs do not invent it.
+
+`request_action` is an extensible label, default request. For change/confirm/reject, provide `requirement_source` and nonempty `basis_refs` identifying the affected exact node revisions or existing event IDs. New requests may use new IDs; revisions of one requirement retain old text. Confirmation/rejection describes a recorded user act, not permission for Trace to control Core execution.
+
+Decisions may also provide `basis_refs` to the exact records or tool events used as their basis. These become `basis_links`, separate from biological evidence relations. They declare association, not proof of scientific causality. A reference to submitted input is not evidence of successful execution. Unknown/future references and logical IDs without revisions are rejected by the recording interface; existing reference fields retain their original semantics.
+
+When multiple alternatives or old versions share a trace, pass an explicit run context using the existing `--trace-input scope.json`:
+
+```json
+{"context_refs":["D1@1"]}
+```
+
+The named records must already exist (or be recorded by the same input bundle). Their existing requirement/evidence dependencies are retained; only explicitly selected Decisions become active run decision_refs. An empty list intentionally selects none. Omitting context_refs preserves latest-record selection for existing callers; run_started identifies explicit versus latest_records selection. Selection is only Trace metadata and does not rewrite execution parameters. Normal-mode scope errors preserve DNA work with incomplete Trace; strict retains its original stopping behavior.
+
+New stage_started events identify a call. stage_completed, stage_failed and accepted input observations carry its `stage_ref`; projected stages retain event ID, append sequence and recording time. `observation_phase=accepted_inputs_after_call` means parameters were observed after return, not chosen at that time. Standalone value observations and old records may lack a call reference; this stays unknown rather than being guessed.
+
+Runtime Validation and Artifact nodes carry `result_event_ref` to the actual returned-value event in their run. Their Decision/validation associations are explicitly same_run, not per-Claim or per-region proof. Exact Core result data and existing anchors remain unchanged. Rendering a later run does not relabel earlier checks.
+
+The graph and `inspect` separate:
+
+- `issues` / integrity: damaged or unresolved recorded data, Trace faults, unfinished runs.
+- `coverage_gaps`: absent submitted requirements/decisions or missing recorded basis; not a log failure.
+- `explanation_gaps`: missing original explanations when expected; assistance does not fill them.
+- `association_gaps` in chain views: ambiguous/unmatched target links; separate from missing rationale.
+- `review_queue`: actual check failures/unknown results and recorded evidence questions. Not-requested checks and lack of a compulsory Claim are not automatic failures.
+
+An intact event log can therefore be complete while coverage is limited. A Decision grounded in a user requirement does not need a fabricated paper/Claim chain. `target_matched` and `original_explanation_recorded` counts remain distinct from review status. The current v0.3 UI still has legacy layouts; the new reading projection in the next step will consume these separate fields.
 
 ## Normal use
 
@@ -46,7 +86,7 @@ python scripts/run_pipeline.py --pipeline pipeline.json --out-dir work/run-2 --c
 python scripts/run_construction_task.py --task-json task.json --out-dir work/run-3 --trace-dir work/evidence-trace
 ```
 
-These are alternative execution routes, not a prescribed three-step biological workflow. Preserve actual task authorization. `--trace` alone uses `<out-dir>/evidence-trace`; `--trace-input choices.json` appends a bundle when starting a run. Use a new output directory per run. A trace directory represents one design task and its revisions; run association uses its current recorded decisions.
+These are alternative execution routes, not a prescribed three-step biological workflow. Preserve actual task authorization. `--trace` alone uses `<out-dir>/evidence-trace`; `--trace-input choices.json` appends a bundle and can select its recorded context. Use a new output directory per run. A trace directory represents one design task and its revisions; run association uses explicit context when supplied, otherwise current recorded decisions.
 
 ## Small bundle
 

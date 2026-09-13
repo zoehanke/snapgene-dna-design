@@ -12,7 +12,7 @@ This spec owns lasting Trace contracts. [Core spec](core-skill.md) owns DNA beha
 
 - `evidence_trace/` and entry-point wrappers capture Recipe, Pipeline and ConstructionTask facts; events, source statements, conditional links, revisions, existing hashes and artifact manifests are reusable.
 - Global collection levels, decision provenance and separately appended assistance are implemented. Phase 2 applicability and Phase 3 Change Impact remain available.
-- HTML still uses v0.3 Decision-centered chapters. Unified process projection, conditional sections, revised review semantics and process Mind Map are planned, not implemented. See [v0.3 handoff](../docs/development-plans/safety-phase-3-change-impact-v0.3.md).
+- Source/phase links, explicit per-run context and separate capture/coverage/explanation diagnostics are implemented. HTML still uses v0.3 Decision-centered chapters; unified process projection, conditional sections and process Mind Map are not implemented. See [v0.3 handoff](../docs/development-plans/safety-phase-3-change-impact-v0.3.md).
 - The GFP comparison static Reader Demo was accepted by the project owner at step 2 on 2026-09-13. No two-reader answers or timing measurements were supplied; final HTML comprehension remains unverified. GFP +3 bp remains an engineering regression. Phase 4 is paused.
 
 ## Locked design boundary
@@ -36,6 +36,10 @@ Record consequential discretionary choices, not every parameter, ordinary tool c
 `actor` identifies the submitter. Reuse `decision_actor`, `decision_source` and `explanation_origin` to identify the declared chooser and explanation source. Missing attribution remains unknown; a source reference is a supplied assertion, not authenticated authorship. `decision_kind` stays extensible and never limits AI choices.
 
 Distinguish user explanation, concurrent AI explanation, no original explanation and post-hoc assistance. Assistance is explicitly supplied, appended separately and bound to exact old revisions. It cannot replace original rationale, fill original-explanation coverage or become Validation. No automatic observer service or hidden chain-of-thought capture.
+
+Requirements retain optional `requirement_source` with original/summary form and supplied context. User change/confirm/reject requires a source and exact affected `basis_refs`; submitter identity alone does not establish user intent. Decisions and supplements may reference exact recorded revisions or tool event IDs as declared basis, without inventing causal proof. No new conversation registry is required.
+
+Explicit `context_refs` in the existing Trace input selects run records and retains their recorded dependencies; only selected Decisions are active. Omission keeps legacy latest-record selection, labeled as such. Stage references pair inputs, returns and failures; accepted-input observations retain their after-call phase. Runtime results bind to their returned-value event, while broad same-run associations remain distinct from a Claim-specific validation. Old logs retain unknown anchors rather than reconstructed history.
 
 ## Facts and evidence
 
@@ -65,6 +69,8 @@ Actions remain separate: REASSESS for Claim/Decision, RECHECK for evidence/appli
 Human understanding outranks default display completeness while preserving underlying facts. Present sourced task context, consequential process steps and actual results. Document, Mind Map and Split share one projection and selection state. Inputs, choices, program results and artifacts remain distinguishable; ordinary logs stay in detailed records.
 
 Sections are conditional on actual content and the user's goal. A simple delivered construction can end at its artifact. Preserve relevant failures, unresolved requirements and consequential uncertainty; do not invent review items, experiments, user intervention or explanations to fill a template. Separate capture faults, explanation coverage gaps and actionable design review items. Do not use old `explained` alone as their common signal.
+
+Record integrity concerns recorded events, not completeness of reasoning or user context. Missing submitted requirements/Decisions are coverage gaps; missing Full explanations are explanation gaps; a not-requested check is not failure. A user requirement can be sufficient recorded basis without a compulsory Claim. The reading layer must keep these distinctions rather than hiding a fault or manufacturing a task problem.
 
 The shipped renderer is deterministic. Narrative grouping cannot invent biology or causal relations; readable summaries retain exact source references. Old logs remain readable without being relabeled as fully explained. Reader wording, branch behavior, layout and examples live only in design.md.
 

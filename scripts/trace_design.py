@@ -61,18 +61,31 @@ def main():
             current = [n for n in graph["nodes"] if n["kind"] == "decision" and graph["latest"][n["id"]] == n["key"]]
             choices = match_choices(extract_choices(input_snapshot(design)), current)
             print(json.dumps({"mode": "preflight, not executed", "choices": choices,
-                "observed": len(choices), "explained": sum(c["status"] == "explained" for c in choices)}, ensure_ascii=False, indent=2))
+                "observed": len(choices), "explained": sum(c["status"] == "explained" for c in choices),
+                "target_matched": sum(c["target_match"] == "matched" for c in choices),
+                "original_explanation_recorded": sum(c["original_explanation_recorded"] for c in choices)}, ensure_ascii=False, indent=2))
             return 0
         if args.action in {"record", "render", "compare"}:
             graph = render(pathlib.Path(args.trace_dir), graph)
         else:
             graph = build_chains(graph)
-        print(json.dumps({"trace_integrity": graph["integrity"], "issues": graph["issues"],
+        response = {"trace_integrity": graph["integrity"], "issues": graph["issues"],
                           "records": len(graph["nodes"]), "runs": len(graph["runs"]),
                           "explanations": graph.get("explanations", []),
                           "decision_provenance": [{"decision_ref": n["key"], **n["provenance"]}
                                                   for n in graph["nodes"] if n["kind"] == "decision"],
-                          "view": str(pathlib.Path(args.trace_dir).resolve() / "index.html")}, ensure_ascii=False))
+                          "view": str(pathlib.Path(args.trace_dir).resolve() / "index.html")}
+        if args.action == "inspect":
+            response.update(coverage_gaps=graph["coverage_gaps"], explanation_gaps=graph["explanation_gaps"],
+                            review_queue=graph["review_queue"], basis_links=graph["basis_links"],
+                            requirement_provenance=[{"requirement_ref": n["key"], "text": n["text"],
+                                                     "context": n.get("context", {}), "basis_refs": n.get("basis_refs", []),
+                                                     **n["provenance"]}
+                                                    for n in graph["nodes"] if n["kind"] == "requirement"],
+                            run_contexts=[{k: r.get(k) for k in ("id", "context_refs", "decision_refs", "context_selection",
+                                                                "started_event_ref", "finished_event_ref")}
+                                          for r in graph["runs"]])
+        print(json.dumps(response, ensure_ascii=False))
         return 2 if errors else 0
     except (ValueError, OSError, KeyError, TypeError) as exc:
         print("TRACE_INCOMPLETE: " + str(exc), file=sys.stderr)

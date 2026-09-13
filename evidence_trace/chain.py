@@ -48,20 +48,25 @@ def build_chains(graph):
                     queue.append({"node": key, "reason": "Evidence applicability: " + branch["assessment"]["status"] + " · " + branch["assessment"]["reason"]})
             chains.append({"decision": key, "requirements": decision.get("references", {}).get("responds_to", []),
                 "claims": claims, "validations": validations, "artifacts": artifacts, "evidence": evidence,
+                "basis_refs": decision.get("basis_refs", []),
+                "explanation_gaps": [g for g in run.get("explanation_gaps", result.get("explanation_gaps", [])) if g["node"] == key],
                 "review": queue, "association_scope": "Validation/Artifact association is run-level, not proof of this Claim."})
         coverage = match_choices(choices_for_run(run), [by_key[k] for k in run.get("decision_refs", []) if k in by_key])
         for c in chains:
             c["choices"] = [o for o in coverage if c["decision"] in o["decision_refs"]]
-            for choice in c["choices"]:
-                if choice["status"] != "explained":
-                    c["review"].append({"node": c["decision"], "reason": choice["parameter"] + ": " + choice["reason"]})
+            c["association_gaps"] = [o for o in c["choices"] if c["decision"] not in o["matched_decision_refs"]]
         views.append({"run_id": run["id"], "chains": chains,
             "edges": edges,
             "artifacts": [n["key"] for n in result["nodes"] if n["kind"] == "artifact" and n.get("run_id") == run["id"]],
             "validations": [n["key"] for n in result["nodes"] if n["kind"] == "validation" and n.get("run_id") == run["id"]],
             "choices": coverage, "unexplained_choices": [o for o in coverage if not o["decision_refs"]],
+            "coverage_gaps": run.get("coverage_gaps", result.get("coverage_gaps", [])),
+            "explanation_gaps": run.get("explanation_gaps", result.get("explanation_gaps", [])),
+            "association_gaps": [o for o in coverage if o["target_match"] != "matched"],
             "coverage": {"observed": len(coverage), "explained": sum(o["status"] == "explained" for o in coverage),
-                         "need_review": sum(o["status"] != "explained" for o in coverage),
+                         "target_matched": sum(o["target_match"] == "matched" for o in coverage),
+                         "original_explanation_recorded": sum(o["original_explanation_recorded"] for o in coverage),
+                         "need_review": sum(o["target_match"] != "matched" for o in coverage),
                          "scope": "Known structured input fields; not complete biological reasoning coverage."}})
     result["chain_views"] = views
     result["projection_version"] = "0.3.0"

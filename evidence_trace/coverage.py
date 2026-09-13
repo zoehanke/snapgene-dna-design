@@ -109,6 +109,9 @@ def match_choices(choices, decisions):
 def choices_for_run(run):
     # New events are explicit observations. Older Phase 1 logs can be projected from saved inputs.
     observed = [{**s["choice"], "observed_stage": s.get("stage"), "observation_basis": s.get("observation"),
+                 "stage_ref": s.get("stage_ref"), "observation_event_ref": s.get("event_id"),
+                 "observation_phase": s.get("observation_phase", "unknown"),
+                 "recorded_at": s.get("recorded_at"), "recorded_sequence": s.get("recorded_sequence"),
                  "run_outcome": run.get("status")} for s in run.get("stages", []) if s.get("event_type") == "design_choice_observed"]
     if not observed:
         for s in run.get("stages", []):

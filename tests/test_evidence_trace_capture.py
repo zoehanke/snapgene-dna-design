@@ -174,6 +174,13 @@ class CaptureTests(unittest.TestCase):
                     self.assertFalse(errors)
                     self.assertTrue(all(e["mode_at_capture"] == level for e in events))
                     self.assertTrue(any(n["kind"] == "validation" for n in project(events)["nodes"]))
+                    by_event = {e["event_id"]: e for e in events}
+                    for node in project(events)["nodes"]:
+                        if node["kind"] in {"validation", "artifact"}:
+                            observed = by_event[node["result_event_ref"]]
+                            self.assertEqual(observed["event_type"], "stage_completed")
+                            self.assertEqual(observed["run_id"], node["run_id"])
+                            self.assertEqual(node["association_scope"], "same_run")
         for route in ("pipeline", "recipe", "task"):
             baseline = outputs["off", route]
             for level in ("observed", "full"):

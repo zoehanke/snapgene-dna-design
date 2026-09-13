@@ -8,7 +8,7 @@ import uuid
 
 from evidence_trace.models import REF_FIELDS, now, validate_node
 from evidence_trace.settings import get_level, LEVELS
-from evidence_trace.provenance import decision_provenance
+from evidence_trace.provenance import decision_provenance, requirement_provenance
 
 
 def load_events(directory):
@@ -36,6 +36,8 @@ def load_events(directory):
 def project(events, errors=()):
     nodes, edges, runs, latest, queue, changes = {}, [], {}, {}, [], []
     explanations = []
+    coverage_gaps, explanation_gaps, basis_links = [], [], []
+    event_ids = {e["event_id"] for e in events}
     problems = list(errors)
     for event in events:
         p = event["payload"]
@@ -46,21 +48,29 @@ def project(events, errors=()):
                     "mode_at_capture": event.get("mode_at_capture", "unknown")}
             if node["kind"] == "decision":
                 node["provenance"] = decision_provenance(node)
+            elif node["kind"] == "requirement":
+                node["provenance"] = requirement_provenance(node)
             nodes[node["key"]] = node
             latest[node["id"]] = node["key"]
             for field, refs in node.get("references", {}).items():
                 for ref in refs:
-                    edges.append({"from": ref, "to": node["key"], "relation": field, "recorded_sequence": event["sequence"]})
+                    edge = {"from": ref, "to": node["key"], "relation": field, "recorded_sequence": event["sequence"]}
+                    if node["kind"] in {"validation", "artifact"} and field in {"decision_ids", "validated_by"}:
+                        edge["association_scope"] = node.get("association_scope", "same_run")
+                    edges.append(edge)
+            for ref in node.get("basis_refs", []):
+                basis_links.append({"from": ref, "to": node["key"], "recorded_sequence": event["sequence"],
+                                    "relation": "declared_basis", "actor": event["actor"]})
             if node.get("previous"):
                 edges.append({"from": node["previous"], "to": node["key"], "relation": "revised", "recorded_sequence": event["sequence"]})
             if node["kind"] == "source" and node.get("verification_status", "unverified") != "verified":
                 queue.append({"node": node["key"], "reason": "来源未核验"})
             if node["kind"] == "decision":
                 if not node.get("rationale") and node["mode_at_capture"] != "observed":
-                    queue.append({"node": node["key"], "reason": "缺少决策说明"})
-                if not node.get("references", {}).get("claim_ids"):
-                    queue.append({"node": node["key"], "reason": "缺少判断依据"})
-            if node["kind"] == "validation" and node.get("result") not in (True, "PASS", "passed", "verified"):
+                    explanation_gaps.append({"node": node["key"], "reason": "缺少决策说明"})
+                if not any(node.get("references", {}).get(f) for f in ("claim_ids", "responds_to", "validated_by")) and not node.get("basis_refs"):
+                    coverage_gaps.append({"node": node["key"], "reason": "未关联选择依据"})
+            if node["kind"] == "validation" and node.get("result") not in (True, "PASS", "passed", "verified", "not_requested", "N/A", "not_applicable"):
                 queue.append({"node": node["key"], "reason": "程序检查未通过或未评估"})
         elif kind == "evidence_linked":
             edges.append({**p, "recorded_sequence": event["sequence"]})
@@ -74,18 +84,25 @@ def project(events, errors=()):
             changes.append({**p, "event_sequence": event["sequence"], "actor": event["actor"]})
         elif kind == "run_started":
             runs[event["run_id"]] = {**p, "id": event["run_id"], "stages": [], "status": "unfinished",
-                                     "mode_at_capture": event.get("mode_at_capture", "unknown")}
+                                     "mode_at_capture": event.get("mode_at_capture", "unknown"),
+                                     "started_event_ref": event["event_id"], "recorded_at": event["timestamp"]}
         elif kind == "trace_error":
             problems.append(p["message"])
         elif event.get("run_id") in runs:
             run = runs[event["run_id"]]
             if kind == "run_finished":
                 run.update(p)
+                run["finished_event_ref"] = event["event_id"]
+                run["finished_at"] = event["timestamp"]
             else:
-                run["stages"].append({"event_type": kind, **p})
+                run["stages"].append({**p, "event_type": kind, "event_id": event["event_id"],
+                                      "recorded_at": event["timestamp"], "recorded_sequence": event["sequence"]})
     for edge in edges:
         if edge["from"] not in nodes or edge["to"] not in nodes:
             problems.append(f"Unresolved reference: {edge['from']} → {edge['to']}")
+    for link in basis_links:
+        if link["from"] not in nodes and link["from"] not in event_ids:
+            problems.append(f"Unresolved basis reference: {link['from']}")
     for node in nodes.values():
         if node["kind"] == "claim" and not any(e["to"] == node["key"] and "statement_id" in e for e in edges):
             queue.append({"node": node["key"], "reason": "判断缺少证据陈述"})
@@ -99,17 +116,20 @@ def project(events, errors=()):
             if nodes.get(key, {}).get("kind") == "claim" and not any(e["to"] == key and "statement_id" in e for e in scoped):
                 run["review_queue"].append({"node": key, "reason": "判断缺少证据陈述"})
         if not run.get("decision_refs"):
-            problems.append(f"{run['id']}: no recorded decisions")
+            coverage_gaps.append({"run_id": run["id"], "reason": "未记录设计决定；已有程序观察不等于 AI 决策"})
         if not any(nodes.get(k, {}).get("kind") == "requirement" for k in run.get("context_refs", [])):
-            problems.append(f"{run['id']}: no recorded user requirement")
+            coverage_gaps.append({"run_id": run["id"], "reason": "未提交用户要求来源"})
         if run["status"] == "unfinished":
             problems.append(f"{run['id']}: run has no finish event")
+        run["coverage_gaps"] = [g for g in coverage_gaps if g.get("run_id") == run["id"] or g.get("node") in keys]
+        run["explanation_gaps"] = [g for g in explanation_gaps if g["node"] in keys]
     return {"schema_version": "evidence-trace-v0.1", "nodes": list(nodes.values()),
             "edges": edges, "runs": list(runs.values()), "latest": latest, "changes": changes,
             "audit_events": copy.deepcopy(events), "explanations": explanations,
+            "basis_links": basis_links, "coverage_gaps": coverage_gaps, "explanation_gaps": explanation_gaps,
             "review_queue": queue, "issues": problems,
             "integrity": "incomplete" if problems else "complete",
-            "coverage": "Submitted decisions and observed runtime stages only; not model internal reasoning."}
+            "coverage": "Integrity covers recorded events only; coverage/explanation gaps are separate. Not model internal reasoning."}
 
 
 class Recorder:
@@ -147,6 +167,12 @@ class Recorder:
         graph = project(self.events)
         previous = graph["latest"].get(node["id"])
         by_key = {n["key"]: n for n in graph["nodes"]}
+        basis = node.get("basis_refs", [])
+        if not isinstance(basis, list) or any(not isinstance(ref, str) for ref in basis):
+            raise ValueError("basis_refs must be a list of exact record revision keys or event IDs")
+        known = set(by_key) | {e["event_id"] for e in self.events}
+        if any(ref not in known for ref in basis):
+            raise ValueError("basis_refs must refer to already recorded exact revisions or events")
         if previous and by_key[previous]["kind"] != node["kind"]:
             raise ValueError("A record revision cannot change kind")
         revision = by_key[previous]["revision"] + 1 if previous else 1
@@ -168,6 +194,27 @@ class Recorder:
             for change in revision_changes(by_key[previous], node):
                 self.append("change_recorded", change, actor)
         return node["key"]
+
+    def select_context(self, refs=None):
+        """Freeze an explicit context and its existing evidence; legacy default is latest records."""
+        graph = project(self.events)
+        nodes = {n["key"]: n for n in graph["nodes"]}
+        if refs is None:
+            return [n["key"] for n in graph["nodes"] if graph["latest"][n["id"]] == n["key"]
+                    and n["kind"] not in {"validation", "artifact"}]
+        if not isinstance(refs, list) or any(not isinstance(ref, str) or ref not in nodes for ref in refs):
+            raise ValueError("context_refs must contain exact recorded revision keys")
+        selected, pending = set(), list(refs)
+        while pending:
+            key = pending.pop()
+            if key in selected:
+                continue
+            selected.add(key)
+            node = nodes[key]
+            pending.extend(ref for values in node.get("references", {}).values() for ref in values)
+            pending.extend(ref for ref in node.get("basis_refs", []) if ref in nodes)
+            pending.extend(e["from"] for e in graph["edges"] if e["to"] == key and "statement_id" in e)
+        return [n["key"] for n in graph["nodes"] if n["key"] in selected]
 
     def compare_runs(self, from_run, to_run):
         from evidence_trace.impact import run_changes
@@ -219,8 +266,9 @@ class Recorder:
         if key not in nodes or nodes[key]["kind"] != "decision":
             raise ValueError("Assistance needs an exact recorded decision_ref including revision")
         refs = p.get("basis_refs")
-        if not isinstance(refs, list) or not refs or any(ref not in nodes for ref in refs):
-            raise ValueError("Assistance needs existing record revision basis_refs")
+        known = set(nodes) | {e["event_id"] for e in self.events}
+        if not isinstance(refs, list) or not refs or any(not isinstance(ref, str) or ref not in known for ref in refs):
+            raise ValueError("Assistance needs exact existing record/event basis_refs")
         if not str(p.get("text") or "").strip():
             raise ValueError("Assistance needs text")
         p.update(id=uuid.uuid4().hex, explanation_origin="post_hoc_assistance", label="事后辅助解释")

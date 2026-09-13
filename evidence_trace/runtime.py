@@ -67,15 +67,20 @@ class TraceRun:
             if self.directory == self.out or any(self.directory.is_relative_to(p) for p in reserved):
                 raise ValueError("Trace directory overlaps design artifact directories")
             self.recorder = Recorder(self.directory, mode_at_capture=level)
+            data = {}
             if bundle:
                 data = json.loads(pathlib.Path(bundle).read_text(encoding="utf-8-sig")) if isinstance(bundle, (str, pathlib.Path)) else bundle
                 self.recorder.ingest(data)
             graph = project(self.recorder.events)
-            current = [n for n in graph["nodes"] if graph["latest"][n["id"]] == n["key"] and n["kind"] not in {"validation", "artifact"}]
-            self.decisions = [n["key"] for n in current if n["kind"] == "decision"]
+            if "context_refs" in data and data["context_refs"] is None:
+                raise ValueError("Explicit context_refs must be a list")
+            context = self.recorder.select_context(data.get("context_refs"))
+            active = set(data.get("context_refs", context))
+            self.decisions = [n["key"] for n in graph["nodes"] if n["key"] in active and n["kind"] == "decision"]
             self.recorder.run_id = self.run_id
             self.recorder.append("run_started", {"route": route, "output_directory": str(self.out),
-                "decision_refs": self.decisions, "context_refs": [n["key"] for n in current],
+                "decision_refs": self.decisions, "context_refs": context,
+                "context_selection": "explicit" if "context_refs" in data else "latest_records",
                 "event_count_at_start": len(self.recorder.events), "trace_mode": mode})
             # A stopped process must not leave the previous run's "complete" view current.
             self.recorder.render()
@@ -95,9 +100,9 @@ class TraceRun:
 
     def event(self, kind, payload):
         if self.recorder:
-            self.recorder.append(kind, payload)
+            return self.recorder.append(kind, payload)
 
-    def validation(self, name, result, details):
+    def validation(self, name, result, details, result_event_ref=None):
         dependencies = {
             "artifact_valid": ["sequence", "topology", "features"],
             "computation_valid": ["source", "sequence", "boundary", "orientation", "component", "method", "mutation", "order", "topology"],
@@ -109,37 +114,40 @@ class TraceRun:
             "check": name, "result": result, "details": snapshot(details),
             "tool": "snapgene-dna-design", "tool_version": self.core_version,
             "decision_ids": self.decisions, "depends_on_fields": dependencies.get(name, []),
+            "result_event_ref": result_event_ref, "association_scope": "same_run",
             "dependency_scope_complete": False}, runtime=True, actor="runtime")
         self.validations.append(key)
 
-    def capture(self, stage, value):
+    def capture(self, stage, value, stage_ref=None):
         if not self.recorder:
             return
         summary = snapshot(value)
-        self.event("stage_completed", {"stage": stage, "result": summary})
+        result_event = self.event("stage_completed", {"stage": stage, "stage_ref": stage_ref,
+                                                      "result": summary, "observation_phase": "returned_value"})
+        result_ref = result_event["event_id"]
         if stage == "validate":
             for field in ("artifact_valid", "computation_valid", "goal_valid"):
                 if field in value:
                     self.validation(field, value[field], {"validation_sha256": value.get("validation_sha256"),
                         "task_sha256": value.get("task_sha256"), "errors": value.get("errors", []),
-                        "evidence_traces": value.get("evidence_traces", [])})
+                        "evidence_traces": value.get("evidence_traces", [])}, result_ref)
         elif stage == "sanity":
-            self.validation("biological_sanity", value.get("all_applicable_pass"), value)
+            self.validation("biological_sanity", value.get("all_applicable_pass"), value, result_ref)
         elif stage == "goal_check":
-            self.validation("requested_components", value.get("status", "unknown"), value)
+            self.validation("requested_components", value.get("status", "unknown"), value, result_ref)
         elif stage == "outcome":
             self.outcome = value.get("status", "finished")
         if stage in {"recipe_result", "outcome"}:
             # A failure result may list historical files and a task may list inputs.
             # Neither is a newly produced artifact of this run.
             for key in ("delivery", "authoritative_delivery", "preparation_files", "candidate_files"):
-                self.capture_files(value.get(key))
+                self.capture_files(value.get(key), result_ref)
         elif stage in {"execute", "preparation", "finalize"}:
-            self.capture_files(value)
+            self.capture_files(value, result_ref)
         if stage in {"execute", "recipe_result"}:
             self.compare_previous()
 
-    def capture_choices(self, stage, fn, args, kwargs, result):
+    def capture_choices(self, stage, fn, args, kwargs, result, stage_ref=None):
         from evidence_trace.coverage import extract_choices
         if stage == "task":
             data, subject = input_snapshot(result), "task"
@@ -153,6 +161,7 @@ class TraceRun:
             return
         for choice in extract_choices(data, subject=subject):
             self.event("design_choice_observed", {"stage": stage, "choice": choice,
+                "stage_ref": stage_ref, "observation_phase": "accepted_inputs_after_call",
                 "observation": "Actual accepted call inputs; no rationale inferred."})
         self.compare_previous()
 
@@ -166,16 +175,16 @@ class TraceRun:
             if previous:
                 self.recorder.compare_runs(previous[-1]["id"], self.run_id)
 
-    def capture_files(self, value):
+    def capture_files(self, value, result_event_ref=None):
         if isinstance(value, dict):
             if value.get("directory") and isinstance(value.get("files"), list):
                 for name in value["files"]:
-                    self.capture_files(pathlib.Path(value["directory"]) / name)
+                    self.capture_files(pathlib.Path(value["directory"]) / name, result_event_ref)
             for item in value.values():
-                self.capture_files(item)
+                self.capture_files(item, result_event_ref)
         elif isinstance(value, (tuple, list)):
             for item in value:
-                self.capture_files(item)
+                self.capture_files(item, result_event_ref)
         elif isinstance(value, (str, pathlib.Path)):
             if len(str(value)) > 1024 or "\n" in str(value):
                 return
@@ -195,6 +204,7 @@ class TraceRun:
                 "path": str(path), "relative_path": relative, "sha256": sha,
                 "role": "authoritative" if relative.startswith("authoritative/") else "intermediate-or-candidate",
                 "decision_ids": self.decisions, "validated_by": self.validations,
+                "result_event_ref": result_event_ref, "association_scope": "same_run",
                 "validation_scope": "Run-level association; inspect each check's actual scope."}, runtime=True, actor="runtime")
 
     def close(self, error=None):
@@ -221,15 +231,17 @@ def observe(stage, fn, *args, **kwargs):
     run = _CURRENT.get()
     if run is None:
         return fn(*args, **kwargs)
-    run.safe(lambda: run.event("stage_started", {"stage": stage,
-        "input": input_snapshot({"args": args, "kwargs": kwargs})}))
+    started = run.safe(lambda: run.event("stage_started", {"stage": stage,
+        "observation_phase": "submitted_inputs", "input": input_snapshot({"args": args, "kwargs": kwargs})}))
+    stage_ref = started["event_id"] if started else None
     try:
         value = fn(*args, **kwargs)
     except Exception as exc:
-        run.safe(lambda: run.event("stage_failed", {"stage": stage, "error": str(exc)}), may_stop=False)
+        run.safe(lambda: run.event("stage_failed", {"stage": stage, "stage_ref": stage_ref,
+                                                   "error": str(exc)}), may_stop=False)
         raise
-    run.safe(lambda: run.capture(stage, value))
-    run.safe(lambda: run.capture_choices(stage, fn, args, kwargs, value))
+    run.safe(lambda: run.capture(stage, value, stage_ref))
+    run.safe(lambda: run.capture_choices(stage, fn, args, kwargs, value, stage_ref))
     return value
 
 

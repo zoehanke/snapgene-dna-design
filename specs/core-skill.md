@@ -38,6 +38,8 @@ One global off/observed/full collection setting applies to subsequent captures. 
 
 The reading layer must distinguish user constraints, real AI choices, program results and delivered artifacts. Captured parameters do not establish AI authorship; shared-run association does not prove a Claim. Sequence checks do not establish fluorescence, expression or biosafety. A complete record does not establish a correct or safe design. Detailed source, applicability, change and reader contracts belong in the safety spec rather than being duplicated here.
 
+Trace input may select exact recorded context and cite actual stage results without changing the DNA task. Runtime returns retain event references; source assertions and post-hoc explanations remain separate. Log integrity, context/explanation coverage and actual design review are distinct, so an Observed record lacking extra AI rationale is not a Core failure.
+
 ## User workflow
 
 1. Provide the biological objective and sources. Inspect full records, topology, features and available physical materials; resolve ambiguity that affects the result.

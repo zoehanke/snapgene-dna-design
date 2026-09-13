@@ -1,7 +1,7 @@
 # Phase 3.1：统一设计过程与人类可读性补救
 
-- 目标：Evidence Trace v0.3.1；文档 r7，2026-09-13。文档修订不等于发布版本升级。
-- 当前状态：采集基础已实现；第二步已由项目负责人审阅确认通过。双人试读与计时未执行。下一项为第三步；阅读投影和 renderer 尚未重构，阶段未完成。
+- 目标：Evidence Trace v0.3.1；文档 r8，2026-09-13。文档修订不等于发布版本升级。
+- 当前状态：采集基础已实现；第二步已由项目负责人审阅确认通过。双人试读与计时未执行。第三步来源、阶段与关联修正已实现并通过相关回归；下一项为第四步。统一阅读投影和 renderer 尚未重构，阶段未完成。
 - 分支：`codex/real-workflow-readiness-20260907`；开始前同步远端，禁止改 main。实施结果验证后 commit/push 并核对对应 CI。
 - 先读：[索引](README.md)、[core spec](../../specs/core-skill.md)、[safety spec](../../specs/safety-module.md)、[前序完成/交接](safety-phase-3-change-impact-v0.3.md)。
 - [design.md](design.md) 定义阅读/UI 规则；[标准空白框架](evidence-trace-reader-template.md) 是实现前必读的阅读结构契约，定义可选步骤和旁支，不能据此强制填满栏目；[Reader Demo](safety-phase-3-reading-draft.md) 是案例，不是所有任务的栏目模板。本计划只记录工作、验收和交接，不复制完整 UI 规则。
@@ -16,11 +16,11 @@
 
 | 已有能力 | 仍需处理 |
 |---|---|
-| 全局 off/observed/full、运行级采集设置冻结、正常/严格故障策略 | 核对新阅读层对三种模式的准确表达，不重造采集模式 |
+| 全局 off/observed/full、运行级采集设置冻结、正常/严格故障策略 | 第四、五步接入新的阅读表达，不重造采集模式 |
 | decision_actor/source/origin、独立事后解释、新旧版本引用 | 让阅读层实际使用这些信息，旧未知来源不误标为原始说明 |
-| coverage 可分别报告目标匹配与原始说明情况 | chain 仍使用旧 explained 生成待办；需拆开采集故障、说明缺口、设计待办 |
+| 第三步已分开目标匹配、原始说明、采集故障和待办 | 新阅读投影/页面仍待消费独立字段，不使用旧 explained 统管状态 |
 | 事件日志、阶段结果、运行/材料引用、正式文件 | 旧 chain 只围绕 Decision；运行级检查还被重复关联到全部决定 |
-| 已有阶段时序、部分观察在工具返回后追加 | 不能按追加时间直接推断选择时刻或因果关系 |
+| 新事件已保留调用、返回及观察阶段引用；旧未知锚点保留未知 | 第四步利用真实阶段关系组织顺序，不按追加时间猜因果 |
 | 旧六栏页面、单 Decision 环形图 | 整体替换，不维护两套默认页面；保留旧日志读取 |
 
 需要补采集的范围限于：有来源的自然请求/任务背景、明确用户介入及对应对象、必要的程序结果到后续选择引用。大部分工作是 projection/renderer，不是新生物安全引擎。
@@ -31,7 +31,7 @@
 |---|---|---|
 | 1. 统一规范 | safety spec 保留事实/来源/影响契约，core spec 保留主线边界，design.md 合并 reader guideline；删除当前规范中的旧六栏/环形布局要求 | 本次文档已整理，历史规则留在 Git 与旧阶段记录 |
 | 2. 真人审阅静态稿 | 审阅自然请求、用户约束与 AI 取舍、依据和程序检查边界；案例来源下沉详情 | 2026-09-13 项目负责人确认“第二步我觉得可以了”；按该意见验收通过，未声称完成双人计时 |
-| 3. 必要采集与语义修正 | 复用现有来源字段和事件；补背景/用户介入/程序引用；纠正 coverage 缺口、记录完整性和待办混用；保留阶段锚点 | 尚未实施；不修改 Core 验证，不以新 schema 系统承载 |
+| 3. 必要采集与语义修正 | 复用现有来源字段和事件；补背景/用户介入/程序引用；纠正 coverage 缺口、记录完整性和待办混用；保留阶段锚点 | 已实现；63 项 Trace 回归及真实案例通过，未修改 Core 验证 |
 | 4. 统一阅读投影 | 整理四类阅读步骤、实际分支和条件性旁支；保留来源、运行及旧修订引用；可在现有 chain 中替换职责，必要时只独立一个 reader.py | 尚未实施；无 Decision 的 Observed 运行也能正常阅读 |
 | 5. 替换 renderer | 先 Document，再整体 Mind Map、Split、Review；共享步骤选择/展开，统一详细记录入口 | 尚未实施；必须先满足步骤 2 的真人门槛 |
 | 6. 集成交付 | 可执行 Reader Demo、相关回归、三档对照、浏览器及真人页面试读；补实际结果和遗留项、提交并检查 CI | 尚未实施；不得将本次规范或静态稿称为已完成 UI |
@@ -85,7 +85,7 @@
 - 采集基础提交 `bdfd530`：50 项 Trace 回归（含新增 10 项）；三入口三档产物对照通过。Pipeline/Recipe 比较引物表；ConstructionTask 按原生计划步骤比较制备信息及验证状态。没有为满足测试而修改 Core。
 - GFP +3 bp 演示 11 项检查通过，产物位于 `output/evidence-trace-readability-capture/`；原生 demo 已使用隔离全局配置保持真实开关对照。
 - 该采集提交的 [六组 CI](https://github.com/zoehanke/snapgene-dna-design/actions/runs/34634255873) 通过。这是工程历史，不是本轮 UX 结果。两次无终态的本地全量日志仍保留且未计通过。
-- 新 provenance 与补充说明当前通过 inspect/JSON 可查，旧 HTML 未完整接入；旧 explained 状态仍待替换，不能称阅读重构已完成。
+- 新 provenance、来源/阶段引用与补充说明通过 inspect/JSON 可查；chain 已不再用旧 explained 将缺说明加入待办。旧 HTML 的布局和部分旧覆盖展示仍待第四、五步替换，不能称阅读重构已完成。
 - 保留限制：已知结构化字段和入口范围、来源声明的真实性、单写入者、原位置文件链接、外部服务同意及许可。Full 真实宿主 token 开销和理解效率尚未测量。
 - 延期：Assurance Case、Conclusion Boundary、宏观框架、评分、自动 observer、多用户/会话系统；不进入 Phase 4。
 - 后续交接必须填写：真人原回答、实际代码改动、当次程序/浏览器结果、失败及修正、未决项、提交/CI。测试通过与阅读通过分别记录。
@@ -97,3 +97,28 @@ r1 建立补救范围；r2 明确来源与真人门槛；r3 分离工程/Reader 
 r6 修订：统一步骤类型前缀，明确用户要求与选择的区别；Reader Demo 主链及图同步分类，裸 HTML 折叠标签改为 Markdown 附录跳转。只修文档格式与说明，未改 renderer 或生物学目标。
 
 r7 修订：记录项目负责人对第二步的明确验收；与未执行的双人计时分开。标准框架接入实现前读取路径；第三步仍未实施。
+
+## 第三步实际实现与交接
+
+- 用户来源：Requirement 可带 requirement_source、原文/摘要形式及已有 context；change/confirm/reject 需来源和确切 basis_refs。记录提交者不等于原始说话者，旧来源保持未知。
+- 阶段：stage_started 的事件 ID 作为 stage_ref，关联返回、失败与输入观察；返回后观察明确标注 accepted_inputs_after_call。派生阶段保留原始事件 ID、序号和记录时间，不制造真实选择时刻。
+- 关联：Decision 与补充解释可引用确切节点版本或事件。现有 trace-input 可显式选择 context_refs，依赖仍保留但不把所有依赖中的旧 Decision 当作本次活跃决定。默认沿用 latest_records 并明确标注。
+- 实际检查与文件：新增 result_event_ref 回指本运行的真实返回事件；同运行关联明确标为 same_run，仍不能作为某个 Claim 或序列区域已被验证的证明。
+- 缺口：issues 只表示日志/引用/采集故障及未完成运行；coverage_gaps、explanation_gaps、association_gaps 分开。Observed 无额外说明、缺少强制 Claim、未请求检查不再自动生成检查失败。真实失败和证据问题仍保留。
+- 用法见 [使用说明](../../references/evidence-trace.md)；同步 SKILL 和两个 spec。没有新增依赖、哈希机制、会话系统或程序结果生成器。
+
+| 验证 | 结果 | 记录 |
+|---|---|---|
+| Trace 回归 | 63 项通过，含新增 13 项来源/阶段/作用范围测试，计数不与旧 50 项相加 | output/trace-step3-final-regression.log |
+| 三档真实入口 | Recipe、Pipeline、ConstructionTask 正式三格式一致；检查/产物返回事件绑定属于同一运行；制备按各入口原生输出比较 | tests/test_evidence_trace_capture.py |
+| 重复调用/失败/旧版本 | 重复同名调用可区分；保留 Core 异常；显式旧版本不被最新版本替代；错误范围选择按 normal/strict 原契约处理 | tests/test_evidence_trace_context.py |
+| 原文/补录/旧日志 | 要求原文保持、确切旧引用可查；事后说明不回填 rationale；旧日志不覆盖、不反推说话者 | 同上 |
+| GFP 工程演示 | 两次运行、32 条真实检查/产物均有有效返回事件；原 11 项工程检查全部通过 | output/evidence-trace-step3-demo/stage-bindings-check.json、demo-summary.json |
+| 本地全量回归 | 799 项：786 通过、13 跳过，无失败；294.279 秒，跳过项未计为通过 | output/trace-step3-full-suite.log |
+| CI | 提交后核对同一提交的六组结果，最终答复报告实际状态 | 提交对应 PR checks |
+
+剩余边界：basis_links 是声明的依据关系，不是新科学因果证明；本步不扩展 Change Impact 的推理范围。旧事件缺少调用锚点就保留未知。同运行关联仍是粗粒度，具体检查范围由原始 Core 结果确定。第四步将消费这些数据形成统一阅读步骤；第五步才替换页面。
+
+本次未修改 renderer、DNA Core 或 main；用户对 Reader Demo 的未提交修改保持原样。第二步的负责人验收保持有效，未补造计时数据。第三步结束不等于第四至六步完成。
+
+r8 修订：完成第三步实现、相关回归和真实工程案例，记录新来源、阶段、范围及缺口语义；下一项为统一阅读投影。

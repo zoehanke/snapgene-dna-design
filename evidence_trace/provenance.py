@@ -21,6 +21,21 @@ def decision_provenance(node):
 
 
 def validate_provenance(node):
+    if node.get("kind") == "requirement":
+        source = node.get("requirement_source")
+        if source is not None:
+            if not isinstance(source, dict) or not isinstance(source.get("reference"), str) or not source["reference"].strip():
+                raise ValueError("requirement_source needs a supplied reference")
+            if source.get("form", "unknown") not in {"verbatim", "summary", "unknown"}:
+                raise ValueError("requirement_source.form must be verbatim, summary or unknown")
+            if source.get("form") == "verbatim" and source.get("excerpt", node["text"]) != node["text"]:
+                raise ValueError("Verbatim requirement must preserve the supplied excerpt")
+        action = node.get("request_action", "request")
+        if not isinstance(action, str) or not action.strip():
+            raise ValueError("request_action must be a nonblank classification")
+        if action in {"change", "confirm", "reject"} and (not source or not node.get("basis_refs")):
+            raise ValueError("User intervention needs its source and exact affected record/event basis_refs")
+        return
     if node.get("kind") != "decision":
         return
     actor = node.get("decision_actor", "unknown")
@@ -37,3 +52,11 @@ def validate_provenance(node):
     if origin in {"user_statement", "ai_concurrent"}:
         if not str(node.get("rationale") or "").strip() or actor != ("user" if origin == "user_statement" else "ai"):
             raise ValueError("Original explanation needs nonblank rationale and matching decision_actor")
+
+
+def requirement_provenance(node):
+    source = node.get("requirement_source") or {}
+    return {"request_action": node.get("request_action", "request"),
+            "requirement_source": source,
+            "origin": "supplied_user_source" if source.get("reference") else "unknown",
+            "text_form": source.get("form", "unknown")}
