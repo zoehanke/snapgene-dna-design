@@ -13,6 +13,8 @@
 
 当前唯一阅读/UI 规范：[design.md](design.md)；Phase 2 历史参考：[evidence-trace-phase2-reference.svg](evidence-trace-phase2-reference.svg)。
 
+[Reader Demo 通用空白框架](evidence-trace-reader-template.md)：汇总可选步骤与附录，按实际任务取用；不是新增规范或必须全部出现的栏目。
+
 补救的采集规则和阅读目标已同步 spec/design.md；当前 HTML 仍是 v0.3。GFP +3 bp 只作工程回归，[Reader Demo](safety-phase-3-reading-draft.md) 已确认案例，下一步做真人试读，通过后才重构 renderer。Phase 4 暂停。
 
 相关 spec：[主 skill](../../specs/core-skill.md)、[安全模块](../../specs/safety-module.md)。Phase 4 至 Phase 6 尚未创建执行计划，完整路线图留在安全 spec。
