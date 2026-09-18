@@ -19,6 +19,15 @@
 
 相关 spec：[主 skill](../../specs/core-skill.md)、[安全模块](../../specs/safety-module.md)。Phase 4 至 Phase 6 尚未创建执行计划，完整路线图留在安全 spec。
 
+## 待评审的三层重构设计
+
+2026-09-19，目标仍为 Evidence Trace v0.3.1，文档 r1。以下两版逐章对应，是当前补救计划的设计输入，尚未实施，不替代上表的历史完成状态。
+
+- [开发设计](safety-phase-3-three-layer-design-v0.3.1.md)：采集入口、数据契约、关系处理、报告接口、文件改动、兼容及验收。
+- [人工理解与审查](safety-phase-3-three-layer-review-v0.3.1.md)：面向不熟悉编程的负责人，解释各层原理、信息来源和需要确认的选择。
+
+依据：[可信度研究](../EVIDENCE-TRACE-TRUST-ARCHITECTURE-20260914.md)、[真实使用审查](../EVIDENCE-TRACE-REAL-USE-AUDIT-20260915.md)。下一次启动实现前先处理此设计的评审结论；接受的决定同步两份 spec、design.md 和 Phase 3.1 计划，未接受的建议不得默认成为要求。
+
 ## 文件职责与版本
 
 - **Spec**：目标、已确认决定、约束、开放问题和跨阶段路线图。不因换计划重置。
