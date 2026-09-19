@@ -5,6 +5,10 @@ import copy
 import hashlib
 import json
 import pathlib
+import sys
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
+from evidence_trace.runtime import add_trace_arguments, trace_options, trace_file_call
 
 from Bio import SeqIO
 
@@ -110,11 +114,14 @@ def main(argv=None):
     parser.add_argument("--allow-core-risk", action="store_true")
     parser.add_argument("--require-dna", action="store_true")
     parser.add_argument("--json", action="store_true")
+    add_trace_arguments(parser)
     args = parser.parse_args(argv)
     try:
-        result = build_bundle(
-            args.source, args.out_dir, args.name, args.allow_core_risk,
-            args.require_dna)
+        result = trace_file_call("export_delivery_bundle", build_bundle,
+            args=(args.source, args.out_dir, args.name, args.allow_core_risk, args.require_dna),
+            input_paths=[args.source], expected_paths=list(pathlib.Path(args.out_dir).glob("*")),
+            output_paths=lambda value: [pathlib.Path(value["bundle_dir"]) / f["path"] for f in value["files"]] + [value["manifest"]],
+            artifact_role="preview", **trace_options(args))
     except (OSError, ValueError) as error:
         raise SystemExit(str(error))
     if args.json:

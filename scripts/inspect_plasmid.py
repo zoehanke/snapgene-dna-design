@@ -24,6 +24,7 @@ if str(ROOT) not in sys.path:
 
 from core.tools.inspection import _load_record, inspect_dna
 from core.tools.restriction import find_restriction_sites
+from evidence_trace.runtime import add_trace_arguments, trace_options, trace_file_call
 
 COMMON_MCS_ENZYMES = [
     "EcoRI", "BamHI", "HindIII", "XhoI", "NdeI", "NcoI", "NotI", "SalI",
@@ -170,13 +171,15 @@ def main():
     parser.add_argument("files", nargs="+", help="Sequence file(s) (.gb, .dna, .fasta, .fa)")
     parser.add_argument("--json", action="store_true", help="Output results in machine-readable JSON format")
     parser.add_argument("--enzymes", nargs="*", help="Custom list of restriction enzymes to scan")
+    add_trace_arguments(parser)
 
     args = parser.parse_args()
 
     results = []
     for f in args.files:
         try:
-            info = inspect_single_file(f, enzymes=args.enzymes)
+            info = trace_file_call("inspect", inspect_single_file, args=(f,), kwargs={"enzymes": args.enzymes},
+                                   input_paths=[f], **trace_options(args))
             results.append(info)
         except Exception as exc:
             results.append({"file_name": pathlib.Path(f).name, "error": str(exc)})

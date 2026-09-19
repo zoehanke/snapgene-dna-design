@@ -8,6 +8,11 @@ Single file or a directory (--dir) of files.
 """
 import argparse
 import os
+import pathlib
+import sys
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
+from evidence_trace.runtime import add_trace_arguments, trace_options, trace_file_call
 
 from Bio import SeqIO
 
@@ -49,6 +54,7 @@ def main():
                    help="target format")
     p.add_argument("--dir", action="store_true", help="batch-convert a directory")
     p.add_argument("--json", action="store_true")
+    add_trace_arguments(p)
     args = p.parse_args()
 
     ext = FORMAT_EXT[args.format]
@@ -66,14 +72,18 @@ def main():
             src = os.path.join(args.source, f)
             dst = os.path.join(outdir, os.path.splitext(f)[0] + ext)
             try:
-                convert_file(src, dst, args.format)
+                trace_file_call("convert", convert_file, args=(src, dst, args.format),
+                                input_paths=[src], expected_paths=[dst], output_paths=lambda value: [value],
+                                artifact_role="converted", **trace_options(args))
                 results.append({"in": src, "out": dst, "status": "ok"})
             except Exception as e:
                 results.append({"in": src, "status": "error", "error": str(e)})
     else:
         dst = args.out or (os.path.splitext(args.source)[0] + ext)
         try:
-            convert_file(args.source, dst, args.format)
+            trace_file_call("convert", convert_file, args=(args.source, dst, args.format),
+                            input_paths=[args.source], expected_paths=[dst], output_paths=lambda value: [value],
+                            artifact_role="converted", **trace_options(args))
             results.append({"in": args.source, "out": dst, "status": "ok"})
         except Exception as e:
             results.append({"in": args.source, "status": "error", "error": str(e)})

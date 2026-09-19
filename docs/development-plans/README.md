@@ -6,24 +6,24 @@
 
 | 计划 | 模块目标版本 | 文档修订 | 状态 | 前序 |
 |---|---|---|---|---|
-| [Phase 3 补救：Design Decision Trace 与可读性重构](safety-phase-3-readability-v0.3.1.md) | Evidence Trace v0.3.1 | r11 | 历史第四步已实现；下一项按三层 r3 完成过程与统一报告契约，再进入 HTML；新契约未实现 | Phase 3 v0.3 |
+| [Phase 3 补救：Design Decision Trace 与可读性重构](safety-phase-3-readability-v0.3.1.md) | Evidence Trace v0.3.1 | r12 | 三层接口、正式报告与真实案例工程验收完成；独立真人理解及原 Core 注释交付问题保留 | Phase 3 v0.3 |
 | [Phase 3：Living Evidence Document & Change Impact](safety-phase-3-change-impact-v0.3.md) | Evidence Trace v0.3 | r2 | 工程完成；阅读问题转入补救计划 | Phase 2 |
 | [Phase 2：Evidence Applicability & Trace Usability](safety-phase-2-applicability-v0.2.md) | Evidence Trace v0.2 | r3 | 工程实现及本阶段验收完成 | Phase 1 |
 | [Phase 1：Evidence Trace](safety-phase-1-trace-v0.1.md) | v0.1 | r3 | 工程验收完成，试用反馈已转化为 Phase 2 UI/Capture 改进 | 无已执行阶段 |
 
 当前阅读/UI 规则：[design.md](design.md)；Phase 2 历史参考：[evidence-trace-phase2-reference.svg](evidence-trace-phase2-reference.svg)。
 
-当前视觉参考：[报告视觉设计 r1](evidence-trace-report-visual-design-v0.3.1.md)，含用户参考图。用于独立 HTML 示意；正式 renderer、完整任务运行及真人页面验收状态不变。
+当前视觉参考：[报告视觉设计 r1](evidence-trace-report-visual-design-v0.3.1.md)，含用户参考图。正式 renderer 已采用相应框架并由真实记录驱动；原型示例不作为真实事实，也不代替独立真人页面验收。
 
 [Reader Demo 通用空白框架](evidence-trace-reader-template.md)：实现前必读的阅读结构契约，汇总可选步骤与附录；按实际任务取用，不要求全部出现。
 
-补救的采集规则和阅读目标已同步 spec/design.md；当前 HTML 仍是 v0.3。GFP +3 bp 只作工程回归，[Reader Demo](safety-phase-3-reading-draft.md) 的第二步已获负责人审阅通过；双人计时未执行，最终页面仍待独立验收。历史第四步投影及[数据映射](../../references/evidence-trace-reader-mapping.md)已实现；下一项先按三层 r3 明确并实现完整过程与报告编排，再切换 HTML。Phase 4 暂停。
+采集、来源、组织与报告规则已同步 spec/design.md；正式 HTML 已替换 v0.3 的单 Decision 组织。GFP +3 bp 继续作工程回归，静态 [Reader Demo](safety-phase-3-reading-draft.md) 原接受记录保留，用户未提交修改未动。真实 GFP 对照/A206K 已完成新接口验收；独立真人试读未执行。Phase 4 继续暂停。
 
 相关 spec：[主 skill](../../specs/core-skill.md)、[安全模块](../../specs/safety-module.md)。Phase 4 至 Phase 6 尚未创建执行计划，完整路线图留在安全 spec。
 
 ## 三层重构设计与机器结果
 
-2026-09-19，目标仍为 Evidence Trace v0.3.1，文档 r3。在 AI／人语义组织、完整机器过程和独立 report_plan 基础上，细化 research-report-v1 默认报告格式；顶层结构由程序固定，AI 在其中填写有来源的内容。两版逐章对应，代码尚未实现；旧版本保留在 Git，不替代历史完成记录。
+2026-09-20，目标为 Evidence Trace v0.3.1，文档 r4。在 AI／人语义组织、完整机器过程和独立 report_plan 基础上，细化 research-report-v1 默认报告格式；顶层结构由程序固定，AI 在其中填写有来源的内容。两版逐章对应，代码已实现；旧版本保留在 Git，实际证据记录在当前计划，不重写历史结果。
 
 - [开发设计](safety-phase-3-three-layer-design-v0.3.1.md)：采集入口、数据契约、关系处理、报告接口、文件改动、兼容及验收。
 - [人工理解与审查](safety-phase-3-three-layer-review-v0.3.1.md)：面向不熟悉编程的负责人，解释各层原理、信息来源和需要确认的选择。

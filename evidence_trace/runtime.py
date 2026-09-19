@@ -36,6 +36,9 @@ class TraceStopped(RuntimeError):
 
 
 def add_trace_arguments(parser):
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
     parser.add_argument("--trace", action="store_true", help="Legacy flag; global trace_level controls collection")
     parser.add_argument("--trace-dir", help="Shared Evidence Trace directory; does not override global off")
     parser.add_argument("--trace-input", help="JSON decision/evidence records; ignored when global trace_level is off")
@@ -66,7 +69,9 @@ class TraceRun:
             reserved = [self.out / x for x in ("candidate", "intermediate", "intermediates", "authoritative", "annotated_sources")]
             if self.directory == self.out or any(self.directory.is_relative_to(p) for p in reserved):
                 raise ValueError("Trace directory overlaps design artifact directories")
-            self.recorder = Recorder(self.directory, mode_at_capture=level)
+            recorder = Recorder(self.directory, mode_at_capture=level)
+            recorder.acquire()
+            self.recorder = recorder
             data = {}
             if bundle:
                 data = json.loads(pathlib.Path(bundle).read_text(encoding="utf-8-sig")) if isinstance(bundle, (str, pathlib.Path)) else bundle
@@ -84,7 +89,12 @@ class TraceRun:
                 "event_count_at_start": len(self.recorder.events), "trace_mode": mode})
             # A stopped process must not leave the previous run's "complete" view current.
             self.recorder.render()
-        self.safe(start)
+        try:
+            self.safe(start)
+        except Exception:
+            if self.recorder:
+                self.recorder.release()
+            raise
 
     def safe(self, action, *, may_stop=True):
         try:
@@ -142,7 +152,7 @@ class TraceRun:
             # Neither is a newly produced artifact of this run.
             for key in ("delivery", "authoritative_delivery", "preparation_files", "candidate_files"):
                 self.capture_files(value.get(key), result_ref)
-        elif stage in {"execute", "preparation", "finalize"}:
+        elif stage in {"execute", "preparation", "finalize", "candidate_files"}:
             self.capture_files(value, result_ref)
         if stage in {"execute", "recipe_result"}:
             self.compare_previous()
@@ -222,7 +232,11 @@ class TraceRun:
                 "error": str(error) if error else None, "trace_errors": list(self.errors)})
             self.recorder.render()
         # Never replace a Core exception, or roll back a completed delivery.
-        self.safe(finish, may_stop=error is None)
+        try:
+            self.safe(finish, may_stop=error is None)
+        finally:
+            if self.recorder:
+                self.recorder.release()
         print(f"Evidence Trace: {self.directory / 'index.html'}" if not self.errors else
               "TRACE_INCOMPLETE: DNA outcome retained; trace has missing records or views", file=sys.stderr)
 
@@ -250,6 +264,86 @@ def observe_value(stage, value):
     if run:
         run.safe(lambda: run.capture(stage, value))
     return value
+
+
+def observe_files(stage, fn, *, args=(), kwargs=None, input_paths=(), output_paths,
+                  artifact_role="derived", expected_paths=()):
+    """Observe one file operation. Preserve before/after identities, including in-place edits."""
+    run = _CURRENT.get()
+    if run is None or run.recorder is None:
+        return fn(*args, **(kwargs or {}))
+    def stamps(paths):
+        return [{"path": str(pathlib.Path(p).resolve()),
+                 "sha256": file_digest(p) if pathlib.Path(p).is_file() else None} for p in paths]
+    before = run.safe(lambda: stamps([*input_paths, *expected_paths])) or []
+    started = run.safe(lambda: run.event("stage_started", {"stage": stage,
+        "input": input_snapshot({"args": args, "kwargs": kwargs or {}}),
+        "input_files": before[:len(input_paths)], "observation_phase": "submitted_inputs"}))
+    stage_ref = started["event_id"] if started else None
+    try:
+        result = fn(*args, **(kwargs or {}))
+    except Exception as exc:
+        run.safe(lambda: run.event("file_operation_failed", {"stage": stage, "stage_ref": stage_ref,
+            "error": str(exc), "before": before, "residual_files": stamps(expected_paths)}), may_stop=False)
+        raise
+    def capture():
+        paths = list(output_paths(result))
+        after = stamps(paths)
+        event = run.event("file_operation_completed", {"stage": stage, "stage_ref": stage_ref,
+            "result": snapshot(result), "before": before, "after": after})
+        previous = {x["path"]: x["sha256"] for x in before}
+        graph = project(run.recorder.events)
+        inputs = [n["key"] for n in graph["nodes"] if n["kind"] == "artifact" and any(
+            n["path"] == stamp["path"] and n["sha256"] == stamp["sha256"] for stamp in before[:len(input_paths)])]
+        for item in after:
+            if item["sha256"] is None:
+                continue
+            path = pathlib.Path(item["path"])
+            if path.is_relative_to(run.directory):
+                continue
+            status = "presence_only" if previous.get(item["path"]) == item["sha256"] else "modified" if previous.get(item["path"]) else "created"
+            key = run.recorder.record({"id": "A-" + uuid.uuid4().hex, "kind": "artifact", **item,
+                "role": artifact_role, "generation_observation": status, "input_artifact_refs": inputs,
+                "input_files": before[:len(input_paths)], "result_event_ref": event["event_id"],
+                "decision_ids": run.decisions, "validated_by": [], "association_scope": "file_operation"}, runtime=True)
+            run.artifacts.add((str(path), item["sha256"]))
+        run.outcome = "finished"
+    run.safe(capture)
+    return result
+
+
+def trace_file_call(route, fn, *, args=(), kwargs=None, input_paths=(), output_paths=lambda result: (),
+                    expected_paths=(), artifact_role="derived", trace_dir=None,
+                    trace_input=None, trace_mode="normal", trace=False):
+    """File CLIs opt into an explicit shared trace; nested calls reuse the active run."""
+    if _CURRENT.get() is not None:
+        return observe_files(route, fn, args=args, kwargs=kwargs, input_paths=input_paths,
+                             output_paths=output_paths, expected_paths=expected_paths, artifact_role=artifact_role)
+    if not trace_dir:
+        return fn(*args, **(kwargs or {}))
+    try:
+        level = get_level()
+    except (OSError, ValueError) as exc:
+        if trace_mode == "strict":
+            raise TraceStopped(str(exc)) from exc
+        print("TRACE_INCOMPLETE: " + str(exc), file=sys.stderr)
+        return fn(*args, **(kwargs or {}))
+    if level == "off":
+        return fn(*args, **(kwargs or {}))
+    anchor = next(iter(expected_paths), next(iter(input_paths), pathlib.Path(trace_dir).parent / "operation"))
+    run = TraceRun(pathlib.Path(anchor).resolve().parent, route, trace_dir, trace_input, trace_mode, level)
+    token, error = _CURRENT.set(run), None
+    try:
+        return observe_files(route, fn, args=args, kwargs=kwargs, input_paths=input_paths,
+                             output_paths=output_paths, expected_paths=expected_paths, artifact_role=artifact_role)
+    except Exception as exc:
+        error = exc
+        raise
+    finally:
+        try:
+            run.close(error)
+        finally:
+            _CURRENT.reset(token)
 
 
 def traced_run(route):

@@ -2,7 +2,7 @@
 
 接口 v0.3.1，第四步实现参考。阅读规则见 [design.md](../docs/development-plans/design.md)，结构契约见 [空白框架](../docs/development-plans/evidence-trace-reader-template.md)。本表定义数据去向，不增加必填栏目或新的事实源。
 
-本表描述现有代码。下一次重构以[三层设计 r3](../docs/development-plans/safety-phase-3-three-layer-design-v0.3.1.md)的完整 design_process、report_plan 和宿主 AI 组织契约为准；新接口尚未实现，不能把本表的纯程序投影理解成已经完成全部语义整理。实施时更新本映射，不并行维护两套默认报告。
+本表保留底层事实 reader 的映射；完整输出现由 projection → process → report 形成。`reader` CLI 返回完整机器结果，`--run-id` 在其中增加 focused_reader，不裁掉组织依据。HTML/Markdown 消费 report；缺失或陈旧组织退回明确标注的事实视图。新的字段与提交方式见[使用说明](evidence-trace.md#complete-process-and-report-submission)。旧 chain 仅提供适用性/覆盖/影响与兼容诊断，不再组织默认页面。
 
 ## 映射表
 

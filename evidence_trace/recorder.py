@@ -5,6 +5,16 @@ import json
 import copy
 import pathlib
 import uuid
+from contextlib import contextmanager
+from functools import wraps
+
+
+def serialized(fn):
+    @wraps(fn)
+    def call(self, *args, **kwargs):
+        with self.writing():
+            return fn(self, *args, **kwargs)
+    return call
 
 from evidence_trace.models import REF_FIELDS, now, validate_node
 from evidence_trace.settings import get_level, LEVELS
@@ -145,11 +155,56 @@ class Recorder:
             raise ValueError("Refusing to append to damaged log: " + "; ".join(errors))
         self.trace_id = self.events[0]["trace_id"] if self.events else uuid.uuid4().hex
         self.run_id = None
+        self._writer = None
 
+    def acquire(self):
+        if self._writer is not None:
+            return
+        if self.mode_at_capture == "off":
+            raise ValueError("Trace collection is off; no event appended")
+        handle = (self.directory / ".writer.lock").open("a+b")
+        try:
+            import os
+            if os.name == "nt":
+                import msvcrt
+                if handle.seek(0, 2) == 0:
+                    handle.write(b"0")
+                    handle.flush()
+                handle.seek(0)
+                msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+            else:
+                import fcntl
+                fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            self.events, errors = load_events(self.directory)
+            if errors:
+                raise ValueError("Refusing damaged log: " + "; ".join(errors))
+            self.trace_id = self.events[0]["trace_id"] if self.events else self.trace_id
+            self._writer = handle
+        except Exception:
+            handle.close()
+            raise
+
+    def release(self):
+        if self._writer is not None:
+            self._writer.close()
+            self._writer = None
+
+    @contextmanager
+    def writing(self):
+        owned = self._writer is None
+        if owned:
+            self.acquire()
+        try:
+            yield self
+        finally:
+            if owned:
+                self.release()
+
+    @serialized
     def append(self, event_type, payload, actor="runtime"):
         if self.mode_at_capture == "off":
             raise ValueError("Trace collection is off; no event appended")
-        event = {"schema_version": "evidence-trace-v0.1", "event_id": uuid.uuid4().hex,
+        event = {"schema_version": "evidence-trace-v0.2", "event_id": uuid.uuid4().hex,
                  "trace_id": self.trace_id, "run_id": self.run_id,
                  "sequence": len(self.events) + 1, "timestamp": now(),
                  "actor": actor, "event_type": event_type, "payload": payload,
@@ -161,8 +216,11 @@ class Recorder:
         self.events.append(json.loads(line))
         return event
 
+    @serialized
     def record(self, node, actor="user", *, runtime=False):
         node = json.loads(json.dumps(node, ensure_ascii=False, allow_nan=False))
+        if "observed_quote_ref" in node:
+            raise ValueError("observed_quote_ref is reserved for program text matching")
         validate_node(node, runtime=runtime)
         graph = project(self.events)
         previous = graph["latest"].get(node["id"])
@@ -173,6 +231,16 @@ class Recorder:
         known = set(by_key) | {e["event_id"] for e in self.events}
         if any(ref not in known for ref in basis):
             raise ValueError("basis_refs must refer to already recorded exact revisions or events")
+        source = node.get("requirement_source") if node["kind"] == "requirement" else node.get("decision_source")
+        if source:
+            observed = next((e for e in self.events if e["event_id"] == source.get("reference")
+                             and e["event_type"] == "material_observed"), None)
+            if observed and source.get("form") == "verbatim":
+                excerpt = source.get("excerpt", node.get("text", ""))
+                original = observed["payload"].get("text")
+                if not isinstance(excerpt, str) or not excerpt.strip() or not isinstance(original, str) or excerpt.replace("\r\n", "\n") not in original.replace("\r\n", "\n"):
+                    raise ValueError("Verbatim excerpt does not match observed source text")
+                node["observed_quote_ref"] = observed["event_id"]
         if previous and by_key[previous]["kind"] != node["kind"]:
             raise ValueError("A record revision cannot change kind")
         revision = by_key[previous]["revision"] + 1 if previous else 1
@@ -216,6 +284,7 @@ class Recorder:
             pending.extend(e["from"] for e in graph["edges"] if e["to"] == key and "statement_id" in e)
         return [n["key"] for n in graph["nodes"] if n["key"] in selected]
 
+    @serialized
     def compare_runs(self, from_run, to_run):
         from evidence_trace.impact import run_changes
         graph = project(self.events)
@@ -233,6 +302,7 @@ class Recorder:
                 recorded.append(change["id"])
         return recorded
 
+    @serialized
     def link(self, link, actor="user"):
         graph = project(self.events)
         by_key = {n["key"]: n for n in graph["nodes"]}
@@ -249,6 +319,7 @@ class Recorder:
         p["id"] = uuid.uuid4().hex
         self.append("evidence_linked", p, actor)
 
+    @serialized
     def ingest(self, bundle):
         for node in bundle.get("nodes", []):
             self.record(node, actor=bundle.get("actor", "host-assistant"))
@@ -257,6 +328,7 @@ class Recorder:
         for explanation in bundle.get("explanations", []):
             self.explain(explanation, actor=bundle.get("actor", "host-assistant"))
 
+    @serialized
     def explain(self, explanation, actor="host-assistant"):
         """Append supplied post-hoc assistance without modifying a Decision revision."""
         p = copy.deepcopy(explanation)
@@ -278,5 +350,4 @@ class Recorder:
         from evidence_trace.render import render
         events, errors = load_events(self.directory)
         graph = project(events, errors)
-        render(self.directory, graph)
-        return graph
+        return render(self.directory, graph)

@@ -32,6 +32,7 @@ from Bio.SeqRecord import SeqRecord
 _PROJECT_ROOT = str(pathlib.Path(__file__).resolve().parents[1])
 if _PROJECT_ROOT not in sys.path:
     sys.path.insert(0, _PROJECT_ROOT)
+from evidence_trace.runtime import add_trace_arguments, trace_options, trace_file_call
 from core.tools.snapgene_io import (
     _primer_location,
     annotate_record_primers,
@@ -486,6 +487,7 @@ def main():
         help="Allow output path to overwrite source file",
     )
     parser.add_argument("--json", action="store_true", help="Print JSON summary to stdout")
+    add_trace_arguments(parser)
 
     args = parser.parse_args()
 
@@ -551,23 +553,25 @@ def main():
     # Execute based on format
     ext = src.suffix.lower()
     if ext == ".dna":
-        result = annotate_primers_dna(
+        result = trace_file_call("annotate_primers", annotate_primers_dna, kwargs=dict(
             source_path=src,
             out_path=dst,
             op=args.op,
             primers_to_add=primers_to_add,
             target_name=args.name,
             new_primer=new_primer_def,
-        )
+        ), input_paths=[src], expected_paths=[dst], output_paths=lambda value: [value["output"]],
+            artifact_role="primer-annotated", **trace_options(args))
     elif ext in (".gb", ".gbk", ".genbank"):
-        result = annotate_primers_gb(
+        result = trace_file_call("annotate_primers", annotate_primers_gb, kwargs=dict(
             source_path=src,
             out_path=dst,
             op=args.op,
             primers_to_add=primers_to_add,
             target_name=args.name,
             new_primer=new_primer_def,
-        )
+        ), input_paths=[src], expected_paths=[dst], output_paths=lambda value: [value["output"]],
+            artifact_role="primer-annotated", **trace_options(args))
     else:
         parser.error(f"Unsupported format '{ext}'. Must be .dna or .gb/.gbk.")
 

@@ -12,17 +12,17 @@ This spec owns lasting Trace contracts. [Core spec](core-skill.md) owns DNA beha
 
 - `evidence_trace/` and entry-point wrappers capture Recipe, Pipeline and ConstructionTask facts; events, source statements, conditional links, revisions, existing hashes and artifact manifests are reusable.
 - Global collection levels, decision provenance and separately appended assistance are implemented. Phase 2 applicability and Phase 3 Change Impact remain available.
-- Source/phase links, explicit per-run context, separate diagnostics and the unified reader projection are implemented. Reader steps, conditional branches, run selection and grouped review share one dataset; [mapping](../references/evidence-trace-reader-mapping.md) defines the interface. HTML still uses v0.3 Decision-centered chapters; the new Document/Map/Split renderer is not implemented. See [v0.3 handoff](../docs/development-plans/safety-phase-3-change-impact-v0.3.md).
+- Source/phase links, explicit per-run context and separate diagnostics remain. `projection.py` builds full captured facts, `process.py` accepts and checks authored organization/report versions, and `report.py` supplies the deterministic HTML/Markdown renderer. The old Decision-centered UI is replaced. Earlier chain/reader calculations remain as factual diagnostics and legacy reading support, not a second default UI; [mapping](../references/evidence-trace-reader-mapping.md) defines the handoff.
 - The GFP comparison static Reader Demo was accepted by the project owner at step 2 on 2026-09-13. No two-reader answers or timing measurements were supplied; final HTML comprehension remains unverified. GFP +3 bp remains an engineering regression. Phase 4 is paused.
 
-## Selected three-layer redesign (not implemented)
+## Three-layer implementation (v0.3.1)
 
-The [r3 development design](../docs/development-plans/safety-phase-3-three-layer-design-v0.3.1.md) and [human review version](../docs/development-plans/safety-phase-3-three-layer-review-v0.3.1.md) supersede the r1 assumption that program-only projection can organize the full design logic. Current code status above remains unchanged.
+The [r3 development design](../docs/development-plans/safety-phase-3-three-layer-design-v0.3.1.md) and [human review version](../docs/development-plans/safety-phase-3-three-layer-review-v0.3.1.md) supersede the r1 assumption that program-only projection can organize the full design logic. The three-layer interfaces and replacement renderer are now implemented; final independent human comprehension testing remains outstanding.
 
 - Collection preserves actual program facts, submitted statements and available source material. Missing host activity stays outside observed scope.
 - The data layer combines deterministic fact/index processing with explicit host-AI or human semantic organization. Its result includes goals, stages, steps, branches, complete explanations, typed relationships, evidence references and unassigned records. Python checks references, versions, coverage and observable consistency; it does not certify scientific meaning.
 - The report layer includes authored choices about emphasis, summaries and grouping. Save these as `report_plan`, optionally in the same host response as `design_process`, and bind them to the exact process version. Rendering, export and interactive viewing use fixed code without another model call.
-- AI organization is real additional work with token/time cost. No independent model service is required. Full includes organization at meaningful stage/handoff boundaries; Observed does not request extra organization by default, but explicitly requested organization of existing material remains possible and is labeled as later work. Off adds no records. Existing capture settings are unchanged until implementation.
+- AI organization is real additional work with token/time cost. No independent model service is required. Full includes organization at meaningful stage/handoff boundaries; Observed does not request extra organization by default, but explicitly requested organization of existing material remains possible and is labeled as later work. Off adds no records. File tools require an explicit shared trace directory; the three design entry points retain their existing collection behavior.
 - Preserve raw design records and append organization/report-plan revisions to the same journal. `graph.json` becomes the complete machine result; hidden report detail is not deleted. New facts make old organization stale. Missing or stale organization yields an explicitly limited fact view, not a claim of complete design reasoning.
 - Distinguish original statements, organized summaries and later interpretations. AI cannot author runtime Validation or file-generation facts. Structure/reference checks are not semantic proof. Complete record disposition is not proof of complete host observation.
 
@@ -34,13 +34,13 @@ Core results alone generate Validation and Artifact facts. Preserve preparation,
 
 ## Collection and attribution
 
-The following table describes the implemented collection behavior. The selected redesign above adds explicit process/report organization; it is not implemented by the current capture setting alone.
+Collection level does not itself call a model. Full organization is performed explicitly by the host and recorded as a later authored submission.
 
 | Level | Contract |
 |---|---|
 | Off | No new Trace; existing records remain readable. |
 | Observed | Capture available inputs, choices, program results and supplied user requirements/reasons. No extra model explanation request. |
-| Full | Observed plus brief public rationale for consequential choices, usually 1–2 sentences in the original design response. No separate Trace model call. |
+| Full | Observed plus brief public rationale during consequential choices and explicit host organization at stage/handoff boundaries. Organization and report planning may share one response but have real token/time cost. |
 
 One global setting applies to subsequent captures; each running capture keeps its initial level. New events carry `mode_at_capture`; old events without it remain unknown. Development defaults to full; release default is undecided. No conversation/session registry, per-conversation override or duplicate skill package. Configuration and compatibility details belong in [usage](../references/evidence-trace.md).
 
@@ -81,7 +81,7 @@ Actions remain separate: REASSESS for Claim/Decision, RECHECK for evidence/appli
 
 Human understanding outranks default display completeness while preserving underlying facts. Present sourced task context, consequential process steps and actual results. Document, Mind Map and Split share one projection and selection state. Inputs, choices, program results and artifacts remain distinguishable; ordinary logs stay in detailed records.
 
-The selected report contract defaults to `research-report-v1`: fixed purpose/requirements, process, outcome, conditional actions and details, as defined in design.md. AI authors source-bound content and stage grouping within that format; fixed code owns top-level structure, labels and actual status. Missing data yields explicit gaps, not invented filler. This is a report constraint, not a restriction on scientific choices. The profile is not yet implemented.
+The selected report contract defaults to `research-report-v1`: fixed purpose/requirements, process, outcome, conditional actions and details, as defined in design.md. AI authors source-bound content and stage grouping within that format; fixed code owns top-level structure, labels and actual status. Missing data yields explicit gaps, not invented filler. This is a report constraint, not a restriction on scientific choices. The profile is implemented in fixed renderer code; task-specific headings or counts are not baked into it.
 
 Sections are conditional on actual content and the user's goal. A simple delivered construction can end at its artifact. Preserve relevant failures, unresolved requirements and consequential uncertainty; do not invent review items, experiments, user intervention or explanations to fill a template. Separate capture faults, explanation coverage gaps and actionable design review items. Do not use old `explained` alone as their common signal.
 
@@ -91,7 +91,7 @@ The shipped renderer is deterministic. Narrative grouping cannot invent biology 
 
 The current reader projects unique requirement/choice/program/artifact steps from existing records. These deterministic operations remain useful in the redesign; they do not alone establish complete research logic. Unmatched inputs remain program observations. Checks group by actual return; same-name generations stay distinct, candidates stay non-authoritative, ambiguous origins remain unresolved. Ordering anchors are not occurrence timestamps or causal proof.
 
-Run selection filters steps, evidence, later assistance, change knowledge and individual review items together. General partial/unknown applicability remains evidence context rather than an automatic task failure. Explicit opposition, missing judgment basis, actual failures and change follow-up remain reviewable. Raw records and log faults stay accessible; any model interpretation belongs to an explicitly attributed organization submission, never an unrecorded renderer inference.
+The legacy factual run view filters steps, evidence, assistance and review together. The full reader preserves complete process/supporting records alongside that focus; a historical cutoff never includes later factual events. General partial/unknown applicability remains evidence context rather than an automatic task failure. Explicit opposition, missing judgment basis, actual failures and change follow-up remain reviewable. Raw records and log faults stay accessible; any model interpretation belongs to an explicitly attributed organization submission, never an unrecorded renderer inference.
 
 Before renderer/HTML reconstruction, a static case must pass human comprehension review under predeclared criteria. Case approval is distinct from reading approval; absent feedback, model self-review and browser tests cannot pass the gate. Simulated dialogue is labeled once; replayed results and new execution are distinguishable. A final executable Reader Demo must capture real program results for its run.
 

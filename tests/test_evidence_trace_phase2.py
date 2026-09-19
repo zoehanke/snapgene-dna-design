@@ -145,7 +145,7 @@ class ChainTests(unittest.TestCase):
         def work(out_dir):
             calls.append("ran")
             return observe("execute", lambda: {"status": "unchanged"})
-        with mock.patch("evidence_trace.render.build_chains", side_effect=ValueError("chain error")):
+        with mock.patch("evidence_trace.projection.build_chains", side_effect=ValueError("chain error")):
             self.assertEqual(work(self.path / "out", trace_dir=self.path / "trace"), {"status": "unchanged"})
         self.assertEqual(calls, ["ran"])
 
@@ -171,7 +171,7 @@ class ChainTests(unittest.TestCase):
         base = self.path / "off"
         with mock.patch("evidence_trace.runtime.get_level", return_value="off"):
             self.assertEqual(run(base)["status"], "delivered")
-        for i, target in enumerate(("evidence_trace.coverage.extract_choices", "evidence_trace.chain.assess", "evidence_trace.render.build_chains")):
+        for i, target in enumerate(("evidence_trace.coverage.extract_choices", "evidence_trace.chain.assess", "evidence_trace.projection.build_chains")):
             with self.subTest(target=target), mock.patch(target, side_effect=RuntimeError("phase2 sidecar fault")) as patched:
                 out = self.path / str(i)
                 self.assertEqual(run(out, trace_dir=self.path / "trace")["status"], "delivered")

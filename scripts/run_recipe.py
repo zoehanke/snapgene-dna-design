@@ -206,6 +206,7 @@ def run_recipe_cli(
     result_dict["goal_check"] = goal_check
     result_json_path.write_text(json.dumps(result_dict, indent=2, ensure_ascii=False, default=str), encoding="utf-8")
     candidate_files.append(str(result_json_path))
+    observe_value("candidate_files", candidate_files)
     if goal_check["errors"]:
         from core.errors import GateRejected
         raise GateRejected("GATE_GOAL_FAILED", "; ".join(goal_check["errors"]))

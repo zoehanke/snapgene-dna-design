@@ -1,12 +1,12 @@
 # Evidence Trace：人类阅读与界面规范
 
-r11，2026-09-19。当前阅读规则的唯一来源；取代旧固定六栏与单 Decision 环形布局。旧实现见 Git 历史及 [Phase 3 记录](safety-phase-3-change-impact-v0.3.md)。本规范面向后续固定 renderer，当前 HTML 及新过程/编排接口尚未重构。
+r12，2026-09-20。当前阅读规则的唯一来源；取代旧固定六栏与单 Decision 环形布局。旧实现见 Git 历史及 [Phase 3 记录](safety-phase-3-change-impact-v0.3.md)。本规范已用于固定 renderer。组织/编排提交及 HTML/Markdown 已实现，独立真人页面理解验收仍未完成。
 
-用户参考图对应的[视觉设计文稿](evidence-trace-report-visual-design-v0.3.1.md)细化本轮独立示意：深色紧凑侧栏、白色章节表面、首屏三列结果摘要、任务章左右布局。报告语义仍以本文件为准；图文与手机状态须保留。当前仅更新原型，未完成正式 renderer 或真人页面验收。
+用户参考图对应的[视觉设计文稿](evidence-trace-report-visual-design-v0.3.1.md)细化本轮独立示意：深色紧凑侧栏、白色章节表面、首屏三列结果摘要、任务章左右布局。报告语义仍以本文件为准；图文与手机状态须保留。正式 renderer 已消费真实组织数据，不保留示例中的固定决定数量或故事。原型的视觉认可不等于真实页面理解验收。
 
 [安全 spec](../../specs/safety-module.md) 定义事实边界，[当前计划](safety-phase-3-readability-v0.3.1.md) 定义实施与验收，[Reader Demo](safety-phase-3-reading-draft.md) 提供具体样稿。实现阅读结构前还须读 [标准空白框架](evidence-trace-reader-template.md)：本文件定义阅读规则，框架定义可选结构，案例检验填入后的效果。结构或显示规则变化时同步相应文档，不重复整段规范；完整框架不代表栏目必须全部出现。此文件不作为宿主运行时生成网页的提示词。
 
-数据接口见 [数据层到阅读层映射](../../references/evidence-trace-reader-mapping.md)。第四步已提供统一 reader 投影，原记录留在详情引用中；第五步才切换 HTML。关系必须区分声明依据、修订、调用阶段、材料引用和实际生成，不能把普通排序画成因果线。
+数据接口见 [数据层到阅读层映射](../../references/evidence-trace-reader-mapping.md)。底层 reader 提供事实与旧日志支持；正式 HTML 消费完整组织结果的 report 投影，原记录留在详情引用中。关系必须区分声明依据、修订、调用阶段、材料引用和实际生成，不能把普通排序画成因果线。
 
 ## 为谁服务
 

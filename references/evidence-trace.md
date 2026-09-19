@@ -1,10 +1,10 @@
-# Evidence Trace v0.3
+# Evidence Trace v0.3.1
 
 Optional local sidecar for scientific decisions, evidence and actual program results. It does not change DNA design, decide safety, or capture hidden model reasoning. Phase 2 adds structured input-choice coverage and context comparison, not general biological interpretation. Runtime has no new package dependencies.
 
-## Collection levels (v0.3.1 capture; reading UI still v0.3)
+## Collection levels
 
-Evidence Trace is the fact/evidence system; Design Decision Trace is its default human-readable organization. Capture, source/phase links, separate gaps and the unified reader projection are available. Static step 2 has project-owner approval; the v0.3 HTML has not switched to the new projection.
+Evidence Trace records facts and evidence; Design Decision Trace is their human-readable organization. The host submits a structured process; code validates references and versions and renders the saved result. Without current organization, HTML explicitly shows a limited factual view. The renderer never invents a research story or calls a model.
 
 One global setting applies to subsequent captures in the public Recipe, Pipeline and ConstructionTask wrappers. Development default is `full`; no settings file is created merely by reading the default. `normal/strict` remains the independent failure policy.
 
@@ -17,7 +17,7 @@ Use `off`, `observed` or `full`. Settings live at `~/.snapgene-dna-design/trace.
 
 - Off creates no new trace. Legacy `--trace`, `trace=True/False`, `--trace-dir`, `--trace-input` and strict failure policy do not override this collection setting. The boolean trace flag is accepted for old callers but no longer selects collection; use the global config command. Read/inspect/render existing logs remains available while off.
 - Observed automatically records available runtime facts and preserves supplied user reasons or explanations already in the design response. It never asks the model for an extra rationale. Program context remains separate from claimed motives.
-- Full includes Observed and asks the host to submit 1–2 sentences of public rationale with the original design response. No separate Trace model call. Missing explanation remains missing.
+- Full includes Observed and asks the host to submit brief public rationale with the original design response. At stage/handoff boundaries the host also submits process organization and optional report arrangement; these may share one response but still cost tokens/time. Missing original explanation remains missing.
 - New events record `mode_at_capture`; each running capture keeps its initial level. Global changes affect subsequent captures only. Legacy events with no recorded level/authorship remain unknown.
 - Malformed/unreadable settings emit `TRACE_INCOMPLETE` and preserve DNA work in normal mode; strict stops at the entry boundary. Neither path silently claims complete capture.
 
@@ -29,7 +29,7 @@ Explicitly supplied post-hoc assistance uses a separate bundle array:
 {"actor":"host-assistant","explanations":[{"decision_ref":"D1@1","basis_refs":["D1@1"],"text":"Only this boundary choice was recorded; its original motivation is unavailable."}]}
 ```
 
-Append with the existing `record` command. The target Decision must name an exact revision; basis_refs can name exact existing node revisions or event IDs. The supplement is always labeled `事后辅助解释`. It never changes the Decision, original rationale, original-explanation coverage or Validation. `inspect` exposes supplements and provenance; graph.json retains them. Their new human UI is still pending.
+Append with the existing `record` command. The target Decision must name an exact revision; basis_refs can name exact existing node revisions or event IDs. The supplement is always labeled `事后辅助解释`. It never changes the Decision, original rationale, original-explanation coverage or Validation. `inspect` exposes supplements and provenance; graph.json retains them. They appear only beside the corresponding recorded choice and remain labeled as later assistance.
 
 Coverage now separately exposes `target_match`, `matched_decision_refs`, `explanation_provenance` and `original_explanation_recorded`. Historical `status=explained` only denotes target matching plus submitted text for the old UI, not authenticated original rationale. No-rationale Observed capture is distinct from lost supplied explanation.
 
@@ -161,7 +161,7 @@ The default renderer shows the five-stage reading spine and folds Evidence/Appli
 
 ## Phase 3: Living Evidence Document and Change Impact
 
-Document / Mind Map / Split share one state owner: selected run, Decision, node and expansion state. Document reads each Decision as Why → Evidence → Applicability → Validation → Change Impact → Output. Mind Map is a primary, full-page SVG reading mode; Split connects the map and chapter. Fixed shipped renderer code controls layout. Changes and Review are contextual reading aids, not dashboards or safety scores.
+Document / Mind Map / Split share the selected process step and expansion state. Steps come from the saved organization and may be requirements, choices, program results or artifacts; no fixed count or compulsory AI-choice summary is inserted. The fixed renderer shows context, process, actual files/checks, conditional review and detailed sources. Changes and Review remain contextual aids, not safety scores.
 
 Changes are append-only records carrying ID, from_revision, to_revision, changed_field, old_value, new_value, presence flags and recorded_at. Record context/targets/scientific-statement revisions are captured when submitted. Accepted inputs and recorded product sequence/topology anchors are compared automatically only for the same Task ID/kind or the same Recipe name. No new sequence computation is introduced. Comparisons are recorded differences, not proof that an earlier scientific conclusion was wrong.
 
@@ -184,3 +184,53 @@ python scripts/demo_evidence_trace_phase3.py --template <complete-pBP-eGFP.gb> -
 ```
 
 The demo compares Trace on/off native files and primer tables for both PCR boundaries. Its context and purpose are explicitly authored demonstration inputs; it makes no expression or safety claim. Independent 5/15/30-second user timing remains a UX target, not a result inferred from browser tests.
+
+## Complete process and report submission
+
+One append-only `events.jsonl` stores observations, declarations, organization revisions and report plans. `graph.json` is a rebuildable `design-process-v1` result containing complete source records, typed fact relationships, an authored `design_process`, its `report_plan`, coverage and findings. A single nonblocking writer lock protects each active run; normal contention continues the DNA work with incomplete capture, strict contention stops before the call.
+
+### Capture material and final files
+
+`observe --input observation.json` accepts one object or a list. `local_text` uses `path`, optional inclusive 1-based `start_line`/`end_line`, and optional `source_uri`; `submitted_text` uses `text`. Optional `declared_role` and `declared_occurred_at` remain assertions. The returned event ID can be cited in `basis_refs` or a supplied source reference. Exact quoted requirements with `form: verbatim` are checked against a referenced material observation; this proves text occurrence, not authorship or scientific support. Existing sequence/secret omission policy still applies.
+
+`handoff --input files.json` accepts `{"files":[{"path":"<final file>","purpose":"<intended use>"}]}`. Results are `linked`, `untraced`, `missing`, `changed` or `ambiguous`. Linking requires a recorded successful generation/modification of the same content. Merely finding an unchanged file does not fabricate its history. The check does not promote DNA files.
+
+The four file CLIs support `--trace-dir`, `--trace-input`, `--trace-mode` alongside their original arguments. Inspection does not start a new trace unless a directory is supplied. Annotation preserves add/remove/replace/clear semantics; conversion preserves per-file errors; bundle export remains preview. Original paths, content versions and failed-call residuals remain distinguishable. Recipe candidates are captured before a later delivery gate can reject promotion.
+
+### Host workflow
+
+```text
+python scripts/trace_design.py observe --trace-dir work/trace --input observations.json
+python scripts/trace_design.py handoff --trace-dir work/trace --input final-files.json
+python scripts/trace_design.py inspect --trace-dir work/trace --data
+python scripts/trace_design.py organize --trace-dir work/trace --input organization.json
+python scripts/trace_design.py render --trace-dir work/trace --format both
+```
+
+Use the exact `trace_id` and `through_sequence` returned by inspect. Read relevant originals before authoring. Minimal organization packet, with snapshot values and record keys replaced by real ones:
+
+```json
+{
+  "schema_version": "trace-organization-v1",
+  "id": "main",
+  "basis": {"trace_id": "<returned trace_id>", "through_sequence": 1},
+  "design_process": {
+    "stages": [{"id": "purpose", "title": "任务要求", "purpose": "明确本次目标", "step_ids": ["request"], "source_refs": ["R1@1"]}],
+    "steps": {"request": {"kind": "requirement", "title": "本次目标", "content": "<faithful account of R1>", "source_refs": ["R1@1"]}},
+    "relations": [], "paths": [], "unresolved": [], "detail_refs": []
+  },
+  "report_plan": {"profile": "research-report-v1", "title": "<task title>", "sections": []}
+}
+```
+
+`steps` is an ID mapping; the other process collections are lists. Every stage needs a purpose and referenced steps. Add steps according to the actual task, not a fixed six-step template. `kind` is requirement/choice/program_result/artifact. Program steps and artifacts must cite actual returned events/records; no submitted status or Validation is accepted. Plain requirements cannot be relabeled as choices. Optional step fields: `title`, `input_refs`, `outcome_refs`, `reason`, `limitations`. A reason uses `text`, `source_refs`, and `origin`: `original_statement` (exact recorded text), `organized_summary`, `later_interpretation`, or `unknown`. Limitations use `text` and `source_refs`.
+
+Optional stage `branches` contain `id`, `label`, `step_ids` and `source_refs`. `relations` use `id`, `from`, `to`, `kind`, `meaning`, `source_refs`; allowed semantic kinds are responds_to, declared_reason_for_change, supports, opposes, constrains, contextualizes, grouped_with, part_of, revises_plan. `fact_relation_ids` may cite existing program relationships but cannot create new ones. `paths` contain `id`, `label`, `step_ids`, `source_refs`, `order_kind` (logical_process/planned/recorded_order). Recorded order requires comparable journal anchors and does not prove scientific causality. `unresolved` items contain `id`, `text`, `step_refs`, `source_refs`. Preserve remaining relevant records in `detail_refs`; unassigned records remain accessible and visible as coverage gaps.
+
+The report profile is fixed. `context` may supply `text` and `source_refs`. `sections` group process steps with `id`, `title`, `step_refs`, `source_refs` and optional `summary`/`unresolved_refs`; they cannot replace the report's top-level chapters. `diagram` may provide `reading_order`, `relation_refs`, `short_labels`. `default_expanded_refs` and `detail_refs` influence disclosure, never erase important failures. Titles/summaries are authored statements, not program-certified science. HTML text is escaped.
+
+`report-plan --process-ref main@1 --input plan.json` revises only the arrangement of that exact process. The returned version is appended. New factual events make earlier organization `stale`; organization/report-only events do not. A later submission about an older snapshot cannot displace a newer basis. Off rejects new capture/organization by returning `recorded:false`, but existing traces remain readable. Observed can be organized on explicit request without relabeling the new writing as contemporaneous reasoning.
+
+`reader` returns the full machine result. `--run-id` adds a scoped `focused_reader` without removing the full supporting history; `--handoff-id` focuses an exact file-list observation. They are mutually exclusive. `--through-sequence` selects an event prefix; `--process-ref` selects an organization version whose basis fits that prefix. Historical facts may be described by a later-authored organization of exactly those facts, whose author/time remain in `organization_history`. The renderer does not rewrite a summary to fit a filter.
+
+`render --format html|markdown|both` defaults to both and always rebuilds graph/manifest from the journal. HTML and Markdown share the saved process, actual checks, limitations and review. Exact raw facts remain in graph/journal; absent/stale organization yields an explicitly limited factual report. The journal alone cannot capture inaccessible host searches or prove the faithfulness of a scientific interpretation.

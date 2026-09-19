@@ -4,9 +4,9 @@
 
 This spec owns lasting product decisions, constraints and open questions; stage plans own implementation steps and completion evidence. Before creating, continuing or replacing a plan, read the [development index](../docs/development-plans/README.md), the relevant plan and its predecessor's handoff. Carry each unresolved item forward explicitly, defer it with a reason, or record an accepted cancellation. A new plan does not silently reset this spec or earlier decisions.
 
-Current integration plan: [Phase 3.1 remediation](../docs/development-plans/safety-phase-3-readability-v0.3.1.md), with the [r3 three-layer design](../docs/development-plans/safety-phase-3-three-layer-design-v0.3.1.md) guiding the next implementation. Capture levels, provenance and the earlier reading projection exist; the new AI-organized process/report-plan contracts and replacement HTML do not. Static step 2 has project-owner approval; final-page comprehension still requires its own acceptance.
+Current integration plan: [Phase 3.1 remediation](../docs/development-plans/safety-phase-3-readability-v0.3.1.md), with the [r3 three-layer design](../docs/development-plans/safety-phase-3-three-layer-design-v0.3.1.md) guiding the next implementation. Capture levels, provenance and the earlier reading projection exist; authored process/report-plan submission and deterministic HTML/Markdown are implemented. Static step 2 has project-owner approval; final-page comprehension still requires its own acceptance.
 
-Context updated: 2026-09-19. This spec defines the DNA product and its boundaries, not a fixed architecture or a universal correctness claim. [safety-module.md](safety-module.md) owns Trace contracts; [design.md](../docs/development-plans/design.md) owns reader behavior; read the [standard framework](../docs/development-plans/evidence-trace-reader-template.md) before implementing reading structures. Static step 2 has project-owner acceptance; final HTML acceptance remains pending.
+Context updated: 2026-09-20. This spec defines the DNA product and its boundaries, not a fixed architecture or a universal correctness claim. [safety-module.md](safety-module.md) owns Trace contracts; [design.md](../docs/development-plans/design.md) owns reader behavior; read the [standard framework](../docs/development-plans/evidence-trace-reader-template.md) before implementing reading structures. Static step 2 has project-owner acceptance; final HTML acceptance remains pending.
 
 ## Goal
 
@@ -40,7 +40,7 @@ The reading layer must distinguish user constraints, real AI choices, program re
 
 Trace input may select exact recorded context and cite actual stage results without changing the DNA task. Runtime returns retain event references; source assertions and post-hoc explanations remain separate. Log integrity, context/explanation coverage and actual design review are distinct, so an Observed record lacking extra AI rationale is not a Core failure.
 
-Selected redesign, not current implementation: host AI or a researcher explicitly organizes captured records into a complete design process and may author its report plan in the same response. Code checks facts/references/versions and renders the saved result. This adds real AI work, not an automatic model service. Missing, invalid or stale organization is a Trace/report condition, not grounds to alter Core inputs, validation or delivery. The safety spec owns collection modes and organization/report revision contracts.
+Three-layer integration: host AI or a researcher explicitly organizes captured records into a complete design process and may author its report plan in the same response. Code checks facts/references/versions and renders the saved result. This adds real AI work, not an automatic model service. Missing, invalid or stale organization is a Trace/report condition, not grounds to alter Core inputs, validation or delivery. The safety spec owns collection modes and organization/report revision contracts.
 
 ## User workflow
 
