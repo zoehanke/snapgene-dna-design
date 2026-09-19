@@ -17,7 +17,7 @@ This spec owns lasting Trace contracts. [Core spec](core-skill.md) owns DNA beha
 
 ## Selected three-layer redesign (not implemented)
 
-The [r2 development design](../docs/development-plans/safety-phase-3-three-layer-design-v0.3.1.md) and [human review version](../docs/development-plans/safety-phase-3-three-layer-review-v0.3.1.md) supersede the r1 assumption that program-only projection can organize the full design logic. Current code status above remains unchanged.
+The [r3 development design](../docs/development-plans/safety-phase-3-three-layer-design-v0.3.1.md) and [human review version](../docs/development-plans/safety-phase-3-three-layer-review-v0.3.1.md) supersede the r1 assumption that program-only projection can organize the full design logic. Current code status above remains unchanged.
 
 - Collection preserves actual program facts, submitted statements and available source material. Missing host activity stays outside observed scope.
 - The data layer combines deterministic fact/index processing with explicit host-AI or human semantic organization. Its result includes goals, stages, steps, branches, complete explanations, typed relationships, evidence references and unassigned records. Python checks references, versions, coverage and observable consistency; it does not certify scientific meaning.
@@ -80,6 +80,8 @@ Actions remain separate: REASSESS for Claim/Decision, RECHECK for evidence/appli
 ## Reader product contract and acceptance
 
 Human understanding outranks default display completeness while preserving underlying facts. Present sourced task context, consequential process steps and actual results. Document, Mind Map and Split share one projection and selection state. Inputs, choices, program results and artifacts remain distinguishable; ordinary logs stay in detailed records.
+
+The selected report contract defaults to `research-report-v1`: fixed purpose/requirements, process, outcome, conditional actions and details, as defined in design.md. AI authors source-bound content and stage grouping within that format; fixed code owns top-level structure, labels and actual status. Missing data yields explicit gaps, not invented filler. This is a report constraint, not a restriction on scientific choices. The profile is not yet implemented.
 
 Sections are conditional on actual content and the user's goal. A simple delivered construction can end at its artifact. Preserve relevant failures, unresolved requirements and consequential uncertainty; do not invent review items, experiments, user intervention or explanations to fill a template. Separate capture faults, explanation coverage gaps and actionable design review items. Do not use old `explained` alone as their common signal.
 

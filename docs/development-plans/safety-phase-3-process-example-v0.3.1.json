@@ -219,6 +219,11 @@
     ]
   },
   "report_plan": {
+    "profile": "research-report-v1",
+    "context": {
+      "text": "用户要求使用提供的源质粒和载体完成构建，并保留 GFP 的终止密码子。本例记录酶切路线的尝试与调整。",
+      "source_refs": ["R1@1", "D-initial@1", "ev-run-1", "D-new@1"]
+    },
     "id": "RP-main",
     "revision": 1,
     "process_ref": "ORG-main@1",

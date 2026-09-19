@@ -6,7 +6,7 @@
 
 | 计划 | 模块目标版本 | 文档修订 | 状态 | 前序 |
 |---|---|---|---|---|
-| [Phase 3 补救：Design Decision Trace 与可读性重构](safety-phase-3-readability-v0.3.1.md) | Evidence Trace v0.3.1 | r10 | 历史第四步已实现；下一项按三层 r2 完成过程组织契约，再进入 HTML；新契约未实现 | Phase 3 v0.3 |
+| [Phase 3 补救：Design Decision Trace 与可读性重构](safety-phase-3-readability-v0.3.1.md) | Evidence Trace v0.3.1 | r11 | 历史第四步已实现；下一项按三层 r3 完成过程与统一报告契约，再进入 HTML；新契约未实现 | Phase 3 v0.3 |
 | [Phase 3：Living Evidence Document & Change Impact](safety-phase-3-change-impact-v0.3.md) | Evidence Trace v0.3 | r2 | 工程完成；阅读问题转入补救计划 | Phase 2 |
 | [Phase 2：Evidence Applicability & Trace Usability](safety-phase-2-applicability-v0.2.md) | Evidence Trace v0.2 | r3 | 工程实现及本阶段验收完成 | Phase 1 |
 | [Phase 1：Evidence Trace](safety-phase-1-trace-v0.1.md) | v0.1 | r3 | 工程验收完成，试用反馈已转化为 Phase 2 UI/Capture 改进 | 无已执行阶段 |
@@ -15,13 +15,13 @@
 
 [Reader Demo 通用空白框架](evidence-trace-reader-template.md)：实现前必读的阅读结构契约，汇总可选步骤与附录；按实际任务取用，不要求全部出现。
 
-补救的采集规则和阅读目标已同步 spec/design.md；当前 HTML 仍是 v0.3。GFP +3 bp 只作工程回归，[Reader Demo](safety-phase-3-reading-draft.md) 的第二步已获负责人审阅通过；双人计时未执行，最终页面仍待独立验收。历史第四步投影及[数据映射](../../references/evidence-trace-reader-mapping.md)已实现；下一项先按三层 r2 明确并实现完整过程与报告编排，再切换 HTML。Phase 4 暂停。
+补救的采集规则和阅读目标已同步 spec/design.md；当前 HTML 仍是 v0.3。GFP +3 bp 只作工程回归，[Reader Demo](safety-phase-3-reading-draft.md) 的第二步已获负责人审阅通过；双人计时未执行，最终页面仍待独立验收。历史第四步投影及[数据映射](../../references/evidence-trace-reader-mapping.md)已实现；下一项先按三层 r3 明确并实现完整过程与报告编排，再切换 HTML。Phase 4 暂停。
 
 相关 spec：[主 skill](../../specs/core-skill.md)、[安全模块](../../specs/safety-module.md)。Phase 4 至 Phase 6 尚未创建执行计划，完整路线图留在安全 spec。
 
 ## 三层重构设计与机器结果
 
-2026-09-19，目标仍为 Evidence Trace v0.3.1，文档 r2。根据后续讨论明确 AI／人语义组织、完整机器过程和独立 report_plan。两版逐章对应，代码尚未实现；r1 保留在 Git，不替代历史完成记录。
+2026-09-19，目标仍为 Evidence Trace v0.3.1，文档 r3。在 AI／人语义组织、完整机器过程和独立 report_plan 基础上，细化 research-report-v1 默认报告格式；顶层结构由程序固定，AI 在其中填写有来源的内容。两版逐章对应，代码尚未实现；旧版本保留在 Git，不替代历史完成记录。
 
 - [开发设计](safety-phase-3-three-layer-design-v0.3.1.md)：采集入口、数据契约、关系处理、报告接口、文件改动、兼容及验收。
 - [人工理解与审查](safety-phase-3-three-layer-review-v0.3.1.md)：面向不熟悉编程的负责人，解释各层原理、信息来源和需要确认的选择。
