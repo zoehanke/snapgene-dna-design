@@ -13,6 +13,8 @@
 
 当前阅读/UI 规则：[design.md](design.md)；Phase 2 历史参考：[evidence-trace-phase2-reference.svg](evidence-trace-phase2-reference.svg)。
 
+当前视觉参考：[报告视觉设计 r1](evidence-trace-report-visual-design-v0.3.1.md)，含用户参考图。用于独立 HTML 示意；正式 renderer、完整任务运行及真人页面验收状态不变。
+
 [Reader Demo 通用空白框架](evidence-trace-reader-template.md)：实现前必读的阅读结构契约，汇总可选步骤与附录；按实际任务取用，不要求全部出现。
 
 补救的采集规则和阅读目标已同步 spec/design.md；当前 HTML 仍是 v0.3。GFP +3 bp 只作工程回归，[Reader Demo](safety-phase-3-reading-draft.md) 的第二步已获负责人审阅通过；双人计时未执行，最终页面仍待独立验收。历史第四步投影及[数据映射](../../references/evidence-trace-reader-mapping.md)已实现；下一项先按三层 r3 明确并实现完整过程与报告编排，再切换 HTML。Phase 4 暂停。
