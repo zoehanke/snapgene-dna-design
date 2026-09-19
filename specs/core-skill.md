@@ -1,93 +1,57 @@
 # Core skill
 
-## Development plan relationship
+Updated: 2026-09-20. This spec defines the current DNA product contract. [History](../docs/history.md) explains its evolution; [development plans](../docs/development-plans/README.md) own implementation scope, validation and handoff. [Safety spec](safety-module.md) owns Evidence Trace; [SKILL.md](../SKILL.md) and [Recipe reference](../references/recipes.md) own usage and signatures.
 
-This spec owns lasting product decisions, constraints and open questions; stage plans own implementation steps and completion evidence. Before creating, continuing or replacing a plan, read the [development index](../docs/development-plans/README.md), the relevant plan and its predecessor's handoff. Carry each unresolved item forward explicitly, defer it with a reason, or record an accepted cancellation. A new plan does not silently reset this spec or earlier decisions.
+## Goal and current functionality
 
-Current integration plan: [Phase 3.1 remediation](../docs/development-plans/safety-phase-3-readability-v0.3.1.md), with the [r3 three-layer design](../docs/development-plans/safety-phase-3-three-layer-design-v0.3.1.md) guiding the next implementation. Capture levels, provenance and the earlier reading projection exist; authored process/report-plan submission and deterministic HTML/Markdown are implemented. Static step 2 has project-owner approval; final-page comprehension still requires its own acceptance.
+Help molecular and synthetic biology researchers turn real materials and a design request into correct, inspectable DNA constructs and usable preparation instructions. Serve general research and laboratory R&D; iGEM and safety work extend that practical purpose.
 
-Context updated: 2026-09-20. This spec defines the DNA product and its boundaries, not a fixed architecture or a universal correctness claim. [safety-module.md](safety-module.md) owns Trace contracts; [design.md](../docs/development-plans/design.md) owns reader behavior; read the [standard framework](../docs/development-plans/evidence-trace-reader-template.md) before implementing reading structures. Static step 2 has project-owner acceptance; final HTML acceptance remains pending.
-
-## Goal
-
-Help molecular and synthetic biology researchers turn a design request and real source material into a correct, inspectable DNA construct and usable preparation instructions. Reduce manual design work while preserving biological intent. The product serves research and laboratory R&D beyond the team's own iGEM project.
-
-## Current functionality and structure
-
-The repository identifies itself as v1.0.0. The following describes implemented surfaces, not universal validation:
-
-| Area | Current role |
+| Surface | Current responsibility |
 |---|---|
-| `SKILL.md`, `agents/openai.yaml` | Host-assistant workflow and tool guidance; the host handles natural-language reasoning. |
-| `core/recipes/`, `scripts/run_recipe.py` | Seven standard routes: Gibson, restriction cloning, Golden Gate, mutagenesis, tagging, HDR donors and cloning verification. |
-| `core/tools/`, `core/handlers/composite_pipeline.py`, `scripts/run_pipeline.py` | Registered inspection, sequence, feature, PCR, digestion and assembly operations; composition of multi-step designs. |
-| `core/task.py`, `core/handlers/`, `core/runtime_*.py`, `scripts/run_construction_task.py` | Structured ConstructionTask planning, execution, validation and delivery. |
-| `scripts/`, `planning/`, `design/`, `agent/` | Additional analysis, primer/guide design, assembly planning, orchestration and older interfaces. The keyword agent's formal construction path is deprecated. |
-| `rules/`, `parts/`, `schemas/`, `references/` | Feasibility/experience rules, a parts library, data contracts and method/source guidance. |
-| `tests/`, `fixtures/`, `.github/`, release scripts | Regression and workflow checks, fixtures, CI and packaging. Optional models and their licenses live in `third_party/`. |
+| Host AI and Skill guidance | Understand intent, clarify biological ambiguity, choose a route and explain consequential choices. |
+| Recipes | Gibson, restriction cloning, Golden Gate, mutagenesis, tagging, HDR donors and cloning verification. |
+| Pipeline and atomic tools | Compose actual feature, sequence, PCR, digestion, assembly and inspection operations. |
+| ConstructionTask runtime | Structured task, plan, execution, validation and authoritative delivery. |
+| File tools | Annotated GenBank/native SnapGene/FASTA, intermediates, complete primers, source annotations and preparation tables. |
 
-Inputs include sequence records/files and raw DNA. Outputs include annotated GenBank and native SnapGene `.dna`, FASTA, result JSON, and task-dependent primers, source primer annotations, intermediates and preparation tables.
-
-Recipe and ConstructionTask routes have different contracts and maturity handling. In the current task registry, `restriction_ligation` and `crispr_editing` are experimental. Their status must not be generalized to every similarly named Recipe or standalone tool.
-
-## Evidence Trace integration
-
-Evidence Trace records facts and evidence beside the actual design route. Design Decision Trace is its human-readable organization. It must not change DNA, execution parameters, planners, Handlers, Core validation or authoritative files. Observe each route's real results; Recipe runs must not invent a ConstructionTask history. Correct design delivery remains the primary product purpose.
-
-One global off/observed/full collection setting applies to subsequent captures. Full adds brief public rationale in the original design response; Observed preserves supplied facts/reasons without requiring extra AI explanation. Default development level is full; release default remains open. Normal Trace failures preserve DNA execution and report incomplete capture; explicit strict policy can stop at an execution boundary without rewriting completed files. Capture level and failure policy are independent.
-
-The reading layer must distinguish user constraints, real AI choices, program results and delivered artifacts. Captured parameters do not establish AI authorship; shared-run association does not prove a Claim. Sequence checks do not establish fluorescence, expression or biosafety. A complete record does not establish a correct or safe design. Detailed source, applicability, change and reader contracts belong in the safety spec rather than being duplicated here.
-
-Trace input may select exact recorded context and cite actual stage results without changing the DNA task. Runtime returns retain event references; source assertions and post-hoc explanations remain separate. Log integrity, context/explanation coverage and actual design review are distinct, so an Observed record lacking extra AI rationale is not a Core failure.
-
-Three-layer integration: host AI or a researcher explicitly organizes captured records into a complete design process and may author its report plan in the same response. Code checks facts/references/versions and renders the saved result. This adds real AI work, not an automatic model service. Missing, invalid or stale organization is a Trace/report condition, not grounds to alter Core inputs, validation or delivery. The safety spec owns collection modes and organization/report revision contracts.
+Inputs include full sequence records/files and raw DNA. Routes differ in supported operations and maturity; the current task registry marks restriction_ligation and crispr_editing experimental, not every similarly named Recipe. The deprecated keyword route must not pretend to implement complex edits. Optional backends retain their documented availability and licensing limits.
 
 ## User workflow
 
-1. Provide the biological objective and sources. Inspect full records, topology, features and available physical materials; resolve ambiguity that affects the result.
-2. Express required/forbidden components and relevant constraints. Choose a standard Recipe or compose a multi-step route; structured tasks are another existing entry point.
-3. Compute preparation and reactions from actual inputs. Feed each real intermediate into its next step.
-4. Check the saved product against the request and reaction chain, including sequence, junctions, topology, features and complete primers where applicable.
-5. Deliver usable files and concise preparation/verification information. Distinguish candidates, components, QC designs and final constructs. Current promotion interfaces require confirmation; existing user authorization need not be requested again.
+1. Inspect complete sources, topology, relevant features and available physical materials; resolve ambiguity that changes the result.
+2. Express required/forbidden components and other constraints, then choose a supported Recipe or compose a Pipeline/structured task.
+3. Compute preparation and reactions from actual inputs; feed each real intermediate into its next step.
+4. Check saved files against the request and reaction chain: sequence, junctions, topology, features and complete primers.
+5. Deliver files and preparation/verification information, distinguishing candidates, components, QC designs and final constructs. Existing authorization persists; a confirmation interface is not grounds to ask again unnecessarily.
 
-## Locked decisions
+## Product contracts
 
-These are confirmed product priorities, revisable through an explicit product decision:
+- Practical task completion and correct artifacts take priority over tool counts, test counts or review frameworks.
+- Host AI handles intent and strategy; executable tools compute sequences and reactions. A desired sequence is not proof of PCR amplification from the supplied template and delivered primers.
+- Assembly inputs must be supplied prepared material or products of an explicit preparation step; include real backbone preparation where required.
+- Preserve source, backbone, inserted-feature and primer annotations through transformations and export. Explain source annotation corrections separately from DNA changes.
+- Keep actual coordinate, strand, compound-location and circular-origin conventions consistent across each interface; no implicit biological defaults without evidence and applicability.
+- Missing checks, failed runs, components and historical successes must not be presented as newly verified complete constructs. Do not change the biological target or relax validation merely to obtain a pass.
+- Sequence/file checks establish their stated computational scope, not wet-lab performance, whole-genome specificity or safety. File hashes bind versions, not biological correctness.
+- Preserve external-service consent, provenance and distribution/license requirements. Local tools do not imply that the host never transmits data.
 
-- Practical design completion and correct artifacts take priority over feature counts, test counts or elaborate review systems.
-- Host AI reasons about intent and strategy; sequence computation uses executable tools. The present module layout and orchestration are not locked.
-- Assembly inputs must be supplied prepared material or products of an explicit preparation step. A desired sequence is not evidence of PCR amplification from the supplied template and delivered primers.
-- Preserve relevant source, backbone, inserted-feature and primer annotations through transformations and export. Source annotation corrections must remain distinguishable from DNA changes.
-- A component, missing check, failed run or historical success must not be presented as a newly verified complete construct.
-- Broad researcher utility remains the main product goal. Safety extends that goal; it does not replace it.
+## Evidence Trace integration
 
-## Important constraints
+Trace observes each route's actual inputs, returns and files. It does not change DNA, parameters, planners, Handlers, Core validation or authoritative artifacts; a Recipe run need not invent a ConstructionTask history. Missing/stale organization is a report condition, not a reason to modify the design.
 
-- Coordinate conventions differ across existing APIs. Follow each actual contract; retain strand, compound-location and circular-origin semantics.
-- Biological defaults need sources and applicability. Heuristics, unavailable backends and incomplete reference searches remain explicit.
-- Sequence/file validation does not establish wet-lab success, expression, whole-genome specificity or biological safety. Hash agreement establishes integrity, not biological correctness.
-- Existing external-service consent and distribution/license restrictions apply. Local computation alone does not imply that the host assistant never transmits sequence data.
-- Mandatory regressions must run from a clean Git checkout using tracked or generated test inputs. Private/ignored DNA fixtures require an explicit optional invocation, not an implicit local dependency; synthetic tests do not establish wet-lab function.
+The host or researcher explicitly organizes captured records and may author a report plan in the same response; code checks references/versions and renders the saved result. This is real AI work. Normal capture failures preserve DNA execution; explicit strict policy can stop at an execution boundary without rewriting completed files. Mode, attribution and report contracts are maintained in the [safety spec](safety-module.md).
 
-## Open questions
+## Architecture and rule changes
 
-- Which real researcher workflows remain poorly served despite existing tests? What design effort does the skill actually save?
-- Which duplicated planning, validation or delivery paths should be consolidated? Retain or replace them based on evidence, not architectural labels.
-- How much interpretation can the host handle reliably, and where does a structured clarification materially improve results?
-- Which optional backend and file-compatibility claims can be reproduced in the intended release environment?
+Current modules and orchestration are implementation choices, not permanent restrictions. Within the authorized task, revise a stale spec/plan when observed behavior or user feedback warrants it; explain the tradeoff, update affected callers/tests and record major reversals in History. Preserve the product contracts above. A historical phase boundary neither authorizes unrelated work nor blocks a necessary, authorized correction.
 
-## Acceptance criteria
+## Acceptance and open issues
 
-- A representative real task runs through a documented public entry point and produces the requested result. Its reaction chain and saved files can be checked against independent source/target evidence.
-- Relevant topology, feature locations, strands, junctions and full primers survive export/read-back. SnapGene compatibility claims use actual SnapGene evidence where claimed.
-- Failure and incomplete cases report the current state accurately. Rejecting a task is not counted as successful design completion.
-- A change addresses a demonstrated workflow need or reproducible defect, passes relevant regressions and preserves normal design usability. Release checks include running the packaged skill outside the checkout.
-- Trace on/off A/B regression must preserve DNA sequence, topology, annotations, primers, preparation, validation semantics and authoritative artifacts for the same fixed design inputs. Injected Trace failures in normal mode must not prevent an otherwise successful DNA run. Trace status must not be reported as a biological validation or safety conclusion.
+- Run representative tasks through public entry points and inspect resulting files against independent source/target evidence; rejecting an invalid task is not successful design completion.
+- Verify relevant sequence, topology, feature coordinates/strands and complete primers through export/read-back. Claim desktop SnapGene compatibility only with actual desktop evidence.
+- Keep mandatory regressions reproducible with tracked/generated inputs; explicitly invoked private integrations and skipped backends are separate evidence. For release work, verify a package outside the checkout.
+- For Trace changes, compare Off/Observed/Full DNA, annotations, primers, preparation, validation semantics and authoritative artifacts; injected normal-mode Trace failure must preserve otherwise successful DNA work.
+- Inherited pET annotation conflicts still block formal delivery in the recorded GFP/A206K case. Resolve that source/annotation and validation interaction separately; Trace success does not close it.
+- Remaining product questions: underserved real workflows, duplicated orchestration worth consolidating, host clarification reliability, measurable user effort saved and reproducible optional-backend claims.
 
-## Evidence pointers
-
-[SKILL.md](../SKILL.md) and [Recipe reference](../references/recipes.md) describe current usage. [v1.0.0 release notes](../docs/RELEASE-v1.0.0.md) and [final audit](../docs/FINAL-RELEASE-AUDIT-20260907.md) record historical validation, including untested scope. Older README/architecture sections contain version drift; verify claims against code and fresh evidence. This context review did not rerun the biological test suite.
-
-## Historical trace evidence
-
-The [Phase 1 record](../docs/development-plans/safety-phase-1-trace-v0.1.md) preserves its original test counts, packaged-run evidence and limits. The current remediation plan records later capture tests and pending human reading acceptance. Historical engineering results do not establish present user comprehension.
+The [current plan](../docs/development-plans/safety-phase-3-readability-v0.3.1.md) records implementation evidence and outstanding human reading validation. Historical releases/audits are indexed through History and do not certify current universal correctness.

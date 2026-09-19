@@ -1,112 +1,68 @@
-# Safety module
+# Safety module: Evidence Trace
 
-## Purpose and document ownership
+Updated: 2026-09-20. This spec owns current Trace behavior and evidence boundaries. [History](../docs/history.md) records why they changed; [development plans](../docs/development-plans/README.md) own phase scope and results; [usage](../references/evidence-trace.md) owns CLI/Schema details; [design.md](../docs/development-plans/design.md) owns reading rules and links the optional framework and visual reference.
 
-**Evidence Trace 是事实与证据记录系统；Design Decision Trace 是其默认的人类可读组织方式。** It is an inspectable record of biological design by users, AI and deterministic programs. The selected redesign produces a complete structured design process plus a separate report plan; the report presents that result rather than first inventing its research logic.
+## Purpose and present scope
 
-Improve researchers' ability to understand and review designs while preserving a future iGEM safety contribution. Genome Resurrection motivates distinguishing DNA presence, functional restoration and autonomy; none is established merely by a successful construct file. No safety score, safe/unsafe verdict, hidden-thought viewer or ecological prediction is provided.
+**Evidence Trace 是事实与证据记录系统；Design Decision Trace 是其默认的人类可读组织方式。** Help researchers inspect how users, AI and programs formed a design. Genome Resurrection motivates distinguishing DNA presence, functional restoration and larger consequences; a successful construct alone establishes none of the latter.
 
-This spec owns lasting Trace contracts. [Core spec](core-skill.md) owns DNA behavior; [design.md](../docs/development-plans/design.md) owns reader/UI rules; the [standard framework](../docs/development-plans/evidence-trace-reader-template.md) is the required pre-implementation structural reference for optional reading blocks, not a compulsory form; [development index](../docs/development-plans/README.md) and [current plan](../docs/development-plans/safety-phase-3-readability-v0.3.1.md) own implementation status, checks and predecessor handoff. Carry unresolved items forward explicitly. Avoid duplicating UI rules across these files.
+Implemented scope: seven entry points, source observations, file handoff checks, authored process/report revisions, applicability comparisons, Change Impact and fixed offline HTML/Markdown. Current scope excludes safety scores, safe/unsafe certification, hidden-thought reconstruction and ecological prediction. Assurance Case, Conclusion Boundary and macro/laboratory framework integration remain later directions, not delivered capabilities.
 
-## Current implementation and selected scope
+## Three-layer contract
 
-- `evidence_trace/` and entry-point wrappers capture Recipe, Pipeline and ConstructionTask facts; events, source statements, conditional links, revisions, existing hashes and artifact manifests are reusable.
-- Global collection levels, decision provenance and separately appended assistance are implemented. Phase 2 applicability and Phase 3 Change Impact remain available.
-- Source/phase links, explicit per-run context and separate diagnostics remain. `projection.py` builds full captured facts, `process.py` accepts and checks authored organization/report versions, and `report.py` supplies the deterministic HTML/Markdown renderer. The old Decision-centered UI is replaced. Earlier chain/reader calculations remain as factual diagnostics and legacy reading support, not a second default UI; [mapping](../references/evidence-trace-reader-mapping.md) defines the handoff.
-- The GFP comparison static Reader Demo was accepted by the project owner at step 2 on 2026-09-13. No two-reader answers or timing measurements were supplied; final HTML comprehension remains unverified. GFP +3 bp remains an engineering regression. Phase 4 is paused.
+| Layer | Responsibility |
+|---|---|
+| Collection | Preserve observable inputs, returns, failures, file versions, supplied user/AI statements and available source material. Unobserved host activity stays outside coverage. |
+| Data | AI/researcher organizes goals, stages, steps, branches, reasons and relationships. Code indexes/checks records, references, versions, stated inputs and record disposition; it does not certify scientific meaning. |
+| Report | Authored report_plan chooses sourced summaries and grouping within the fixed reading format. Code renders the saved process without a new model call on export or interaction. |
 
-## Three-layer implementation (v0.3.1)
+The complete machine result includes design_process, its exact report-plan version, source records, typed relationships, coverage and findings. An unassigned record remains accessible; hiding detail in the report never deletes underlying information. Missing/stale organization produces an explicitly limited factual view, not a completed scientific narrative.
 
-The [r3 development design](../docs/development-plans/safety-phase-3-three-layer-design-v0.3.1.md) and [human review version](../docs/development-plans/safety-phase-3-three-layer-review-v0.3.1.md) supersede the r1 assumption that program-only projection can organize the full design logic. The three-layer interfaces and replacement renderer are now implemented; final independent human comprehension testing remains outstanding.
+## DNA boundary and collection levels
 
-- Collection preserves actual program facts, submitted statements and available source material. Missing host activity stays outside observed scope.
-- The data layer combines deterministic fact/index processing with explicit host-AI or human semantic organization. Its result includes goals, stages, steps, branches, complete explanations, typed relationships, evidence references and unassigned records. Python checks references, versions, coverage and observable consistency; it does not certify scientific meaning.
-- The report layer includes authored choices about emphasis, summaries and grouping. Save these as `report_plan`, optionally in the same host response as `design_process`, and bind them to the exact process version. Rendering, export and interactive viewing use fixed code without another model call.
-- AI organization is real additional work with token/time cost. No independent model service is required. Full includes organization at meaningful stage/handoff boundaries; Observed does not request extra organization by default, but explicitly requested organization of existing material remains possible and is labeled as later work. Off adds no records. File tools require an explicit shared trace directory; the three design entry points retain their existing collection behavior.
-- Preserve raw design records and append organization/report-plan revisions to the same journal. `graph.json` becomes the complete machine result; hidden report detail is not deleted. New facts make old organization stale. Missing or stale organization yields an explicitly limited fact view, not a claim of complete design reasoning.
-- Distinguish original statements, organized summaries and later interpretations. AI cannot author runtime Validation or file-generation facts. Structure/reference checks are not semantic proof. Complete record disposition is not proof of complete host observation.
-
-## Core observation boundary
-
-Trace observes `LLM → ConstructionTask → plan → execute → validate → finalize` and each route's actual equivalents. It changes no DNA, parameters, planner, Handler, validation rule or authoritative artifact. Keep instrumentation in wrappers rather than distributed through Handlers. No new safety core or automatic reaction reruns.
-
-Core results alone generate Validation and Artifact facts. Preserve preparation, confirmations and delivery behavior, partial/failed runs and original errors. Normal Trace failures continue DNA work with `TRACE_INCOMPLETE`; explicit strict policy may stop at an execution boundary, without rolling back existing files. Missing Trace data is not a Core validation failure.
-
-## Collection and attribution
-
-Collection level does not itself call a model. Full organization is performed explicitly by the host and recorded as a later authored submission.
+Observe actual route equivalents of task/plan/execute/validate/finalize at application boundaries. Trace changes no DNA, execution parameters, Core validation or authoritative files. Runtime results alone generate Validation and Artifact facts; preserve failures and original errors. Normal Trace errors continue DNA work with TRACE_INCOMPLETE; explicit strict policy may stop at the boundary without rolling back files. The [Core spec](core-skill.md) owns biological delivery.
 
 | Level | Contract |
 |---|---|
-| Off | No new Trace; existing records remain readable. |
-| Observed | Capture available inputs, choices, program results and supplied user requirements/reasons. No extra model explanation request. |
-| Full | Observed plus brief public rationale during consequential choices and explicit host organization at stage/handoff boundaries. Organization and report planning may share one response but have real token/time cost. |
+| Off | No new trace or organization events; existing records remain readable. |
+| Observed | Record available facts and supplied reasons; no extra explanation or organization by default. Explicitly requested later organization remains possible. |
+| Full | Brief public rationale during consequential choices, plus explicit host organization at meaningful stage/handoff boundaries. Joint organization/report output still has real token/time cost. |
 
-One global setting applies to subsequent captures; each running capture keeps its initial level. New events carry `mode_at_capture`; old events without it remain unknown. Development defaults to full; release default is undecided. No conversation/session registry, per-conversation override or duplicate skill package. Configuration and compatibility details belong in [usage](../references/evidence-trace.md).
+One global setting applies to subsequent captures; each running capture retains its initial level. Development defaults to Full; release default remains open. File tools require an explicit shared trace directory. No separate model service or conversation/session registry is currently required; these are implementation choices to revisit only for a demonstrated need, not automatic future work.
 
-Record consequential discretionary choices, not every parameter, ordinary tool call or compliance with an explicit user constraint. A single choice may cover several parameters. Reuse user reasons rather than paraphrasing them again. Observed and Full share runtime facts; neither guarantees capture of every host action.
+## Attribution and evidence
 
-`actor` identifies the submitter. Reuse `decision_actor`, `decision_source` and `explanation_origin` to identify the declared chooser and explanation source. Missing attribution remains unknown; a source reference is a supplied assertion, not authenticated authorship. `decision_kind` stays extensible and never limits AI choices.
+- Record consequential choices, not every parameter or compliance with a user constraint. decision_kind is extensible classification, not a limit on AI design.
+- actor is the submitter; decision_actor, decision_source and explanation origin describe the declared chooser/source. Missing authorship stays unknown; a supplied reference is not authentication.
+- Preserve user requirements with original/summary form. User change/confirm/reject needs a source and exact affected references. Reuse user reasons as user reasons.
+- Original public statements, organized summaries and later interpretations remain distinguishable. Later assistance is appended against an exact old revision; it cannot replace original rationale, fill original-explanation coverage or become Validation.
+- Keep Requirement, Source, Statement, Claim, Decision, Validation and Artifact distinct. Source → Statement → Claim → Decision separates reported evidence, contextual inference and choice; a user requirement need not acquire a compulsory paper or Claim.
+- Evidence relationships retain support/oppose/constrain/contextualize, aspect, strength, applicability, conditions and limitations. Candidate evidence does not automatically establish preparation-route optimality or performance.
+- Source verification records method, scope, verifier, time and locator. It does not establish statement interpretation, applicability or Decision correctness. Text matching establishes occurrence, not authorship.
+- Separate declared and computed applicability across organism, strain, host/chassis, construct context, temperature, medium, assay and intended use. direct / partial / extrapolated / unknown are contextual assessments, not proof of transferability.
 
-Distinguish user explanation, concurrent AI explanation, no original explanation and post-hoc assistance. Assistance is explicitly supplied, appended separately and bound to exact old revisions. It cannot replace original rationale, fill original-explanation coverage or become Validation. No automatic observer service or hidden chain-of-thought capture.
+## Versions, relationships and changes
 
-Requirements retain optional `requirement_source` with original/summary form and supplied context. User change/confirm/reject requires a source and exact affected `basis_refs`; submitter identity alone does not establish user intent. Decisions and supplements may reference exact recorded revisions or tool event IDs as declared basis, without inventing causal proof. No new conversation registry is required.
+events.jsonl is the append-only single-writer fact source. Organization and report revisions also append there; graph, manifests and views are rebuildable. Reuse existing task/plan/execution/artifact anchors to bind versions, not to claim intent or tamper-proof authorship.
 
-Explicit `context_refs` in the existing Trace input selects run records and retains their recorded dependencies; only selected Decisions are active. Omission keeps legacy latest-record selection, labeled as such. Stage references pair inputs, returns and failures; accepted-input observations retain their after-call phase. Runtime results bind to their returned-value event, while broad same-run associations remain distinct from a Claim-specific validation. Old logs retain unknown anchors rather than reconstructed history.
+Explicit context_refs freeze selected records and their dependencies; omitted context retains labeled legacy latest-record selection. Stage references pair real inputs and returns/failures. Same-run associations remain distinct from Claim-specific checks. Append time alone is not occurrence time or causality; missing old anchors are not reconstructed.
 
-## Facts and evidence
+New facts make old organization stale; organization/report-only edits do not. Report plans bind an exact process version. Run/file focus preserves the supporting process; historical cutoff excludes later facts. A later-authored organization of old facts remains labeled by its actual recorded author/time.
 
-- `events.jsonl` is the append-only, single-writer fact source. Graph, applicability/impact projections, manifests and human views are derived. Preserve old events; rebuilding never invents missing history.
-- Keep Requirement, Source, Evidence Statement, Claim, Decision, Validation and Artifact distinct. `Source → Statement → Claim → Decision` separates what a source reports, what is inferred here and what is chosen. A user requirement can support a choice without a compulsory paper/Claim chain.
-- Evidence links retain support/oppose/constrain/contextualize, aspect, strength, applicability, conditions and limitations. One source can support one aspect and limit another. Evidence about candidate identity does not automatically support a preparation sequence or performance claim.
-- Source `verified` records verification method, scope, verifier, time and locator only. It does not verify the extracted statement, applicability or Decision. Unverified references remain unverified; model inference is labeled.
-- Applicability keeps declared and computed assessments separate. Existing comparisons cover organism, strain, host/chassis, construct context, temperature, medium, assay and intended use. Retain each dimension's comparison, reasons and declared relevance scope. `direct / partial / extrapolated / unknown` are contextual assessments, not proof of transferability. Existing normalization limits remain; no general taxonomy or paper-understanding service.
-- Reuse recorded task/plan/execution/artifact anchors. They identify versions, not intent or tamper-proof authorship. Same-run links are coarse associations, not proof that each check establishes every Claim or applies to every region.
-- Actual execution, material and revision references determine order/dependency where known. Append time alone is not event occurrence time or causality; inputs observed after a call returns must not be presented as a later scientific decision. Retrospective explanation stays retrospective.
+Change records identify before/after revisions, field, values, time and scope. Automatic comparisons require matching task/Recipe identity; other baselines are explicit. AFFECTED requires explicit dependency, NEEDS REVIEW denotes possible dependency, UNAFFECTED requires complete comparable evidence of irrelevance, UNKNOWN preserves insufficient information. Missing edges are not evidence of no impact.
 
-## Change Impact
+REASSESS, RECHECK and RERUN request reconsideration, evidence checking and program rerun respectively; STALE marks old context. They are not safety levels and do not modify original conclusions or execute tools. Reviewing an older revision does not clear a newer one.
 
-Change remains an append-only object with ID, from_revision, to_revision, changed_field, old_value, new_value, recorded_at and scope/origin. Automatic comparison requires the same Task ID/kind or Recipe name; other baselines are explicit. Missing observation coverage stays UNKNOWN, not an invented addition/deletion.
+## Reading and acceptance
 
-| Judgment | Meaning |
-|---|---|
-| AFFECTED | Explicit dependency |
-| NEEDS REVIEW | Possible dependency |
-| UNAFFECTED | Explicit complete comparable scope establishes irrelevance, with no contradictory path |
-| UNKNOWN | Insufficient information; missing edges are not proof of irrelevance |
+- Present task context, real process, files/checks and conditional review. Document/Mind Map/Split share data, selection and expansion. Detailed provenance stays available; internal fields do not dominate the default reading layer.
+- research-report-v1 supplies a consistent format; task content and step count come from records. Do not hard-code example choices, invent user interventions, or create generic review/experiment warnings to fill a template.
+- Separate capture faults, missing explanations, unassigned information and actionable scientific review. An unrequested check is not failure; a partial applicability judgment is not automatically a task defect.
+- For major reading-organization changes, use representative static/interactive examples and existing participant feedback to assess understanding early. This is not a blanket preapproval gate for every renderer fix. Proceed within existing authorization, record missing feedback and never claim human acceptance from model self-review or browser tests.
+- Engineering evidence must cover actual public entry points, Trace three-level equivalence, normal/strict faults, old/revised records, simple/branched/changed/failed tasks and offline/keyboard/narrow-screen use. Human evidence must establish understanding of purpose, choices, support limits and checks without opening audit data.
 
-Actions remain separate: REASSESS for Claim/Decision, RECHECK for evidence/applicability, RERUN recommends a program check, STALE identifies a truthful old-context record, NEEDS REVIEW signals uncertain impact. They are not safety levels. Preserve original Claims, source verification, Validation and artifacts. A newer revision is not automatically cleared by reviewing an older one.
+## Revisability and remaining limits
 
-## Reader product contract and acceptance
+Current modules, Schema and phase proposals may be revised within authorized work when evidence justifies the change. Preserve old records and compatibility where needed; update this spec and dependent contracts, and append consequential feedback/reversals to History. Do not make implementation preferences into permanent bans or silently weaken evidence boundaries.
 
-Human understanding outranks default display completeness while preserving underlying facts. Present sourced task context, consequential process steps and actual results. Document, Mind Map and Split share one projection and selection state. Inputs, choices, program results and artifacts remain distinguishable; ordinary logs stay in detailed records.
-
-The selected report contract defaults to `research-report-v1`: fixed purpose/requirements, process, outcome, conditional actions and details, as defined in design.md. AI authors source-bound content and stage grouping within that format; fixed code owns top-level structure, labels and actual status. Missing data yields explicit gaps, not invented filler. This is a report constraint, not a restriction on scientific choices. The profile is implemented in fixed renderer code; task-specific headings or counts are not baked into it.
-
-Sections are conditional on actual content and the user's goal. A simple delivered construction can end at its artifact. Preserve relevant failures, unresolved requirements and consequential uncertainty; do not invent review items, experiments, user intervention or explanations to fill a template. Separate capture faults, explanation coverage gaps and actionable design review items. Do not use old `explained` alone as their common signal.
-
-Record integrity concerns recorded events, not completeness of reasoning or user context. Missing submitted requirements/Decisions are coverage gaps; missing Full explanations are explanation gaps; a not-requested check is not failure. A user requirement can be sufficient recorded basis without a compulsory Claim. The reading layer must keep these distinctions rather than hiding a fault or manufacturing a task problem.
-
-The shipped renderer is deterministic. Narrative grouping cannot invent biology or causal relations; readable summaries retain exact source references. Old logs remain readable without being relabeled as fully explained. Reader wording, branch behavior, layout and examples live only in design.md.
-
-The current reader projects unique requirement/choice/program/artifact steps from existing records. These deterministic operations remain useful in the redesign; they do not alone establish complete research logic. Unmatched inputs remain program observations. Checks group by actual return; same-name generations stay distinct, candidates stay non-authoritative, ambiguous origins remain unresolved. Ordering anchors are not occurrence timestamps or causal proof.
-
-The legacy factual run view filters steps, evidence, assistance and review together. The full reader preserves complete process/supporting records alongside that focus; a historical cutoff never includes later factual events. General partial/unknown applicability remains evidence context rather than an automatic task failure. Explicit opposition, missing judgment basis, actual failures and change follow-up remain reviewable. Raw records and log faults stay accessible; any model interpretation belongs to an explicitly attributed organization submission, never an unrecorded renderer inference.
-
-Before renderer/HTML reconstruction, a static case must pass human comprehension review under predeclared criteria. Case approval is distinct from reading approval; absent feedback, model self-review and browser tests cannot pass the gate. Simulated dialogue is labeled once; replayed results and new execution are distinguishable. A final executable Reader Demo must capture real program results for its run.
-
-Engineering acceptance includes three-level A/B equivalence of DNA, topology, features, primers, preparation, validation meaning and authoritative files; normal/strict fault behavior; legacy/revision reading; simple, branched, changed and failed cases; offline/keyboard/narrow-screen interactions. Human acceptance requires understanding purpose, participant choices, evidence scope and actual checks without opening advanced records. Timing is recorded separately; no efficiency or safety benefit is claimed from test counts.
-
-## Limits and later direction
-
-Entry-point and known-field coverage, supplied provenance/verification receipts, single-writer logs and original-location artifact links remain limits. Preserve existing [sequence consent](../references/privacy-and-consent.md), provenance and licensing requirements. Avoid logging full conversations, credentials or raw DNA by default; host data handling remains separate.
-
-Open questions: release default, real Full token overhead, broader source/field coverage, user effort and reliable artifact portability. Current architecture is revisable when demonstrated needs justify changes.
-
-| Later phase | Direction, not current work |
-|---|---|
-| 4 | Assurance Case around existing claims, including assumptions, defeaters and mitigations |
-| 5 | Conclusion Boundary: what evidence can actually establish |
-| 6 | Applicable macro/laboratory framework providers |
-
-Original engineering evidence and unresolved limits stay in the [Phase 1](../docs/development-plans/safety-phase-1-trace-v0.1.md), [Phase 2](../docs/development-plans/safety-phase-2-applicability-v0.2.md) and current plans. Historical counts do not establish present correctness or human readability.
+Retain consent, provenance and license rules; avoid unrelated conversations, credentials and raw DNA copies by default. Current limitations include host observation coverage, declared authorship, unavailable/moved source files, exact model-cost measurement and independent human reading evidence. Core annotation/delivery defects remain Core issues rather than Trace failures. Phase numbers alone are not authorization to start later governance work.
