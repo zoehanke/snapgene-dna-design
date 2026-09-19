@@ -2,7 +2,7 @@
 
 ## Purpose and document ownership
 
-**Evidence Trace 是事实与证据记录系统；Design Decision Trace 是其默认的人类可读组织方式。** It is an inspectable record of biological design by users, AI and deterministic programs. Researcher Projection is the code that organizes those facts, not a second system or fact store.
+**Evidence Trace 是事实与证据记录系统；Design Decision Trace 是其默认的人类可读组织方式。** It is an inspectable record of biological design by users, AI and deterministic programs. The selected redesign produces a complete structured design process plus a separate report plan; the report presents that result rather than first inventing its research logic.
 
 Improve researchers' ability to understand and review designs while preserving a future iGEM safety contribution. Genome Resurrection motivates distinguishing DNA presence, functional restoration and autonomy; none is established merely by a successful construct file. No safety score, safe/unsafe verdict, hidden-thought viewer or ecological prediction is provided.
 
@@ -15,13 +15,26 @@ This spec owns lasting Trace contracts. [Core spec](core-skill.md) owns DNA beha
 - Source/phase links, explicit per-run context, separate diagnostics and the unified reader projection are implemented. Reader steps, conditional branches, run selection and grouped review share one dataset; [mapping](../references/evidence-trace-reader-mapping.md) defines the interface. HTML still uses v0.3 Decision-centered chapters; the new Document/Map/Split renderer is not implemented. See [v0.3 handoff](../docs/development-plans/safety-phase-3-change-impact-v0.3.md).
 - The GFP comparison static Reader Demo was accepted by the project owner at step 2 on 2026-09-13. No two-reader answers or timing measurements were supplied; final HTML comprehension remains unverified. GFP +3 bp remains an engineering regression. Phase 4 is paused.
 
-## Locked design boundary
+## Selected three-layer redesign (not implemented)
+
+The [r2 development design](../docs/development-plans/safety-phase-3-three-layer-design-v0.3.1.md) and [human review version](../docs/development-plans/safety-phase-3-three-layer-review-v0.3.1.md) supersede the r1 assumption that program-only projection can organize the full design logic. Current code status above remains unchanged.
+
+- Collection preserves actual program facts, submitted statements and available source material. Missing host activity stays outside observed scope.
+- The data layer combines deterministic fact/index processing with explicit host-AI or human semantic organization. Its result includes goals, stages, steps, branches, complete explanations, typed relationships, evidence references and unassigned records. Python checks references, versions, coverage and observable consistency; it does not certify scientific meaning.
+- The report layer includes authored choices about emphasis, summaries and grouping. Save these as `report_plan`, optionally in the same host response as `design_process`, and bind them to the exact process version. Rendering, export and interactive viewing use fixed code without another model call.
+- AI organization is real additional work with token/time cost. No independent model service is required. Full includes organization at meaningful stage/handoff boundaries; Observed does not request extra organization by default, but explicitly requested organization of existing material remains possible and is labeled as later work. Off adds no records. Existing capture settings are unchanged until implementation.
+- Preserve raw design records and append organization/report-plan revisions to the same journal. `graph.json` becomes the complete machine result; hidden report detail is not deleted. New facts make old organization stale. Missing or stale organization yields an explicitly limited fact view, not a claim of complete design reasoning.
+- Distinguish original statements, organized summaries and later interpretations. AI cannot author runtime Validation or file-generation facts. Structure/reference checks are not semantic proof. Complete record disposition is not proof of complete host observation.
+
+## Core observation boundary
 
 Trace observes `LLM → ConstructionTask → plan → execute → validate → finalize` and each route's actual equivalents. It changes no DNA, parameters, planner, Handler, validation rule or authoritative artifact. Keep instrumentation in wrappers rather than distributed through Handlers. No new safety core or automatic reaction reruns.
 
 Core results alone generate Validation and Artifact facts. Preserve preparation, confirmations and delivery behavior, partial/failed runs and original errors. Normal Trace failures continue DNA work with `TRACE_INCOMPLETE`; explicit strict policy may stop at an execution boundary, without rolling back existing files. Missing Trace data is not a Core validation failure.
 
 ## Collection and attribution
+
+The following table describes the implemented collection behavior. The selected redesign above adds explicit process/report organization; it is not implemented by the current capture setting alone.
 
 | Level | Contract |
 |---|---|
@@ -74,9 +87,9 @@ Record integrity concerns recorded events, not completeness of reasoning or user
 
 The shipped renderer is deterministic. Narrative grouping cannot invent biology or causal relations; readable summaries retain exact source references. Old logs remain readable without being relabeled as fully explained. Reader wording, branch behavior, layout and examples live only in design.md.
 
-The reader projects unique requirement/choice/program/artifact steps from existing records. Unmatched inputs are program observations even when some Decisions exist. Checks group by actual return; file formats group only with the same generation context. Same-name generations remain distinct, candidates stay non-authoritative, ambiguous material origins remain unresolved. Ordering anchors are not occurrence timestamps or causal proof.
+The current reader projects unique requirement/choice/program/artifact steps from existing records. These deterministic operations remain useful in the redesign; they do not alone establish complete research logic. Unmatched inputs remain program observations. Checks group by actual return; same-name generations stay distinct, candidates stay non-authoritative, ambiguous origins remain unresolved. Ordering anchors are not occurrence timestamps or causal proof.
 
-Run selection filters steps, evidence, later assistance, change knowledge and individual review items together. General partial/unknown applicability remains evidence context rather than an automatic task failure. Explicit opposition, missing judgment basis, actual failures and change follow-up remain reviewable. Raw records and log faults stay accessible; no extra model interpretation or fact store is introduced.
+Run selection filters steps, evidence, later assistance, change knowledge and individual review items together. General partial/unknown applicability remains evidence context rather than an automatic task failure. Explicit opposition, missing judgment basis, actual failures and change follow-up remain reviewable. Raw records and log faults stay accessible; any model interpretation belongs to an explicitly attributed organization submission, never an unrecorded renderer inference.
 
 Before renderer/HTML reconstruction, a static case must pass human comprehension review under predeclared criteria. Case approval is distinct from reading approval; absent feedback, model self-review and browser tests cannot pass the gate. Simulated dialogue is labeled once; replayed results and new execution are distinguishable. A final executable Reader Demo must capture real program results for its run.
 

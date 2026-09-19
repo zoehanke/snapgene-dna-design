@@ -1,0 +1,306 @@
+{
+  "schema_version": "design-process-v1",
+  "example_notice": "模拟结构示例；不是实际运行、来源认证或科学验证结果。",
+  "snapshot": {
+    "trace_id": "example-trace",
+    "through_sequence": 5,
+    "organization_ref": "ORG-main@1",
+    "report_plan_ref": "RP-main@1",
+    "organization_status": "current",
+    "status_scope": "current 仅表示本示例中的组织版本与记录范围一致"
+  },
+  "task": {
+    "id": "T1",
+    "goal": "利用现有质粒构建 GFP 表达质粒，并保留终止密码子",
+    "source_refs": [
+      "R1@1"
+    ]
+  },
+  "source_records": {
+    "R1@1": {
+      "kind": "requirement",
+      "recorded_sequence": 1,
+      "text": "请使用我提供的源质粒和载体完成构建，保留 GFP 的终止密码子。",
+      "source_status": "illustrative"
+    },
+    "D-initial@1": {
+      "kind": "decision",
+      "recorded_sequence": 2,
+      "text": "先尝试 NdeI/XhoI 克隆路线。",
+      "decision_actor": "ai",
+      "targets": {
+        "enzyme5": "NdeI",
+        "enzyme3": "XhoI"
+      },
+      "rationale": null,
+      "source_status": "illustrative"
+    },
+    "ev-run-1": {
+      "kind": "program_result",
+      "recorded_sequence": 3,
+      "recorded_input": {
+        "enzyme5": "NdeI",
+        "enzyme3": "XhoI"
+      },
+      "result": {
+        "status": "failed",
+        "reason": "插入片段中发现两个 NdeI 切点"
+      },
+      "source_status": "illustrative"
+    },
+    "ev-message-1": {
+      "kind": "public_statement",
+      "recorded_sequence": 4,
+      "declared_role": "assistant",
+      "text": "NdeI 会额外切开插入片段，我决定改试 NheI。新方案还需要检查切点和连接边界。",
+      "source_status": "illustrative"
+    },
+    "D-new@1": {
+      "kind": "decision",
+      "recorded_sequence": 5,
+      "text": "改试 NheI/XhoI 克隆路线。",
+      "decision_actor": "ai",
+      "origin_refs": [
+        "ev-message-1"
+      ],
+      "basis_refs": [
+        "ev-run-1",
+        "D-initial@1"
+      ],
+      "targets": {
+        "enzyme5": "NheI",
+        "enzyme3": "XhoI"
+      },
+      "source_status": "illustrative"
+    }
+  },
+  "fact_relations": [
+    {
+      "id": "FR1",
+      "from": "D-initial@1",
+      "to": "ev-run-1",
+      "kind": "target_matches_input",
+      "origin": "program_derived",
+      "scope": "只表示原方案参数与该运行输入匹配",
+      "source_refs": [
+        "D-initial@1",
+        "ev-run-1"
+      ]
+    }
+  ],
+  "design_process": {
+    "id": "ORG-main",
+    "revision": 1,
+    "author": "host-assistant",
+    "stages": [
+      {
+        "id": "S1",
+        "title": "确定可行的酶切路线",
+        "purpose": "保留目标片段，同时利用现有材料完成构建",
+        "step_ids": [
+          "P1",
+          "P2",
+          "P3"
+        ],
+        "source_refs": [
+          "R1@1"
+        ]
+      }
+    ],
+    "steps": {
+      "P1": {
+        "kind": "choice",
+        "content": "AI 首先尝试 NdeI/XhoI，原始选择理由没有在这些记录中保存。",
+        "source_refs": [
+          "D-initial@1"
+        ],
+        "reason": {
+          "text": "原始理由未记录",
+          "source_refs": [
+            "D-initial@1"
+          ],
+          "origin": "unknown"
+        }
+      },
+      "P2": {
+        "kind": "program_result",
+        "content": "该次运行发现插入片段中有两个 NdeI 切点，并返回失败。",
+        "source_refs": [
+          "ev-run-1"
+        ],
+        "outcome_refs": [
+          "ev-run-1"
+        ]
+      },
+      "P3": {
+        "kind": "choice",
+        "content": "AI 随后提出改试 NheI/XhoI。这里记录的是新选择，尚未记录其执行结果。",
+        "source_refs": [
+          "D-new@1"
+        ],
+        "reason": {
+          "text": "公开说明将额外切点作为修改路线的理由。",
+          "source_refs": [
+            "ev-run-1",
+            "ev-message-1"
+          ],
+          "origin": "organized_summary"
+        },
+        "limitations": [
+          {
+            "text": "新方案的切点与连接边界仍需检查。",
+            "source_refs": [
+              "ev-message-1"
+            ]
+          }
+        ]
+      }
+    },
+    "relations": [
+      {
+        "id": "L1",
+        "from": "P2",
+        "to": "P3",
+        "kind": "declared_reason_for_change",
+        "meaning": "AI 公开说明这次失败是更换路线的原因；不代表程序核实了模型内部动机。",
+        "source_refs": [
+          "ev-run-1",
+          "ev-message-1"
+        ],
+        "origin": "ai_organization"
+      },
+      {
+        "id": "L2",
+        "from": "P1",
+        "to": "P3",
+        "kind": "revises_plan",
+        "meaning": "新选择替代了原先尝试的酶切路线；保留原方案。",
+        "source_refs": [
+          "D-initial@1",
+          "D-new@1",
+          "ev-message-1"
+        ],
+        "origin": "ai_organization"
+      }
+    ],
+    "paths": [
+      {
+        "id": "PATH-main",
+        "label": "从原方案到修改方案",
+        "step_ids": [
+          "P1",
+          "P2",
+          "P3"
+        ],
+        "order_kind": "logical_process",
+        "source_refs": [
+          "D-initial@1",
+          "ev-run-1",
+          "D-new@1"
+        ]
+      }
+    ],
+    "unresolved": [
+      {
+        "id": "U1",
+        "text": "这些记录中没有新方案的执行或检查结果，不能写成新方案已通过。",
+        "step_refs": [
+          "P3"
+        ],
+        "source_refs": [
+          "ev-message-1",
+          "D-new@1"
+        ]
+      }
+    ],
+    "detail_refs": [
+      "R1@1",
+      "ev-message-1"
+    ]
+  },
+  "report_plan": {
+    "id": "RP-main",
+    "revision": 1,
+    "process_ref": "ORG-main@1",
+    "author": "host-assistant",
+    "title": "为什么更换酶切路线",
+    "sections": [
+      {
+        "id": "SEC1",
+        "title": "原方案出现了什么问题",
+        "step_refs": [
+          "P1",
+          "P2"
+        ],
+        "summary": "首次路线因额外切点被程序拒绝。",
+        "source_refs": [
+          "D-initial@1",
+          "ev-run-1"
+        ]
+      },
+      {
+        "id": "SEC2",
+        "title": "接下来准备怎样调整",
+        "step_refs": [
+          "P3"
+        ],
+        "summary": "AI 提出改试 NheI/XhoI；新方案尚无已记录的执行结果。",
+        "source_refs": [
+          "D-new@1",
+          "ev-message-1"
+        ],
+        "unresolved_refs": [
+          "U1"
+        ]
+      }
+    ],
+    "diagram": {
+      "reading_order": [
+        "P1",
+        "P2",
+        "P3"
+      ],
+      "relation_refs": [
+        "L1",
+        "L2"
+      ],
+      "short_labels": {
+        "P1": "尝试原路线",
+        "P2": "额外切点导致本次失败",
+        "P3": "提出新路线，待检查"
+      }
+    },
+    "default_expanded_refs": [
+      "U1"
+    ],
+    "detail_refs": [
+      "R1@1",
+      "ev-message-1",
+      "FR1"
+    ]
+  },
+  "coverage": {
+    "record_count": 5,
+    "represented_refs": [
+      "R1@1",
+      "D-initial@1",
+      "ev-run-1",
+      "ev-message-1",
+      "D-new@1"
+    ],
+    "unassigned_refs": [],
+    "unavailable_material_refs": [],
+    "scope": "只核对这五条模拟记录的去向，不证明所有真实活动已被采集，也不证明组织内容科学正确"
+  },
+  "findings": [
+    {
+      "id": "F1",
+      "kind": "recorded_status",
+      "text": "原方案运行失败；新方案未记录执行。",
+      "source_refs": [
+        "ev-run-1",
+        "D-new@1"
+      ]
+    }
+  ]
+}

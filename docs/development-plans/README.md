@@ -6,7 +6,7 @@
 
 | 计划 | 模块目标版本 | 文档修订 | 状态 | 前序 |
 |---|---|---|---|---|
-| [Phase 3 补救：Design Decision Trace 与可读性重构](safety-phase-3-readability-v0.3.1.md) | Evidence Trace v0.3.1 | r9 | 第四步投影与映射通过相关回归，下一项第五步；renderer 未重构 | Phase 3 v0.3 |
+| [Phase 3 补救：Design Decision Trace 与可读性重构](safety-phase-3-readability-v0.3.1.md) | Evidence Trace v0.3.1 | r10 | 历史第四步已实现；下一项按三层 r2 完成过程组织契约，再进入 HTML；新契约未实现 | Phase 3 v0.3 |
 | [Phase 3：Living Evidence Document & Change Impact](safety-phase-3-change-impact-v0.3.md) | Evidence Trace v0.3 | r2 | 工程完成；阅读问题转入补救计划 | Phase 2 |
 | [Phase 2：Evidence Applicability & Trace Usability](safety-phase-2-applicability-v0.2.md) | Evidence Trace v0.2 | r3 | 工程实现及本阶段验收完成 | Phase 1 |
 | [Phase 1：Evidence Trace](safety-phase-1-trace-v0.1.md) | v0.1 | r3 | 工程验收完成，试用反馈已转化为 Phase 2 UI/Capture 改进 | 无已执行阶段 |
@@ -15,18 +15,19 @@
 
 [Reader Demo 通用空白框架](evidence-trace-reader-template.md)：实现前必读的阅读结构契约，汇总可选步骤与附录；按实际任务取用，不要求全部出现。
 
-补救的采集规则和阅读目标已同步 spec/design.md；当前 HTML 仍是 v0.3。GFP +3 bp 只作工程回归，[Reader Demo](safety-phase-3-reading-draft.md) 的第二步已获负责人审阅通过；双人计时未执行，最终页面仍待独立验收。第四步统一阅读投影已实现；[数据映射](../../references/evidence-trace-reader-mapping.md) 已整理，下一项第五步切换 HTML。Phase 4 暂停。
+补救的采集规则和阅读目标已同步 spec/design.md；当前 HTML 仍是 v0.3。GFP +3 bp 只作工程回归，[Reader Demo](safety-phase-3-reading-draft.md) 的第二步已获负责人审阅通过；双人计时未执行，最终页面仍待独立验收。历史第四步投影及[数据映射](../../references/evidence-trace-reader-mapping.md)已实现；下一项先按三层 r2 明确并实现完整过程与报告编排，再切换 HTML。Phase 4 暂停。
 
 相关 spec：[主 skill](../../specs/core-skill.md)、[安全模块](../../specs/safety-module.md)。Phase 4 至 Phase 6 尚未创建执行计划，完整路线图留在安全 spec。
 
-## 待评审的三层重构设计
+## 三层重构设计与机器结果
 
-2026-09-19，目标仍为 Evidence Trace v0.3.1，文档 r1。以下两版逐章对应，是当前补救计划的设计输入，尚未实施，不替代上表的历史完成状态。
+2026-09-19，目标仍为 Evidence Trace v0.3.1，文档 r2。根据后续讨论明确 AI／人语义组织、完整机器过程和独立 report_plan。两版逐章对应，代码尚未实现；r1 保留在 Git，不替代历史完成记录。
 
 - [开发设计](safety-phase-3-three-layer-design-v0.3.1.md)：采集入口、数据契约、关系处理、报告接口、文件改动、兼容及验收。
 - [人工理解与审查](safety-phase-3-three-layer-review-v0.3.1.md)：面向不熟悉编程的负责人，解释各层原理、信息来源和需要确认的选择。
+- [完整机器结果示例](safety-phase-3-process-example-v0.3.1.json)：可解析、引用完整的模拟 JSON，区分原始记录、过程及报告编排，不是实际运行证据。
 
-依据：[可信度研究](../EVIDENCE-TRACE-TRUST-ARCHITECTURE-20260914.md)、[真实使用审查](../EVIDENCE-TRACE-REAL-USE-AUDIT-20260915.md)。下一次启动实现前先处理此设计的评审结论；接受的决定同步两份 spec、design.md 和 Phase 3.1 计划，未接受的建议不得默认成为要求。
+依据：[可信度研究](../EVIDENCE-TRACE-TRUST-ARCHITECTURE-20260914.md)、[真实使用审查](../EVIDENCE-TRACE-REAL-USE-AUDIT-20260915.md)、[Archify 对照](../ARCHIFY-REFERENCE-REVIEW-20260919.md)。已确认职责同步两份 spec、design.md 和 Phase 3.1；接口细节仍可审查调整，不能把“结构核对通过”写成科学意义已证明。
 
 ## 文件职责与版本
 

@@ -2,6 +2,8 @@
 
 接口 v0.3.1，第四步实现参考。阅读规则见 [design.md](../docs/development-plans/design.md)，结构契约见 [空白框架](../docs/development-plans/evidence-trace-reader-template.md)。本表定义数据去向，不增加必填栏目或新的事实源。
 
+本表描述现有代码。下一次重构以[三层设计 r2](../docs/development-plans/safety-phase-3-three-layer-design-v0.3.1.md)的完整 design_process、report_plan 和宿主 AI 组织契约为准；新接口尚未实现，不能把本表的纯程序投影理解成已经完成全部语义整理。实施时更新本映射，不并行维护两套默认报告。
+
 ## 映射表
 
 | 原始数据 | 阅读层位置 | 转换边界 |

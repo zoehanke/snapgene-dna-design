@@ -1,476 +1,383 @@
 # Evidence Trace 三层重构：开发设计
 
-文档 r1 · 2026-09-19 · 目标模块版本 v0.3.1 · **待人工评审，尚未实施**。
+**r2 · 2026-09-19 · 目标模块 v0.3.1 · 设计已更新，业务代码尚未实施。**
 
-人工解释版：[三层设计说明与审查](safety-phase-3-three-layer-review-v0.3.1.md)。两版使用相同章节号；本文件定义接口和验收，人工版解释相同决定。人工版不另设工程要求。
+[人工解释版](safety-phase-3-three-layer-review-v0.3.1.md)与本文逐章对应；[机器结果示例](safety-phase-3-process-example-v0.3.1.json)是模拟结构，不是实际运行证明。
 
-阅读导航：[范围](#1-使用方式范围与决定状态) · [总体结构](#2-问题与总体结构) · [任务流程](#3-一次任务中的信息怎样流动) · [采集](#4-采集层设计) · [原始数据](#5-原始数据契约) · [关系处理](#6-数据层设计) · [报告](#7-报告层与-html) · [代码职责](#8-模块接口与文件去向) · [兼容和成本](#9-兼容边界情况与成本) · [开发验收](#10-实施顺序与验收) · [交接](#11-前序交接开放事项与停止条件)。
+## 1. 决定、范围与前序
 
-## 1. 使用方式、范围与决定状态
-
-### 1.1 开发前先读
-
-1. [开发索引](README.md)、[安全 spec](../../specs/safety-module.md)、[主 Skill spec](../../specs/core-skill.md)。
-2. [Phase 3.1 当前计划](safety-phase-3-readability-v0.3.1.md)第四步交接，以及[Phase 3 前序交接](safety-phase-3-change-impact-v0.3.md)。
-3. [2026-09-15 真实使用审查](../EVIDENCE-TRACE-REAL-USE-AUDIT-20260915.md)、[可信度研究](../EVIDENCE-TRACE-TRUST-ARCHITECTURE-20260914.md)。
-4. [design.md](design.md)、[阅读框架](evidence-trace-reader-template.md)、[现有数据映射](../../references/evidence-trace-reader-mapping.md)。
-
-基线：`codex/real-workflow-readiness-20260907`，`d52165b440f9c04b79272507f87c4fdb5aafacc8`。2026-09-19 已 fetch，分支与远端一致。实施时重新核对，保护未提交修改，不修改 main。
-
-本设计是 Phase 3.1 的补充方案，拟在原第五步 HTML 前收口采集与数据职责。它不撤销历史完成记录，不等于路线图的 Phase 4，也不表示已经获得实施授权。用户批准方案后，先同步 spec、当前计划和 design.md，再按第 10 节开发。
-
-### 1.2 三种状态必须分开
+r2 根据后续讨论修正 r1 的核心分工：**数据层需要 AI／人完成语义组织，程序负责事实和结构核对；完整过程与报告编排分开保存。** 不再把 nodes/relations 列表当作已经整理完成的设计过程。
 
 | 状态 | 内容 |
 |---|---|
-| 已确认方向 | 采集、数据、报告三层；HTML 为主要报告形式；真实过程优先；程序结果与 AI 声明分开；保留旁路和原始记录 |
-| 本文推荐、等待评审 | 具体入口范围、新增原材料观察与交付清单事件、统一数据构建函数、报告输出格式、迁移方式 |
-| 当前事实 | 三个主要执行入口已有 Trace；reader 投影已实现；HTML 仍是旧组织；没有通用宿主观察器 |
+| 已确认方向 | 三层；完整机器结果；AI 语义组织与报告编排；程序核对及固定渲染；原始事实与后来判断分开 |
+| 本文工程建议 | 字段、CLI、事件类型、模块拆分及执行顺序，实施时可简化但需同步文档 |
+| 当前实现 | 三个主入口、原日志与 reader 已存在；新组织包、编排提交和完整机器结果尚未实现 |
 
-### 1.3 完成后承诺什么
+先读[索引](README.md)、[安全 spec](../../specs/safety-module.md)、[Core spec](../../specs/core-skill.md)、[Phase 3.1 计划](safety-phase-3-readability-v0.3.1.md)及[前序交接](safety-phase-3-change-impact-v0.3.md)。依据包括[真实使用审查](../EVIDENCE-TRACE-REAL-USE-AUDIT-20260915.md)、[可信度研究](../EVIDENCE-TRACE-TRUST-ARCHITECTURE-20260914.md)、[Archify 对照](../ARCHIFY-REFERENCE-REVIEW-20260919.md)。
 
-在明确接入的工具范围内，读者能从交付文件回查输入、执行、修改、检查和已提交的设计依据。缺失、转述、后补、失败均可辨认。依据完备指关键结论具有可复核材料，并非取得全部模型内部过程。
+本轮已 fetch，开发分支 `codex/real-workflow-readiness-20260907` 与远端一致。业务基线 d52165b，r1 文档 f6310e9。实施前重新核对，保护用户 Reader Demo 未提交修改，不修改 main。r2 是同一设计的修订；r1 留在 Git，不重新计算历史完成状态，不进入 Phase 4。
 
-本轮不建设新的 DNA 验证引擎、自动文献裁判、风险评分、会话管理平台、数据库服务或模型服务。不声称防御具有相同文件写入权限的恶意宿主。科学正确性、湿实验功能和安全性仍需各自证据。
+继续保留旁路、单一事件源、一套 Skill、全局 Off/Observed/Full 和独立 normal/strict。不改变 DNA 参数、planner、Handler、Core Validation 或正式产物，不增加模型服务、图数据库、风险评分或自动科学裁判。
 
-## 2. 问题与总体结构
-
-### 2.1 以真实缺陷确定改动
-
-| 已观察问题 | 对应设计 |
-|---|---|
-| 引物标注生成四份新 QC 文件，却未进入 Trace | 文件操作共用采集；交付清单逐文件核对来源 |
-| 来源写成“本地检查”，无法定位原事件 | 保留原材料观察和确切引用，声明来源与可回查来源分开 |
-| 用户要求被写成 AI 自主决定 | Requirement 与 Decision 保持分工；指引和报告均明确归属 |
-| `reader.py` 计算材料关系，`chain.py` 混合分析和阅读组织 | 关系及分析集中到数据层，报告只组织已有关系 |
-| `integrity=complete` 但漏掉后续文件 | 日志结构、采集范围、交付追溯、说明来源分别报告 |
-| 正式交付受 CDS 注释问题阻塞 | 单列 DNA 主线缺陷；Trace 如实记录，不降低 Core 检查标准 |
-
-### 2.2 三层职责
+## 2. 三层及其实际执行者
 
 ```text
-实际程序调用 ─────┐
-AI／用户公开提交 ─┼→ 采集层 → 原始事件日志 → 数据层 → 已核对的过程数据
-可获得的原材料 ───┘                                      ↓
-                                                  报告层
-                                             HTML / Markdown
+真实工具行为、用户/AI公开提交、可取得原材料
+                    ↓
+              采集层：原始记录
+                    ↓
+       数据层：程序事实索引 → AI／人语义组织
+                         → 程序核对与保存版本
+                    ↓
+        graph.json：完整过程＋报告编排
+                    ↓
+       报告层：按编排输出 HTML / Markdown
 ```
 
-| 层 | 输入 | 输出 | 允许的工作 |
-|---|---|---|---|
-| 采集 | 显式提交、公开材料、真实调用及文件 | 原始事件、来源位置、调用和文件标识 | 观察、脱敏、最小格式校验、追加 |
-| 数据 | 原始事件 | 节点、关系、运行范围、版本、分析和缺口 | 引用解析、可计算关系、条件比较、变化影响、核对 |
-| 报告 | 数据层结果 | 统一报告内容，再输出页面或文本 | 选择相关内容、分组、措辞、排版和交互 |
-
-三层是同一 Python 包内的职责划分，不是三个服务。采集不调用 renderer；数据层不读网页或 DNA 文件；报告层不建立新的证据关系。
-
-## 3. 一次任务中的信息怎样流动
-
-“任务”是一次设计委托；“运行”是一次被包装的程序工作流；“操作”是运行中的具体调用。一个任务可含多次运行。复用已有 `trace_id / run_id / stage_ref`，不另建 conversation/session 注册表。
-
-1. 确定同一任务使用的 `trace_dir`，读取全局 Off/Observed/Full。后续所有接入入口显式传递该目录，不按文件名猜任务归属。
-2. 提交真实用户要求。有原话就关联原材料；只有摘要就标摘要。
-3. AI 查资料或检查输入。工具可自动采集的直接记录；外部材料通过第 4.3 节观察入口保留；无法获得的部分保持未核实。
-4. 关键选择出现时提交 Decision、公开理由、实际依据和目标参数。给定约束归 Requirement；科学支持关系由提交者提出。
-5. 程序调用开始时固定输入版本；结束时记录返回、错误和实际输出。决定的提交不等于操作成功。
-6. 失败后调整方案，追加决定的新版本或有明确依据的新决定。新运行选择新范围，旧运行引用不变。
-7. 文件标注、转换、打包仍使用同一 Trace，建立新文件与原文件的处理关系。
-8. 对准备交给用户的明确文件清单执行追溯核对。它核对记录，不执行 Core 的正式提升。
-9. 数据层整理过程，报告层生成报告。重建报告不追加历史事实。
-
-若某一步没有采集，后续不得补造其执行历史。后来观察到文件，只能记录“此时发现该文件”，不能推断它由哪个工具生成。
-
-## 4. 采集层设计
-
-### 4.1 第一批接入范围
-
-| 入口 | 本轮应捕获的实际内容 | 输出识别方式 |
+| 主体 | 职责 | 边界 |
 |---|---|---|
-| `run_construction_task.py` | task/plan/execute/validate/finalize 的已有阶段 | 原返回与已有正式交付信息 |
-| `run_pipeline.py` | 实际 Pipeline 工作流及返回 | 保留当前组合调用，不在每个 Handler 中埋点 |
-| `run_recipe.py` | Recipe 参数、制备、检查、候选、提升 | 原返回的准备文件、检查和交付字段 |
-| `inspect_plasmid.py` | 文件版本及实际检查结果 | 包装 `inspect_single_file()`；归程序观察，不改成全面 Validation |
-| `annotate_primers.py` | add/remove/replace/clear 的输入、输出和真实数量结果 | 包装两个格式分支，读取返回的 `source / output` |
-| `convert.py` | 每个文件转换的输入、输出或失败 | 包装 `convert_file()`；批量逐文件记录，不能用批量结束掩盖单个失败 |
-| `export_delivery_bundle.py` | 原输入、实际导出文件及原 manifest | 包装 `build_bundle()`；保留 preview/convenience 身份 |
+| 采集程序 | 真实输入输出、文件、失败、原文位置及原始提交 | 不推断内部动机 |
+| 设计 AI／用户 | 原要求、设计决定、当时公开理由、声明的依据 | 不手写程序检查和产物事实 |
+| 整理 AI／研究者 | 阶段、分支、过程解释和有来源的语义关系 | 不把后来理解写成当时理由 |
+| 数据核对程序 | 引用、版本、执行对应、约束、记录去向及组织状态 | 不认证自然语言科学论证 |
+| 报告编排者 | 标题、摘要、重点、分组及展开安排 | 不改变完整过程及其事实 |
+| 渲染程序 | 固定布局、关系显示、交互和导出 | 每次生成页面不重新调用模型 |
 
-这是有边界的第一批，不是“全部 Python 操作均被观察”。`annotate.py`、`annotate_offtargets.py`、任意临时脚本及直接 Core 调用暂不宣称覆盖。实施第一步应核对入口清单；发现本次交付路径另用某入口时，接入它或明确保留缺口，不以扫描目录伪造调用来源。
+AI 整理与编排可以在同次宿主响应完成，但确实有 token、时间和工具成本。三层是职责，不是三个服务；Python 不内置调用模型 API，并不等于数据层不需要 AI 工作。
 
-只读 inspection 在未提供 `--trace-dir` 时维持当前独立用法，不自动创建 Trace；在已指定的设计任务内则记录相关发现。这是需要同步 SKILL/spec 的推荐变更。
+## 3. 数据层最终交付什么
 
-### 4.2 统一程序采集方式
+### 3.1 完整机器结果
 
-复用 `TraceRun`、`traced_run()`、`observe()`，不增加第二个运行框架。新文件入口需要支持 `--trace-dir / --trace-input / --trace-mode`；全局 level 仍是唯一 Off/Observed/Full 开关。
+升级现有 graph.json，使其保存已经形成的设计过程，而非仅为画图准备的简图。
 
-建议在 `runtime.py` 增加一个供这些 CLI 共用的文件调用方法，接口语义固定为：
+| 字段 | 内容与来源 |
+|---|---|
+| schema_version | `design-process-v1`，与模块版本分开 |
+| snapshot | trace_id、记录截止序号、组织版本、报告版本及新旧状态，由程序填写 |
+| task | 已记录的目标、约束、材料和交付要求，附原引用 |
+| source_records | 按确切节点版本/事件 ID 索引的完整已采集信息，由程序装配，不让 AI 重新誊写 |
+| fact_relations | 实际输入、返回、文件生成、检查对象等可计算关系及依据 |
+| design_process | 有阶段、步骤、分支、解释和未决项的完整过程 |
+| report_plan | 供正文、导图和导出执行的编排，引用完整过程 ID |
+| coverage | 每份记录的去向、未归类项、不可取得材料及来源缺口 |
+| findings | 真实设计问题与记录/来源问题分开，附对象和版本 |
+
+完整性针对已采集的相关信息。原材料可通过引用保留；大 DNA 文件不重复塞入 JSON，内容不可取得时明确标记。未知事件也保留载荷，不因程序不理解就删除。完整保存不要求一次向模型发送全部内容。
+
+source_records 表示 basis 范围内的原始设计记录；组织/编排事件通过 snapshot 中的确切版本引用访问，不递归嵌入自身。旧组织版本仍可从日志回查。graph.json 是派生结果，render 应从日志和指定组织版本装配，不能把手工改过的缓存当成新的原始事实。
+
+### 3.2 design_process
+
+| 字段 | 必要信息 |
+|---|---|
+| stages | id、title、purpose、step_ids、可选 branches 与 source_refs |
+| steps | 按 id 索引；kind、完整 content、source_refs；可有 reason、limitations、input_refs、outcome_refs |
+| relations | id、from、to、kind、meaning、source_refs，作者和来源身份随提交保留 |
+| paths | 命名路径及 step_ids；注明逻辑组织、计划还是实际调用顺序 |
+| unresolved | id、具体问题、相关步骤/记录和来源 |
+| detail_refs | 不放入主要步骤但保留供复核的材料引用 |
+
+step.kind 使用 requirement/choice/program_result/artifact。具体程序数值、文件角色和检查状态由原记录解析，AI 不提供替代值。每个阶段要说明所解决的子问题；没有论文、替代方案或用户否决时不强行补齐。
+
+集合的明确形状：stages/relations/paths/unresolved/detail_refs 为数组，steps 为 ID 到对象的映射。stage.branches 若存在，包含 id、label、step_ids、source_refs；path.order_kind 取 logical_process/planned/recorded_order。recorded_order 需要可比较的原调用顺序。source_refs 只能引用原记录；step_refs、relation_refs 则引用本过程对象，命名空间不得冲突。
+
+reason 为 `text / source_refs / origin` 对象。origin 区分 original_statement、organized_summary、later_interpretation、unknown。摘要和新解释不覆盖原说明。
+
+### 3.3 关系分类
+
+fact_relations 是程序从实际记录建立的关系；design_process.relations 是 AI／人提供的语义组织。二者都须能回查依据。
+
+| 关系 | 语义范围 |
+|---|---|
+| input_reference / produced_by / stage_result | 程序确认的输入、生成及调用生命周期 |
+| target_matches_input | 已提交目标值与真实调用参数匹配，不证明选择理由正确 |
+| responds_to | 声称回应要求，不等于实际满足 |
+| declared_reason_for_change | 有公开说明作为依据，不认证内部因果 |
+| supports / opposes / constrains / contextualizes | 提交者对具体方面的科学判断，保留条件和来源 |
+| grouped_with / part_of | 组织者提出的过程结构，不冒充运行事实 |
+| revises_plan | 根据明确说明组织出的方案修订关系；原记录的程序版本修订仍另行保留 |
+
+AI 可以引用已有 fact_relation_ids，但不能新建程序身份的 produced_by、Validation 或文件事实。阅读顺序不自动生成关系；相邻节点没有边时只能显示分组。
+
+## 4. 采集层保留和补齐哪些路径
+
+### 4.1 第一批入口
+
+| 入口 | 采集位置 |
+|---|---|
+| run_construction_task.py | 现有 task/plan/execute/validate/finalize |
+| run_pipeline.py | 原组合工作流及返回，不在每个 Handler 埋点 |
+| run_recipe.py | 实际参数、制备、检查、候选和提升 |
+| inspect_plasmid.py | 有 trace-dir 时包装 inspect_single_file；无 Trace 的独立检查用法保持 |
+| annotate_primers.py | 两种格式的 add/remove/replace/clear，输入与 result.source/output |
+| convert.py | convert_file，批量逐文件保留成功和失败 |
+| export_delivery_bundle.py | build_bundle 的真实清单，保持 preview/convenience 身份 |
+
+未接入的临时脚本、其他工具或宿主活动明确在范围外。目录中出现文件，不是该文件生成过程的证据。
+
+### 4.2 共用程序观察
+
+复用 TraceRun、traced_run、observe，增加文件调用 helper：
 
 ```python
-def observe_files(
-    stage, fn, *, args=(), kwargs=None,
-    input_paths=(), output_paths, artifact_role,
-): ...
+def observe_files(stage, fn, *, args=(), kwargs=None,
+                  input_paths=(), output_paths, artifact_role): ...
 ```
 
-- `fn` 按原参数调用一次；`output_paths(result)` 是入口提供的确定性提取函数，不从任意返回字符串猜输出。
-- `artifact_role` 来自入口契约，例如 `derived`、`preview`、`qc`；正式身份只接受原 Core 提升结果。
-- 现有三个主入口继续使用现有 observe 调用；新 helper 复用其写入与错误处理。Trace 相关参数在外层消费，不传给 DNA 函数。
-- 有当前 TraceRun 时沿用，无时由入口建立一次运行。以输出目录或输出文件父目录作为已有默认目录规则，不另造任务发现服务。
-- 嵌套调用复用写入者，不重开同一日志。每个真实写文件调用有独立 stage_ref；聚合返回只引用已记录文件，不再制造一次生成事件。
-- 已知输入的文件内容标识在调用前获取；返回后只检查明确输出位置。复用现有 `file_digest`，不增加新的哈希算法或签名链。
-- 若调用失败但可能已写文件，检查明确声明的输出位置，记录为失败调用后的可见文件，不能标为成功产物。调用前已存在且未变的文件不得冒充此次生成。
-- CLI 的原参数默认、DNA 返回、stdout JSON 与退出语义保持不变；Trace 状态放现有旁路结果或 stderr。原程序异常优先。
+output_paths(result) 是确定的输出提取函数。业务函数以原参数调用一次；输入版本在写入前取得，返回后只检查明确输出。annotate 取 output，convert 取返回路径，bundle 取 bundle_dir/files/manifest。复用 file_digest，不增加哈希链。
 
-接入位置：在文件 CLI 的 main 解析参数后，抽出一个 `_run(..., out_dir)` 外层函数，使用现有 traced_run；业务函数签名保持原样。单文件 out_dir 为已解析目标的父目录，批量转换为实际输出目录，导出包为 bundle 目录；指定 Trace 的只读检查以 Trace 目录父级作为运行位置元数据，不制造输出文件。输出提取分别使用 annotate 的 `result.output`、convert_file 的返回路径、build_bundle 的 bundle_dir/files/manifest；不依赖递归搜字符串识别文件。
+原地编辑记录新旧文件身份；DNA 相同不等于注释相同。失败后残留文件只能记录为失败调用后的观察，不能算成功产物。原来存在且未变的文件不冒充新生成。聚合返回重复提及文件复用原记录；不同真实调用仍区分。
 
-原地修改必须在写入前保留输入版本标识，之后记录新的文件状态。同一路径不等于同一版本；DNA 相同也不意味着注释和引物相同。Trace 不擅自复制用户完整 DNA 作为备份；被覆盖的旧文件若无法取得，明确为历史文件内容不可恢复。
+七入口统一 trace-dir/trace-input/trace-mode。输出根采用原解析结果的文件父目录或批量目录；只读检查有明确 Trace 时仅保存运行位置元数据。原返回、stdout、退出语义和 Core 错误保持，Trace 诊断走旁路。
 
-### 4.3 AI、用户与外部材料
+### 4.3 原材料与公开提交
 
-保留 `trace_design.py record --input bundle.json` 和执行入口的 `--trace-input`。它们接收 Requirement、Source、Statement、Claim、Decision、证据关系、后补解释。**这些内容的科学含义由提交者提供。**
+保留 record 和 trace-input 接收原七类记录、证据关系和后补说明。新增 observe --input：local_text 按 1 起始、两端包含的行范围读取 UTF-8/UTF-8-BOM 文件；submitted_text 保存提供者文字。后者不能自标已核实原消息。
 
-新增小型原材料观察入口，建议命令：
+最小字段为 kind、path/text、start_line/end_line，可选 source_uri、declared_role、declared_occurred_at。event_id、采集时间、capture_channel 由程序填写。返回的事件 ID 用于 origin_refs。支持批量，逐条返回成功或错误，不回滚已追加事实。
 
-```text
-python scripts/trace_design.py observe --trace-dir work/trace --input observation.json
-```
+出处可定位、原文匹配、内容支持、作者和原发生时间是不同核查。原文/摘要分开；只有确切片段匹配才能建立 quotes_from，引用 ID 存在不够。只允许换行规范化，不能通过改写消除差异。
 
-第一版支持两种明确输入：
+暂不建设网页抓取、PDF 平台或通用宿主适配。可靠宿主原事件以后可以接入同一入口；无接口就保留实际范围。“本地检查”这样的描述不是可核对事件标识。
 
-1. `local_text`：本地 UTF-8 文本或工具导出文本，指定文件和行范围，程序直接提取。保留原位置、选取范围、原文和原文件的已有内容标识；检查越界和文件不可读，不默默改写文本。
-2. `submitted_text`：提交者提供的文字及声称的来源。保存原样，标明“提交内容”，不升级成已核对的宿主消息。
+### 4.4 文件交付核对
 
-接口约定：单条输入为对象，批量输入为 `{"observations": [...]}`；每条结果按原数组位置返回 `event_id` 或错误。`start_line / end_line` 使用从 1 开始、两端包含的行号，要求在真实文件范围内。读取 UTF-8 或带 BOM 的 UTF-8；解码失败记录为不可读，不以替换字符冒充原文。复用既有序列/凭据省略规则，发生省略时在观察中标明范围，不能声称保存了完整原文。`submitted_text` 使用 `text` 字段，文件提取不接受调用方自填 text 覆盖。
+handoff 接收明确清单，采集当次存在性、内容标识和提交用途；数据层计算 linked/untraced/missing/changed/ambiguous。linked 必须有对应的成功生成或修改记录；presence_only 再次匹配也不能升级为已追溯。
 
-返回新观察事件的 `event_id`，供记录中的 `origin_refs` 引用。可以一次提交多条观察并返回对应结果，减少工具轮次；每条成功/失败分别报告。调用方不负责指定观察事件 ID、采集时间或采集身份。
+不调用 Core finalize、不移动文件、不提高正式等级。Trace 日志和自身派生报告不放进 DNA/制备/QC 清单。完全没有提交的交付内容无法被清单核对自动发现。
 
-示例输入如下。`source_uri`、作者角色和原发生时间是提供的元数据；读取本地文件只证明该文件中存在这段文字，不认证文件的作者或历史时间。
+### 4.5 故障和隐私
 
-下面仅演示输入结构；实际执行使用真实取得的文件、行范围和网址，不能把示例网址作为来源。
+保留 normal/strict，普通 Trace 故障不阻塞成功 DNA 工作，严格模式只在原边界停止，不回滚文件。一个 Trace 一个写入者，用标准库非阻塞进程锁落实；冲突时普通模式停采并报告、严格模式调用前停止，嵌套观察复用，进程退出释放，不做锁服务。
+
+凭据和长序列省略规则沿用，省略范围要说明；不默认保存无关聊天或完整 DNA 副本。旧文件移走/覆盖后无法恢复就明确标记。继续遵守序列上传同意和许可规则。
+
+## 5. AI 整理动作与提交接口
+
+### 5.1 谁发起
+
+宿主 AI／人是组织者；SKILL.md 明确要求其在主要阶段结束、重大调整后或交付前组织已有记录。不是每次工具调用后追问一次理由，不是在渲染函数里隐藏一个 API 调用。
+
+### 5.2 调用流程
+
+1. inspect --data 输出固定事实快照：trace_id、through_sequence、运行、记录索引、事实关系、交付核对和缺口。
+2. 宿主先读任务和索引，再按引用读取相关原记录；长任务可按阶段处理，但完整记录不丢失。
+3. 写 organization.json，提交 basis、design_process 和可选 report_plan。**AI 不重写 source_records 或 fact_relations。**
+4. organize --input 检查并追加组织版本，程序装配完整 graph.json。
+5. 仅调整读法时用 report-plan --process-ref --input，保持原过程不变。
+6. render 消费已保存结果，导出、打开、缩放和切换视图均不调用模型。
+
+### 5.3 提交包形状
 
 ```json
 {
-  "kind": "local_text",
-  "path": "work/sources/paper-excerpt.txt",
-  "start_line": 12,
-  "end_line": 18,
-  "source_uri": "https://example.org/paper",
-  "declared_role": "source",
-  "declared_occurred_at": null
+  "schema_version": "trace-organization-v1",
+  "id": "ORG-main",
+  "basis": {"trace_id": "example-trace", "through_sequence": 5},
+  "design_process": {
+    "stages": [], "steps": {}, "relations": [],
+    "paths": [], "unresolved": [], "detail_refs": []
+  },
+  "report_plan": {
+    "title": "结构示例", "sections": [],
+    "diagram": {"reading_order": [], "relation_refs": [], "short_labels": {}},
+    "default_expanded_refs": [], "detail_refs": []
+  }
 }
 ```
 
-本轮不开发网页爬虫、PDF 解析平台或通用宿主适配框架。可靠宿主事件接口以后接入同一个观察入口，其位置与顺序须由适配代码取得，不能让模型自行填写“宿主已核实”。没有接口时仍可使用基础版本，但原对话和检索历史的自动覆盖不在承诺内。
+这是字段形状，空数组不代表真实任务可验收；完整实例见附带 JSON。basis 来自程序，不猜序号；id 为组织逻辑 ID，revision、写入时间、作者通道由程序保存。
 
-### 4.4 供 AI 遵循的最小指引
+有设计记录的任务提交 organize 时，至少有一个目的明确的阶段和一个有真实引用的步骤；空包不能获得“已组织”输出。局部组织可以保存，但剩余内容必须进入详情或 unassigned，当前快照匹配不等于全部语义已组织完成。组织中提出的新设计建议只能标为后来建议；需要成为新的实际设计选择时，先通过原 Decision 提交路径记录。
 
-实施时将以下含义整理进 SKILL.md 的短段落，字段示例只放 `references/evidence-trace.md`：
+AI 输出前检查阶段目的、真实分支、取舍依据、执行与计划区别；未知和未归类保留。新科学解释标为 later_interpretation，不能声称当时模型已经考虑过。
 
-- 同一任务沿用一个 Trace 目录；已接入工具的参数、检查和文件不用再手工抄录。
-- 先保留用户实际要求，给定约束不包装成自己的自主选择。
-- Full 仅为关键取舍提交一句公开理由、具体依据引用和已知重要限制，随原设计响应产生；Observed 不强求额外说明。
-- 引用真实原材料观察或程序事件；只能转述时如实标注。条件不明就缺省，不把论文题目当成证据片段。
-- 真实修改追加新记录，执行新方案时选择对应记录范围；后补说明走独立入口。
-- 交付前核对实际文件清单，缺少记录不要编造旧调用补齐。
+### 5.4 模式与成本
 
-来源提交仍需要模型配合，这一依赖不能由文档或数据格式消除。程序负责减少重复填写和发现可见的不一致，不为漏记的信息生成理由。
-
-### 4.5 故障、隐私与写入
-
-沿用 normal/strict，和采集 level 独立。normal 下采集失败不停止 DNA 工作；strict 只在现有调用边界停止。失败后存在的文件不删除、不回滚。
-
-继续单写入者。修改操作在读取日志前取得一次写入占用，持续至本次追加结束；长运行持有同一写入者，嵌套观察复用。用标准库提供的进程级文件锁实现 Windows/Linux 的非阻塞占用，进程退出释放，不增加守护进程或锁数据库。第二写入者不能获得占用时，normal 本次停止 Trace 采集并报告故障，strict 在调用前停止；不等待无限长、不静默并发写坏日志。只读构建报告不需写锁，只读完整前缀；末尾未结束行明确标为未完整记录，不能当成已完成。写入者无法记录自己的故障时，stderr 是当次故障出口，整体覆盖仍不得宣称完整。
-
-普通日志保留摘要、位置和现有内容标识，沿用长序列及凭据省略策略。外部原文只采集指定相关范围，注明选取/截断情况，不默认保存全部聊天或网页。继续遵守[序列上传同意](../../references/privacy-and-consent.md)。来源材料默认留在本地，不随源码提交。
-
-## 5. 原始数据契约
-
-### 5.1 保留什么，新增什么
-
-保持七类业务记录：Requirement、Source、Statement、Claim、Decision、Validation、Artifact。分别表示要求、资料身份、资料内容、当前判断、设计选择、程序检查和文件。新增的观察与交付清单是事件，不再增加一套平行业务节点。
-
-保留现有事件 ID、trace_id、run_id、sequence、timestamp、actor、event_type、payload、mode_at_capture。`timestamp` 始终是本地追加时间，`actor` 始终是提交者标记。
-
-推荐新写入格式标为 `evidence-trace-v0.2`，与模块 v0.3.1 分开；读取器支持旧 v0.1 和混合版本日志。新字段只在新版事件使用，旧事件不重写。
-
-| 内容 | 最小字段及约束 |
+| 模式 | 目标行为 |
 |---|---|
-| 原材料观察 `observation_recorded` | `kind`、程序填写的 `capture_channel`、`text`、`locator`；可有 `source_uri`、`declared_role`、`declared_occurred_at`、可比较的外部顺序。local_text 的 locator 保存真实文件与行范围 |
-| 记录来源 | 节点和证据关系可加 `origin_refs: [event_id]`；旧 `decision_source / requirement_source` 保留为原提交声明 |
-| 调用事件 | 继续 stage_started/completed/failed；新增需要时的 `input_artifact_refs`、输出文件绑定。stage_ref 由程序赋值 |
-| 文件记录 | 原字段加 `generation_event_ref`、`input_artifact_refs`、`observation_kind`；区分 `generated` 与 `presence_only`。文件不存在则记录错误，不创建成功文件事实 |
-| 检查记录 | 保留原结果及 result_event_ref；可有原结果明确给出的 `subject_refs / scope`。未提供时维持 same_run，不自动绑定每个 Claim |
-| 交付清单 `handoff_recorded` | 明确文件条目、当次存在性与内容标识、提交的用途和可选确切 Artifact 引用；匹配结论由数据层计算，它不赋予 authoritative 身份 |
+| Off | 不追加 Trace/组织事件；可以读取已有记录和编排 |
+| Observed | 自动事实和已有提交，不默认额外 AI 理由或整理；明确请求整理时可组织已有材料，标明后来整理并计成本 |
+| Full | 保留设计时短说明；宿主在阶段结束/交付前提交过程与编排，可同次响应完成 |
 
-`capture_channel` 由真正执行采集的方法设置；`record` 拒绝提交者伪装 runtime、host_observed 或程序检查结果。该限制属于调用契约，不是同权限恶意代码隔离。
+没有独立模型服务不等于没有 AI 工作。组织与编排确实增加 token、时间和工具轮次；联合输出只减少单独往返，不自动消除成本。开发默认 Full，发布默认待实测。
 
-观察的 kind 为 `local_text / submitted_text`；capture_channel 分别由程序写成 `local_file / submitted`。`host_event` 留给以后实际接入并验证的宿主采集方法，第一版公共提交接口不允许自选该值。declared_role 允许 `user / assistant / source / tool / unknown`，缺省 unknown；它仍是提供者的角色声明。
+## 6. 程序核对与机器结果构建
 
-### 5.2 来源核对结果放在派生数据中
-
-不要让 `explanation_origin=ai_concurrent` 自动生成“已核实同期”结论。它继续表示提交者声明。
-
-数据层输出独立的来源核对信息：
-
-- 原材料是否能定位：`available / missing / unknown`。
-- 原文匹配：`matched / mismatched / not_applicable / unknown`。摘要对应 not_applicable；未取得原材料对应 unknown。
-- 核对范围：例如“与提供的文本文件一致”，不省略成“已证实用户原话”。
-- 时间关系：`before / same_public_message / after / unknown`，只在原事件确实可比较时给出。
-- 公开说明身份：当时提交的声明、可核对的原公开消息、后来辅助解释、来源未知。
-
-不把这些合成一个可信度分数。旧的 ai_concurrent 原字段保持，但默认文字降为“提交者声明为当时说明”；原消息核对之后可显示其具体范围。
-
-每项核对必须含 `scope` 和 `basis_refs`。仅能解析 origin_refs 的 ID，只得到“出处可定位”；只有指定原文与观察内容逐字匹配，才建立 quotes_from。比较最多统一换行形式，原文仍原样保留，不通过改写措辞消除差异。
-
-原文/摘要标记沿用 Requirement 的 requirement_source.form；Decision 可在 decision_source 增加同义的 form，核对其 excerpt，不能把一小段 excerpt 的匹配扩展为整份 rationale 已核对；Statement 使用可选 text_form。取值均为 verbatim/summary/unknown，缺省 unknown。没有逐字引用的文本不强行判为错误。
-
-日志顺序只能证明“这项材料/说明在调用前已提交到 Trace”，不能证明模型何时看过材料；`same_public_message` 需要可核对的同一原消息标识，不能靠自填时间或同一 run_id 得出。origin_refs 指向缺失或错误类型的事件时，不赋予原文 matched。
-
-### 5.3 时间、修订与后补
-
-保持追加式修订。引用尽量使用 `D1@1` 这样的确切版本；现有逻辑 ID 解析仍在写入时固定，不能在报告中自动跳转最新版本。
-
-“后来导入了一份原来就有的消息”与“后来新写了解释”分开：前者保留导入时间和可核对的原消息位置，后者保持 explanation_added。无法确认原时间时不倒填。
-
-原来源的存在核验、片段摘录核验、适用性判断分开。即使 Source verification_status 为 verified，也不能自动把 Statement、Claim 和 Decision 变为正确。
-
-## 6. 数据层设计
-
-### 6.1 一个统一构建入口
-
-新增 `evidence_trace/projection.py`，作为从事件生成展示无关数据的唯一入口：
+### 6.1 三个明确的程序职责
 
 ```python
-def build_trace(events, errors=(), *, through_sequence=None) -> dict: ...
+def build_facts(events, errors=(), *, through_sequence=None) -> dict: ...
+def validate_organization(packet, facts) -> dict: ...
+def build_process_result(facts, organization, report_plan=None) -> dict: ...
 ```
 
-这是纯数据处理：不调用模型、不访问网络、不读写 DNA、不追加事件。`through_sequence` 只允许构建记录前缀；缺失边保持缺失。文件当前是否存在，必须来自新观察或交付核对，不能在报告重建时悄悄修改历史状态。
+build_facts 处理原节点、执行关系、范围、目标匹配、已有适用性与变化影响；它是纯函数，不调用模型或读写 DNA。validate_organization 核对提交结构，不认证科学论证。build_process_result 汇合完整记录和组织结果，不能在没有 AI 组织时自动写出一份完整研究解释。
 
-构建顺序：解析节点/运行及确切版本 → 来源归属 → 执行与文件关系 → 目标匹配 → 结构化适用性 → 变化影响 → 缺口和具体复核事项。
+### 6.2 程序能检查什么
 
-输出保持现有核心数据并增加统一关系：`nodes / runs / events / relations / changes / assessments / findings / capture_scope / handoffs`。机器字段可保留在详情，报告无需直接显示其名称。
-
-### 6.2 关系类型和谁能建立
-
-每条关系至少含 `from / to / kind / origin / basis_refs / scope`。端点可以是确切节点版本或事件 ID；关系必须能回指其原始依据。程序推导关系记录所用规则版本。
-
-origin 取 `runtime / submitted / derived`，由构建代码依据事件类别确定，不采信记录者自填的程序身份。关系 ID 由现有端点、类型和依据事件组成稳定标识，或采用稳定有序索引；不在每次重建时生成随机 ID 或引入新哈希机制。
-
-| 关系 | 建立依据 | 语义上限 |
-|---|---|---|
-| `responds_to` | 提交的要求关联 | 声称回应某要求，不等于满足 |
-| `declared_basis` | AI/用户明确引用 | 声称据此判断，不是心理因果证明 |
-| `supports / opposes / constrains / contextualizes` | 证据关系提交 | 科学语义由提交者判断，保留条件和反对意见 |
-| `quotes_from` | 片段与观察材料可核对 | 文字来源一致，不证明科学支持 |
-| `input_reference` | 实际调用输入与文件版本 | 确认提交的材料，不自动证明全部序列被并入 |
-| `stage_result` | 同一 stage_ref 的开始和返回/失败 | 调用生命周期 |
-| `produced_by` | 已知写文件入口的成功返回及对应文件观察 | 文件由此调用生成；聚合返回或仅存在不能建立 |
-| `derived_from` | 明确文件处理操作的输入输出 | 注释、转换等处理来源，不额外推断生物学因果 |
-| `checks` | 原检查明确指向对象/版本 | 仅限原检查范围；否则保留 `same_run` |
-| `revision` | 同一记录的新旧版本 | 内容修订，不自动意味着旧科学结论错误 |
-| `target_matches_input` | Decision.targets 与实际输入的精确匹配 | 声明值被采用，不证明理由正确 |
-
-先后顺序另作为 `order_basis` 保存。普通排序不生成因果边。“因为失败换方案”用公开决定的 declared_basis 连接失败事件，不命名为程序已证明的 caused_by。
-
-### 6.3 材料版本匹配规则
-
-1. 有明确输入 Artifact 引用时，校验路径、内容标识及运行时间范围。
-2. 没有明确引用时，只在之前的文件记录中按实际路径与内容标识匹配。
-3. 唯一匹配可以建立 input_reference；多个匹配保留候选，生成歧义记录。
-4. 没有匹配时保留外部输入观察，不猜一个历史生产者。
-5. 文件身份必须区分生成动作。同名、同字节文件的不同生成动作不强行合并；一次动作在聚合返回中被再次提到则复用原记录。
-
-将现有 `reader.py` 中的材料匹配移到这里。不得引入全盘文件搜索、按时间最近猜来源或按文件名猜变体。
-
-### 6.4 检查与缺口分开
-
-| 项目 | 根据什么得出 | 不表示什么 |
-|---|---|---|
-| 日志结构 | 完整行、顺序、可解析引用 | 全任务已捕获 |
-| 已知采集范围 | 本轮接入入口、实际事件、已知采集错误 | 对不可见行为的百分之百覆盖 |
-| 交付追溯 | 明确清单逐文件对应生成/修改记录 | DNA 达标或已正式提升 |
-| 原始说明来源 | 原材料与时间核对 | 模型内部原因忠实 |
-| 实际设计问题 | 原程序失败、明确冲突、已有变化影响 | 统一安全等级 |
-
-保留已有 coverage、applicability、impact 算法，但从统一入口调用。字段匹配和上下文比较不升级成自然语言科学验证。普通 partial/unknown 适用性仍是条件说明，不自动变成任务失败。
-
-当前 `explained` 仅为旧展示兼容状态；新报告不用它作为统一成功条件。错误引用、旧检查配新产物、模糊作用范围各有具体对象和原因。
-
-### 6.5 交付清单核对
-
-新增 `trace_design.py handoff --trace-dir ... --input files.json`。输入是此次实际准备交给用户的文件列表，可引用 Artifact 或明确文件路径，附用途；它不调用 finalize，也不移动文件。
-
-采集方法只读取当次文件状态并追加 handoff_recorded。随后 build_trace 对照该事件发生前的记录：唯一对应已记录版本为 `linked`；存在但没有生产记录为 `untraced`；路径不存在为 `missing`；同路径内容改变为 `changed`；多个生产记录无法区分为 `ambiguous`。这些结论放入派生的 handoffs 数据，不混成原始文件事实。存在但未知的文件可以产生 `presence_only` Artifact，不能补出生成动作或 Validation。
-
-`linked` 还要求匹配到明确的成功生成/修改记录；仅匹配 presence_only 节点不够，再执行一次 handoff 也不能把 untraced 洗成 linked。清单格式为 `{"files": [{"path": "...", "purpose": "QC", "artifact_ref": "可选的确切版本"}]}`。purpose 是提交的用途，不赋予文件正式身份。重建用的日志、graph/report/HTML 等 Trace 自身派生文件不纳入该 DNA/制备/QC 文件清单，避免报告对自身建立生成依赖。
-
-只有明确清单全部 linked，才可说“清单中 N 份文件都能追溯”；报告同时显示清单范围。不能因此说所有可能文件、所有宿主活动均已记录。交付清单本身由调用方选择，程序无法发现完全未提交的交付内容。
-
-normal 中追溯缺口不影响 DNA 的原状态，返回具体缺口；文件/参数无法解析按原 CLI 错误处理。Off 不追加观察或交付事件，返回未启用采集；旧报告仍能读取。
-
-## 7. 报告层与 HTML
-
-### 7.1 统一报告内容
-
-保留 `reader.py`，将其职责收敛为报告构建：
-
-```python
-def build_reader(trace_data, *, run_id=None, handoff_id=None) -> dict: ...
-```
-
-建议输出 `report.json`，只作为可重建的派生文件。包含：
-
-| 字段 | 内容 |
+| 检查 | 规则 |
 |---|---|
-| `report_version / scope` | 报告结构版本、任务/运行/交付清单范围、记录截止位置 |
-| `context` | 有来源的研究背景、任务目标、约束；缺失不补故事 |
-| `steps` | 要求、选择、程序结果、产物四类阅读步骤；各有原记录引用 |
-| `relations` | 已有关系的阅读端点映射及原关系 ID，不新算材料/证据关系 |
-| `deliverables` | 清单中的具体文件、角色、对应检查与追溯状态 |
-| `review` | 当前具体待处理问题，保留原检查范围和失败 |
-| `record_quality` | 采集范围、来源/说明缺口、日志错误，与设计问题分开 |
+| 引用 | source_refs 指向快照已有确切记录；阶段、步骤、关系 ID 唯一且可解析 |
+| 版本 | 节点、文件、组织和编排版本固定；不静默引用未来记录或最新文件 |
+| 来源 | 原文和摘要分开；出处不存在、类型不符、原文不匹配分别报告 |
+| 程序事实 | AI 不可新增 runtime Validation、produced_by 或覆盖原数值；只能引用原记录 |
+| 关系 | 语义声明与程序关系分开；同运行或普通顺序不是科学因果 |
+| 去向 | 相关记录进入过程、详情、技术类别或未归类；不能因未归类而消失 |
+| 编排 | 章节、短标签及导图只能引用已有过程和关系，绑定确切组织版本 |
 
-步骤旁支按实际内容包含理由、依据、限制、真实考虑的替代方案、修改和后补说明。每个科学性文字块带 `record_refs / event_refs / relation_refs` 中适用的引用。固定措辞可以解释程序状态，不能扩展成程序未检查的结论。
+引用真实不证明解读正确。程序只能报告结构/引用检查结果；文字忠实度和科学支持须由明确的 AI／人复核，不能被结构通过替代。
 
-run 筛选同时筛选关系、证据、后补和复核项。历史相关材料可以显示为引用对象，不算本次新产物。原运行的当时视图不纳入后来追加信息；完整历史中查看同一个旧决定时，可单列“后来补充”。through_sequence 截止范围外的信息在任何旁支中都不得出现。
+### 6.3 完整信息的去向
 
-报告的“记录截至”取最后纳入的事件位置及其原时间，不调用当前时间制造新的历史时刻。相同事件、算法版本与范围得到相同内容和稳定排序；页面选中/展开状态属于 UI，不写入事实日志。
+程序以快照内全部已采集记录为分母，从步骤和 detail_refs 的引用、固定技术类别、未归类项计算 coverage。技术类别只包括行政性事件，不允许 AI 将失败、要求或交付文件随意改成噪声。
 
-### 7.2 默认阅读内容
+同一记录可多处引用，全文保留一份。未理解的内容进入 unassigned_refs；不可取得的大文件保留位置与状态。“记录都有去向”不证明归类正确，也不证明全部宿主活动已经采集。
 
-默认顺序为任务背景、设计形成过程、本次结果。首屏简短说明本次目标、交付状态和会影响理解的主要缺口，不堆 KPI。
+### 6.4 陈旧组织
 
-用户应无需打开原 JSON 就能回答：谁要求什么；AI 有哪些实际取舍；依据支持到哪里；程序做了什么；最终文件是哪份。来源未知、候选身份、真实失败等影响理解的信息不能全藏入详情。
+组织 basis 固定到事件前缀。新增要求、文件、检查或其他设计事实后，旧组织保留但标 stale；单纯组织/编排事件不算新设计事实。组织状态为 absent/current/stale；current 仅指快照匹配，不代表科学正确。
 
-### 7.3 HTML 和其他格式
+基于旧快照的结构有效提交可保存为历史版本，但不能替换当前组织。默认当前报告对新增未整理事实单列显示，并明确旧组织范围；不能把旧摘要套在新产物上。无组织时只给有限事实视图，不声称已完成设计逻辑整理。
 
-HTML 为主要形式：Document / Mind Map / Split 共享同一 report、选中步骤、运行范围和展开状态。Mind Map 是完整设计过程的一级阅读方式；真实并行保持分支，未证明的关系用明确文字区分，不把顺序线画成因果线。
+## 7. 报告编排与确定性输出
 
-沿用冷灰白、清晰正文、细线与有限语义色。先实现可读 Document，再复用同一内容实现 Map/Split。Evidence、Change、详细原记录按需展开，Review 只列可处理问题。细节以 design.md 为唯一 UI 规范；批准方案时更新其新来源文案。
+### 7.1 报告编排是明确的 AI／人工工作
 
-本轮提供确定性的 HTML 与轻量 Markdown 导出，共用 report.json。PDF 暂不实现，未来也消费同一份报告内容。报告生成不调用 LLM、不联网、不写回原事件；程序输出必须转义，导出链接以报告位置解析，外部图片和脚本不默认加载。
-
-## 8. 模块、接口与文件去向
-
-| 文件 | 重构后的职责 |
+| 字段 | 含义 |
 |---|---|
-| `runtime.py` | 已知入口的真实观察；复用正常/严格行为；增加文件操作共用方法 |
-| `recorder.py` | 追加、修订、引用落地和单写入者；移出科学分析及自动 render 调用 |
-| `models.py / provenance.py` | 新旧字段校验、来源与声明区别；不建立新的业务流程引擎 |
-| **新增 `projection.py`** | 从事件生成统一关系、范围、分析与缺口；接收原 recorder.project 和 chain 的数据职责 |
-| `coverage.py / applicability.py / impact.py` | 保留专门计算，输入统一数据，保持原科学边界 |
-| `reader.py` | 只构建统一报告；移出材料匹配、适用性重复计算等数据职责 |
-| `render.py / view.js / view.css` | 消费报告生成 HTML/Markdown；不再调用 build_chains 决定语义关系 |
-| `chain.py` | 迁移有效分析后删除旧六栏/Decision 中心组织，不长期保留第二套阅读流程 |
-| `scripts/trace_design.py` | record、observe、inspect、reader、render、coverage、compare、handoff 的薄入口 |
-| 第 4.1 节七个 CLI | 使用共用观察方法，保留 DNA 输入输出与生物行为 |
+| title | 面向读者的标题，不扩大任务或结果 |
+| sections | 标题、step_refs、摘要及其 source_refs |
+| diagram.reading_order | 阅读顺序，不产生新的执行边 |
+| diagram.relation_refs | 显示哪些既有事实/语义关系 |
+| diagram.short_labels | 图中的短标题，不修改完整 content |
+| default_expanded_refs | 默认展开的步骤、依据或问题 |
+| detail_refs | 收起但仍能回查的完整内容 |
 
-目标依赖：CLI/采集 → Recorder → 原始事件；projection → 规则模块；reader → projection 结果；renderer → report。底层不反向导入 renderer。数据模块也不导入 planner/Handler 计算新的 DNA 结论。
+数据语义组织与报告编排可由同一宿主 AI 在同次响应提出。报告的重点、摘要和分组不是程序自动理解出来的；程序执行已经保存的编排。
 
-observe/handoff 的文件 I/O 同样放在 runtime.py 的 `capture_material(recorder, spec)`、`capture_handoff(recorder, files)`，返回追加事件或具体采集错误；CLI 负责解析参数和打印结果。前者只提取选定原材料，后者只记录明确文件的当次状态。出处匹配、交付追溯状态及关系由 projection 计算，避免在采集方法中重造一套关联逻辑。
+### 7.2 省略的边界
 
-Recorder 写入时只需要记录编号、版本、类型和已有引用的轻量索引；将其保留为内部索引，不调用完整 build_trace 来验证每一条追加。现有 select_context 的依赖展开也只使用这些已记录引用。这样避免 Recorder 与 projection 循环导入，也避免每写一条记录就运行全部分析。
+不在概览显示，不等于从 graph.json 或日志删除。所有摘要保留引用；用户可从短标签进入完整步骤及原始材料。无有效编排时回退到固定事实视图或返回具体问题，不暗中调用模型。
 
-派生文件：`graph.json` 保存展示无关数据，`report.json` 保存报告组织，`index.html` 与 `report.md` 保存输出，`TRACE-MANIFEST.json` 继续做已有索引。它们均可删除重建；原始观察的选定片段在 events.jsonl 中，不依赖 graph.json 才存在。
+程序固定展示所选文件的真实角色、原检查状态、当前影响结果的未解决问题和采集范围。report_plan 不能把 candidate 改称 authoritative，或隐藏缺失文件。已解决的历史失败可折叠但可回查；未请求检查不制造失败。
 
-`Recorder.render()` 的调用改由入口在采集完成后显式进行。render 失败只影响报告，不抹去程序结果。正常结束自动重建报告；中途异常保留 unfinished/failed 原事件，读者下次重建可见。长任务不每追加一条事件就重绘整个页面。
+### 7.3 页面与导出
 
-为保留现有 CLI 和 Python 公共入口的自动出报告行为，可在现有 traced_run 增加由上层注入的 `on_finished` 回调：TraceRun.close 只记录终态，外层包装再调用回调，最后释放写入者；回调函数由入口模块提供，runtime/recorder 不导入 renderer。回调失败遵守同一 normal/strict 规则，原 Core 异常仍优先。它只是现有入口的结束动作，不是新的回调注册平台。
+Document/Mind Map/Split 共用一个过程版本、report_plan、选中步骤和展开状态。AI 提供语义分组和短文案，程序决定尺寸、间距、线条和交互。相邻阅读节点没有关系时显示分组，不补边。
 
-输出函数统一为 `render(directory, report, formats=("html",)) -> {format: path}`。graph.json、report.json 和 manifest 的保存由共用结束动作编排，render 不返回或修改业务图。当前依赖 render 返回 graph 的调用方必须同步改为使用已构建的 trace_data，不能靠临时双路径兼容掩盖接口变化。
+HTML 是主形式，Markdown 使用同一内容；PDF 暂缓。导出、主题、缩放和展开不调用模型。换受众或改重点时可仅更新 report_plan。视觉规则只维护在 design.md；外部原文和模型文本作为数据转义，不执行。
 
-### CLI 兼容与新增参数
+## 8. 保存方式和版本
 
-以下是目标接口，不是现有命令已经支持的功能：
-
-| 命令 | 目标行为 |
+| 文件/事件 | 作用 |
 |---|---|
-| `config` | 保持现有全局 level 读取/设置，不增加会话配置 |
-| `record --input bundle.json` | 保持现有提交契约；支持 origin_refs 和新增来源表述，不能由提交包创建程序身份 |
-| `observe --input observation.json` | 新增原材料观察；逐条返回 event_id 或错误，单条失败不抹掉已追加条目，有输入错误时退出码 2 |
-| `inspect` | 保持原摘要字段，补采集范围和交付追溯摘要；新增 `--data` 时输出完整 trace_data，用于不依赖报告的检查 |
-| `reader [--run-id ID] [--handoff-id ID]` | 输出 report 数据；两个选择参数互斥。handoff-id 选择交付清单并突出其文件，不删掉整个任务的失败历史 |
-| `render --format html/markdown/both` | format 三选一，默认 html；允许同样的 run-id 或 handoff-id 范围，重建派生输出，不追加事件 |
-| `coverage / compare` | 保留现有参数；coverage 从实际输入比对已提交 targets，compare 追加真实差异，均不调用模型 |
-| `handoff --input files.json` | 新增文件清单观察与追溯核对；有效输入中发现的 untraced/missing 等是报告结果，不把它们当 Core 检查失败 |
+| events.jsonl | 原始观察、提交、修订，以及 AI／人的组织和编排版本，均追加 |
+| organization_recorded | design_process、basis、逻辑 ID、程序分配的 revision、提交来源 |
+| report_plan_recorded | 编排、确切 process_ref 和作者；可同次提交或单独修订 |
+| graph.json | 完整机器结果，可由原事件和组织版本重新装配 |
+| index.html / report.md | 固定渲染的阅读产物 |
+| TRACE-MANIFEST.json | 原索引加记录截止范围、组织和编排版本 |
 
-原材料、记录和交付清单命令是独立的记录工具；其输入错误退出码不等于 DNA 失败。normal/strict 对执行入口的故障策略保持原义。代码帮助文字、使用示例和上述目标接口必须同一提交更新，不能只把新参数写进 MD。
+取消 r1 中 report.json 必须独立落盘的要求；渲染中间对象留内存。这样完整过程和编排在同一机器结果中，不维护重复组织。
 
-## 9. 兼容、边界情况与成本
+新事件使用 evidence-trace-v0.2，读取器兼容旧 v0.1 和混合日志。数据格式版本、模块版本、组织 revision 分开。原作者角色仍是来源声明，不因写入程序而变成身份认证。
 
-| 情况 | 处理规则 |
+organize 先校验整包：结构错误不给新成功结果、不覆盖上个有效版本。有效时追加组织及可选编排；同一个写入者处理，部分写入失败保持可诊断，不谎称两部分都保存。记录缺动机可以保留 unknown；不要求编一个理由才能通过格式检查。
+
+相同事件前缀、组织/编排版本和算法版本应得到稳定内容与排序；不要每次重建都给关系随机 ID。示例中所有引用可解析，但新方案没有执行证据，只显示“未记录执行”，不能变为 PASS。
+
+## 9. 模块、CLI 与迁移
+
+| 文件 | 目标职责 |
 |---|---|
-| 旧事件无来源或调用锚点 | unknown，保留旧字段，不合成原消息或同期时间 |
-| 原日志损坏/截断 | 不向已知损坏位置继续追加；读取有效前缀并显示记录不完整，原文件保留 |
-| 日志重建、重复运行 | 不改事件；不同运行保持独立；观察入口相同来源再次导入可保留重复并显示原引用，不靠内容相同合并历史 |
-| 多分支与相同文件名 | 按运行和生成事件区分；不按名字串成顺序关系 |
-| 文件原地编辑 | 新版本引用旧输入标识；历史检查不复制到新字节版本 |
-| 格式转换 | 保留真实转换结果，不能以序列相同声称所有注释、引物都保真 |
-| 程序检查未请求 | 原样显示，不计作检查通过或执行失败 |
-| 无 Decision 的简单任务 | 仍能报告输入、程序结果与产物，不强造科学理由 |
-| 未接入的临时脚本 | 明确不自动捕获；交付核对只指出文件无生成链，不倒填 |
-| 采集出错而 Core 成功 | normal 保留成功和文件，单列 Trace 缺口；不能返回“记录完备” |
+| runtime.py | 实际调用、文件、原材料和交付状态采集 |
+| recorder.py | 追加、编号、版本及轻量引用索引，不每次运行全分析/renderer |
+| models.py / provenance.py | 新旧字段、来源和说明身份、程序专有字段校验 |
+| 新增 projection.py | build_facts，集中现有事实关系、计算与缺口 |
+| 新增 process.py | 组织包和编排核对、版本处理、build_process_result；无模型 API |
+| coverage.py / applicability.py / impact.py | 保留已有有限计算，不充当自然语言科学裁判 |
+| reader.py | 消费完整过程及编排形成阅读对象，提供明确标识的事实视图回退 |
+| render.py / view.js / view.css | 固定 HTML/Markdown 和交互，不再首次组织研究逻辑 |
+| chain.py | 迁移有效计算后淘汰旧单 Decision 阅读组织，避免双实现 |
+| trace_design.py | 快照读取、组织接收、核对、交付和渲染入口 |
+| SKILL.md / references/evidence-trace.md | 实施时写清宿主何时读取快照、提交组织/编排、处理陈旧版本；详细字段集中在 reference，不把未实现命令提前教给当前使用者 |
 
-保留 Off/Observed/Full 与独立 normal/strict。开发默认 Full；发布默认继续待定。不增加会话级切换。Full 不调用独立解释模型；额外公开说明、材料观察和提交操作的 token/轮次都要计入真实测量，不能宣称零成本。
+projection 和 process 的区分是“事实索引”与“AI组织提交”的输入契约不同，不是另建自动科学引擎。原材料观察和文件状态的 I/O 留在 runtime；关系核对留在数据程序；报告不能反向修改事实。
 
-旧事件兼容，旧派生 graph/HTML 可重建，不为旧布局永久保留两条构建链。更新所有现有调用者、测试及数据映射。若有仓库外消费者依赖 `graph.reader`，发布说明明确改用 report.json 或 reader 命令；不悄悄返回不同形状。
-
-## 10. 实施顺序与验收
-
-每一步交付可运行的一段，不先做大型框架。下面是批准后的开发顺序；本次只生成文档。
-
-| 步骤 | 改动和完成条件 |
+| CLI 目标接口 | 行为 |
 |---|---|
-| 1. 契约与第一条完整路径 | 同步 spec/plan/design；用一份真实 QC 文件跑“原文件 → 引物标注 → 新文件 → 交付核对”。先补 annotate_primers 和共用记录，不先做 UI |
-| 2. 收齐已选采集范围 | 接入其余选定入口、原材料观察、来源归属；批量失败、原地编辑及正常故障模式可正确记录 |
-| 3. 统一数据处理 | 提取 projection，迁移 chain/reader 的数据逻辑；纯函数构建关系和缺口；旧日志可读取，新的 graph 不依赖报告布局 |
-| 4. 统一报告与页面 | reader 只组织报告；HTML/Markdown 共用；替换旧布局，完成 Document/Map/Split 与 Review |
-| 5. 真实使用交付 | 重跑 GFP 双构建完整过程，保留新旧证据；文件链、真实来源及阅读理解逐项核对；完成相关回归和交接 |
+| config/record/coverage/compare | 保持现有含义，扩展必要字段 |
+| observe --input | 原材料观察，返回事件 ID |
+| inspect --data | 固定事实快照和完整记录索引 |
+| organize --input | 校验保存 design_process 和可选 report_plan |
+| report-plan --process-ref --input | 单独修订确切过程版本的读法 |
+| handoff --input | 明确文件清单的来源核对，不执行提升 |
+| reader [--run-id/--handoff-id] | 输出所选范围机器结果；缺组织时标事实视图 |
+| render --format html/markdown/both | 固定渲染，默认 HTML，无 AI 调用 |
 
-### 10.1 有针对性的工程测试
+run-id 和 handoff-id 互斥。当时视图不纳入未来事实；完整历史中可查看旧决定的后来说明。编排不匹配过程版本时不自动换版本。
 
-- 复用现有 `tests/test_evidence_trace*.py`；新增入口采集、来源观察、交付核对测试。测试通过公开入口，不只手造理想图。
-- 同样参数分别用 Off/Observed/Full，通过三个主入口及新增文件操作，比较 DNA、拓扑、特征、完整引物、制备和原返回语义。只读检查比较其返回内容。
-- 真实反例：伪装来源身份、无法定位片段、晚补支持、同名不同版本、旧检查配新文件、失败后残留文件、部分转换失败、并发写入占用失败。
-- 重建不能新增事件；数据关系与 HTML 是否生成无关。更换报告布局不能改变关系和原检查结果。
-- HTML/Markdown 对同一范围的文件、状态、来源身份和未解决项一致；HTML 离线、键盘、窄屏可用，原记录文本不可执行。
+聚焦某次运行或文件时，不得裁掉 AI 摘要的部分依据后原样声称结论仍适用。普通聚焦保留完整过程作为背景并标明范围；严格历史截止只使用与该事实前缀匹配的组织/编排，没有则给事实视图或另行整理。程序不能为适配筛选自动改写科学叙述。此情况必须有专门回归。
 
-### 10.2 使用上次真实任务验收
+公共入口结束后可以更新事实索引和已有报告，但不能自动启动模型；旧组织 stale 必须明显标识。保持原业务返回和异常，自动出报告的 on_finished 由上层提供，采集模块不导入 renderer。
 
-不修改 2026-09-15 旧 Trace。用新目录重跑，保留首次酶切失败、修改方案、真实中间体、QC 与最后引物标注过程。AI 可选择合理不同路线，不强迫复述历史脚本或故意犯错；旧失败可另作固定回归。
+旧日志保留，不倒填原消息或同期时间。新数据字段尚未实施，代码帮助、调用方、测试及映射须同次更新；当前 graph.reader 消费者改用完整结果和 reader 入口，旧派生文件可重建，不覆盖原日志。
 
-明确通过条件：
+## 10. 开发顺序及验收
 
-1. 最后四份 QC 文件都能从交付清单追到对应标注操作和输入文件。
-2. 至少一项关键文献依据实际保留来自原资料/原工具输出的可检查片段与精确位置；其余缺口明确列出，不能用全部 unknown 代替来源能力验收。AI 重新概括的文本不能充当这个原片段，描述性占位文字不显示为已核实原消息。
-3. 新决定可引用实际程序发现；对约束的遵从不冒充 AI 创新取舍；历史失败不消失。
-4. 对照/候选基因型、材料链、引物、文件状态经独立检查；未正式交付时如实报告 candidate。
-5. 去掉 HTML，graph 仍能说明关系；去掉 graph/report，可以从事件重新生成相同范围内容。
-
-原 pET CDS 注释问题另建主线修复项，使用原失败输入和独立生物学依据修正注释解释/转换。Trace 验收可以证明“准确记录了被拒交付”，但**可发布 DNA 工作流验收仍要求正式交付阻塞得到解决**。不通过放宽 gate、删掉失败特征或改目标满足验收。
-
-### 10.3 人工理解验收
-
-保留已有静态稿负责人接受记录；本轮新的来源说明和最终页面仍需真人审阅。至少检查读者能否答出：任务目标；用户规定与 AI 取舍；一条依据的出处和局限；一次修改与其原因记录；检查适用哪份文件；哪些环节未被观察。
-
-先验阅读主线，再允许查看详细记录。记录原回答、卡住位置和稿件版本。没有真实读者反馈时标“工程完成、人工理解待验收”，不以模型自评补齐。5/15/30 秒只作已有目标，不伪造计时。
-
-文档阶段只做内容、链接、示例和两版一致性检查。本次没有代码改动，不运行 DNA 回归。真正实施完成后再按相关范围运行测试；发布时运行全套和打包后入口检查，提交开发分支并检查该提交 CI。
-
-## 11. 前序交接、开放事项与停止条件
-
-| 前序事项 | 本设计处置 |
+| 步骤 | 交付与通过条件 |
 |---|---|
-| Phase 1 日志、实际 Validation/Artifact、normal/strict | 保留，迁移责任但不改 DNA 语义 |
-| Phase 2 已知字段范围与条件比较 | 保留范围，缺失仍 unknown；不增加论文理解模型 |
-| Phase 3 Change Impact | 保留判断与建议，迁入统一数据调用，不执行自动重跑 |
-| Phase 3.1 统一 reader 已完成 | 复用阅读组织，移出其中数据职责；不是认定已完成工作全部无效 |
-| 旧 HTML、新页面未完成 | 本轮继续完成，不维护两套默认阅读 UI |
-| 真人静态接受与最终理解未验收 | 原接受有效，最终页面单独验收 |
-| Full 成本、发布默认 | 真实小样本记录 token、轮次、耗时和结果；不在此凭感觉冻结默认 |
-| 宿主原记录自动接入 | 非首版前置。只在接口可靠、用户需要且数据范围明确时另行实施窄适配 |
-| 旧文件被移动或覆盖 | 保留版本标识与不可取得状态；跨机器完整材料归档不在本轮 |
-| Assurance Case、结论边界、宏观安全框架 | 继续延期至原路线图后续阶段 |
+| 1. 定机器结果契约 | 示例、组织包与引用校验明确；完整结果、AI提交、编排三者不混 |
+| 2. 补采集 | 七入口、原材料与交付核对；新版 QC 文件有真实生成链 |
+| 3. 接组织流程 | 程序快照 → 宿主组织 JSON → 核对保存 → 完整 graph；原记录有去向 |
+| 4. 接报告编排 | 支持联合提交和单独修订；HTML/Markdown同源，重复导出无 AI 调用 |
+| 5. 真实任务检查 | 对照原活动、机器结果和报告，检查信息保留及人类理解 |
 
-评审需要明确接受或修改的主要选择：七入口范围、原材料观察方式、显式交付清单核对、数据格式升级、HTML/Markdown 同源输出。它们已有推荐实现，不阻碍评审，也不冒充已确认决定。
+### 工程验收
 
-开发停止条件：选定范围的采集、关系处理、报告及真实案例验收完成，遗留项如实记录到当前计划；不自动启动后续治理阶段。没有宿主级可见性时交付受限范围版本，不宣传完整 AI 行为回放。
+- 保留现有 Trace 回归，通过实际 CLI 验证，不能只用手造理想图。
+- 固定相同 DNA 输入比较 Off/Observed/Full 的序列、拓扑、特征、完整引物、制备、检查语义和正式文件。
+- 组织包不能新增程序事实；坏引用、错版本、未知步骤、未归类和陈旧组织均有明确行为。
+- 重建不改变原事件；隐藏展示不删除记录；修改 report_plan 不修改 design_process 或 Core 结果。
+- 原地编辑、失败残留、同名文件、转换部分失败和写入冲突按实际结果处理。
+- 离线、键盘、窄屏、转义检查与内容忠实度分开报告。
+
+### 真实任务验收
+
+使用 2026-09-15 案例的新输出目录，不改旧 Trace，不要求 AI 故意失败或复述旧脚本。旧失败另作固定回归。
+
+1. 最后四份 QC 文件能从交付清单追到标注动作和原文件。
+2. 至少一项关键依据保留真实原资料/工具输出片段和位置，不以全部 unknown 代替来源能力。
+3. 宿主实际产出阶段、分支、完整说明与依据对应，不以节点列表冒充已整理过程。
+4. 重要组织判断能回查；后解释单列；缺动机不补造。
+5. 短标签与摘要不改变结论，候选身份、检查范围和关键未决清楚。
+6. 所有已采集相关记录都在过程、详情、技术记录或未归类中可查。
+
+原 CDS 注释交付阻塞单列主线修复。Trace 可以证明准确记录失败，但该 DNA 工作流可发布仍要求解决交付；不能删失败特征、放宽 gate 或改目标取得绿灯。
+
+### 人工与成本
+
+人工分别检查机器结果和报告能否说明目标、取舍、依据、变化、实际结果和未知项，并回查出处。记录原回答、卡点和版本。静态稿原接受记录保留，新机器结构与最终报告仍需本轮检查。
+
+统计组织次数、模型输入输出 token、工具轮次、时间与任务完成情况。联合生成过程/编排、单独修订编排分开统计。长记录按索引读取，完整保存不受一次模型输入限制；零渲染调用不等于零 AI 成本。
+
+## 11. 交接与开放项
+
+| 前序事项 | r2 处置 |
+|---|---|
+| Phase 1 日志、真实结果、normal/strict | 保留 |
+| Phase 2 条件比较和字段覆盖 | 保留范围，不升级为完整语义整理 |
+| Phase 3 Change Impact | 保留，不自动重跑或重新作科学结论 |
+| Phase 3.1 第四步 reader | 复用事实整理和阅读组件，调整职责，历史完成记录不抹去 |
+| 旧 HTML | 使用完整过程及编排替换旧组织，不长期维护两套主阅读逻辑 |
+| Archify | 借鉴作者组织与固定编译，不照搬视觉容量限制或引入 Node 编译器 |
+| 宿主外活动和来源声明 | 保留实际范围，依赖明确提交或可靠接口，不宣传全自动完整观察 |
+| 真实案例正式交付阻塞 | 单列主线缺陷，不能用 Trace 掩盖 |
+| 后续治理阶段 | 继续延期 |
+
+待验证：阶段粒度、大记录组织成本、发布默认 level、换受众时编排修改成本。字段和 CLI 可在实施时简化，但不能退回“没有组织产物、只有散点关系”。
+
+完成后更新本设计、当前计划、索引和接口映射，记录测试、失败、跳过与限制，提交开发分支并检查对应 CI。本轮只更新文档，不宣称任何新接口已实现。
