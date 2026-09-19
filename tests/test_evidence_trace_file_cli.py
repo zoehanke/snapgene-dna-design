@@ -20,6 +20,10 @@ class FileCLITests(unittest.TestCase):
     def test_all_file_entry_points_preserve_dna_and_annotations_in_three_levels(self):
         with tempfile.TemporaryDirectory(prefix="trace-file-中文-") as tmp:
             root = Path(tmp)
+            # CLI artifacts use resolved paths. Exercise an alias on every platform,
+            # rather than relying on a runner's temp-directory spelling/capitalization.
+            (root / "路径别名").mkdir()
+            root = root / "路径别名" / ".."
             rng = random.Random(441)
             seq = "ATG" + "".join(rng.choice(["GCT", "GAA", "TTC", "GGT"]) for _ in range(170)) + "TAA"
             seq += "".join(rng.choice("ACGT") for _ in range(600))
@@ -64,8 +68,9 @@ class FileCLITests(unittest.TestCase):
                     graph = json.loads((trace / "graph.json").read_text(encoding="utf-8"))
                     artifacts = [n for n in graph["nodes"] if n["kind"] == "artifact"]
                     for suffix in ("gb", "dna"):
-                        found = [n for n in artifacts if n["path"] == str(out / ("引物." + suffix))]
-                        self.assertEqual(len(found), 1)
+                        expected = (out / ("引物." + suffix)).resolve()
+                        found = [n for n in artifacts if Path(n["path"]).resolve() == expected]
+                        self.assertEqual(len(found), 1, [n["path"] for n in artifacts])
                         self.assertEqual(found[0]["generation_observation"], "created")
                     self.assertTrue(any(n["role"] == "preview" for n in artifacts))
                     self.assertFalse(any(n["role"] == "authoritative" for n in artifacts))
