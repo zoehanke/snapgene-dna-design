@@ -59,6 +59,8 @@ def main():
             if not args.input:
                 p.error(args.action + " requires --input")
             data = json.loads(pathlib.Path(args.input).read_text(encoding="utf-8-sig"))
+            if args.action != "observe" and not isinstance(data, dict):
+                raise ValueError(args.action + " input must be a JSON object")
             recorder = Recorder(args.trace_dir)
             if args.action == "observe":
                 items = data if isinstance(data, list) else [data]

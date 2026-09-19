@@ -8,6 +8,8 @@ from evidence_trace.recorder import project
 
 
 def observe_material(recorder, item, actor="host-assistant"):
+    if not isinstance(item, dict):
+        raise ValueError("Each material observation must be an object")
     kind = item.get("kind")
     if kind == "local_text":
         path = pathlib.Path(item["path"]).resolve()

@@ -107,6 +107,8 @@ def validate_organization(packet, facts):
         _text(stage.get("purpose"), "stage purpose")
         _refs(stage.get("step_ids"), p["steps"], "stage step_ids", True)
         _refs(stage.get("source_refs"), records, "stage source_refs", True)
+        if not isinstance(stage.get("branches", []), list):
+            raise ValueError("stage branches must be a list")
         for branch in stage.get("branches", []):
             _keys(branch, {"id", "label", "step_ids", "source_refs"}, "branch")
             identity(branch.get("id"))
@@ -164,6 +166,8 @@ def validate_report_plan(plan, process, facts):
         _text(context.get("text"), "context text")
         _refs(context.get("source_refs"), records, "context source_refs", True)
     ids = set(steps) | {x["id"] for f in ("stages", "relations", "paths", "unresolved") for x in process[f]}
+    if not isinstance(plan.get("sections", []), list):
+        raise ValueError("report sections must be a list")
     for section in plan.get("sections", []):
         _keys(section, {"id", "title", "step_refs", "summary", "source_refs", "unresolved_refs"}, "section")
         _identifier(section.get("id"))
@@ -180,6 +184,8 @@ def validate_report_plan(plan, process, facts):
     _keys(diagram, {"reading_order", "relation_refs", "short_labels"}, "diagram")
     _refs(diagram.get("reading_order", []), steps, "reading_order")
     _refs(diagram.get("relation_refs", []), {x["id"] for x in process["relations"]}, "relation_refs")
+    if not isinstance(diagram.get("short_labels", {}), dict):
+        raise ValueError("short_labels must map step IDs to text")
     for key, label in diagram.get("short_labels", {}).items():
         _refs([key], steps, "short_label")
         _text(label, "short_label text")
@@ -189,6 +195,8 @@ def validate_report_plan(plan, process, facts):
 
 
 def organize(recorder, packet, actor="host-assistant"):
+    if not isinstance(packet, dict) or not isinstance(packet.get("basis"), dict):
+        raise ValueError("organization must be an object with a basis object")
     with recorder.writing():
         facts = build_facts(recorder.events, through_sequence=packet.get("basis", {}).get("through_sequence"))
         process = validate_organization(packet, facts)

@@ -83,6 +83,9 @@ class ProcessTests(unittest.TestCase):
                      lambda p: p["design_process"]["steps"]["requirement"].update(result="PASS"),
                      lambda p: p["basis"].update(through_sequence=100),
                      lambda p: p["design_process"].update(steps={}),
+                     lambda p: p["design_process"]["stages"][0].update(branches={}),
+                     lambda p: p["report_plan"].update(sections={}),
+                     lambda p: p["report_plan"]["diagram"].update(short_labels=[]),
                      lambda p: p["report_plan"].update(profile="arbitrary-html")):
             with self.subTest(edit=edit):
                 value = packet(self.r)
