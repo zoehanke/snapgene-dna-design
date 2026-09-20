@@ -32,7 +32,7 @@ def result_text(value):
 
 
 def handoff_text(item):
-    return {'linked': '已关联生成记录', 'untraced': '文件存在，但未采集生成过程；可使用文件，无法回溯其生成步骤',
+    return {'linked': '已关联生成记录', 'untraced': '交付时文件存在，但未采集生成过程；这项观察不判断文件是否符合设计要求',
             'missing': '交付时未找到文件', 'changed': '文件与已记录版本不同，需要重新核对',
             'ambiguous': '存在多个匹配生成记录，尚未确定本次交付对应哪一次'}[item['status']]
 
@@ -69,7 +69,7 @@ def readable_details(records):
         elif kind in {'source', 'statement', 'claim'}:
             field({'source': '来源', 'statement': '来源报告的内容', 'claim': '当前任务中的判断'}[kind], title)
             field('相关片段', record.get('excerpt'))
-            locator = record.get('locator')
+            locator = record.get('locator') or record.get('verification', {}).get('locator')
             if isinstance(locator, str) and not locator.lower().startswith(('sha256', 'sha-256')):
                 field('定位', locator)
             if kind == 'source':
@@ -138,13 +138,13 @@ def readable_details(records):
             refs('对应调用', payload.get('stage_ref'))
         for label, values in record.get('references', {}).items():
             refs({'source_id': '原始来源', 'claim_ids': '相关判断', 'responds_to': '对应用户要求'}.get(label, '关联记录'), values)
-        uri = record.get('url') or record.get('source_uri') or record.get('locator')
+        uri = record.get('url') or record.get('source_uri') or record.get('locator') or record.get('verification', {}).get('locator')
         if isinstance(uri, str) and uri.startswith(('https://', 'http://')):
             links.append({'label': '打开原始来源', 'href': uri})
         label = {'requirement': '用户要求', 'decision': '设计选择', 'validation': '程序检查',
                  'artifact': '文件', 'source': '来源', 'statement': '证据内容', 'claim': '任务判断'}.get(kind, '程序记录')
         result[ref] = {'title': title or label, 'label': (title or label), 'kind': kind,
-                       'type_label': label, 'fields': fields, 'related': related, 'links': links}
+                       'type_label': label, 'fields': fields, 'related': related, 'links': links, 'evidence': []}
     return result
 
 

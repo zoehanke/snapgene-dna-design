@@ -24,12 +24,14 @@ function inputs(step){const rows=[['输入',step.input_refs],['输出 / 检查�
 function check(c){return '<div class="check '+h(c.status)+'"><strong>'+h(c.display_check||c.check)+'</strong><span>'+h(c.display_result||c.result)+'</span>'+button(c.ref,'查看对象与范围')+'</div>';}
 function artifact(a){return '<div class="artifact"><strong>'+h(a.display_role||a.role)+'</strong><span>'+h(a.name||a.path)+'</span>'+button(a.ref,'文件与来源')+'</div>';}
 const originLabels={original_statement:'原始公开说明',organized_summary:'根据记录整理',later_interpretation:'后来补充解释',unknown:'原始理由未记录'};
+function evidenceBody(e){return '<section class="evidence-entry"><p>'+h(e.label||e.relation)+'：'+h(e.statement)+'</p><p>对应判断：'+h(e.claim)+'</p>'+(e.aspect?'<p>适用方面：'+h(e.aspect)+'</p>':'')+(e.assessment?'<p>'+h(e.assessment.reason)+'</p>':'')+(e.conditions||[]).map(v=>'<p>条件：'+h(v)+'</p>').join('')+(e.limitations||[]).map(v=>'<p class="limit">'+h(v)+'</p>').join('')+refList(e.record_refs)+'</section>';}
+function changeBody(c){return '<section class="change-entry"><h3>'+h(c.field)+'</h3><p>'+h(c.before)+' → '+h(c.after)+'</p>'+c.impacts.map(i=>'<div class="evidence-entry"><p><strong>'+h(i.target_title)+'</strong>：'+h(i.judgment)+'</p><p>'+h(i.actions.join('；'))+'</p><p class="note">'+h(i.reason)+'</p>'+refList([i.target_ref])+'</div>').join('')+'</section>';}
 function stepBody(step,detail=false){
  const reason=step.reason?'<p class="reason"><small>'+h(originLabels[step.reason.origin]||'说明来源未知')+'</small>'+h(step.reason.text)+'</p>':'';
  const limits=(step.limitations||[]).map(l=>'<p class="limit">'+h(l.text)+'</p>').join('');
- const evidence=(step.evidence||[]).map(e=>'<div class="evidence-entry"><p>'+h(e.label||e.relation)+'：'+h(e.statement)+'</p><p>当前判断：'+h(e.claim)+'</p>'+(e.assessment?'<p>'+h(e.assessment.reason)+'</p>':'')+refList(e.record_refs)+'</div>').join('');
+ const evidence=(step.evidence||[]).map(evidenceBody).join('');
  const expansions=(step.recorded_explanations||[]).map(e=>'<p>事后补充：'+h(e.text)+'</p>').join('');
- const body='<p>'+h(step.content===step.title?'':step.content)+'</p>'+reason+limits+(step.checks||[]).map(check).join('')+(step.artifacts||[]).map(artifact).join('')+(step.program_records||[]).map(r=>button(r,'查看实际程序返回')).join('');
+ const body='<p>'+h(step.content===step.title?'':step.content)+'</p>'+reason+limits+(step.changes||[]).map(changeBody).join('')+(step.checks||[]).map(check).join('')+(step.artifacts||[]).map(artifact).join('')+(step.program_records||[]).map(r=>button(r,'查看实际程序返回')).join('');
  return '<article class="step '+classification(step)+'" data-step="'+h(step.id)+'"><div class="step-title"><span>'+h(step.label)+'</span><h3>'+h(step.title)+'</h3></div>'+inputs(step)+body+
  '<details data-expand="'+h(step.id)+'" '+(state.expanded.has(step.id)?'open':'')+'><summary>查看依据与完整记录</summary><div class="evidence">'+refList(step.source_refs)+evidence+expansions+relationLinks(step)+'</div></details></article>';
 }
@@ -90,12 +92,13 @@ function openSource(ref){
  const fields=source.fields.map(f=>'<section class="detail-section"><h3>'+h(f.label)+'</h3><p>'+h(f.text)+'</p></section>').join('');
  const links=source.links.map(l=>'<p><a href="'+h(l.href)+'" target="_blank" rel="noopener noreferrer">'+h(l.label)+' ↗</a></p>').join('');
  const related=source.related.filter(r=>sources[r.ref]).map(r=>'<p>'+h(r.label)+'：'+button(r.ref)+'</p>').join('');
- document.getElementById('drawer-body').innerHTML='<p class="note">'+h(source.type_label)+'</p><h2>'+h(source.title)+'</h2>'+fields+links+related+'<footer class="technical-link"><a href="graph.json" target="_blank">技术记录（完整机器数据）</a></footer>';
+ document.getElementById('drawer-body').innerHTML='<p class="note">'+h(source.type_label)+'</p><h2>'+h(source.title)+'</h2>'+fields+(source.evidence||[]).map(e=>'<h3>用于选择：'+h(e.decision_title)+'</h3>'+evidenceBody(e)).join('')+(source.changes||[]).map(changeBody).join('')+links+related+'<footer class="technical-link"><a href="graph.json" target="_blank">技术记录（完整机器数据）</a></footer>';
  if(!drawer.open)drawer.showModal();
 }
 function special(name){
- const descriptions={relations:'完整关系保留在机器结果中。关系的含义由原记录注明，阅读顺序不表示因果。',changes:'变化与受影响对象保留在机器结果中；旧记录仍是真实历史。',history:'组织版本及对应的记录范围保留在机器结果中。',audit:'追加日志保存原始采集内容和失败记录。',scope:'记录完整性只指已采集记录；未观测的宿主活动不在覆盖范围内。'};
+ const descriptions={relations:'完整关系保留在机器结果中。关系的含义由原记录注明，阅读顺序不表示因果。',changes:'这里显示实际变化、受影响对象及需要重查的内容。',history:'组织版本及对应的记录范围保留在机器结果中。',audit:'追加日志保存原始采集内容和失败记录。',scope:'记录完整性只指已采集记录；未观测的宿主活动不在覆盖范围内。'};
  let body='<p>'+h(descriptions[name])+'</p>';
+ if(name==='changes')body+=(data.change_details.length?'<p>以下为重查建议，不修改原判断或检查结果。</p>'+data.change_details.map(changeBody).join(''):'<p>未记录设计变化。</p>');
  if(name==='scope')body+=data.recording_gaps.map(g=>'<p>'+h(g.text)+'</p>').join('');
  document.getElementById('drawer-body').innerHTML='<h2>'+h({relations:'关系技术记录',changes:'变化与影响',history:'组织版本',audit:'原始日志',scope:'记录范围与缺口'}[name])+'</h2>'+body+'<p><a href="'+(name==='audit'?'events.jsonl':'graph.json')+'" target="_blank">打开完整技术文件</a></p>';
  if(!drawer.open)drawer.showModal();

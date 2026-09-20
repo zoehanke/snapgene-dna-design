@@ -1,6 +1,6 @@
 # Core skill
 
-Updated: 2026-09-20. This spec defines the current DNA product contract. [History](../docs/history.md) explains its evolution; [development plans](../docs/development-plans/README.md) own implementation scope, validation and handoff. [Safety spec](safety-module.md) owns Evidence Trace; [SKILL.md](../SKILL.md) and [Recipe reference](../references/recipes.md) own usage and signatures.
+Updated: 2026-09-21. This spec defines the current DNA product contract. [History](../docs/history.md) explains its evolution; [development plans](../docs/development-plans/README.md) own implementation scope, validation and handoff. [Safety spec](safety-module.md) owns Evidence Trace; [SKILL.md](../SKILL.md) and [Recipe reference](../references/recipes.md) own usage and signatures.
 
 ## Goal and current functionality
 
@@ -33,6 +33,7 @@ Lead the answer with the material conclusion, whether new design is needed and t
 - Assembly inputs must be supplied prepared material or products of an explicit preparation step; include real backbone preparation where required.
 - Preserve source, backbone, inserted-feature and primer annotations through transformations and export. Feature locations govern transformed primer coordinates; verify binding cores at those locations. A clipped primer site remains an explicitly partial annotation, not a complete binding site. Explain source annotation corrections separately from DNA changes.
 - Keep actual coordinate, strand, compound-location and circular-origin conventions consistent across each interface; no implicit biological defaults without evidence and applicability.
+- Preserve compound locations in biological order. Reject contradictory primer annotations instead of reordering them to obtain an export. A binding site split across the ends of a linear product is not an intact site, even if all its bases remain annotated.
 - Missing checks, failed runs, components and historical successes must not be presented as newly verified complete constructs. Do not change the biological target or relax validation merely to obtain a pass.
 - Bind checks to their actual object and scope: donor structure, exported file, integrated-locus model and cell phenotype are different conclusions. Investigate inherited annotation failures against source and product; neither blanket rejection nor unsupported exemption is acceptable.
 - Sequence/file checks establish their stated computational scope, not wet-lab performance, whole-genome specificity or safety. File hashes bind versions, not biological correctness.
@@ -53,6 +54,7 @@ Current modules and orchestration are implementation choices, not permanent rest
 ## Acceptance and open issues
 
 - Run representative tasks through public entry points and inspect resulting files against independent source/target evidence; rejecting an invalid task is not successful design completion.
+- Replaying a reported success/failure is necessary regression evidence, not proof of general readiness. Check independent inputs and both valid and invalid boundaries of the changed contract; retain unmet acceptance items.
 - Verify relevant sequence, topology, feature coordinates/strands and complete primers through export/read-back. Claim desktop SnapGene compatibility only with actual desktop evidence.
 - Keep mandatory regressions reproducible with tracked/generated inputs; explicitly invoked private integrations and skipped backends are separate evidence. For release work, verify a package outside the checkout.
 - For Trace changes, compare Off/Observed/Full DNA, annotations, primers, preparation, validation semantics and authoritative artifacts; injected normal-mode Trace failure must preserve otherwise successful DNA work.

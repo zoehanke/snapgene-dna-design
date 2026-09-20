@@ -178,16 +178,18 @@ def _location_interval(location, sequence_length: int) -> tuple[int, int]:
     parts = list(getattr(location, "parts", [location]))
     if len(parts) == 1:
         return int(parts[0].start), int(parts[0].end)
-    # Rotation/extraction can leave adjacent parts of a former origin-spanning
-    # site. Native stores that now-contiguous site as one interval.
-    ordered = sorted(parts, key=lambda part: int(part.start))
-    if (len({part.strand for part in parts}) == 1
-            and all(int(a.end) == int(b.start) for a, b in zip(ordered, ordered[1:]))):
-        return int(ordered[0].start), int(ordered[-1].end)
-    high = [part for part in parts if int(part.end) == sequence_length]
-    low = [part for part in parts if int(part.start) == 0]
-    if len(high) == 1 and len(low) == 1:
-        return int(high[0].start), int(low[0].end)
+    # Parts are in biological order. Only reverse that order for the reverse
+    # strand; sorting arbitrary parts could silently change the primer site.
+    strand = location.strand
+    if strand in (1, -1):
+        ordered = parts if strand == 1 else list(reversed(parts))
+        joins = [(int(a.end), int(b.start)) for a, b in zip(ordered, ordered[1:])]
+        if all(end == start or (end == sequence_length and start == 0) for end, start in joins):
+            wraps = sum(end == sequence_length and start == 0 for end, start in joins)
+            start, end = int(ordered[0].start), int(ordered[-1].end)
+            span = end-start + (sequence_length if wraps else 0)
+            if wraps <= 1 and 0 < span <= sequence_length and sum(len(part) for part in parts) == span:
+                return start, end
     raise ValueError("Primer feature has unsupported compound location")
 
 

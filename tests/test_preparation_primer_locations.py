@@ -5,15 +5,126 @@ from pathlib import Path
 
 from Bio import SeqIO
 from Bio.Seq import Seq
+from Bio.SeqFeature import CompoundLocation, FeatureLocation, SeqFeature
 from Bio.SeqRecord import SeqRecord
 
 from core.tools.amplification import simulate_pcr
+from core.models.construct_model import ConstructModel
 from core.tools.sequence_ops import slice_record_interval
 from core.tools.snapgene_io import annotate_record_primers, export_plasmid, read_native_dna_record
 from scripts.run_recipe import write_preparation_artifacts
 
 
 class PreparationPrimerLocations(unittest.TestCase):
+    def test_rotated_circular_primer_keeps_all_parts_in_biological_order(self):
+        import random
+        rng = random.Random(717)
+        seq = ''.join(rng.choice('ACGT') for _ in range(200))
+        with tempfile.TemporaryDirectory() as temp:
+            for strand in (1, -1):
+                core = seq[190:]+seq[:14]
+                if strand == -1:
+                    core = str(Seq(core).reverse_complement())
+                source = SeqRecord(Seq(seq), id='circle', annotations={
+                    'molecule_type': 'DNA', 'topology': 'circular'})
+                source = annotate_record_primers(source, [dict(name='p', sequence='GGAA'+core,
+                    binding_sequence=core, binding_interval_0based=[190, 14], strand=strand)])
+                for cut in (0, 30, 195):
+                    for reverse in (False, True):
+                        with self.subTest(strand=strand, cut=cut, reverse=reverse):
+                            record = ConstructModel(source).rotate(cut).to_record()
+                            expected = seq[cut:]+seq[:cut]
+                            if reverse:
+                                record = record.reverse_complement()
+                                record.annotations.update(molecule_type='DNA', topology='circular')
+                                expected = str(Seq(expected).reverse_complement())
+                            files = export_plasmid(record, temp)
+                            for out in (SeqIO.read(files['gb_file'], 'genbank'), read_native_dna_record(files['dna_file'])):
+                                self.assertEqual(str(out.seq), expected)
+                                self.assertEqual(out.annotations['topology'], 'circular')
+                                self.assertEqual(str(out.features[0].extract(out.seq)), core)
+                                self.assertEqual(out.features[0].qualifiers['primer_sequence'], ['GGAA'+core])
+
+    def test_compound_primer_order_is_not_rewritten_to_fit_qualifiers(self):
+        seq = Seq('T'*10+'A'*10+'C'*10+'G'*10)
+        with tempfile.TemporaryDirectory() as temp:
+            for strand in (1, -1):
+                core = str(seq[10:30] if strand == 1 else seq[10:30].reverse_complement())
+                correct_order = [(10, 20), (20, 30)] if strand == 1 else [(20, 30), (10, 20)]
+                for valid in (True, False):
+                    with self.subTest(strand=strand, valid_order=valid):
+                        parts = correct_order if valid else correct_order[::-1]
+                        record = SeqRecord(seq, id='compound', annotations={
+                            'molecule_type': 'DNA', 'topology': 'linear'})
+                        record.features = [SeqFeature(CompoundLocation([
+                            FeatureLocation(start, end, strand=strand) for start, end in parts]),
+                            type='primer_bind', qualifiers={'label': ['p'],
+                                'primer_sequence': [core], 'binding_sequence': [core]})]
+                        if not valid:
+                            with self.assertRaisesRegex(ValueError, 'compound location'):
+                                export_plasmid(record, temp)
+                            continue
+                        files = export_plasmid(record, temp)
+                        for out in (SeqIO.read(files['gb_file'], 'genbank'), read_native_dna_record(files['dna_file'])):
+                            self.assertEqual(str(out.features[0].extract(out.seq)), core)
+
+    def test_linear_extraction_preserves_sites_only_when_physically_contiguous(self):
+        """Oracle uses source base identities, not the coordinate/export helpers."""
+        import random
+        rng = random.Random(90317)
+        seq = ''.join(rng.choice('ACGT') for _ in range(200))
+        with tempfile.TemporaryDirectory() as temp:
+            for strand in (1, -1):
+                for site_start in (5, 80, 175, 190):
+                    source_positions = [(site_start + i) % len(seq) for i in range(24)]
+                    oriented_positions = source_positions if strand == 1 else source_positions[::-1]
+                    core = ''.join(seq[p] for p in source_positions)
+                    if strand == -1:
+                        core = str(Seq(core).reverse_complement())
+                    source = SeqRecord(Seq(seq), id='circular-source', annotations={
+                        'molecule_type': 'DNA', 'topology': 'circular'})
+                    source = annotate_record_primers(source, [dict(
+                        name='retained-site', sequence='GGAA'+core, binding_sequence=core,
+                        binding_interval_0based=[site_start, (site_start+24) % len(seq)],
+                        strand=strand)])
+                    for cut, length in ((0, 200), (30, 200), (185, 200), (180, 60), (170, 30), (0, 80)):
+                        for reverse in (False, True):
+                            with self.subTest(strand=strand, site=site_start, cut=cut,
+                                              length=length, reverse=reverse):
+                                bases = [(cut+i) % len(seq) for i in range(length)]
+                                expected_seq = ''.join(seq[p] for p in bases)
+                                if reverse:
+                                    bases.reverse()
+                                    expected_seq = str(Seq(expected_seq).reverse_complement())
+                                expected_positions = [bases.index(p) for p in oriented_positions if p in bases]
+                                output_strand = -strand if reverse else strand
+                                contiguous = (len(expected_positions) == 24 and all(
+                                    b-a == output_strand for a, b in zip(expected_positions, expected_positions[1:])))
+                                product = slice_record_interval(source, cut, length, circular=True)
+                                if reverse:
+                                    product = product.reverse_complement()
+                                    product.annotations.update(molecule_type='DNA', topology='linear')
+                                files = export_plasmid(product, temp)
+                                for out in (SeqIO.read(files['gb_file'], 'genbank'), read_native_dna_record(files['dna_file'])):
+                                    self.assertEqual(str(out.seq), expected_seq)
+                                    features = [f for f in out.features if f.qualifiers.get('label') == ['retained-site']]
+                                    self.assertEqual(len(features), bool(expected_positions))
+                                    if not features:
+                                        continue
+                                    feature = features[0]
+                                    self.assertEqual(set(feature.location), set(expected_positions))
+                                    self.assertEqual(feature.location.strand, output_strand)
+                                    self.assertEqual(feature.qualifiers['primer_sequence'], ['GGAA'+core])
+                                    if contiguous:
+                                        self.assertEqual(feature.type, 'primer_bind')
+                                        self.assertEqual(str(feature.extract(out.seq)), core)
+                                    else:
+                                        self.assertEqual(feature.type, 'misc_feature')
+                                        self.assertEqual(feature.qualifiers['partial'], ['true'])
+                                        self.assertEqual(feature.qualifiers['source_feature_type'], ['primer_bind'])
+                    self.assertEqual(source.features[0].type, 'primer_bind')
+                    self.assertNotIn('partial', source.features[0].qualifiers)
+
     def test_pcr_keeps_shifted_primers_and_clipped_annotation(self):
         import random
         rng = random.Random(317)

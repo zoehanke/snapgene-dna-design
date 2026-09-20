@@ -79,3 +79,6 @@ python scripts/trace_design.py reader --trace-dir <目录> --run-id <已记录�
 `report.sources[ref]` 保存 title、type_label、fields（可读标题与正文）、related（明确引用）、links（可操作来源/文件入口），不再带原始 data。普通展开只消费这份投影；未知类型给出有限说明，完整对象仍可在技术文件读取。`recording_gaps` 与科研 review 分开；交付清单中无生成关系的文件也有可读条目。
 
 graph/reader 对外格式为 design-process-v2，重复运行与审计对象用 JSON Pointer 指向 source_records。旧程序可调用 expand_machine 得到 v1 内存布局；原 events 不改。具体引用字段见[使用说明](evidence-trace.md#v032-capture-and-machine-export)。
+
+
+2026-09-21 补正：默认详情的 evidence 按实际 Decision/Claim/关系成组保存，包含 decision_ref、decision_title 及原证据条件；由全部已记录选择生成，不由正文是否展示该选择决定。正文只取自身 subject 的依据。change_details 提供实际前后值与影响，sources/steps 的 changes 保留对应对象的影响；原机器结果和验证状态不改。问题领域由事实层传递，未识别类型仍可见，不用报告白名单吞掉失败。

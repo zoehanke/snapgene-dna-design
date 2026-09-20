@@ -316,7 +316,7 @@ def validate_cds_feature(feature, record_seq: str | Seq) -> dict[str, Any]:
     }
 
 
-def _clip_feature_to_interval(feature, start0: int, end0: int):
+def _clip_feature_to_interval(feature, start0: int, end0: int, *, linearized_circular: bool = False):
     """Clip feature parts to a linear interval while retaining qualifiers."""
     location = feature.location
     if location is None:
@@ -355,13 +355,26 @@ def _clip_feature_to_interval(feature, start0: int, end0: int):
         else CompoundLocation(clipped_parts, operator=operator)
     )
 
-    if clipped_length < source_length:
+    # All bases may survive a circular-to-linear cut while the binding site
+    # itself is broken across the two ends. Do not assert an intact primer.
+    split_primer = linearized_circular and "primer" in feature.type.lower() and any(
+        a.strand == b.strand and (
+            (a.strand == 1 and int(a.end) == end0-start0 and int(b.start) == 0)
+            or (a.strand == -1 and int(a.start) == 0 and int(b.end) == end0-start0)
+        )
+        for a, b in zip(clipped_parts, clipped_parts[1:])
+    )
+    if clipped_length < source_length or split_primer:
         qualifiers = copy.deepcopy(updated.qualifiers or {})
         qualifiers["partial"] = ["true"]
         note_values = qualifiers.get("note", [])
         if not isinstance(note_values, list):
             note_values = [note_values]
-        note = "feature clipped at extraction boundary; complete feature is not asserted"
+        note = (
+            "primer binding site split by linearization; retained parts are not a contiguous binding site"
+            if split_primer else
+            "feature clipped at extraction boundary; complete feature is not asserted"
+        )
         if note not in [str(value) for value in note_values]:
             note_values.append(note)
         qualifiers["note"] = note_values
@@ -447,7 +460,7 @@ def slice_record_interval(
         clipped
         for feature in source_record.features
         if (clipped := _clip_feature_to_interval(
-            feature, source_start, source_start + length
+            feature, source_start, source_start + length, linearized_circular=circular
         )) is not None
     ]
     fragment.annotations["topology"] = "linear"

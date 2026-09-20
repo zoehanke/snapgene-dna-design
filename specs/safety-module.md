@@ -1,6 +1,6 @@
 # Safety module: Evidence Trace
 
-Updated: 2026-09-20. This spec owns current Trace behavior and evidence boundaries. [History](../docs/history.md) records why they changed; [development plans](../docs/development-plans/README.md) own phase scope and results; [usage](../references/evidence-trace.md) owns CLI/Schema details; [design.md](../docs/development-plans/design.md) owns reading rules and links the optional framework and visual reference.
+Updated: 2026-09-21. This spec owns current Trace behavior and evidence boundaries. [History](../docs/history.md) records why they changed; [development plans](../docs/development-plans/README.md) own phase scope and results; [usage](../references/evidence-trace.md) owns CLI/Schema details; [design.md](../docs/development-plans/design.md) owns reading rules and links the optional framework and visual reference.
 
 ## Purpose and present scope
 
@@ -63,6 +63,7 @@ REASSESS, RECHECK and RERUN request reconsideration, evidence checking and progr
 
 - Present task context, real process, files/checks and conditional review. Document/Mind Map/Split share data, selection and expansion. Detailed provenance stays available; internal fields do not dominate the default reading layer.
 - Opening a choice, file or source remains a human-reading action: explain its meaning, basis, limits and relationships. Schema, IDs, hashes and raw events are not the default detail content. Unknown types get an honest readable limitation and a separate technical entry, not recursive raw-field rendering.
+- Bind evidence to its actual Decision/Claim; contextual references do not inherit another choice's evidence. Keep each relation, conditions and limits together. Omitting a choice from the main narrative must preserve its readable details. Actual changes and review findings remain readable without opening machine JSON; unfamiliar findings remain visible as unclassified records.
 - research-report-v1 supplies a consistent format; task content and step count come from records. Do not hard-code example choices, invent user interventions, or create generic review/experiment warnings to fill a template.
 - Separate capture faults, missing explanations, unassigned information and actionable scientific review. An unrequested check is not failure; a partial applicability judgment is not automatically a task defect.
 - Untraced files remain visible as recording gaps with filename, missing relationship and practical consequence. Do not turn them into scientific todo items or fabricate history to mark them linked. Actually missing files or mismatched checked versions remain delivery issues. Every promised view/download action must have a valid target.

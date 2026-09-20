@@ -71,7 +71,7 @@ def build_facts(events, errors=(), *, through_sequence=None):
     findings = [{"category": "capture", "text": str(e)} for e in errors]
     findings.extend({"category": "capture", "text": str(e)} for e in graph["issues"] if e not in errors)
     for group in graph["reader"]["review"]:
-        findings.extend({"category": "review", **copy.deepcopy(item)} for item in group["items"])
+        findings.extend({**copy.deepcopy(item), "domain": "review"} for item in group["items"])
     if handoffs:
         findings.extend({"category": "handoff", "text": item["status"], **copy.deepcopy(item)}
                         for item in handoffs[-1]["payload"]["files"] if item["status"] != "linked")
