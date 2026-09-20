@@ -18,11 +18,11 @@ function button(ref,label){return '<button class="source-link" data-source="'+h(
 function refList(refs){return [...new Set(refs||[])].filter(r=>sources[r]).map(r=>button(r)).join(' ');}
 function chapter(id,title,body,extra=''){return '<section id="'+id+'" class="chapter"><header><h2>'+h(title)+'</h2>'+extra+'</header><div class="chapter-body">'+body+'</div></section>';}
 function classification(step){return step.kind==='choice'?'ai':step.kind==='program_result'?'program':'neutral';}
-function sourceValue(ref){return sources[ref]?.data||{};}
+function sourceValue(ref){return sources[ref]||{};}
 function relationLinks(step){return data.relations.filter(r=>r.from===step.id||r.to===step.id).map(r=>'<p class="relation">'+h(r.meaning)+' · '+h(stepById[r.from]?.title||r.from)+' → '+h(stepById[r.to]?.title||r.to)+'</p>').join('');}
-function inputs(step){return '<dl class="io"><dt>输入</dt><dd>'+(refList(step.input_refs)||'未提交输入关联')+'</dd><dt>输出 / 检查对象</dt><dd>'+(refList(step.outcome_refs)||'查看本步原记录')+'</dd></dl>';}
-function check(c){return '<div class="check '+h(c.status)+'"><strong>'+h(c.check)+'</strong><span>'+h(c.result)+'</span>'+button(c.ref,'查看对象与范围')+'</div>';}
-function artifact(a){return '<div class="artifact"><strong>'+h(a.role||'角色未记录')+'</strong><span>'+h(a.path)+'</span>'+button(a.ref,'文件与来源')+'</div>';}
+function inputs(step){const rows=[['输入',step.input_refs],['输出 / 检查对象',step.outcome_refs]].filter(([,refs])=>refs?.length);return rows.length?'<dl class="io">'+rows.map(([label,refs])=>'<dt>'+h(label)+'</dt><dd>'+refList(refs)+'</dd>').join('')+'</dl>':'';}
+function check(c){return '<div class="check '+h(c.status)+'"><strong>'+h(c.display_check||c.check)+'</strong><span>'+h(c.display_result||c.result)+'</span>'+button(c.ref,'查看对象与范围')+'</div>';}
+function artifact(a){return '<div class="artifact"><strong>'+h(a.display_role||a.role)+'</strong><span>'+h(a.name||a.path)+'</span>'+button(a.ref,'文件与来源')+'</div>';}
 const originLabels={original_statement:'原始公开说明',organized_summary:'根据记录整理',later_interpretation:'后来补充解释',unknown:'原始理由未记录'};
 function stepBody(step,detail=false){
  const reason=step.reason?'<p class="reason"><small>'+h(originLabels[step.reason.origin]||'说明来源未知')+'</small>'+h(step.reason.text)+'</p>':'';
@@ -42,18 +42,18 @@ const actualChecked=data.checks.filter(c=>c.status!=='not_requested').length;
 const nFiles=data.artifacts.length;
 const header='<div class="report-meta">'+(data.available_formats.includes('markdown')?'<a href="report.md" download>下载 Markdown</a>':'')+'<button data-special="scope">记录范围</button></div><header class="report-head"><div class="heading"><h1>'+h(data.title)+'</h1>'+
  (data.context?'<p>'+h(data.context.text)+'</p>':'')+'</div><dl class="overview"><div><dt>得到什么</dt><dd>'+(nFiles?h(nFiles)+' 条产物版本记录':'未记录产物')+'<a href="#outcome">查看文件 →</a></dd></div><div><dt>程序检查</dt><dd>'+h(actualChecked)+' 项已请求的检查；'+h(failed)+' 项未通过，'+h(unknown)+' 项结果未知。<a href="#outcome">检查范围 →</a></dd></div><div><dt>尚需复核</dt><dd>'+(data.review.length?h(data.review.length)+' 项记录中的问题，见具体对象与范围。':'未记录当前待办；不代表全部科学问题已验证。')+'</dd></div></dl></header>';
-const scope='<p class="scope">记录完整性：'+(data.integrity==='complete'?'完整':'有缺口')+' · 截至事件 '+h(data.snapshot.through_sequence)+' · 组织'+(status==='current'?'与记录版本一致':status==='stale'?'已陈旧':'尚未提供')+'</p>';
+const scope='<p class="scope">记录完整性：'+(data.integrity==='complete'?'完整':'有缺口')+' · 过程组织'+(status==='current'?'与记录版本一致':status==='stale'?'已陈旧':'尚未提供')+'</p>';
 const modes='<div class="modes" role="group" aria-label="阅读方式"><button data-mode="document" aria-pressed="true">正文</button><button data-mode="map" aria-pressed="false">过程图</button><button data-mode="split" aria-pressed="false">图文对照</button></div>';
 const goal=chapter('goal','任务与要求',(data.requirements.length?data.requirements.map(requirement).join(''):'<p>未记录用户要求。请查看已有程序记录。</p>')+'<p class="note">记录区分用户要求、公开选择与程序结果，供人复核；不作安全判定或展示隐藏思维。</p>');
 const reading=chapter('process','设计怎样形成',scope+(caution?'<p class="notice">'+h(caution)+'</p>':'')+'<div id="document-view"></div><div id="visual-view" hidden><div class="mobile-panes"><button data-pane="map">图</button><button data-pane="detail">详情</button></div><div class="visual-inner"><div id="chain"></div><div id="detail-pane"></div></div></div>',modes);
-const outcome=chapter('outcome','交付文件与检查',(nFiles?data.artifacts.map(artifact).join(''):'<p>未记录文件产物。</p>')+'<h3>程序检查范围</h3>'+(data.checks.length?data.checks.map(check).join(''):'<p>未记录程序验证。</p>')+(data.handoff?'<h3>交付清单核对</h3>'+data.handoff.files.map(f=>'<p>'+h(f.status)+' · '+h(f.path)+'</p>').join(''):''));
+const outcome=chapter('outcome','交付文件与检查',(nFiles?data.artifacts.map(artifact).join(''):'<p>未记录文件产物。</p>')+'<h3>程序检查范围</h3>'+(data.checks.length?data.checks.map(check).join(''):'<p>未记录程序验证。</p>')+(data.handoff?'<h3>交付清单核对</h3>'+data.handoff.files.map(f=>'<p>'+h(f.path.replace(/\\/g,'/').split('/').pop())+' · '+h(({linked:'已关联生成记录',untraced:'缺少生成过程记录',missing:'交付时文件不存在',changed:'文件版本已变化',ambiguous:'生成来源尚未确定'})[f.status])+'</p>').join(''):''));
 const reviews=data.review.length?chapter('review','当前需要处理',data.review.map(r=>'<div class="review"><p>'+h(r.text)+'</p>'+refList(r.source_refs)+'</div>').join('')):'';
 function group(label,refs){return '<details><summary>'+h(label)+' · '+refs.length+'</summary><div>'+refList(refs)+'</div></details>';}
 const keys=Object.keys(sources);
 const records=chapter('records','来源与详细记录',group('要求与选择',keys.filter(k=>['requirement','decision'].includes(sourceValue(k).kind)))+
 group('来源、陈述与判断',keys.filter(k=>['source','statement','claim'].includes(sourceValue(k).kind)))+
 group('程序与文件',keys.filter(k=>['validation','artifact'].includes(sourceValue(k).kind)))+
-group('尚未归类的记录',data.coverage.unassigned_refs)+
+group('尚未归类的记录',data.coverage.unassigned_refs)+(data.recording_gaps.length?'<h3>记录完整性</h3>'+data.recording_gaps.map(g=>'<p>'+h(g.text)+'</p>').join(''):'')+
 '<div class="record-tools"><button data-special="relations">完整关系记录</button><button data-special="changes">变化与影响</button><button data-special="history">组织版本</button><button data-special="audit">原始日志</button><button data-special="scope">采集与组织缺口</button></div>');
 document.getElementById('report').innerHTML=header+goal+reading+outcome+reviews+records;
 document.title=data.title+' · Evidence Trace';
@@ -84,26 +84,21 @@ function mode(value){
  document.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode===value)));
  selected();if(value==='document'&&state.selected){const target=[...document.querySelectorAll('#document-view [data-step]')].find(e=>e.dataset.step===state.selected);target?.scrollIntoView({block:'center'});}
 }
-function formatted(value){
- if(value===null||value===undefined)return '<span class="note">未记录</span>';
- if(Array.isArray(value))return value.length?'<ul>'+value.map(v=>'<li>'+formatted(v)+'</li>').join('')+'</ul>':'<span class="note">无条目</span>';
- if(typeof value==='object')return '<dl class="record-fields">'+Object.entries(value).map(([k,v])=>'<dt>'+h(k)+'</dt><dd>'+formatted(v)+'</dd>').join('')+'</dl>';
- return h(value);
-}
 const drawer=document.getElementById('drawer');
 function openSource(ref){
  const source=sources[ref];if(!source)return;
- const raw=source.data,uri=raw.url||raw.source_uri||raw.verification?.locator;
- let link='';if(typeof uri==='string'&&/^https?:\/\//i.test(uri))link='<p><a href="'+h(uri)+'" target="_blank" rel="noopener noreferrer">打开原始来源 ↗</a></p>';
- // Local files are recorded paths, not an asserted current verified download.
- if(raw.kind==='artifact'&&raw.path){const url='file:///'+raw.path.replace(/\\/g,'/');link+='<p><a href="'+h(encodeURI(url).replace(/#/g,'%23'))+'">打开记录中的文件位置</a></p><p class="note">对应已记录版本；文件现在可能已移动或改写。</p>';}
- document.getElementById('drawer-body').innerHTML='<p class="note">'+h(ref)+'</p><h2>'+h(source.title)+'</h2>'+link+formatted(raw);drawer.showModal();
+ const fields=source.fields.map(f=>'<section class="detail-section"><h3>'+h(f.label)+'</h3><p>'+h(f.text)+'</p></section>').join('');
+ const links=source.links.map(l=>'<p><a href="'+h(l.href)+'" target="_blank" rel="noopener noreferrer">'+h(l.label)+' ↗</a></p>').join('');
+ const related=source.related.filter(r=>sources[r.ref]).map(r=>'<p>'+h(r.label)+'：'+button(r.ref)+'</p>').join('');
+ document.getElementById('drawer-body').innerHTML='<p class="note">'+h(source.type_label)+'</p><h2>'+h(source.title)+'</h2>'+fields+links+related+'<footer class="technical-link"><a href="graph.json" target="_blank">技术记录（完整机器数据）</a></footer>';
+ if(!drawer.open)drawer.showModal();
 }
 function special(name){
- const values={relations:{semantic:data.relations,program:data.fact_relations},changes:{changes:data.changes,impacts:data.impacts},
- history:{versions:data.organization_history,historical_process:data.historical_process},
- audit:graph.audit_events,scope:{snapshot:data.snapshot,coverage:data.coverage,findings:data.findings}};
- document.getElementById('drawer-body').innerHTML='<h2>'+h({relations:'完整关系记录',changes:'变化与影响',history:'组织版本',audit:'原始日志',scope:'记录范围与缺口'}[name])+'</h2>'+formatted(values[name]);drawer.showModal();
+ const descriptions={relations:'完整关系保留在机器结果中。关系的含义由原记录注明，阅读顺序不表示因果。',changes:'变化与受影响对象保留在机器结果中；旧记录仍是真实历史。',history:'组织版本及对应的记录范围保留在机器结果中。',audit:'追加日志保存原始采集内容和失败记录。',scope:'记录完整性只指已采集记录；未观测的宿主活动不在覆盖范围内。'};
+ let body='<p>'+h(descriptions[name])+'</p>';
+ if(name==='scope')body+=data.recording_gaps.map(g=>'<p>'+h(g.text)+'</p>').join('');
+ document.getElementById('drawer-body').innerHTML='<h2>'+h({relations:'关系技术记录',changes:'变化与影响',history:'组织版本',audit:'原始日志',scope:'记录范围与缺口'}[name])+'</h2>'+body+'<p><a href="'+(name==='audit'?'events.jsonl':'graph.json')+'" target="_blank">打开完整技术文件</a></p>';
+ if(!drawer.open)drawer.showModal();
 }
 document.addEventListener('click',e=>{
  const m=e.target.closest('[data-mode]');if(m){mode(m.dataset.mode);return;}

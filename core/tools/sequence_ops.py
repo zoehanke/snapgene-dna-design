@@ -366,6 +366,13 @@ def _clip_feature_to_interval(feature, start0: int, end0: int):
             note_values.append(note)
         qualifiers["note"] = note_values
 
+        if "primer" in feature.type.lower():
+            # Preserve the surviving annotation and original oligo metadata,
+            # without claiming a truncated binding site is the original primer.
+            updated.type = "misc_feature"
+            qualifiers["source_feature_type"] = [feature.type]
+            note_values.append("partial primer binding site; not an intact primer annotation")
+
         if feature.type == "CDS":
             # This qualifier described the uncut protein. Retain the source
             # record, but do not assert that whole translation for this fragment.

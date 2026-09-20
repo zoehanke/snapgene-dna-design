@@ -1,10 +1,10 @@
 # SnapGene DNA Design
 
-**v1.0.0 · 可用大版本 / Usable major release.** Release scope and validation: [release notes](docs/RELEASE-v1.0.0.md).
+**v1.0.1 development · 主任务与报告实用性修复。** Historical v1.0.0 release scope: [release notes](docs/RELEASE-v1.0.0.md).
 
 New contributors: read [project history](docs/history.md) for the decisions and feedback behind this design, [current specs](specs/core-skill.md) for the product contract, and [development plans](docs/development-plans/README.md) for implementation status.
 
-Current development provides **Evidence Trace v0.3.1** beside the DNA runtime: capture real calls/files, explicitly submit a host-authored design process and report plan, then generate offline HTML/Markdown from those saved records. The seven entry points cover design, inspection, primer annotation, conversion and preview export. Missing/stale organization is visible; normal Trace faults preserve DNA execution. See [usage and limits](references/evidence-trace.md) and the [current plan](docs/development-plans/safety-phase-3-readability-v0.3.1.md). Development defaults to full; semantic fidelity and independent human readability remain distinct from program/reference checks. This does not replace the historical v1.0.0 release or certify safety.
+Current development provides **Evidence Trace v0.3.2** beside the DNA runtime: capture real calls/files, explicitly submit a host-authored design process and report plan, then generate offline HTML/Markdown from those saved records. The seven entry points cover design, inspection, primer annotation, conversion and preview export. Missing/stale organization is visible; normal Trace faults preserve DNA execution. See [usage and limits](references/evidence-trace.md) and the [current plan](docs/development-plans/workflow-phase-3-usability-repair-v0.3.2.md). Development defaults to full; semantic fidelity and independent human readability remain distinct from program/reference checks. This does not replace the historical v1.0.0 release or certify safety.
 
 A skill runtime for plasmid design, PCR, cloning, mutagenesis and local CRISPR/HDR designs. The host assistant chooses a route; the runtime computes reactions and exports annotated GenBank and SnapGene files.
 

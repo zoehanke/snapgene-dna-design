@@ -5,19 +5,23 @@ import pathlib
 from evidence_trace import __version__
 from evidence_trace.process import assemble
 from evidence_trace.report import build_report, markdown
+from evidence_trace.storage import machine_export, expand_machine
 
 
 def render(directory, graph, formats="both"):
     directory = pathlib.Path(directory)
     if formats not in {"html", "markdown", "both"}:
         raise ValueError("Unknown report format")
+    graph = expand_machine(graph)
     if graph.get("schema_version") != "design-process-v1":
         graph = assemble(graph.get("audit_events", []), graph.get("issues", []))
     graph["report"] = build_report(graph)
     graph["report"]["available_formats"] = ["html", "markdown"] if formats == "both" else [formats]
-    payload = json.dumps(graph, ensure_ascii=False, indent=2)
-    (directory / "graph.json").write_text(payload, encoding="utf-8")
-    manifest = {"schema_version": graph["schema_version"], "trace_version": __version__,
+    # Keep the complete compatibility machine view outside the offline reader.
+    # The HTML needs readable details, not duplicate run inputs and event payloads.
+    (directory / "graph.json").write_text(json.dumps(machine_export(graph), ensure_ascii=False, separators=(',', ':')), encoding="utf-8")
+    payload = json.dumps({'report': graph['report']}, ensure_ascii=False, separators=(',', ':'))
+    manifest = {"schema_version": 'design-process-v2', "trace_version": __version__,
                 "projection_version": graph["projection_version"], "integrity": graph["integrity"],
                 "issues": graph["issues"], "coverage": graph["coverage"],
                 "runs": [r["id"] for r in graph["runs"]],

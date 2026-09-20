@@ -1,6 +1,6 @@
 # Evidence Trace：数据层到阅读层的映射
 
-接口 v0.3.1，第四步实现参考。阅读规则见 [design.md](../docs/development-plans/design.md)，结构契约见 [空白框架](../docs/development-plans/evidence-trace-reader-template.md)。本表定义数据去向，不增加必填栏目或新的事实源。
+接口 v0.3.2，当前实现参考。阅读规则见 [design.md](../docs/development-plans/design.md)，结构契约见 [空白框架](../docs/development-plans/evidence-trace-reader-template.md)。本表定义数据去向，不增加必填栏目或新的事实源。
 
 本表保留底层事实 reader 的映射；完整输出现由 projection → process → report 形成。`reader` CLI 返回完整机器结果，`--run-id` 在其中增加 focused_reader，不裁掉组织依据。HTML/Markdown 消费 report；缺失或陈旧组织退回明确标注的事实视图。新的字段与提交方式见[使用说明](evidence-trace.md#complete-process-and-report-submission)。旧 chain 仅提供适用性/覆盖/影响与兼容诊断，不再组织默认页面。
 
@@ -24,7 +24,7 @@
 | basis_refs、responds_to、previous | 有来源的关系 | 声明依据、要求响应、版本修订分别标记；均不自动变成已证明的科学因果 |
 | run/context_refs/decision_refs、stage_ref | 运行筛选、步骤归属与执行顺序 | 历史依据可以回查，但不算当前运行的新检查；平行产物不强串成一条链 |
 | issues、coverage/explanation/association gaps | 记录诊断与来源缺口 | 不直接填满 Review；真正失败、证据冲突及未处理影响需保留 |
-| 原始 ID、版本、哈希、完整事件 | 详情引用 | 默认摘要不用内部字段作标题；所有摘要仍能追到原记录 |
+| 原始 ID、版本、哈希、完整事件 | 独立技术文件 | 默认摘要不用内部字段作标题；所有摘要仍能追到原记录 |
 
 ## 统一投影接口
 
@@ -67,8 +67,15 @@ python scripts/trace_design.py reader --trace-dir <目录>
 python scripts/trace_design.py reader --trace-dir <目录> --run-id <已记录运行>
 ```
 
-命令只向标准输出提供 JSON，不写回日志、文件或 HTML。正常的 graph.json 派生过程也包含 reader 字段；旧页面暂不消费此字段。第五步再切换 Document/Map/Split 的数据入口。
+命令只向标准输出提供 JSON，不写回日志、文件或 HTML。正常的 graph.json 派生过程也包含 reader 字段；默认三视图消费 report，底层 reader 保留为事实与兼容诊断。
 
 ## 验收重点
 
 简单 Observed 流程、无运行的声明记录、重复检查、并行产物、旧版本选择、晚补证据/说明、无变化和无待办、实际失败与 Trace 故障。三档 DNA 回归仍保持一致。此接口完成不等于第五步 HTML 已重构。
+
+
+## v0.3.2 默认详情与存储
+
+`report.sources[ref]` 保存 title、type_label、fields（可读标题与正文）、related（明确引用）、links（可操作来源/文件入口），不再带原始 data。普通展开只消费这份投影；未知类型给出有限说明，完整对象仍可在技术文件读取。`recording_gaps` 与科研 review 分开；交付清单中无生成关系的文件也有可读条目。
+
+graph/reader 对外格式为 design-process-v2，重复运行与审计对象用 JSON Pointer 指向 source_records。旧程序可调用 expand_machine 得到 v1 内存布局；原 events 不改。具体引用字段见[使用说明](evidence-trace.md#v032-capture-and-machine-export)。

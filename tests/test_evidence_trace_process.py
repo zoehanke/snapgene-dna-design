@@ -64,7 +64,7 @@ class ProcessTests(unittest.TestCase):
         self.assertEqual(log, (self.r.directory / "events.jsonl").read_bytes())
         self.assertEqual(html, (self.r.directory / "index.html").read_bytes())
         graph = json.loads((self.r.directory / "graph.json").read_text(encoding="utf-8"))
-        self.assertEqual(graph["schema_version"], "design-process-v1")
+        self.assertEqual(graph["schema_version"], "design-process-v2")
         self.assertEqual(graph["snapshot"]["organization_status"], "current")
         self.assertFalse(graph["coverage"]["unassigned_refs"])
         self.assertTrue((self.r.directory / "report.md").is_file())

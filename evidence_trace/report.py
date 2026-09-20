@@ -5,6 +5,7 @@ import copy
 from pathlib import Path
 
 from evidence_trace.reader import check_status
+from evidence_trace.details import readable_details, handoff_text, filename, CHECKS, ROLES, result_text, ORIGINS, applicability_text
 
 LABELS = {"requirement": "用户要求", "choice": "设计选择", "program_result": "程序结果", "artifact": "产物"}
 
@@ -31,7 +32,7 @@ def build_report(graph):
             step = copy.deepcopy(active["steps"][key])
             refs = step["source_refs"]
             label = LABELS[step["kind"]]
-            decision = next((records[r] for r in refs if records[r].get("kind") == "decision"), {})
+            decision = records.get(step.get("subject_ref"), {}) or next((records[r] for r in refs if records[r].get("kind") == "decision"), {})
             if step["kind"] == "choice":
                 who = decision.get("decision_actor", "unknown")
                 label = "AI 选择" if who in {"ai", "host-assistant", "assistant", "model"} else "用户选择" if who in {"user", "human", "researcher"} else "选择者未记录"
@@ -57,20 +58,27 @@ def build_report(graph):
     for node in graph["nodes"]:
         if node["kind"] == "validation":
             checks.append({"ref": node["key"], "check": node["check"], "result": node.get("result"),
-                           "scope": node.get("details"), "run_id": node.get("run_id"),
+                           "run_id": node.get("run_id"),
                            "status": "not_requested" if node.get("result") in ("not_requested", "N/A", "not_applicable") else check_status(node.get("result"))[0]})
         elif node["kind"] == "artifact":
             artifacts.append({"ref": node["key"], **{k: node.get(k) for k in
                 ("path", "sha256", "role", "run_id", "result_event_ref", "generation_observation", "validated_by")}})
     reviews = [{"text": u["text"], "source_refs": u["source_refs"], "step_refs": u["step_refs"],
                 "category": "authored_unresolved"} for u in active["unresolved"]] if active else []
-    reviews.extend({"text": f.get("message", f.get("text", "")), "source_refs": f.get("refs", []),
-                    "category": f["category"], "details": f} for f in graph["findings"] if f["category"] in {"review", "handoff"})
+    gaps = []
+    for finding in graph['findings']:
+        category = finding['category']
+        item = {'text': finding.get('message', finding.get('text', '')),
+                'source_refs': finding.get('refs', []), 'category': category}
+        if category == 'handoff':
+            item['text'] = filename(finding['path']) + '：' + handoff_text(finding)
+            (reviews if finding['status'] in {'missing', 'changed'} else gaps).append(item)
+        elif category in {'capture', 'coverage', 'explanation_gap', 'unexplained_design_choice', 'missing_explanation'}:
+            gaps.append(item)
+        elif category in {'review', 'execution_failure', 'validation_failure', 'change_impact'}:
+            reviews.append(item)
     context = plan.get("context") if active else None
-    source_labels = {"requirement": "用户要求", "decision": "设计选择", "source": "原始来源",
-                     "statement": "证据陈述", "claim": "任务判断", "validation": "程序检查", "artifact": "文件记录"}
-    sources = {ref: {"title": str(record_title(value)), "label": source_labels.get(value.get("kind"),
-                    value.get("payload", {}).get("stage", "原始记录")), "data": value} for ref, value in records.items()}
+    sources = readable_details(records)
     stage_labels = {"inspect": "材料检查", "annotate_primers": "引物标注", "convert": "格式转换",
                     "export_delivery_bundle": "预览文件包", "goal_check": "目标检查", "sanity": "注释与序列检查"}
     for ref, record in records.items():
@@ -96,10 +104,48 @@ def build_report(graph):
             if ref_set.intersection(old.get("record_refs", [])):
                 step["evidence"].extend(copy.deepcopy(old.get("branches", {}).get("evidence", [])))
                 step.setdefault("recorded_explanations", []).extend(copy.deepcopy(old.get("branches", {}).get("supplements", [])))
+        for evidence in step['evidence']:
+            assessment = evidence.get('assessment') or {}
+            if assessment:
+                assessment['reason'] = applicability_text(assessment)
+            for ref in set(evidence.get('record_refs', []) + step['source_refs']):
+                if ref not in sources:
+                    continue
+                detail = sources[ref]
+                entries = [('用于这个选择', step['title']), ('依据报告', evidence.get('statement')),
+                           ('所支持或限制的方面', evidence.get('aspect')), ('当前判断', evidence.get('claim')),
+                           ('条件比较', assessment.get('reason'))]
+                entries += [('成立条件', v) for v in evidence.get('conditions', [])]
+                entries += [('适用边界', v) for v in evidence.get('limitations', [])]
+                for label, text in entries:
+                    field = {'label': label, 'text': text}
+                    if text and field not in detail['fields']:
+                        detail['fields'].append(field)
+                for evidence_ref in evidence.get('record_refs', []):
+                    link = {'label': '依据与判断', 'ref': evidence_ref}
+                    if evidence_ref != ref and evidence_ref in sources and link not in detail['related']:
+                        detail['related'].append(link)
     presented_artifacts = artifacts
     if graph.get("handoff"):
         selected_refs = {ref for item in graph["handoff"]["files"] for ref in item["artifact_refs"]}
         presented_artifacts = [a for a in artifacts if a["ref"] in selected_refs]
+        for index, item in enumerate(graph['handoff']['files']):
+            if item['artifact_refs']:
+                for ref in item['artifact_refs']:
+                    if item.get('purpose') and ref in sources:
+                        sources[ref]['fields'].insert(0, {'label': '交付用途', 'text': item['purpose']})
+                continue
+            ref = 'handoff-file:' + str(index)
+            presented_artifacts.append({'ref': ref, 'path': item['path'], 'role': '交付清单中的文件',
+                                        'purpose': item.get('purpose'), 'handoff_status': item['status']})
+            sources[ref] = readable_details({ref: dict(kind='artifact', **item)})[ref]
+            sources[ref]['fields'].insert(0, {'label': '交付记录', 'text': handoff_text(item)})
+    for item in artifacts + presented_artifacts:
+        item['display_role'] = ROLES.get(item.get('role'), item.get('role') or '身份未记录')
+        item['name'] = filename(item['path'])
+    for item in checks:
+        item['display_check'] = CHECKS.get(item['check'], item['check'])
+        item['display_result'] = result_text(item['result'])
     return {"title": plan.get("title", "生物设计记录") if active else "生物设计记录",
             "context": context, "requirements": graph["task"]["requirements"],
             "snapshot": graph["snapshot"], "integrity": graph["integrity"],
@@ -110,11 +156,12 @@ def build_report(graph):
             "diagram": plan.get("diagram", {}) if active else {},
             "default_expanded_refs": plan.get("default_expanded_refs", []) if active else [],
             "checks": checks, "artifacts": presented_artifacts, "all_artifacts": artifacts, "review": reviews,
+            "recording_gaps": gaps,
             "sources": sources, "coverage": graph["coverage"], "findings": graph["findings"],
             "handoff": graph.get("handoff"), "organization_history": graph["organization_history"],
             "historical_process": process if state == "stale" else None,
             "changes": graph.get("changes", []), "impacts": graph.get("impacts", []),
-            "runs": graph["runs"], "fact_relations": graph["fact_relations"]}
+            "fact_relations": graph["fact_relations"]}
 
 
 def markdown(report):
@@ -123,7 +170,9 @@ def markdown(report):
         for char in ("\\", "`", "*", "_", "[", "]", "<", ">", "#", "|"):
             text = text.replace(char, "\\" + char)
         return text
-    lines = ["# " + safe(report["title"]), "", "记录范围：截至事件 " + str(report["snapshot"]["through_sequence"]), ""]
+    def source_names(refs):
+        return ', '.join(safe(report['sources'][r]['title']) for r in refs if r in report['sources'])
+    lines = ["# " + safe(report["title"]), ""]
     if report["snapshot"]["organization_status"] != "current":
         lines += ["设计过程尚未整理或组织已陈旧。以下为有限事实记录。", ""]
     lines += ["## 任务与要求", ""]
@@ -140,11 +189,11 @@ def markdown(report):
         if step["content"] != step["title"]:
             lines += [safe(step["content"]), ""]
         if step.get("reason"):
-            lines += [safe(step["reason"]["origin"]) + "：" + safe(step["reason"]["text"]), ""]
-        lines += ["来源：" + ", ".join(safe(r) for r in step["source_refs"]), ""]
+            lines += [ORIGINS.get(step['reason']['origin'], '说明来源未确认') + "：" + safe(step["reason"]["text"]), ""]
+        lines += ["来源：" + source_names(step['source_refs']), ""]
         for field, label in (("input_refs", "输入"), ("outcome_refs", "输出与检查对象")):
             if step.get(field):
-                lines += [label + "：" + ", ".join(safe(r) for r in step[field]), ""]
+                lines += [label + "：" + source_names(step[field]), ""]
         for e in step.get("evidence", []):
             lines += [safe(e.get("label", e.get("relation"))) + "：" + safe(e.get("statement")),
                       "当前判断：" + safe(e.get("claim")), safe(e.get("assessment", {}).get("reason")), ""]
@@ -156,15 +205,19 @@ def markdown(report):
             lines += ["限制：" + safe(item["text"]), ""]
     lines += ["## 交付文件与检查", ""]
     for a in report["artifacts"]:
-        lines += [safe(a["role"]) + "：" + safe(a["path"]) + "（" + safe(a["ref"]) + "）", ""]
+        lines += [safe(a['display_role']) + "：" + safe(a['name']), ""]
+        lines += ['[' + safe(link['label']) + '](<' + link['href'] + '>)' for link in report['sources'][a['ref']]['links']]
     if not report["artifacts"]:
         lines += ["未记录产物。", ""]
-    lines += [safe(c["check"]) + "：" + safe(c["result"]) + "（" + safe(c["ref"]) + "）\n" for c in report["checks"]]
+    lines += [safe(c['display_check']) + "：" + safe(c['display_result']) + "\n" for c in report["checks"]]
     if report["review"]:
         lines += ["## 需要处理", ""] + [safe(r["text"]) + "\n" for r in report["review"]]
     if report.get("handoff"):
-        lines += ["交付清单核对：", ""] + [safe(f["status"]) + "：" + safe(f["path"]) + "\n" for f in report["handoff"]["files"]]
+        lines += ["交付清单核对：", ""] + [safe(filename(f['path'])) + "：" + safe(handoff_text(f)) + "\n" for f in report["handoff"]["files"]]
+    if report['recording_gaps']:
+        lines += ['## 记录完整性', ''] + [safe(gap['text']) + '\n' for gap in report['recording_gaps']]
     lines += ["## 查看详细记录", "", "完整原记录、条件、关系和历史见同目录 graph.json。", ""]
     for ref, source in report["sources"].items():
-        lines += ["### " + safe(ref), "", safe(source["title"]), ""]
+        lines += ["### " + safe(source['title']), ""]
+        lines += [safe(f['label']) + '：' + safe(f['text']) + '\n' for f in source['fields']]
     return "\n".join(lines)

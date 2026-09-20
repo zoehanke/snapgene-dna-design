@@ -1,3 +1,3 @@
 """Evidence Trace: optional, local design provenance, independent of DNA Core."""
 
-__version__ = "0.3.1"
+__version__ = "0.3.2"

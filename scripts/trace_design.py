@@ -15,6 +15,7 @@ from evidence_trace.settings import get_level, set_level, settings_path, LEVELS
 from evidence_trace.projection import build_facts
 from evidence_trace.process import assemble, organize, save_report_plan
 from evidence_trace.intake import observe_material, record_handoff
+from evidence_trace.storage import machine_export
 
 
 def main():
@@ -132,7 +133,7 @@ def main():
                     raise ValueError("Unknown handoff event in snapshot")
                 result["focus"] = {"handoff_id": args.handoff_id, "files": handoff["payload"]["files"],
                                    "scope": "Full process and supporting records retained"}
-            print(json.dumps(result, ensure_ascii=False, indent=2))
+            print(json.dumps(machine_export(result), ensure_ascii=False, indent=2))
             return 2 if errors else 0
         response = {"trace_integrity": graph["integrity"], "issues": graph["issues"],
                           "records": len(graph["nodes"]), "runs": len(graph["runs"]),

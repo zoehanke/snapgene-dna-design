@@ -63,13 +63,18 @@ def validate_organization(packet, facts):
         ids.add(key)
     for key, step in p["steps"].items():
         identity(key)
-        _keys(step, {"kind", "content", "title", "source_refs", "reason", "limitations", "input_refs", "outcome_refs"}, "step")
+        _keys(step, {"kind", "content", "title", "subject_ref", "source_refs", "reason", "limitations", "input_refs", "outcome_refs"}, "step")
         if step.get("kind") not in STEP_KINDS:
             raise ValueError("Unknown step kind")
         _text(step.get("content"), "step content")
         if "title" in step:
             _text(step["title"], "step title")
         refs = _refs(step.get("source_refs"), records, "step source_refs", True)
+        if step.get('subject_ref'):
+            _refs([step['subject_ref']], records, 'step subject_ref', True)
+            if step['subject_ref'] not in refs:
+                raise ValueError('subject_ref must occur in source_refs')
+            refs = [step['subject_ref']]
         kinds = {records[r].get("kind") for r in refs}
         events = {records[r].get("event_type") for r in refs}
         if step["kind"] == "artifact" and "artifact" not in kinds:

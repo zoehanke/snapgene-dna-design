@@ -1,4 +1,4 @@
-# Evidence Trace v0.3.1
+# Evidence Trace v0.3.2
 
 Optional local sidecar for scientific decisions, evidence and actual program results. It does not change DNA design, decide safety, or capture hidden model reasoning. Phase 2 adds structured input-choice coverage and context comparison, not general biological interpretation. Runtime has no new package dependencies.
 
@@ -187,7 +187,7 @@ The demo compares Trace on/off native files and primer tables for both PCR bound
 
 ## Complete process and report submission
 
-One append-only `events.jsonl` stores observations, declarations, organization revisions and report plans. `graph.json` is a rebuildable `design-process-v1` result containing complete source records, typed fact relationships, an authored `design_process`, its `report_plan`, coverage and findings. A single nonblocking writer lock protects each active run; normal contention continues the DNA work with incomplete capture, strict contention stops before the call.
+One append-only `events.jsonl` stores observations, declarations, organization revisions and report plans. `graph.json` is a rebuildable `design-process-v2` result containing complete source records, typed fact relationships, an authored `design_process`, its `report_plan`, coverage and findings. A single nonblocking writer lock protects each active run; normal contention continues the DNA work with incomplete capture, strict contention stops before the call.
 
 ### Capture material and final files
 
@@ -234,3 +234,14 @@ The report profile is fixed. `context` may supply `text` and `source_refs`. `sec
 `reader` returns the full machine result. `--run-id` adds a scoped `focused_reader` without removing the full supporting history; `--handoff-id` focuses an exact file-list observation. They are mutually exclusive. `--through-sequence` selects an event prefix; `--process-ref` selects an organization version whose basis fits that prefix. Historical facts may be described by a later-authored organization of exactly those facts, whose author/time remain in `organization_history`. The renderer does not rewrite a summary to fit a filter.
 
 `render --format html|markdown|both` defaults to both and always rebuilds graph/manifest from the journal. HTML and Markdown share the saved process, actual checks, limitations and review. Exact raw facts remain in graph/journal; absent/stale organization yields an explicitly limited factual report. The journal alone cannot capture inaccessible host searches or prove the faithfulness of a scientific interpretation.
+
+
+## v0.3.2 capture and machine export
+
+For custom scripts and direct tool calls, use [capture instructions](trace-capture.md). `trace_run.py` observes explicit input/output versions before/after a command; return code zero is not Validation. Reusing an unchanged existing file does not manufacture generation history.
+
+`graph.json` and `reader` output now use `design-process-v2`: `source_records` holds full payloads; `audit_events` and repeated `runs[].stages[]` input/result/before/after/choice fields use local JSON Pointer objects, e.g. `{"$ref":"#/source_records/<event>/payload/result"}`. Resolve only these documented fields. Python callers needing the old expanded layout call `evidence_trace.storage.expand_machine(graph)`. Journal events and organization submission format remain compatible. HTML embeds only `report`, with typed `sources` details; those entries no longer have `data`. Full raw content is in graph/journal, not default drawers. The renderer accepts old and new machine views without a model call.
+
+An organization step may set `subject_ref` to its exact main object, also present in `source_refs`. Its type must fit the step; unrelated evidence cannot supply the main object's type. Legacy steps without it retain their original matching behavior.
+
+Default details show meaning, supplied reasons, evidence conditions, actual check scope and linked files. Handoff files lacking generation observations remain visible with a named recording gap. Missing files/version changes remain delivery issues. Technical JSON is accessed separately. Existing generated logs are preserved, including inaccurate historical declarations; rebuilding is not scientific endorsement.

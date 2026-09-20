@@ -8,7 +8,7 @@
 
 | 计划 | 模块目标版本 | 文档修订 | 状态 | 前序 |
 |---|---|---|---|---|
-| [主任务与 Trace 实用性修复](workflow-phase-3-usability-repair-v0.3.2.md) · [人工检查版](workflow-phase-3-usability-repair-review-v0.3.2.md) | Trace v0.3.2；主产品版本待实施确定 | r1 | 当前选定计划，待开发；七项问题、证据边界和验收已明确 | Phase 3.1 与本轮三组测试 |
+| [主任务与 Trace 实用性修复](workflow-phase-3-usability-repair-v0.3.2.md) · [人工检查版](workflow-phase-3-usability-repair-review-v0.3.2.md) | Trace v0.3.2；主产品 v1.0.1 | r2 | 工程实现与本机回归完成；宿主对照、注释问题、独立真人理解未关闭 | Phase 3.1 与本轮三组测试 |
 | [Phase 3.1：Design Decision Trace 与三层实现](safety-phase-3-readability-v0.3.1.md) | Evidence Trace v0.3.1 | r14 | 保留已有工程证据；新暴露的主任务、导出、采集和报告问题转入上行计划，不等于已实用验收 | Phase 3 v0.3 |
 | [Phase 3：Living Evidence Document & Change Impact](safety-phase-3-change-impact-v0.3.md) | Evidence Trace v0.3 | r2 | 工程完成；阅读问题转入补救计划 | Phase 2 |
 | [Phase 2：Evidence Applicability & Trace Usability](safety-phase-2-applicability-v0.2.md) | Evidence Trace v0.2 | r3 | 工程实现及本阶段验收完成 | Phase 1 |
@@ -20,7 +20,7 @@
 
 [Reader Demo 通用空白框架](evidence-trace-reader-template.md)：实现前必读的阅读结构契约，汇总可选步骤与附录；按实际任务取用，不要求全部出现。
 
-正式 HTML 已替换 v0.3 的单 Decision 组织，但本轮 CDC15 测试仍暴露实际缺陷；当前修复契约已同步 spec/design.md，完整修复未实施。GFP +3 bp、静态 [Reader Demo](safety-phase-3-reading-draft.md) 和真实 GFP/A206K 的历史证据保留，用户未提交修改未动。Phase 4 继续暂停。
+正式 HTML 已替换 v0.3 的单 Decision 组织，但本轮 CDC15 测试仍暴露实际缺陷；当前代码、spec/design.md 与修复计划已同步，实际实现和未验收项见当前计划。GFP +3 bp、静态 [Reader Demo](safety-phase-3-reading-draft.md) 和真实 GFP/A206K 的历史证据保留，用户未提交修改未动。Phase 4 继续暂停。
 
 相关 spec：[主 skill](../../specs/core-skill.md)、[安全模块](../../specs/safety-module.md)。Phase 4 至 Phase 6 尚未创建执行计划，完整路线图留在安全 spec。
 

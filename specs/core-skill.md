@@ -31,7 +31,7 @@ Lead the answer with the material conclusion, whether new design is needed and t
 - Practical task completion and correct artifacts take priority over tool counts, test counts or review frameworks.
 - Host AI handles intent and strategy; executable tools compute sequences and reactions. A desired sequence is not proof of PCR amplification from the supplied template and delivered primers.
 - Assembly inputs must be supplied prepared material or products of an explicit preparation step; include real backbone preparation where required.
-- Preserve source, backbone, inserted-feature and primer annotations through transformations and export. Explain source annotation corrections separately from DNA changes.
+- Preserve source, backbone, inserted-feature and primer annotations through transformations and export. Feature locations govern transformed primer coordinates; verify binding cores at those locations. A clipped primer site remains an explicitly partial annotation, not a complete binding site. Explain source annotation corrections separately from DNA changes.
 - Keep actual coordinate, strand, compound-location and circular-origin conventions consistent across each interface; no implicit biological defaults without evidence and applicability.
 - Missing checks, failed runs, components and historical successes must not be presented as newly verified complete constructs. Do not change the biological target or relax validation merely to obtain a pass.
 - Bind checks to their actual object and scope: donor structure, exported file, integrated-locus model and cell phenotype are different conclusions. Investigate inherited annotation failures against source and product; neither blanket rejection nor unsupported exemption is acceptable.
@@ -44,7 +44,7 @@ Trace observes each route's actual inputs, returns and files. It does not change
 
 The host or researcher explicitly organizes captured records and may author a report plan in the same response; code checks references/versions and renders the saved result. This is real AI work. Normal capture failures preserve DNA execution; explicit strict policy can stop at an execution boundary without rewriting completed files. Mode, attribution and report contracts are maintained in the [safety spec](safety-module.md).
 
-Selected repair target: keep design-time guidance focused on the task, necessary correctness checks and minimal capture; load full Trace organization/report instructions after the relevant design conclusion is available. Trace metadata gaps must not become biological gates. Prompt interference is a hypothesis to test under controlled conditions, not an established property of a model.
+Keep design-time guidance focused on the task, necessary correctness checks and minimal capture; load full Trace organization/report instructions after the relevant design conclusion is available. Trace metadata gaps must not become biological gates. Prompt interference is a hypothesis to test under controlled conditions, not an established property of a model.
 
 ## Architecture and rule changes
 
@@ -59,4 +59,4 @@ Current modules and orchestration are implementation choices, not permanent rest
 - Inherited pET annotation conflicts still block formal delivery in the recorded GFP/A206K case. Resolve that source/annotation and validation interaction separately; Trace success does not close it.
 - Remaining product questions: underserved real workflows, duplicated orchestration worth consolidating, host clarification reliability, measurable user effort saved and reproducible optional-backend claims.
 
-The [current repair plan](../docs/development-plans/workflow-phase-3-usability-repair-v0.3.2.md) covers task priority, prompt isolation, primer export and scoped validation as well as Trace usability. These repairs are pending implementation/validation; the [predecessor](../docs/development-plans/safety-phase-3-readability-v0.3.1.md) preserves earlier engineering evidence. Historical releases/audits do not certify current universal correctness.
+The [current repair plan](../docs/development-plans/workflow-phase-3-usability-repair-v0.3.2.md) covers task priority, prompt isolation, primer export and scoped validation as well as Trace usability. Primer extraction/export and staged guidance are implemented; host behavior improvement still needs controlled evidence; the [predecessor](../docs/development-plans/safety-phase-3-readability-v0.3.1.md) preserves earlier engineering evidence. Historical releases/audits do not certify current universal correctness.

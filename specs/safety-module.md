@@ -6,9 +6,9 @@ Updated: 2026-09-20. This spec owns current Trace behavior and evidence boundari
 
 **Evidence Trace 是事实与证据记录系统；Design Decision Trace 是其默认的人类可读组织方式。** Help researchers inspect how users, AI and programs formed a design. Genome Resurrection motivates distinguishing DNA presence, functional restoration and larger consequences; a successful construct alone establishes none of the latter.
 
-Implemented scope: seven entry points, source observations, file handoff checks, authored process/report revisions, applicability comparisons, Change Impact and fixed offline HTML/Markdown. Current scope excludes safety scores, safe/unsafe certification, hidden-thought reconstruction and ecological prediction. Assurance Case, Conclusion Boundary and macro/laboratory framework integration remain later directions, not delivered capabilities.
+Implemented scope: seven entry points plus an explicit local-command file observer, source observations, file handoff checks, authored process/report revisions, applicability comparisons, Change Impact and fixed offline HTML/Markdown. Current scope excludes safety scores, safe/unsafe certification, hidden-thought reconstruction and ecological prediction. Assurance Case, Conclusion Boundary and macro/laboratory framework integration remain later directions, not delivered capabilities.
 
-The [v0.3.2 repair plan](../docs/development-plans/workflow-phase-3-usability-repair-v0.3.2.md) is selected next work, not implemented capability. Real tests exposed file-export faults, large repeated report payloads, incomplete capture and unreadable default details; v0.3.1 engineering success did not establish practical usability.
+The [v0.3.2 repair plan](../docs/development-plans/workflow-phase-3-usability-repair-v0.3.2.md) records the implemented v0.3.2 repairs and outstanding host/human evaluation. Real tests exposed file-export faults, large repeated report payloads, incomplete capture and unreadable default details; v0.3.1 engineering success did not establish practical usability.
 
 ## Three-layer contract
 
@@ -16,7 +16,7 @@ The [v0.3.2 repair plan](../docs/development-plans/workflow-phase-3-usability-re
 |---|---|
 | Collection | Preserve observable inputs, returns, failures, file versions, supplied user/AI statements and available source material. Unobserved host activity stays outside coverage. |
 | Data | AI/researcher organizes goals, stages, steps, branches, reasons and relationships. Code indexes/checks records, references, versions, stated inputs and record disposition; it does not certify scientific meaning. |
-| Report | Authored report_plan chooses sourced summaries and grouping within the fixed reading format. Code renders human-readable body and details from saved facts, without a new model call on export or interaction. Raw machine objects belong in a separate technical view. |
+| Report | Authored report_plan chooses sourced summaries and grouping within the fixed reading format. Code renders human-readable body and details from saved facts, without a new model call on export or interaction. Raw machine objects belong in a separate technical file. Readable object details are generated deterministically for choices, files, sources and checks. |
 
 The complete machine result includes design_process, its exact report-plan version, source records, typed relationships, coverage and findings. An unassigned record remains accessible; hiding detail in the report never deletes underlying information. Missing/stale organization produces an explicitly limited factual view, not a completed scientific narrative.
 
@@ -34,7 +34,7 @@ Observe actual route equivalents of task/plan/execute/validate/finalize at appli
 
 One global setting applies to subsequent captures; each running capture retains its initial level. Development defaults to Full; release default remains open. File tools require an explicit shared trace directory. No separate model service or conversation/session registry is currently required; these are implementation choices to revisit only for a demonstrated need, not automatic future work.
 
-Selected prompt boundary: design-time capture stays mostly automatic, with short contemporaneous public notes only at real choices. Full organization and report drafting occur after the relevant design result; detailed schemas are loaded then. Necessary biological checks remain in the main workflow. Compare modes under controlled tasks before changing the default; neither a prompt experiment nor this spec update changes the user's global setting.
+Prompt boundary: design-time capture stays mostly automatic, with short contemporaneous public notes only at real choices. Full organization and report drafting occur after the relevant design result; detailed schemas are loaded then. Necessary biological checks remain in the main workflow. Compare modes under controlled tasks before changing the default; neither a prompt experiment nor this spec update changes the user's global setting.
 
 ## Attribution and evidence
 
@@ -49,7 +49,7 @@ Selected prompt boundary: design-time capture stays mostly automatic, with short
 
 ## Versions, relationships and changes
 
-events.jsonl is the append-only single-writer fact source. Organization and report revisions also append there; graph, manifests and views are rebuildable. Reuse existing task/plan/execution/artifact anchors to bind versions, not to claim intent or tamper-proof authorship.
+events.jsonl is the append-only single-writer fact source. Machine export v2 uses local JSON references for repeated audit and run payloads; v1 expansion remains available. Organization and report revisions also append there; graph, manifests and views are rebuildable. Reuse existing task/plan/execution/artifact anchors to bind versions, not to claim intent or tamper-proof authorship.
 
 Explicit context_refs freeze selected records and their dependencies; omitted context retains labeled legacy latest-record selection. Stage references pair real inputs and returns/failures. Same-run associations remain distinct from Claim-specific checks. Append time alone is not occurrence time or causality; missing old anchors are not reconstructed.
 

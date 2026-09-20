@@ -178,6 +178,12 @@ def _location_interval(location, sequence_length: int) -> tuple[int, int]:
     parts = list(getattr(location, "parts", [location]))
     if len(parts) == 1:
         return int(parts[0].start), int(parts[0].end)
+    # Rotation/extraction can leave adjacent parts of a former origin-spanning
+    # site. Native stores that now-contiguous site as one interval.
+    ordered = sorted(parts, key=lambda part: int(part.start))
+    if (len({part.strand for part in parts}) == 1
+            and all(int(a.end) == int(b.start) for a, b in zip(ordered, ordered[1:]))):
+        return int(ordered[0].start), int(ordered[-1].end)
     high = [part for part in parts if int(part.end) == sequence_length]
     low = [part for part in parts if int(part.start) == 0]
     if len(high) == 1 and len(low) == 1:
@@ -541,7 +547,6 @@ def _sequence_from_note(feature: SeqFeature) -> str | None:
 def _primer_payload_from_feature(record: SeqRecord, feature: SeqFeature) -> dict[str, Any]:
     """Recover a lossless primer payload from a GenBank feature."""
     sequence_length = len(record.seq)
-    topology = str(record.annotations.get("topology", "linear")).lower()
     start, end = _location_interval(feature.location, sequence_length)
     strand = _strand_char(feature.location.strand)
     full = _first_qualifier(
@@ -558,32 +563,19 @@ def _primer_payload_from_feature(record: SeqRecord, feature: SeqFeature) -> dict
     core = _first_qualifier(feature, "binding_sequence", "binding_seq", "binding_core")
     if core is not None:
         core = _normalise_dna(core, "binding_sequence")
-    interval_value = _first_qualifier(feature, "binding_interval")
-    interval = _parse_interval(interval_value) if interval_value else None
-    if interval is not None:
-        start, end = interval
+    # SeqFeature.location follows slice/shift/reverse-complement operations;
+    # redundant qualifiers do not. Validate the retained core at this location.
     definition: dict[str, Any] = {
         "name": _first_qualifier(feature, "label", "gene") or feature.id or "primer",
         "sequence": full,
         "bind_position": start,
         "strand": strand,
+        "binding_interval_0based": [start, end],
+        "binding_sequence": core if core is not None else extracted,
     }
-    if interval is not None:
-        definition["binding_interval_0based"] = [start, end]
-    if core is not None:
-        definition["binding_sequence"] = core
-    elif interval is None:
-        # The feature location is the authoritative binding region when a
-        # full oligo qualifier is present. Legacy full-span annotations fail
-        # closed here instead of silently exporting a guessed core.
-        definition["binding_sequence"] = extracted
-        definition["binding_interval_0based"] = [start, end]
-    else:
-        core_length = _first_qualifier(
-            feature, "binding_core_length", "binding_core_length_bp", "binding_length"
-        )
-        if core_length is not None:
-            definition["binding_core_length"] = int(core_length)
+    core_length = _first_qualifier(feature, "binding_core_length", "binding_core_length_bp", "binding_length")
+    if core_length is not None:
+        definition["binding_core_length"] = int(core_length)
     return normalize_primer_definition(record, definition)
 
 
@@ -787,6 +779,9 @@ def export_snapgene(
 
     # 1. Write GenBank with SnapGene annotations
     sg_rec = _snapgene_annotated(rec)
+    for feature in sg_rec.features:
+        if "primer" in feature.type.lower():
+            feature.qualifiers.update(_primer_qualifiers(_primer_payload_from_feature(sg_rec, feature)))
     with open(gb_path, "w", encoding="utf-8") as fh:
         SeqIO.write(sg_rec, fh, "genbank")
 
