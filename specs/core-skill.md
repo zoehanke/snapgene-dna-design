@@ -18,11 +18,13 @@ Inputs include full sequence records/files and raw DNA. Routes differ in support
 
 ## User workflow
 
-1. Inspect complete sources, topology, relevant features and available physical materials; resolve ambiguity that changes the result.
-2. Express required/forbidden components and other constraints, then choose a supported Recipe or compose a Pipeline/structured task.
+1. Inspect supplied sources and the user's stated context. First determine whether the material can be reused, needs physical preparation, or requires a new design; an already suitable donor need not be redesigned. Do not invent a conflicting recipient background. Clarify missing information when it changes the necessary decision or action.
+2. Express required/forbidden components and other constraints. Choose a supported Recipe or Pipeline/structured task only for work still needed; verification-only requests need not become construction workflows.
 3. Compute preparation and reactions from actual inputs; feed each real intermediate into its next step.
 4. Check saved files against the request and reaction chain: sequence, junctions, topology, features and complete primers.
 5. Deliver files and preparation/verification information, distinguishing candidates, components, QC designs and final constructs. Existing authorization persists; a confirmation interface is not grounds to ask again unnecessarily.
+
+Lead the answer with the material conclusion, whether new design is needed and the shortest next action. Place consequential conditions at the step they affect; do not bury an established result under generic cautions. Include existing main artifacts, explanatory material and generated Trace links in the first handoff. Supplied design files are not physical DNA, but this distinction is not grounds to invent an unnecessary design step.
 
 ## Product contracts
 
@@ -32,6 +34,7 @@ Inputs include full sequence records/files and raw DNA. Routes differ in support
 - Preserve source, backbone, inserted-feature and primer annotations through transformations and export. Explain source annotation corrections separately from DNA changes.
 - Keep actual coordinate, strand, compound-location and circular-origin conventions consistent across each interface; no implicit biological defaults without evidence and applicability.
 - Missing checks, failed runs, components and historical successes must not be presented as newly verified complete constructs. Do not change the biological target or relax validation merely to obtain a pass.
+- Bind checks to their actual object and scope: donor structure, exported file, integrated-locus model and cell phenotype are different conclusions. Investigate inherited annotation failures against source and product; neither blanket rejection nor unsupported exemption is acceptable.
 - Sequence/file checks establish their stated computational scope, not wet-lab performance, whole-genome specificity or safety. File hashes bind versions, not biological correctness.
 - Preserve external-service consent, provenance and distribution/license requirements. Local tools do not imply that the host never transmits data.
 
@@ -40,6 +43,8 @@ Inputs include full sequence records/files and raw DNA. Routes differ in support
 Trace observes each route's actual inputs, returns and files. It does not change DNA, parameters, planners, Handlers, Core validation or authoritative artifacts; a Recipe run need not invent a ConstructionTask history. Missing/stale organization is a report condition, not a reason to modify the design.
 
 The host or researcher explicitly organizes captured records and may author a report plan in the same response; code checks references/versions and renders the saved result. This is real AI work. Normal capture failures preserve DNA execution; explicit strict policy can stop at an execution boundary without rewriting completed files. Mode, attribution and report contracts are maintained in the [safety spec](safety-module.md).
+
+Selected repair target: keep design-time guidance focused on the task, necessary correctness checks and minimal capture; load full Trace organization/report instructions after the relevant design conclusion is available. Trace metadata gaps must not become biological gates. Prompt interference is a hypothesis to test under controlled conditions, not an established property of a model.
 
 ## Architecture and rule changes
 
@@ -54,4 +59,4 @@ Current modules and orchestration are implementation choices, not permanent rest
 - Inherited pET annotation conflicts still block formal delivery in the recorded GFP/A206K case. Resolve that source/annotation and validation interaction separately; Trace success does not close it.
 - Remaining product questions: underserved real workflows, duplicated orchestration worth consolidating, host clarification reliability, measurable user effort saved and reproducible optional-backend claims.
 
-The [current plan](../docs/development-plans/safety-phase-3-readability-v0.3.1.md) records implementation evidence and outstanding human reading validation. Historical releases/audits are indexed through History and do not certify current universal correctness.
+The [current repair plan](../docs/development-plans/workflow-phase-3-usability-repair-v0.3.2.md) covers task priority, prompt isolation, primer export and scoped validation as well as Trace usability. These repairs are pending implementation/validation; the [predecessor](../docs/development-plans/safety-phase-3-readability-v0.3.1.md) preserves earlier engineering evidence. Historical releases/audits do not certify current universal correctness.

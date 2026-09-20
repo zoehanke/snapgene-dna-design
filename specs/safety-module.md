@@ -8,15 +8,19 @@ Updated: 2026-09-20. This spec owns current Trace behavior and evidence boundari
 
 Implemented scope: seven entry points, source observations, file handoff checks, authored process/report revisions, applicability comparisons, Change Impact and fixed offline HTML/Markdown. Current scope excludes safety scores, safe/unsafe certification, hidden-thought reconstruction and ecological prediction. Assurance Case, Conclusion Boundary and macro/laboratory framework integration remain later directions, not delivered capabilities.
 
+The [v0.3.2 repair plan](../docs/development-plans/workflow-phase-3-usability-repair-v0.3.2.md) is selected next work, not implemented capability. Real tests exposed file-export faults, large repeated report payloads, incomplete capture and unreadable default details; v0.3.1 engineering success did not establish practical usability.
+
 ## Three-layer contract
 
 | Layer | Responsibility |
 |---|---|
 | Collection | Preserve observable inputs, returns, failures, file versions, supplied user/AI statements and available source material. Unobserved host activity stays outside coverage. |
 | Data | AI/researcher organizes goals, stages, steps, branches, reasons and relationships. Code indexes/checks records, references, versions, stated inputs and record disposition; it does not certify scientific meaning. |
-| Report | Authored report_plan chooses sourced summaries and grouping within the fixed reading format. Code renders the saved process without a new model call on export or interaction. |
+| Report | Authored report_plan chooses sourced summaries and grouping within the fixed reading format. Code renders human-readable body and details from saved facts, without a new model call on export or interaction. Raw machine objects belong in a separate technical view. |
 
 The complete machine result includes design_process, its exact report-plan version, source records, typed relationships, coverage and findings. An unassigned record remains accessible; hiding detail in the report never deletes underlying information. Missing/stale organization produces an explicitly limited factual view, not a completed scientific narrative.
+
+Full data retention does not require copying full records into each derived section or embedding the whole machine result in HTML. Reading projections use references and explicit record locations; large-payload changes must preserve evidence, compatibility and offline reading rather than truncate history.
 
 ## DNA boundary and collection levels
 
@@ -29,6 +33,8 @@ Observe actual route equivalents of task/plan/execute/validate/finalize at appli
 | Full | Brief public rationale during consequential choices, plus explicit host organization at meaningful stage/handoff boundaries. Joint organization/report output still has real token/time cost. |
 
 One global setting applies to subsequent captures; each running capture retains its initial level. Development defaults to Full; release default remains open. File tools require an explicit shared trace directory. No separate model service or conversation/session registry is currently required; these are implementation choices to revisit only for a demonstrated need, not automatic future work.
+
+Selected prompt boundary: design-time capture stays mostly automatic, with short contemporaneous public notes only at real choices. Full organization and report drafting occur after the relevant design result; detailed schemas are loaded then. Necessary biological checks remain in the main workflow. Compare modes under controlled tasks before changing the default; neither a prompt experiment nor this spec update changes the user's global setting.
 
 ## Attribution and evidence
 
@@ -56,8 +62,10 @@ REASSESS, RECHECK and RERUN request reconsideration, evidence checking and progr
 ## Reading and acceptance
 
 - Present task context, real process, files/checks and conditional review. Document/Mind Map/Split share data, selection and expansion. Detailed provenance stays available; internal fields do not dominate the default reading layer.
+- Opening a choice, file or source remains a human-reading action: explain its meaning, basis, limits and relationships. Schema, IDs, hashes and raw events are not the default detail content. Unknown types get an honest readable limitation and a separate technical entry, not recursive raw-field rendering.
 - research-report-v1 supplies a consistent format; task content and step count come from records. Do not hard-code example choices, invent user interventions, or create generic review/experiment warnings to fill a template.
 - Separate capture faults, missing explanations, unassigned information and actionable scientific review. An unrequested check is not failure; a partial applicability judgment is not automatically a task defect.
+- Untraced files remain visible as recording gaps with filename, missing relationship and practical consequence. Do not turn them into scientific todo items or fabricate history to mark them linked. Actually missing files or mismatched checked versions remain delivery issues. Every promised view/download action must have a valid target.
 - For major reading-organization changes, use representative static/interactive examples and existing participant feedback to assess understanding early. This is not a blanket preapproval gate for every renderer fix. Proceed within existing authorization, record missing feedback and never claim human acceptance from model self-review or browser tests.
 - Engineering evidence must cover actual public entry points, Trace three-level equivalence, normal/strict faults, old/revised records, simple/branched/changed/failed tasks and offline/keyboard/narrow-screen use. Human evidence must establish understanding of purpose, choices, support limits and checks without opening audit data.
 

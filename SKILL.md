@@ -7,6 +7,8 @@ description: "Design, inspect, and verify plasmids and DNA constructs with the r
 
 Use this skill to turn a molecular-biology request into an inspectable sequence design and an explicit preparation chain. Keep design output, physical source material, and verification evidence separate.
 
+First decide whether supplied material can be reused, needs physical preparation, or needs a new design. A verification-only task can finish with a supported reuse conclusion; do not add PCR, assembly or redesign merely to exercise the workflow. Lead the response with that conclusion and the shortest next action, then state conditions where they change the action. Inspect actual records without inventing a conflicting strain background or assuming undocumented biological properties.
+
 ## Short workflow
 
 1. **Inspect sources.** Identify every source record, topology, feature interval, strand, and coordinate system. Start with:
@@ -19,7 +21,7 @@ Use this skill to turn a molecular-biology request into an inspectable sequence 
 
 2. **State intent and material status.** Record what is a complete provided fragment, what must be prepared from a source template, and what is only a design component. A backbone must have an actual PCR or digest preparation row, or be explicitly marked as supplied prepared material. Translate required and forbidden DNA components into the existing `expected_components` / `forbidden_components` fields before delivery. Recipe parameter JSON accepts these fields with explicit component sequences; Pipeline can also resolve source features. User authorization persists; do not ask for the same confirmation again.
 
-3. **Choose a standard recipe first.** Use the exact signatures and branch notes in [references/recipes.md](references/recipes.md). Use the composite pipeline only for a multi-step or non-standard route. Keep the physical order visible:
+3. **Choose a route for the remaining work.** If new construction is needed, prefer a standard Recipe with the exact signatures and branch notes in [references/recipes.md](references/recipes.md). Use the composite pipeline for a multi-step or non-standard route. Already suitable material does not require a new construction run. When preparation is needed, keep its physical order visible:
 
    ```text
    complete source -> PCR and/or digest -> actual intermediate -> assembly or ligation -> product checks
@@ -47,6 +49,8 @@ Use this skill to turn a molecular-biology request into an inspectable sequence 
    Verification designs use complete-template PCR simulation and actual primer coordinates. Read the returned Tm, junction coverage and Sanger distance; repeated sequence or insufficient flanks can prevent a usable assay. Parental-template discrimination needs an explicit parent control. QC `.dna` files retain source topology, features and the designed primers. For primer search, 60°C is a ranking target; accepted cores may fall within 52–72°C. Complete oligos are checked, and cores beyond 36 nt use Biopython nearest-neighbor calculations with same-condition Primer3 structure checks.
 
 6. **Promote only after confirmation.** `--finalize --confirmed` requests authoritative promotion for a complete construct. A component or QC result remains a component or QC result. Report warnings and unknowns; sequence computation does not establish wet-lab efficiency, expression, or genome-wide specificity.
+
+The first handoff must include the main result, actual requested artifacts and any generated Trace HTML/Markdown links, using the host's supported link format. A short reuse conclusion may be sufficient for a simple inspection; add a scheme or diagram when it explains the actual task. Do not present a nonexistent report or a plain-text placeholder as an actionable link.
 
 Use the Recipe or ConstructionTask routes for biological edits. The legacy keyword agent cannot execute promoter/resistance replacement, fusion tagging or HDR from keyword classification and refuses those requests. Its simple sequence-edit previews do not provide a physical preparation protocol.
 

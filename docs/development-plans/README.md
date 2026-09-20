@@ -8,18 +8,19 @@
 
 | 计划 | 模块目标版本 | 文档修订 | 状态 | 前序 |
 |---|---|---|---|---|
-| [Phase 3 补救：Design Decision Trace 与可读性重构](safety-phase-3-readability-v0.3.1.md) | Evidence Trace v0.3.1 | r13 | 三层接口、正式报告与真实案例工程验收完成；规范修订方式已澄清，独立真人理解及原 Core 注释交付问题保留 | Phase 3 v0.3 |
+| [主任务与 Trace 实用性修复](workflow-phase-3-usability-repair-v0.3.2.md) · [人工检查版](workflow-phase-3-usability-repair-review-v0.3.2.md) | Trace v0.3.2；主产品版本待实施确定 | r1 | 当前选定计划，待开发；七项问题、证据边界和验收已明确 | Phase 3.1 与本轮三组测试 |
+| [Phase 3.1：Design Decision Trace 与三层实现](safety-phase-3-readability-v0.3.1.md) | Evidence Trace v0.3.1 | r14 | 保留已有工程证据；新暴露的主任务、导出、采集和报告问题转入上行计划，不等于已实用验收 | Phase 3 v0.3 |
 | [Phase 3：Living Evidence Document & Change Impact](safety-phase-3-change-impact-v0.3.md) | Evidence Trace v0.3 | r2 | 工程完成；阅读问题转入补救计划 | Phase 2 |
 | [Phase 2：Evidence Applicability & Trace Usability](safety-phase-2-applicability-v0.2.md) | Evidence Trace v0.2 | r3 | 工程实现及本阶段验收完成 | Phase 1 |
 | [Phase 1：Evidence Trace](safety-phase-1-trace-v0.1.md) | v0.1 | r3 | 工程验收完成，试用反馈已转化为 Phase 2 UI/Capture 改进 | 无已执行阶段 |
 
 当前阅读/UI 规则：[design.md](design.md)；Phase 2 历史参考：[evidence-trace-phase2-reference.svg](evidence-trace-phase2-reference.svg)。
 
-当前视觉参考：[报告视觉设计 r1](evidence-trace-report-visual-design-v0.3.1.md)，含用户参考图。正式 renderer 已采用相应框架并由真实记录驱动；原型示例不作为真实事实，也不代替独立真人页面验收。
+当前视觉参考：[报告视觉设计 r1](evidence-trace-report-visual-design-v0.3.1.md)，含用户参考图。保留该方向，重点修正正文、默认详情、记录缺口和体积，不重新做一轮皮肤原型。原型认可和工程测试不代替实际阅读验收。
 
 [Reader Demo 通用空白框架](evidence-trace-reader-template.md)：实现前必读的阅读结构契约，汇总可选步骤与附录；按实际任务取用，不要求全部出现。
 
-采集、来源、组织与报告规则已同步 spec/design.md；正式 HTML 已替换 v0.3 的单 Decision 组织。GFP +3 bp 继续作工程回归，静态 [Reader Demo](safety-phase-3-reading-draft.md) 原接受记录保留，用户未提交修改未动。真实 GFP 对照/A206K 已完成新接口验收；独立真人试读未执行。Phase 4 继续暂停。
+正式 HTML 已替换 v0.3 的单 Decision 组织，但本轮 CDC15 测试仍暴露实际缺陷；当前修复契约已同步 spec/design.md，完整修复未实施。GFP +3 bp、静态 [Reader Demo](safety-phase-3-reading-draft.md) 和真实 GFP/A206K 的历史证据保留，用户未提交修改未动。Phase 4 继续暂停。
 
 相关 spec：[主 skill](../../specs/core-skill.md)、[安全模块](../../specs/safety-module.md)。Phase 4 至 Phase 6 尚未创建执行计划，完整路线图留在安全 spec。
 
