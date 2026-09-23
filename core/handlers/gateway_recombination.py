@@ -3,16 +3,13 @@
 from __future__ import annotations
 
 import hashlib
-import pathlib
-import sys
 
-from Bio import SeqIO
-from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
 from core.errors import PlanningError, TaskValidationError
 from core.evidence_chain import validate_goal_components
-from core.handlers.base import TaskHandler
+from core.handlers.base import TaskHandler, product_features
+from core.io.input_resolution import resolve_sequence_record
 
 from core.models.assembly_model import AssemblyError
 from core.tools.recombination import gateway_bp, gateway_lr
@@ -81,8 +78,8 @@ class GatewayRecombinationHandler(TaskHandler):
         if reaction == "lr":
             entry_src = source_map[op["entry_source_id"]]
             dest_src = source_map[op["destination_source_id"]]
-            entry_rec = SeqIO.read(entry_src["_resolved_path"], "genbank" if entry_src["_resolved_path"].lower().endswith((".gb", ".gbk")) else "fasta")
-            dest_rec = SeqIO.read(dest_src["_resolved_path"], "genbank" if dest_src["_resolved_path"].lower().endswith((".gb", ".gbk")) else "fasta")
+            entry_rec = resolve_sequence_record(entry_src["_resolved_path"])
+            dest_rec = resolve_sequence_record(dest_src["_resolved_path"])
 
             # Check circular topology for Destination vector
             if dest_rec.annotations.get("topology") == "linear" and dest_src.get("topology") != "circular":
@@ -96,8 +93,8 @@ class GatewayRecombinationHandler(TaskHandler):
         else:
             insert_src = source_map[op["entry_source_id"]]
             donor_src = source_map[op["donor_vector_source_id"]]
-            insert_rec = SeqIO.read(insert_src["_resolved_path"], "genbank" if insert_src["_resolved_path"].lower().endswith((".gb", ".gbk")) else "fasta")
-            donor_rec = SeqIO.read(donor_src["_resolved_path"], "genbank" if donor_src["_resolved_path"].lower().endswith((".gb", ".gbk")) else "fasta")
+            insert_rec = resolve_sequence_record(insert_src["_resolved_path"])
+            donor_rec = resolve_sequence_record(donor_src["_resolved_path"])
 
             try:
                 product_rec, body, notes = gateway_bp(donor_rec, insert_rec)
@@ -130,6 +127,7 @@ class GatewayRecombinationHandler(TaskHandler):
             "stop_policy": op.get("stop_policy"),
             "product_topology": "circular",
             "product_sequence": product_seq,
+            "product_features": product_features(product_rec, product_seq),
             "product_sequence_sha256": hashlib.sha256(product_seq.encode("utf-8")).hexdigest().upper(),
             "expected_components": expected_components,
             "forbidden_components": list(task.get("product", {}).get("forbidden_components", [])),
@@ -143,38 +141,6 @@ class GatewayRecombinationHandler(TaskHandler):
             ],
         }
 
-    def execute(self, task: dict, plan: dict, out_dir: pathlib.Path) -> dict:
-        out_dir.mkdir(parents=True, exist_ok=True)
-        seq_str = plan["product_sequence"]
-        prod_rec = SeqRecord(
-            Seq(seq_str),
-            id=task["task_id"],
-            name="gateway_product",
-            description=f"Gateway {plan.get('reaction', '').upper()} product from {task['task_id']}",
-        )
-        prod_rec.annotations["molecule_type"] = "DNA"
-        prod_rec.annotations["topology"] = "circular"
-
-        gb_path = out_dir / "construct.gb"
-        with open(gb_path, "w", encoding="utf-8") as fh:
-            SeqIO.write(prod_rec, fh, "genbank")
-
-        fa_path = out_dir / "construct.fasta"
-        fa_path.write_text(f">{task['task_id']}\n{seq_str}\n", encoding="utf-8")
-
-        artifact_hashes = {
-            "construct.gb": hashlib.sha256(gb_path.read_bytes()).hexdigest().upper(),
-            "construct.fasta": hashlib.sha256(fa_path.read_bytes()).hexdigest().upper(),
-        }
-
-        return {
-            "artifact_class": "intermediate",
-            "method_maturity": self.method_maturity,
-            "product_gb": str(gb_path),
-            "product_fasta": str(fa_path),
-            "artifact_hashes": artifact_hashes,
-            "product_sequence_sha256": plan["product_sequence_sha256"],
-        }
 
     def recompute(self, task: dict, plan: dict) -> str:
         """Independently recompute gateway product sequence from sources and operations."""
@@ -185,14 +151,14 @@ class GatewayRecombinationHandler(TaskHandler):
         if reaction == "lr":
             entry_src = source_map[op["entry_source_id"]]
             dest_src = source_map[op["destination_source_id"]]
-            entry_rec = SeqIO.read(entry_src["_resolved_path"], "genbank" if entry_src["_resolved_path"].lower().endswith((".gb", ".gbk")) else "fasta")
-            dest_rec = SeqIO.read(dest_src["_resolved_path"], "genbank" if dest_src["_resolved_path"].lower().endswith((".gb", ".gbk")) else "fasta")
+            entry_rec = resolve_sequence_record(entry_src["_resolved_path"])
+            dest_rec = resolve_sequence_record(dest_src["_resolved_path"])
             product_rec, _, _ = gateway_lr(entry_rec, dest_rec)
         else:
             insert_src = source_map[op["entry_source_id"]]
             donor_src = source_map[op["donor_vector_source_id"]]
-            insert_rec = SeqIO.read(insert_src["_resolved_path"], "genbank" if insert_src["_resolved_path"].lower().endswith((".gb", ".gbk")) else "fasta")
-            donor_rec = SeqIO.read(donor_src["_resolved_path"], "genbank" if donor_src["_resolved_path"].lower().endswith((".gb", ".gbk")) else "fasta")
+            insert_rec = resolve_sequence_record(insert_src["_resolved_path"])
+            donor_rec = resolve_sequence_record(donor_src["_resolved_path"])
             product_rec, _, _ = gateway_bp(donor_rec, insert_rec)
 
         return str(product_rec.seq).upper()

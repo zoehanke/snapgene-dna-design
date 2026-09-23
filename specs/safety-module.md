@@ -1,6 +1,6 @@
 # Safety module: Evidence Trace
 
-Updated: 2026-09-21. This spec owns current Trace behavior and evidence boundaries. [History](../docs/history.md) records why they changed; [development plans](../docs/development-plans/README.md) own phase scope and results; [usage](../references/evidence-trace.md) owns CLI/Schema details; [design.md](../docs/development-plans/design.md) owns reading rules and links the optional framework and visual reference.
+Updated: 2026-09-23. This spec owns current Trace behavior and evidence boundaries. [History](../docs/history.md) records why they changed; [development plans](../docs/development-plans/README.md) own phase scope and results; [usage](../references/evidence-trace.md) owns CLI/Schema details; [design.md](../docs/development-plans/design.md) owns reading rules and links the optional framework and visual reference.
 
 ## Purpose and present scope
 
@@ -75,3 +75,20 @@ REASSESS, RECHECK and RERUN request reconsideration, evidence checking and progr
 Current modules, Schema and phase proposals may be revised within authorized work when evidence justifies the change. Preserve old records and compatibility where needed; update this spec and dependent contracts, and append consequential feedback/reversals to History. Do not make implementation preferences into permanent bans or silently weaken evidence boundaries.
 
 Retain consent, provenance and license rules; avoid unrelated conversations, credentials and raw DNA copies by default. Current limitations include host observation coverage, declared authorship, unavailable/moved source files, exact model-cost measurement and independent human reading evidence. Core annotation/delivery defects remain Core issues rather than Trace failures. Phase numbers alone are not authorization to start later governance work.
+
+
+## 2026-09-22 verified scope
+
+The [engineering cycle](../docs/remediation-plan.md) owns current implementation and [results](../docs/final-remediation-report.md); it does not authorize remote publication.
+
+| Status | Scope |
+|---|---|
+| IMPLEMENTED | Sidecar collection, append-only revisions, host-authored process/report, deterministic reports and scoped applicability/change rules. |
+| VALIDATED | Source-version disagreement, before/after file ownership, credential-flag redaction, rejection before appending malformed records, explanation origin, branch/revision references, normal-failure isolation and Trace mode equivalence through existing public-entry tests. |
+| EXPERIMENTAL | Scientific usefulness of heuristic context/impact results and default report readability; browser mechanics do not establish human comprehension. |
+| PLANNED | Controlled host/participant evaluation and later governance research if separately authorized. |
+| OUT OF SCOPE | Complete closed-host surveillance, rationale authentication, scientific causality proof, safety verdicts and ecological prediction. |
+
+A path-only match cannot certify a source version. When both records supply hashes, compare them. An observed existing or unchanged file is `presence_only`; claim creation/modification only when an actual before-state and change establish it. Preserve previously unobserved provenance as a gap.
+
+Capture known credential arguments and failures in redacted copies while leaving the executed command unchanged. This is bounded minimization, not a guarantee that arbitrary free text contains no secrets. Validate externally submitted context shapes before append so one malformed event cannot poison all future report rebuilds.

@@ -3,15 +3,14 @@
 from __future__ import annotations
 
 import hashlib
-import pathlib
 
-from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
 from core.errors import PlanningError, TaskValidationError
 from core.evidence_chain import validate_goal_components
-from core.handlers.base import TaskHandler
+from core.handlers.base import TaskHandler, record_slice, product_features, overlap_record
+from core.io.input_resolution import resolve_sequence_record
 from core.interval import extract_interval
 
 
@@ -97,6 +96,7 @@ class HierarchicalAssemblyHandler(TaskHandler):
         source_map = {s["source_id"]: s for s in task["sources"]}
 
         stage_products = {}
+        stage_records = {}
         processed_stages = []
 
         for st in stages_spec:
@@ -106,34 +106,23 @@ class HierarchicalAssemblyHandler(TaskHandler):
             frags_spec = sorted(st.get("fragments", []), key=lambda item: int(item.get("order", 0)))
 
             fragments = []
+            fragment_records = []
             for f in frags_spec:
                 if f.get("source_id"):
                     sid = f["source_id"]
                     if sid not in source_map:
                         raise PlanningError("SOURCE_ID_NOT_FOUND", f"source {sid} not in task sources")
                     src = source_map[sid]
-                    rec = SeqIO.read(src["_resolved_path"], "genbank" if src["_resolved_path"].lower().endswith((".gb", ".gbk")) else "fasta")
-                    interval = f.get("interval_0based")
-                    if interval:
-                        s0, e0 = int(interval[0]), int(interval[1])
-                        if s0 < 0 or e0 < 0 or s0 > len(rec) or e0 > len(rec):
-                            raise PlanningError("FRAGMENT_INTERVAL_OUT_OF_RANGE", f"stage {st_id} fragment interval outside source")
-                        seq = extract_interval(rec, s0, e0, topology=src.get("topology", "linear"), strand=int(f.get("strand", 1)), whole_record_approved=True)
-                    else:
-                        seq = str(rec.seq)
+                    rec = resolve_sequence_record(src["_resolved_path"])
                 else:
                     ref_st_id = f.get("stage_id")
-                    if not ref_st_id or ref_st_id not in stage_products:
+                    if not ref_st_id or ref_st_id not in stage_records:
                         raise PlanningError("HIERARCHICAL_STAGE_REFERENCE_MISSING", f"stage {st_id} references unknown stage {ref_st_id}")
-                    parent_seq = stage_products[ref_st_id]
-                    interval = f.get("interval_0based")
-                    if interval:
-                        seq = _string_arc(parent_seq, interval[0], interval[1])
-                    else:
-                        seq = parent_seq
-
-                if int(f.get("strand", 1)) == -1:
-                    seq = str(Seq(seq).reverse_complement())
+                    rec = stage_records[ref_st_id]
+                interval = f.get("interval_0based") or [0, len(rec)]
+                fragment_record = record_slice(rec, int(interval[0]), int(interval[1]), int(f.get("strand", 1)))
+                fragment_records.append(fragment_record)
+                seq = str(fragment_record.seq)
 
                 if not seq:
                     raise PlanningError("FRAGMENT_SEQUENCE_EMPTY", f"stage {st_id} fragment is empty")
@@ -150,6 +139,7 @@ class HierarchicalAssemblyHandler(TaskHandler):
 
             prod_seq, junctions = _assemble_overlap(fragments, overlap, circular=is_circ)
             stage_products[st_id] = prod_seq
+            stage_records[st_id] = overlap_record(fragment_records, prod_seq, overlap, is_circ)
             processed_stages.append({
                 "stage_id": st_id,
                 "fragments": fragments,
@@ -176,6 +166,7 @@ class HierarchicalAssemblyHandler(TaskHandler):
             "junctions": final_stage["junctions"],
             "product_topology": final_stage["product_topology"],
             "product_sequence": final_seq,
+            "product_features": product_features(stage_records[final_stage["stage_id"]], final_seq),
             "product_sequence_sha256": hashlib.sha256(final_seq.encode("utf-8")).hexdigest().upper(),
             "expected_components": [],
             "forbidden_components": list(task.get("product", {}).get("forbidden_components", [])),
@@ -191,38 +182,6 @@ class HierarchicalAssemblyHandler(TaskHandler):
             ],
         }
 
-    def execute(self, task: dict, plan: dict, out_dir: pathlib.Path) -> dict:
-        out_dir.mkdir(parents=True, exist_ok=True)
-        seq_str = plan["product_sequence"]
-        prod_rec = SeqRecord(
-            Seq(seq_str),
-            id=task["task_id"],
-            name="hierarchical_construct",
-            description=f"Hierarchical assembly construct from {task['task_id']}",
-        )
-        prod_rec.annotations["molecule_type"] = "DNA"
-        prod_rec.annotations["topology"] = plan["product_topology"]
-
-        gb_path = out_dir / "construct.gb"
-        with open(gb_path, "w", encoding="utf-8") as fh:
-            SeqIO.write(prod_rec, fh, "genbank")
-
-        fa_path = out_dir / "construct.fasta"
-        fa_path.write_text(f">{task['task_id']}\n{seq_str}\n", encoding="utf-8")
-
-        artifact_hashes = {
-            "construct.gb": hashlib.sha256(gb_path.read_bytes()).hexdigest().upper(),
-            "construct.fasta": hashlib.sha256(fa_path.read_bytes()).hexdigest().upper(),
-        }
-
-        return {
-            "artifact_class": "intermediate",
-            "method_maturity": self.method_maturity,
-            "product_gb": str(gb_path),
-            "product_fasta": str(fa_path),
-            "artifact_hashes": artifact_hashes,
-            "product_sequence_sha256": plan["product_sequence_sha256"],
-        }
 
     def recompute(self, task: dict, plan: dict) -> str:
         """Independently recompute hierarchical assembly sequence from sources and operations."""
@@ -240,10 +199,10 @@ class HierarchicalAssemblyHandler(TaskHandler):
             for f in st["fragments"]:
                 if f.get("source_id"):
                     src = sources_by_id[f["source_id"]]
-                    rec = SeqIO.read(src["_resolved_path"], "genbank" if src["_resolved_path"].lower().endswith((".gb", ".gbk")) else "fasta")
+                    rec = resolve_sequence_record(src["_resolved_path"])
                     interval = f.get("interval_0based")
                     if interval:
-                        seq = extract_interval(rec, interval[0], interval[1], topology=src.get("topology", "linear"), strand=int(f.get("strand", 1)), whole_record_approved=True)
+                        seq = extract_interval(rec, interval[0], interval[1], topology=src.get("topology", "linear"), strand=1, whole_record_approved=True)
                     else:
                         seq = str(rec.seq)
                 else:

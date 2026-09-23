@@ -21,10 +21,22 @@ class FinalPrimerDesignTests(unittest.TestCase):
             calc_primer_tm('ATGNNNTAA')
 
     def test_long_tail_is_prepared_by_real_successive_pcr(self):
-        from core.tools.amplification import prepare_pcr_fragment
+        rng = random.Random(75)
+        original = SeqRecord(Seq(''.join(rng.choices('ACGT', k=900))),
+                             id='synthetic-long-tail',
+                             annotations={'molecule_type': 'DNA', 'topology': 'circular'})
+        self._assert_successive_pcr(original)
+
+    @unittest.skipUnless((Path(__file__).parent/'data/pBP-eGFP.gb').is_file(),
+                         'external pBP regression material is not in the redistributable package')
+    def test_long_tail_original_external_material(self):
         source = Path(__file__).parent/'data/pBP-eGFP.gb'
         with source.open(encoding='utf-8') as handle:
             original = SeqIO.read(handle, 'genbank')
+        self._assert_successive_pcr(original)
+
+    def _assert_successive_pcr(self, original):
+        from core.tools.amplification import prepare_pcr_fragment
         left = 'CATGTCATGA'+'TG'+'CAT'*5+'CAC'+'GAAAACCTGTATTTTCAGGGC'
         right = 'CCGCTCGAG'
         result = prepare_pcr_fragment(original, 3, 720, left, right)

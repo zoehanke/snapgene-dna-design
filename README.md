@@ -22,21 +22,18 @@ Use complete source records and follow the actual preparation chain. Every assem
 
 ---
 
-### Quick Start for AI Agents & Researchers
+### Quick Start
 
-```bash
-# 1. Inspect plasmid features (never guess coordinates)
-python scripts/inspect_plasmid.py pUC19.gb [insert.fasta]
+先安装 `python -m pip install -r requirements.txt`，在仓库根目录运行：
 
-# 2. Run a standard SOP recipe
-python scripts/run_recipe.py --recipe recipe_gibson_assembly --params-json params.json --out-dir ./build
-
-# 3. Promote verified construct to authoritative delivery (with user confirmation)
-python scripts/run_recipe.py --recipe recipe_gibson_assembly --params-json params.json --out-dir ./build --finalize --confirmed
-
-# 4. Execute a custom multi-step pipeline
-python scripts/run_pipeline.py --pipeline custom_pipeline.json --out-dir ./build --confirmed
+```text
+python -X utf8 -B scripts/check_env.py --json
+python -X utf8 -B scripts/run_recipe.py --recipe recipe_protein_tagging --params-json fixtures/synthetic/tagging_params.json --out-dir output/quick-start --json
 ```
+
+产出是合成教学 CDS 的带标签 **component**，不是已验证的完整表达质粒。详见[快速开始](docs/quick-start.md)、[用户指南](docs/user-guide.md)、[安装](docs/installation.md)及[排障](docs/troubleshooting.md)。
+
+开发者先读[架构](docs/architecture.md)、[数据流](docs/data-flow.md)、[开发指南](docs/developer-guide.md)。本周期的[工程审计](docs/audit-report.md)、[修复计划](docs/remediation-plan.md)、[最终报告](docs/final-remediation-report.md)区分已实现、已验证和外部缺口。iGEM Tianjin 2026 材料见[提交清单](docs/igem/submission-checklist.md)，不代表已经提交。
 
 ---
 
@@ -110,11 +107,11 @@ pip install -r requirements-optional.txt
 | `torch`, `h5py` | DeepCpf1 inference |
 | Cas-OFFinder binary | Real genome off-target search. BSD-3-Clause; download from `https://github.com/snugel/cas-offinder/releases` and pass `--cas-offinder` / `CAS_OFFINDER_EXE`. |
 
-### 2.3 Optional external programs
+### 2.3 External programs
 
 | Program | How it is used | Fallback |
 |---|---|---|
-| `primer3_core` | `PRIMER3_CORE` env var, `--primer3-core`, PATH, or primer3-py wheel discovery | `design_primers.py` / `primer_design_engine.py` explicitly label heuristic results as **NOT Primer3** |
+| `primer3_core` (required for main primer design) | `PRIMER3_CORE` env var, `--primer3-core`, PATH, or primer3-py wheel discovery | `design_primers.py` / `primer_design_engine.py` explicitly label heuristic results as **NOT Primer3** |
 | `cas-offinder` | `--cas-offinder` / `CAS_OFFINDER_EXE` | structured `unavailable` result |
 | `SnapGene.exe` (Windows, e.g. `D:\SnapGene\SnapGene.exe`) | `validate_roundtrip.py --snapgene-exe` official conversion | internal round-trip only |
 | Internet access | `online_sources.py` NCBI eUtils / Addgene | explicit `offline-unverified` |
@@ -196,10 +193,7 @@ carries actionable `alternatives` (e.g. extend the 5' flank 20–40 bp or use an
 internal pair) and `require_primer3` fails closed with those alternatives.
 Abnormal relaxations/degradations require explicit consent via
 `operation_consent.py` (`--consent ask` is interactive default; unconfirmed =
-not executed). The root-cause analysis with real `primer3_core` 2.6.1 explain
-traces is in [`reports/primer3-failure-analysis.md`](reports/primer3-failure-analysis.md).
-A complete biological-correctness and sourcing audit is in
-[`reports/biological-correctness-and-sourcing-audit.md`](reports/biological-correctness-and-sourcing-audit.md).
+not executed). Current reproducible findings and validation are recorded in [the engineering audit](docs/audit-report.md) and [testing guide](docs/testing.md). Historical unavailable local reports are not current evidence.
 
 ### 3.4 Cloning simulation
 

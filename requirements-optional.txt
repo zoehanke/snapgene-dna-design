@@ -1,9 +1,7 @@
-# External engines
-# primer3-py is now included in standard requirements.txt for out-of-the-box
-# primer design. It provides precompiled primer3_core binaries on Windows/Mac/Linux.
-# Primer3/primer3-py are GPL-2.0-or-later; our codebase executes primer3_core strictly
-# as a separate child process via Boulder-IO pipes, maintaining full MIT license cleanliness.
-primer3-py>=2.3.0
+# Optional prediction dependencies. Install requirements.txt first.
+# Primer3 is a core design requirement supplied by primer3-py there.
+# Its GPL license remains separate; an external-process interface is not a
+# blanket statement about legal redistribution of every combined package.
 
 # v0.8.0-dev3 real on-target models
 # Azimuth V3 (Doench-2016): converted featurization code + saved pickles are

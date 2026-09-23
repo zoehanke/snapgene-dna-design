@@ -6,24 +6,20 @@ Experimental cloning approximation. Marked method_maturity='experimental'.
 from __future__ import annotations
 
 import hashlib
-import pathlib
-import sys
 
-from Bio import SeqIO
-from Bio.Seq import Seq
-from Bio.SeqFeature import FeatureLocation, SeqFeature
 from Bio.SeqRecord import SeqRecord
 
 from core.errors import PlanningError, TaskValidationError
 from core.evidence_chain import validate_goal_components
-from core.handlers.base import TaskHandler
+from core.handlers.base import TaskHandler, record_slice, replace_record, product_features
+from core.io.input_resolution import resolve_sequence_record
+from core.models.construct_model import ConstructModel
 
 from core.models.assembly_model import (
     AssemblyFragment,
     check_sticky_junctions,
     overhang_end,
 )
-from core.models.construct_model import ConstructModel
 from core.tools.assembly import _hit_end_sequences, digest_ligate
 from core.tools.restriction import get_enzyme, restriction_hits
 
@@ -79,8 +75,8 @@ class RestrictionLigationHandler(TaskHandler):
         vec_src = source_map[op["vector_source_id"]]
         ins_src = source_map[op["insert_source_id"]]
 
-        vec_rec = SeqIO.read(vec_src["_resolved_path"], "genbank" if vec_src["_resolved_path"].lower().endswith((".gb", ".gbk")) else "fasta")
-        ins_rec = SeqIO.read(ins_src["_resolved_path"], "genbank" if ins_src["_resolved_path"].lower().endswith((".gb", ".gbk")) else "fasta")
+        vec_rec = resolve_sequence_record(vec_src["_resolved_path"])
+        ins_rec = resolve_sequence_record(ins_src["_resolved_path"])
 
         enzymes = op.get("vector_enzymes") or op.get("enzymes")
         if isinstance(enzymes, str):
@@ -170,9 +166,8 @@ class RestrictionLigationHandler(TaskHandler):
             if any(j["compatibility"] == "MISMATCH" for j in junctions):
                 raise PlanningError("STICKY_END_MISMATCH", "digest-ligation sticky ends are not complementary", details=junctions)
 
-            product = ConstructModel(vec_rec).replace(t1, t2, ins_frag)
-            product.set_topology("circular")
-            product_rec = product.to_record()
+            product_rec = replace_record(vec_rec, t1, t2, record_slice(ins_rec, i1, i2))
+            product_rec.annotations["topology"] = "circular"
             product_seq = str(product_rec.seq).upper()
             steps = [
                 {
@@ -208,44 +203,13 @@ class RestrictionLigationHandler(TaskHandler):
             "orientation": orientation,
             "product_topology": "circular",
             "product_sequence": product_seq,
+            "product_features": product_features(product_rec, product_seq),
             "product_sequence_sha256": hashlib.sha256(product_seq.encode("utf-8")).hexdigest().upper(),
             "expected_components": expected_components,
             "forbidden_components": list(task.get("product", {}).get("forbidden_components", [])),
             "steps": steps,
         }
 
-    def execute(self, task: dict, plan: dict, out_dir: pathlib.Path) -> dict:
-        out_dir.mkdir(parents=True, exist_ok=True)
-        seq_str = plan["product_sequence"]
-        prod_rec = SeqRecord(
-            Seq(seq_str),
-            id=task["task_id"],
-            name="ligated_plasmid",
-            description=f"Digest-ligation construct from {task['task_id']}",
-        )
-        prod_rec.annotations["molecule_type"] = "DNA"
-        prod_rec.annotations["topology"] = "circular"
-
-        gb_path = out_dir / "construct.gb"
-        with open(gb_path, "w", encoding="utf-8") as fh:
-            SeqIO.write(prod_rec, fh, "genbank")
-
-        fa_path = out_dir / "construct.fasta"
-        fa_path.write_text(f">{task['task_id']}\n{seq_str}\n", encoding="utf-8")
-
-        artifact_hashes = {
-            "construct.gb": hashlib.sha256(gb_path.read_bytes()).hexdigest().upper(),
-            "construct.fasta": hashlib.sha256(fa_path.read_bytes()).hexdigest().upper(),
-        }
-
-        return {
-            "artifact_class": "intermediate",
-            "method_maturity": self.method_maturity,
-            "product_gb": str(gb_path),
-            "product_fasta": str(fa_path),
-            "artifact_hashes": artifact_hashes,
-            "product_sequence_sha256": plan["product_sequence_sha256"],
-        }
 
     def recompute(self, task: dict, plan: dict) -> str:
         """Independently recompute restriction-ligation sequence from sources and operations."""
@@ -261,8 +225,8 @@ class RestrictionLigationHandler(TaskHandler):
         vec_src = source_map.get(op.get("vector_source_id")) or [s for s in task["sources"] if s.get("role") in ("vector", "backbone")][0]
         ins_src = source_map.get(op.get("insert_source_id")) or [s for s in task["sources"] if s.get("role") in ("insert", "template", "donor")][0]
 
-        vec_rec = SeqIO.read(vec_src["_resolved_path"], "genbank" if vec_src["_resolved_path"].lower().endswith((".gb", ".gbk")) else "fasta")
-        ins_rec = SeqIO.read(ins_src["_resolved_path"], "genbank" if ins_src["_resolved_path"].lower().endswith((".gb", ".gbk")) else "fasta")
+        vec_rec = resolve_sequence_record(vec_src["_resolved_path"])
+        ins_rec = resolve_sequence_record(ins_src["_resolved_path"])
 
         orientation = op.get("orientation", "forward")
         if orientation == "reverse":

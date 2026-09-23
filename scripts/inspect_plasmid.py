@@ -193,7 +193,8 @@ def main():
             else:
                 print(format_markdown_report(r))
                 print("\n---\n")
+    return 1 if any('error' in result for result in results) else 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

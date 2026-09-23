@@ -8,6 +8,7 @@
 
 | 计划 | 模块目标版本 | 文档修订 | 状态 | 前序 |
 |---|---|---|---|---|
+| [完整工程审计与修复](../remediation-plan.md) · [最终报告](../final-remediation-report.md) | 当前源码修复，未另发版本 | r2 | 工程周期完成；覆盖52/54达标，总门槛仍FAIL；真人/实验/参赛动作未关闭，本轮不推送 | v0.3.2 未决项逐项处置 |
 | [主任务与 Trace 实用性修复](workflow-phase-3-usability-repair-v0.3.2.md) · [人工检查版](workflow-phase-3-usability-repair-review-v0.3.2.md) | Trace v0.3.2；主产品 v1.0.1 | r3 | 独立反例复查并修复通用缺陷；宿主对照、注释问题、独立真人理解未关闭 | Phase 3.1 与本轮三组测试 |
 | [Phase 3.1：Design Decision Trace 与三层实现](safety-phase-3-readability-v0.3.1.md) | Evidence Trace v0.3.1 | r14 | 保留已有工程证据；新暴露的主任务、导出、采集和报告问题转入上行计划，不等于已实用验收 | Phase 3 v0.3 |
 | [Phase 3：Living Evidence Document & Change Impact](safety-phase-3-change-impact-v0.3.md) | Evidence Trace v0.3 | r2 | 工程完成；阅读问题转入补救计划 | Phase 2 |

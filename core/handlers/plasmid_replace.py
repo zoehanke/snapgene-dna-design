@@ -3,15 +3,13 @@
 from __future__ import annotations
 
 import hashlib
-import pathlib
 
-from Bio import SeqIO
-from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
-from core.errors import PlanningError, TaskValidationError
+from core.errors import TaskValidationError
 from core.evidence_chain import validate_goal_components
-from core.handlers.base import TaskHandler
+from core.handlers.base import TaskHandler, record_slice, replace_record, product_features
+from core.io.input_resolution import resolve_sequence_record
 from core.interval import extract_interval, validate_interval
 
 
@@ -57,13 +55,13 @@ class PlasmidReplaceHandler(TaskHandler):
     def plan(self, task: dict) -> dict:
         self.validate_contract(task)
         bb_source = [s for s in task["sources"] if s["role"] == "backbone"][0]
-        bb_rec = SeqIO.read(bb_source["_resolved_path"], "genbank" if bb_source["_resolved_path"].lower().endswith((".gb", ".gbk")) else "fasta")
+        bb_rec = resolve_sequence_record(bb_source["_resolved_path"])
         bb_topo = bb_source.get("topology", "circular")
         bb_len = len(bb_rec)
 
         op = task["operation"]["replace"]
         repl_source = [s for s in task["sources"] if s["source_id"] == op["replacement_source_id"]][0]
-        repl_rec = SeqIO.read(repl_source["_resolved_path"], "genbank" if repl_source["_resolved_path"].lower().endswith((".gb", ".gbk")) else "fasta")
+        repl_rec = resolve_sequence_record(repl_source["_resolved_path"])
 
         # Validate replacement interval
         repl_interval = op.get("replacement_interval_0based") or [0, len(repl_rec)]
@@ -86,6 +84,8 @@ class PlasmidReplaceHandler(TaskHandler):
             product_seq = repl_seq.upper() + bb_seq[e0:s0]
             repl_product_interval = [0, len(repl_seq)]
 
+        product_record = replace_record(bb_rec, s0, e0, record_slice(repl_rec, r_start0, r_end0))
+
         expected_components = [{
             "name": "replacement",
             "source_id": repl_source["source_id"],
@@ -96,18 +96,6 @@ class PlasmidReplaceHandler(TaskHandler):
             "expected_sequence": repl_seq,
             "product_interval_0based": repl_product_interval,
         }]
-        for req in task.get("product", {}).get("required_components", []):
-            if req.lower() not in {c["name"].lower() for c in expected_components}:
-                expected_components.append({
-                    "name": req,
-                    "source_id": repl_source["source_id"],
-                    "source_sha256": repl_source["sha256"],
-                    "interval_0based": [r_start0, r_end0],
-                    "strand": 1,
-                    "transformation": "plasmid replacement",
-                    "expected_sequence": repl_seq,
-                    "product_interval_0based": repl_product_interval,
-                })
 
         return {
             "task_id": task["task_id"],
@@ -121,6 +109,7 @@ class PlasmidReplaceHandler(TaskHandler):
             "replacement_interval_0based": [r_start0, r_end0],
             "product_topology": "circular",
             "product_sequence": product_seq,
+            "product_features": product_features(product_record, product_seq),
             "product_sequence_sha256": hashlib.sha256(product_seq.encode("utf-8")).hexdigest().upper(),
             "expected_components": expected_components,
             "forbidden_components": list(task.get("product", {}).get("forbidden_components", [])),
@@ -142,44 +131,12 @@ class PlasmidReplaceHandler(TaskHandler):
             ],
         }
 
-    def execute(self, task: dict, plan: dict, out_dir: pathlib.Path) -> dict:
-        out_dir.mkdir(parents=True, exist_ok=True)
-        seq_str = plan["product_sequence"]
-        prod_rec = SeqRecord(
-            Seq(seq_str),
-            id=task["task_id"],
-            name="replaced_plasmid",
-            description=f"Plasmid replace construct from {task['task_id']}",
-        )
-        prod_rec.annotations["molecule_type"] = "DNA"
-        prod_rec.annotations["topology"] = "circular"
-
-        gb_path = out_dir / "construct.gb"
-        with open(gb_path, "w", encoding="utf-8") as fh:
-            SeqIO.write(prod_rec, fh, "genbank")
-
-        fa_path = out_dir / "construct.fasta"
-        fa_path.write_text(f">{task['task_id']}\n{seq_str}\n", encoding="utf-8")
-
-        artifact_hashes = {
-            "construct.gb": hashlib.sha256(gb_path.read_bytes()).hexdigest().upper(),
-            "construct.fasta": hashlib.sha256(fa_path.read_bytes()).hexdigest().upper(),
-        }
-
-        return {
-            "artifact_class": "intermediate",
-            "method_maturity": self.method_maturity,
-            "product_gb": str(gb_path),
-            "product_fasta": str(fa_path),
-            "artifact_hashes": artifact_hashes,
-            "product_sequence_sha256": plan["product_sequence_sha256"],
-        }
 
     def recompute(self, task: dict, plan: dict) -> str:
         """Independently recompute replaced plasmid sequence from sources and operations."""
         bb_source = [s for s in task["sources"] if s["role"] == "backbone"][0]
         bb_path = bb_source["_resolved_path"]
-        bb_rec = SeqIO.read(bb_path, "genbank" if bb_path.lower().endswith((".gb", ".gbk")) else "fasta")
+        bb_rec = resolve_sequence_record(bb_path)
         bb_seq = str(bb_rec.seq).upper()
 
         op = task.get("operation", {}).get("replace", {})
@@ -189,10 +146,10 @@ class PlasmidReplaceHandler(TaskHandler):
         repl_src_id = op["replacement_source_id"]
         repl_source = [s for s in task["sources"] if s["source_id"] == repl_src_id][0]
         repl_path = repl_source["_resolved_path"]
-        repl_rec = SeqIO.read(repl_path, "genbank" if repl_path.lower().endswith((".gb", ".gbk")) else "fasta")
+        repl_rec = resolve_sequence_record(repl_path)
 
         r_start0, r_end0 = op.get("replacement_interval_0based", [0, len(repl_rec.seq)])
-        r_strand = op.get("replacement_strand", 1)
+        r_strand = 1
         repl_seq = extract_interval(repl_rec, r_start0, r_end0, topology=repl_source.get("topology", "linear"), strand=r_strand, whole_record_approved=True)
 
         if not is_wrap:

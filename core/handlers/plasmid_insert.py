@@ -3,15 +3,13 @@
 from __future__ import annotations
 
 import hashlib
-import pathlib
 
-from Bio import SeqIO
-from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
 from core.errors import PlanningError, TaskValidationError
 from core.evidence_chain import validate_goal_components
-from core.handlers.base import TaskHandler
+from core.handlers.base import TaskHandler, record_slice, insert_record, product_features
+from core.io.input_resolution import resolve_sequence_record
 from core.interval import extract_interval
 
 
@@ -69,12 +67,12 @@ class PlasmidInsertHandler(TaskHandler):
     def plan(self, task: dict) -> dict:
         self.validate_contract(task)
         bb_source = [s for s in task["sources"] if s["role"] == "backbone"][0]
-        bb_rec = SeqIO.read(bb_source["_resolved_path"], "genbank" if bb_source["_resolved_path"].lower().endswith((".gb", ".gbk")) else "fasta")
+        bb_rec = resolve_sequence_record(bb_source["_resolved_path"])
         bb_len = len(bb_rec)
 
         insert_op = task["operation"]["insert"]
         ins_source = [s for s in task["sources"] if s["source_id"] == insert_op["insert_source_id"]][0]
-        ins_rec = SeqIO.read(ins_source["_resolved_path"], "genbank" if ins_source["_resolved_path"].lower().endswith((".gb", ".gbk")) else "fasta")
+        ins_rec = resolve_sequence_record(ins_source["_resolved_path"])
 
         boundary = int(insert_op["boundary_0based"])
         if boundary < 0 or boundary > bb_len:
@@ -86,6 +84,7 @@ class PlasmidInsertHandler(TaskHandler):
 
         bb_seq = str(bb_rec.seq).upper()
         product_seq = bb_seq[:boundary] + ins_seq.upper() + bb_seq[boundary:]
+        product_record = insert_record(bb_rec, boundary, record_slice(ins_rec, i_start0, i_end0))
 
         expected_components = []
         # Add features from insert record if any within [i_start0, i_end0)
@@ -135,6 +134,7 @@ class PlasmidInsertHandler(TaskHandler):
             "insert_interval_0based": [i_start0, i_end0],
             "product_topology": "circular",
             "product_sequence": product_seq,
+            "product_features": product_features(product_record, product_seq),
             "product_sequence_sha256": hashlib.sha256(product_seq.encode("utf-8")).hexdigest().upper(),
             "expected_components": expected_components,
             "forbidden_components": list(task.get("product", {}).get("forbidden_components", [])),
@@ -156,44 +156,12 @@ class PlasmidInsertHandler(TaskHandler):
             ],
         }
 
-    def execute(self, task: dict, plan: dict, out_dir: pathlib.Path) -> dict:
-        out_dir.mkdir(parents=True, exist_ok=True)
-        seq_str = plan["product_sequence"]
-        prod_rec = SeqRecord(
-            Seq(seq_str),
-            id=task["task_id"],
-            name="inserted_plasmid",
-            description=f"Plasmid insert construct from {task['task_id']}",
-        )
-        prod_rec.annotations["molecule_type"] = "DNA"
-        prod_rec.annotations["topology"] = "circular"
-
-        gb_path = out_dir / "construct.gb"
-        with open(gb_path, "w", encoding="utf-8") as fh:
-            SeqIO.write(prod_rec, fh, "genbank")
-
-        fa_path = out_dir / "construct.fasta"
-        fa_path.write_text(f">{task['task_id']}\n{seq_str}\n", encoding="utf-8")
-
-        artifact_hashes = {
-            "construct.gb": hashlib.sha256(gb_path.read_bytes()).hexdigest().upper(),
-            "construct.fasta": hashlib.sha256(fa_path.read_bytes()).hexdigest().upper(),
-        }
-
-        return {
-            "artifact_class": "intermediate",
-            "method_maturity": self.method_maturity,
-            "product_gb": str(gb_path),
-            "product_fasta": str(fa_path),
-            "artifact_hashes": artifact_hashes,
-            "product_sequence_sha256": plan["product_sequence_sha256"],
-        }
 
     def recompute(self, task: dict, plan: dict) -> str:
         """Independently recompute inserted plasmid sequence from sources and operations."""
         bb_source = [s for s in task["sources"] if s["role"] == "backbone"][0]
         bb_path = bb_source["_resolved_path"]
-        bb_rec = SeqIO.read(bb_path, "genbank" if bb_path.lower().endswith((".gb", ".gbk")) else "fasta")
+        bb_rec = resolve_sequence_record(bb_path)
         bb_seq = str(bb_rec.seq).upper()
 
         op = task.get("operation", {}).get("insert", {})
@@ -202,10 +170,10 @@ class PlasmidInsertHandler(TaskHandler):
         ins_src_id = op["insert_source_id"]
         ins_source = [s for s in task["sources"] if s["source_id"] == ins_src_id][0]
         ins_path = ins_source["_resolved_path"]
-        ins_rec = SeqIO.read(ins_path, "genbank" if ins_path.lower().endswith((".gb", ".gbk")) else "fasta")
+        ins_rec = resolve_sequence_record(ins_path)
 
-        i_start0, i_end0 = op.get("insert_interval_0based", [0, len(ins_rec.seq)])
-        i_strand = op.get("insert_strand", 1)
+        i_start0, i_end0 = op["interval_0based"]
+        i_strand = 1
         ins_seq = extract_interval(ins_rec, i_start0, i_end0, topology=ins_source.get("topology", "linear"), strand=i_strand, whole_record_approved=True)
 
         return bb_seq[:boundary] + ins_seq.upper() + bb_seq[boundary:]

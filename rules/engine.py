@@ -38,9 +38,15 @@ def load_rules(user_rules_dir=None, project_id=None):
                 diagnostics.append({"file": str(user_file), "error": str(error)})
                 continue
             for rule in incoming:
+                if not isinstance(rule, dict):
+                    diagnostics.append({"file": str(user_file), "errors": ["rule must be an object"]})
+                    continue
                 if rule.get("trigger") != "assembly_feasibility":
                     continue
-                errors = validate_rule(rule, persistent=True)
+                try:
+                    errors = validate_rule(rule, persistent=True)
+                except (TypeError, ValueError) as error:
+                    errors = ["invalid rule field: %s" % error]
                 if errors:
                     diagnostics.append({"file": str(user_file),
                                         "rule_id": rule.get("id"),
@@ -75,12 +81,13 @@ def evaluate_plan(plan_context, user_rules_dir=None, project_id=None):
         })
     errors = [hit for hit in hits if hit["severity"] == "error"]
     warnings = [hit for hit in hits if hit["severity"] == "warn"]
-    grade = "low" if errors else "medium" if warnings else "high"
+    diagnostics = data["diagnostics"] + evaluated["diagnostics"]
+    grade = "low" if errors else "medium" if warnings else "unknown" if diagnostics else "high"
     return {
         "schema_version": "1.0.0", "grade": grade,
         "errors": errors, "warnings": warnings,
         "rules_evaluated": evaluated["rules_evaluated"],
-        "diagnostics": data["diagnostics"] + evaluated["diagnostics"],
+        "diagnostics": diagnostics,
         "provenance": [source(
             "published-paper", "M2 feasibility rules",
             "experimental-feasibility-filter",

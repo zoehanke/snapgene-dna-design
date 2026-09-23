@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased · 2026-09-22/23 engineering audit
+
+Local remediation on the development branch; no new release or remote publication. VERSION remains 1.0.1 until a release is authorized. Current evidence and limits: [final engineering report](docs/final-remediation-report.md).
+
+- Preserve annotated records across task handlers, recompute constraints from actual sources, and reject incomplete or contradictory delivery receipts.
+- Correct double-digest execution, primer search boundaries, MSA/Sanger results, rejected state updates and file-conversion failures.
+- Bind Trace choices to file versions, distinguish observed presence from generation, and minimize captured credentials without changing DNA execution.
+- Package reviewed sources only; keep mandatory regressions independent of nonredistributable material. Test extracted packages separately.
+- Add reproducible benchmarks, current user/developer documentation and source-backed iGEM 2026 preparation materials. External user, scientific and submission evidence remains separate.
+
 ## 1.0.0 · 可用大版本
 
 First usable major release, promoting the verified 0.9.4 runtime without changing its reaction algorithms. Includes the accumulated real-workflow repairs, complete-oligo primer design, actual consecutive PCR preparation, per-junction Gibson homology placement, source annotation preservation, strict CDS checks and current-invocation delivery state.

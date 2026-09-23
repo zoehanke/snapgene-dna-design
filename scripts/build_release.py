@@ -1,17 +1,18 @@
 # -*- coding: utf-8 -*-
 """build_release.py - Reproducible academic-full / redistributable packaging.
 
-Builds two ZIPs from the same source tree, refreshes
-DEVELOPMENT-MANIFEST.json from the current tree, and writes a fresh
+Builds two ZIPs from reviewed source files and writes a fresh
 RELEASE-MANIFEST.json using the stable release-manifest schema contract
 (`schema_version = "0.8.0"`) into each archive.  The two packages receive package-appropriate
 DEVELOPMENT-NOTICE.md / THIRD_PARTY_NOTICE.md content instead of sharing
-one contradictory notice.
+one contradictory notice. DEVELOPMENT-MANIFEST.json is refreshed only
+when explicitly requested with --refresh-dev-manifest.
 """
 import argparse
 import hashlib
 import json
 import pathlib
+import subprocess
 import sys
 import zipfile
 
@@ -20,6 +21,7 @@ from provenance import read_version
 
 EXCLUDE_ALL = (
     "RELEASE-MANIFEST.json",
+    "DEVELOPMENT-MANIFEST.json",
     ".coverage",
 )
 EXCLUDE_PREFIXES = (
@@ -38,6 +40,8 @@ EXCLUDE_PREFIXES = (
 )
 
 ACADEMIC_ONLY_PATHS = (
+    "tests/data/pBP-eGFP.gb",
+    "docs/development-plans/assets/",
     "fixtures/pDONR201.dna",
     "fixtures/golden/",
     "tests/test_smoke_academic.py",
@@ -97,23 +101,46 @@ def _exclusion_reason(path, digest):
     return None
 
 
-def _collect(root, exclude_extra=()):
+def _source_files(root):
+    if (root / '.git').exists():
+        result = subprocess.run(['git', '-C', str(root), 'ls-files', '-z', '--cached'],
+                                check=True, capture_output=True, encoding='utf-8', errors='strict')
+        return [p for p in result.stdout.split('\0') if p]
+    manifest = root / 'RELEASE-MANIFEST.json'
+    if manifest.is_file():
+        return [e['path'] for e in json.loads(manifest.read_text(encoding='utf-8'))['entries']]
+    raise ValueError('A non-Git source tree needs --source-list with reviewed relative file paths')
+
+
+def _collect(root, exclude_extra=(), source_files=None):
+    root = pathlib.Path(root).resolve()
     entries = []
-    for path in sorted(root.rglob("*")):
-        if not path.is_file():
-            continue
-        rel = path.relative_to(root).as_posix()
+    names = _source_files(root) if source_files is None else source_files
+    if not isinstance(names, list) or not all(isinstance(n, str) for n in names):
+        raise ValueError('source-list must be a JSON array of relative file paths')
+    for name in sorted(set(names)):
+        rel = name.replace('\\', '/')
+        parts = pathlib.PurePosixPath(rel).parts
+        if (not parts or '..' in parts or pathlib.PureWindowsPath(rel).drive or
+                rel.startswith('/') or any(p == '.env' or p.startswith('.env.') for p in parts)):
+            raise ValueError('Unsafe or sensitive release source: ' + rel)
+        path = root / rel
+        if path.is_symlink() or not path.resolve().is_relative_to(root):
+            raise ValueError('Release source must be an in-tree regular file: ' + rel)
         if (rel in EXCLUDE_ALL or rel in exclude_extra
                 or "__pycache__" in rel or rel.endswith(".pyc")):
             continue
         if any(rel.startswith(prefix) for prefix in EXCLUDE_PREFIXES):
             continue
+        if not path.is_file():
+            raise ValueError('Listed release source is missing: ' + rel)
         digest = _sha256(path)
         category = _classify(rel, digest)
         exclusion_reason = _exclusion_reason(rel, digest)
         license_value = _third_party_license(rel)
         if license_value is None:
-            license_value = ("GraphPad/SnapGene-terms"
+            license_value = ("External-source-terms-unverified" if rel == 'tests/data/pBP-eGFP.gb'
+                             or rel.startswith('docs/development-plans/assets/') else "GraphPad/SnapGene-terms"
                              if digest in RESTRICTED_HASHES else "MIT")
         entries.append({
             "path": rel,
@@ -127,8 +154,8 @@ def _collect(root, exclude_extra=()):
     return entries
 
 
-def _development_manifest(root, version):
-    entries = _collect(root, exclude_extra=("DEVELOPMENT-MANIFEST.json",))
+def _development_manifest(root, version, source_files=None):
+    entries = _collect(root, exclude_extra=("DEVELOPMENT-MANIFEST.json",), source_files=source_files)
     manifest = {
         "manifest_kind": "development-manifest",
         "version": version,
@@ -148,8 +175,9 @@ def _development_notice(version, redistributable):
         "Version: SnapGene DNA Design v%s (%s package).\n\n"
         "%s Python dependencies and optional external programs must be "
         "installed separately; follow README.md.\n\n"
-        "Backend honesty: Cas-OFFinder, CRISPOR and primer3_core are optional "
-        "external runtimes. None of them is bundled. Real-backend gates must "
+        "Backend honesty: primer3_core is required for supported primer design; "
+        "Cas-OFFinder and model-scoring runtimes are optional. External executables "
+        "are installed separately. Real-backend gates must "
         "run the real executable/model in this environment and are never "
         "satisfied by a placeholder or a skipped test.\n\n"
         "License warning: %s\n\n"
@@ -158,14 +186,14 @@ def _development_notice(version, redistributable):
         "reports as evidence for this version.\n"
         % (version, package_kind,
            ("This is a prerelease candidate for validation." if prerelease else
-            "This is a versioned release package. See CHANGELOG.md for the validated scope and known limits."),
-           ("this archive contains academic-only SnapGene fixtures and "
-            "derived fixtures. Do not publish or redistribute it. See "
+            "This is a versioned source package; packaging alone does not certify release readiness. See CHANGELOG.md for scope and known limits."),
+           ("this research archive may include external fixtures and reference "
+            "assets. Its creation is not permission to publish them. See "
             "THIRD_PARTY_NOTICE.md."
             if not redistributable else
-            "this package contains only MIT project code plus the third-party "
-            "model artifacts listed in THIRD_PARTY_NOTICE.md; no academic-only "
-            "fixtures are present."))
+            "this variant excludes the known restricted/external fixtures and "
+            "reference assets. Original project code uses MIT; listed third-party "
+            "content retains its own license. Review the release manifest."))
     )
 
 
@@ -182,7 +210,7 @@ def _third_party_notice(redistributable):
             "",
             "## SnapGene fixtures (academic-only)",
             "",
-            "`fixtures/pDONR201.dna` and the `fixtures/golden/` directory were "
+            "When included, `fixtures/pDONR201.dna` and the `fixtures/golden/` directory were "
             "copied or derived from the SnapGene 6.x plasmid collection "
             "(GraphPad Software / SnapGene). SnapGene states that maps, notes "
             "and annotations from its plasmid collection are copyrighted: "
@@ -191,6 +219,9 @@ def _third_party_notice(redistributable):
             "contact GraphPad for a separate license. Do not redistribute "
             "this package commercially without written authorization from "
             "GraphPad/SnapGene.",
+            "External pBP-eGFP regression material and supplied design reference images, "
+            "when included, require separate redistribution-rights review; the academic "
+            "archive name grants no additional license.",
         ]
     lines += [
         "",
@@ -278,7 +309,8 @@ def main():
     parser.add_argument("output")
     parser.add_argument("--version", default=None)
     parser.add_argument("--refresh-dev-manifest", action="store_true",
-                        default=True)
+                        help="explicitly rewrite the source-tree development manifest")
+    parser.add_argument('--source-list', help='Reviewed JSON list of relative files for a non-Git source tree')
     args = parser.parse_args()
     root = pathlib.Path(args.root).resolve()
     output = pathlib.Path(args.output).resolve()
@@ -292,10 +324,13 @@ def main():
                      % (version, declared_version))
     output.mkdir(parents=True, exist_ok=True)
 
-    if args.refresh_dev_manifest:
-        _development_manifest(root, version)
-
-    entries = _collect(root)
+    try:
+        sources = json.loads(pathlib.Path(args.source_list).read_text(encoding='utf-8-sig')) if args.source_list else None
+        if args.refresh_dev_manifest:
+            _development_manifest(root, version, sources)
+        entries = _collect(root, source_files=sources)
+    except (ValueError, OSError, subprocess.CalledProcessError) as exc:
+        parser.error(str(exc))
     if not any(entry["path"] == "DEVELOPMENT-NOTICE.md" for entry in entries):
         entries.append(_entry("DEVELOPMENT-NOTICE.md", _development_notice(version, True)))
     academic_entries = entries

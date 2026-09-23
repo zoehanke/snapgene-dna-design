@@ -12,13 +12,12 @@ import pathlib
 import subprocess
 import sys
 
-from Bio import SeqIO
-from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
 from core.errors import PlanningError, TaskValidationError
 from core.evidence_chain import validate_goal_components
-from core.handlers.base import TaskHandler
+from core.handlers.base import TaskHandler, record_slice, replace_record, product_features
+from core.io.input_resolution import resolve_sequence_record
 from core.interval import extract_interval
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
@@ -66,7 +65,7 @@ class CrisprEditingHandler(TaskHandler):
     def plan(self, task: dict) -> dict:
         self.validate_contract(task)
         ref_source = next(s for s in task["sources"] if s.get("role") in ("reference", "template", "backbone"))
-        ref_rec = SeqIO.read(ref_source["_resolved_path"], "genbank" if ref_source["_resolved_path"].lower().endswith((".gb", ".gbk")) else "fasta")
+        ref_rec = resolve_sequence_record(ref_source["_resolved_path"])
         ref_seq = str(ref_rec.seq).upper()
         n = len(ref_seq)
 
@@ -112,10 +111,11 @@ class CrisprEditingHandler(TaskHandler):
             raise PlanningError("CRISPR_NO_GUIDES_IN_TARGET", "no guide candidates in the target window")
 
         product_seq = ref_seq
+        product_record = ref_rec
         donor = op.get("donor_strategy") or {}
         if donor.get("donor_source_id"):
             dsrc = next(s for s in task["sources"] if s["source_id"] == donor["donor_source_id"])
-            drec = SeqIO.read(dsrc["_resolved_path"], "genbank" if dsrc["_resolved_path"].lower().endswith((".gb", ".gbk")) else "fasta")
+            drec = resolve_sequence_record(dsrc["_resolved_path"])
             ra, rb = int(donor["replacement_interval_0based"][0]), int(donor["replacement_interval_0based"][1])
             if ra < 0 or rb < 0 or ra > len(drec) or rb > len(drec) or ra >= rb:
                 raise PlanningError("CRISPR_DONOR_INTERVAL_INVALID", "donor replacement interval invalid")
@@ -130,6 +130,7 @@ class CrisprEditingHandler(TaskHandler):
             if right and right.upper() != downstream.upper():
                 raise PlanningError("CRISPR_ARM_MISMATCH", "right donor arm does not match reference flank", details={"expected": downstream, "given": right})
             product_seq = ref_seq[:a] + repl.upper() + ref_seq[b:]
+            product_record = replace_record(ref_rec, a, b, record_slice(drec, ra, rb))
 
         return {
             "task_id": task["task_id"],
@@ -143,6 +144,7 @@ class CrisprEditingHandler(TaskHandler):
             "guides": candidates[:5],
             "product_topology": ref_source.get("topology", "linear"),
             "product_sequence": product_seq,
+            "product_features": product_features(product_record, product_seq),
             "product_sequence_sha256": hashlib.sha256(product_seq.encode("utf-8")).hexdigest().upper(),
             "expected_components": [],
             "forbidden_components": list(task.get("product", {}).get("forbidden_components", [])),
@@ -161,43 +163,11 @@ class CrisprEditingHandler(TaskHandler):
             ],
         }
 
-    def execute(self, task: dict, plan: dict, out_dir: pathlib.Path) -> dict:
-        out_dir.mkdir(parents=True, exist_ok=True)
-        seq_str = plan["product_sequence"]
-        prod_rec = SeqRecord(
-            Seq(seq_str),
-            id=task["task_id"],
-            name="crispr_edited",
-            description=f"CRISPR edited sequence from {task['task_id']}",
-        )
-        prod_rec.annotations["molecule_type"] = "DNA"
-        prod_rec.annotations["topology"] = plan["product_topology"]
-
-        gb_path = out_dir / "construct.gb"
-        with open(gb_path, "w", encoding="utf-8") as fh:
-            SeqIO.write(prod_rec, fh, "genbank")
-
-        fa_path = out_dir / "construct.fasta"
-        fa_path.write_text(f">{task['task_id']}\n{seq_str}\n", encoding="utf-8")
-
-        artifact_hashes = {
-            "construct.gb": hashlib.sha256(gb_path.read_bytes()).hexdigest().upper(),
-            "construct.fasta": hashlib.sha256(fa_path.read_bytes()).hexdigest().upper(),
-        }
-
-        return {
-            "artifact_class": "intermediate",
-            "method_maturity": self.method_maturity,
-            "product_gb": str(gb_path),
-            "product_fasta": str(fa_path),
-            "artifact_hashes": artifact_hashes,
-            "product_sequence_sha256": plan["product_sequence_sha256"],
-        }
 
     def recompute(self, task: dict, plan: dict) -> str:
         """Independently recompute CRISPR edited sequence from sources and operations."""
         ref_source = [s for s in task["sources"] if s["role"] == "reference"][0]
-        ref_rec = SeqIO.read(ref_source["_resolved_path"], "genbank" if ref_source["_resolved_path"].lower().endswith((".gb", ".gbk")) else "fasta")
+        ref_rec = resolve_sequence_record(ref_source["_resolved_path"])
         ref_seq = str(ref_rec.seq).upper()
 
         op = task.get("operation", {}).get("crispr") or task.get("operation", {})
@@ -207,7 +177,7 @@ class CrisprEditingHandler(TaskHandler):
             return ref_seq[:a] + ref_seq[b:]
         else:
             dsrc = [s for s in task["sources"] if s["source_id"] == donor["donor_source_id"]][0]
-            drec = SeqIO.read(dsrc["_resolved_path"], "genbank" if dsrc["_resolved_path"].lower().endswith((".gb", ".gbk")) else "fasta")
+            drec = resolve_sequence_record(dsrc["_resolved_path"])
             ra, rb = donor.get("replacement_interval_0based", [0, len(drec)])
             repl = extract_interval(drec, ra, rb, topology=dsrc.get("topology", "linear"), whole_record_approved=True)
             return ref_seq[:a] + repl.upper() + ref_seq[b:]

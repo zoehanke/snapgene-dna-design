@@ -142,25 +142,25 @@ def set_field(spec, path, value, evidence_layer="user-provided",
     """
     if len(path) < 1:
         raise DesignSpecError("empty field path")
+    if spec["status"] in ("user-confirmed", "evidence-resolved", "planned",
+                          "executed", "verified", "delivered") and not force:
+        raise DesignSpecError(
+            "confirmed spec cannot be silently modified; "
+            "create a new revision first")
+    record = _evidence(
+        evidence_layer,
+        description or "set %s" % ".".join(path),
+        field=".".join(path), at=now_iso())
     container = spec
     for key in path[:-1]:
         if key not in container or not isinstance(container[key], dict):
             container[key] = {}
         container = container[key]
     container[path[-1]] = copy.deepcopy(value)
-    record = _evidence(
-        evidence_layer,
-        description or "set %s" % ".".join(path),
-        field=".".join(path), at=now_iso())
     if evidence_layer in ("computed", "database-verified"):
         spec["derived_facts"].append(record)
     else:
         spec["assumptions"].append(record)
-    if spec["status"] in ("user-confirmed", "evidence-resolved", "planned",
-                          "executed", "verified") and not force:
-        raise DesignSpecError(
-            "confirmed spec cannot be silently modified; "
-            "create a new revision first")
 
 
 def add_evidence(spec, layer, description, **extra):
@@ -207,6 +207,15 @@ def _set_dotted(spec, field, value):
 def record_answer(spec, question_id, value, evidence_layer="user-provided",
                   description=None):
     field = _ANSWER_FIELD_MAP.get(question_id)
+    if evidence_layer not in EVIDENCE_LAYERS:
+        raise DesignSpecError("unknown evidence_layer: %s" % evidence_layer)
+    if field is not None and value != "auto-confirmed" and spec["status"] in (
+            "user-confirmed", "evidence-resolved", "planned", "executed", "verified", "delivered"):
+        current = spec
+        for part in field.split("."):
+            current = current.get(part) if isinstance(current, dict) else None
+        if current != value:
+            raise DesignSpecError("confirmed spec: changing an answer requires revision")
     if field is not None and value != "auto-confirmed":
         _set_dotted(spec, field, value)
     spec["approvals"][question_id] = {
@@ -335,7 +344,7 @@ def make_sequence_source(source_id, source_type, sha256, source_path=None,
 
 def add_source(spec, source, force=False):
     if spec["status"] in ("user-confirmed", "evidence-resolved", "planned",
-                          "executed", "verified") and not force:
+                          "executed", "verified", "delivered") and not force:
         raise DesignSpecError("confirmed spec: new source requires revision")
     spec["sources"].append(copy.deepcopy(source))
     return source
@@ -366,7 +375,8 @@ def formal_blockers(spec):
             blockers.append("DATABASE_SOURCE_WITHOUT_ACCESSION:%s"
                             % source.get("source_id"))
     approvals = spec.get("approvals", {})
-    if not approvals.get("primers-ready-to-order"):
+    order_approval = approvals.get("primers-ready-to-order")
+    if not isinstance(order_approval, dict) or order_approval.get("value") is not True:
         blockers.append("PRIMERS_NOT_APPROVED_FOR_ORDER")
     if spec.get("outputs", {}).get("roundtrip_verified") is not True:
         blockers.append("ROUNDTRIP_NOT_VERIFIED")

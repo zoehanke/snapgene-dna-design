@@ -119,7 +119,7 @@ def main(argv=None):
     try:
         result = trace_file_call("export_delivery_bundle", build_bundle,
             args=(args.source, args.out_dir, args.name, args.allow_core_risk, args.require_dna),
-            input_paths=[args.source], expected_paths=list(pathlib.Path(args.out_dir).glob("*")),
+            input_paths=[args.source], output_directories=[args.out_dir],
             output_paths=lambda value: [pathlib.Path(value["bundle_dir"]) / f["path"] for f in value["files"]] + [value["manifest"]],
             artifact_role="preview", **trace_options(args))
     except (OSError, ValueError) as error:

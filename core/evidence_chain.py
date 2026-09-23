@@ -125,7 +125,8 @@ def validate_goal_components(
                 src_p = src_meta.get("_resolved_path") or src_meta.get("path")
                 if src_p and pathlib.Path(src_p).exists() and c.get("interval_0based"):
                     try:
-                        srec = SeqIO.read(str(src_p), "genbank" if str(src_p).lower().endswith((".gb", ".gbk")) else "fasta")
+                        from core.io.input_resolution import resolve_sequence_record
+                        srec = resolve_sequence_record(src_p)
                         s0, e0 = c["interval_0based"]
                         actual_src_seq = extract_interval(
                             srec, s0, e0,
@@ -213,10 +214,8 @@ def check_backbone_contamination(
             continue
 
         try:
-            src_rec = SeqIO.read(
-                str(src_path),
-                "genbank" if str(src_path).lower().endswith((".gb", ".gbk")) else "fasta",
-            )
+            from core.io.input_resolution import resolve_sequence_record
+            src_rec = resolve_sequence_record(src_path)
         except Exception:
             continue
 

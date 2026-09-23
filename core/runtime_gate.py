@@ -7,7 +7,7 @@ authoritative only when:
 2. on-disk source file hashes are re-verified (no post-validation tampering);
 3. the three validation layers all pass (artifact, computation, goal);
 4. the method is mature (experimental methods are permanently blocked);
-5. three-format verification (GB, FASTA, SnapGene .dna, and official roundtrip) passes;
+5. three-format verification passes; requested official roundtrip also passes;
 6. the user has explicitly confirmed the task with no unresolved assumptions.
 """
 from __future__ import annotations
@@ -19,6 +19,7 @@ import pathlib
 import shutil
 import subprocess
 import sys
+import tempfile
 
 from Bio import SeqIO
 
@@ -59,14 +60,14 @@ def _check_chain(task: dict, plan: dict, execution: dict, validation: dict) -> N
         raise GateRejected("GATE_HASH_CHAIN_BROKEN", "execution plan hash does not match plan")
 
     recomputed_exec_hash = compute_execution_sha256(execution)
-    if execution.get("execution_sha256") and execution.get("execution_sha256") != recomputed_exec_hash:
+    if execution.get("execution_sha256") != recomputed_exec_hash:
         raise GateRejected("GATE_HASH_CHAIN_BROKEN", "execution hash does not match recomputed value")
 
     if validation.get("task_sha256") != current_task_hash or validation.get("plan_hash") != plan.get("plan_sha256"):
         raise GateRejected("GATE_HASH_CHAIN_BROKEN", "validation hash chain does not match plan")
 
     recomputed_val_hash = compute_validation_sha256(validation)
-    if validation.get("validation_sha256") and validation.get("validation_sha256") != recomputed_val_hash:
+    if validation.get("validation_sha256") != recomputed_val_hash:
         raise GateRejected("GATE_HASH_CHAIN_BROKEN", "validation hash does not match recomputed value")
 
     if execution.get("artifact_class") != "intermediate":
@@ -124,12 +125,13 @@ def finalize(task: dict, plan: dict, execution: dict, validation: dict, out_dir:
         raise GateRejected("GATE_EXPERIMENTAL_METHOD", "experimental methods can never produce authoritative products")
 
     # Re-derive validation overall status from the 3 booleans
-    art_val = bool(validation.get("artifact_valid"))
-    comp_val = bool(validation.get("computation_valid"))
-    goal_val = bool(validation.get("goal_valid"))
+    art_val = validation.get("artifact_valid") is True
+    comp_val = validation.get("computation_valid") is True
+    goal_val = validation.get("goal_valid") is True
     rederived_verified = (art_val and comp_val and goal_val and plan.get("method_maturity") == "validated")
 
-    if not rederived_verified or validation.get("overall") != "verified":
+    if (not rederived_verified or validation.get("overall") != "verified"
+            or validation.get("errors") or validation.get("error_codes")):
         raise GateRejected(
             "GATE_VALIDATION_FAILED",
             "three-layer validation did not reach verified",
@@ -158,6 +160,7 @@ def finalize(task: dict, plan: dict, execution: dict, validation: dict, out_dir:
         "schema_version": "delivery-manifest-v1",
         "artifact_class": "authoritative",
         "provenance_type": "pipeline",
+        "scope_note": plan.get("scope_note", "Checks apply to the explicitly modeled pipeline steps."),
         "task_id": task["task_id"],
         "task_revision": task["revision"],
         "task_sha256": plan["task_sha256"],
@@ -217,10 +220,9 @@ def _promote_verified_candidate(
     if not candidate_fasta.exists():
         raise GateRejected("GATE_CANDIDATE_MISSING", f"Candidate FASTA file not found: {candidate_fasta}")
 
-    tmp = out_path / f".authoritative-{temp_identifier}.tmp"
-    if tmp.exists():
-        shutil.rmtree(tmp)
-    tmp.mkdir(parents=True)
+    # Each attempt owns only its fresh staging directory. User-supplied IDs
+    # are labels, not paths; a competing delivery must never be cleaned up.
+    tmp = pathlib.Path(tempfile.mkdtemp(prefix=".authoritative-", suffix=".tmp", dir=out_path))
 
     try:
         # Copy GB and FASTA
@@ -297,43 +299,44 @@ def _promote_verified_candidate(
         from core.tools.snapgene_io import find_snapgene_executable
         if os.environ.get("SNAPGENE_VERIFY_OFFICIAL") == "1":
             snapgene_exe = find_snapgene_executable()
-            if snapgene_exe and snapgene_exe.exists():
-                roundtrip = subprocess.run(
-                    [
-                        sys.executable,
-                        "-X",
-                        "utf8",
-                        "-B",
-                        str(ROOT / "scripts" / "validate_roundtrip.py"),
-                        str(dna_dst),
-                        "--format",
-                        "dna",
-                        "--snapgene-exe",
-                        str(snapgene_exe),
-                        "--json",
-                    ],
-                    capture_output=True,
-                    text=True,
-                    encoding="utf-8",
-                    errors="replace",
+            if snapgene_exe is None or not snapgene_exe.is_file():
+                raise GateRejected("GATE_OFFICIAL_ROUNDTRIP_FAILED", "Requested SnapGene verification requires the actual executable")
+            roundtrip = subprocess.run(
+                [
+                    sys.executable,
+                    "-X",
+                    "utf8",
+                    "-B",
+                    str(ROOT / "scripts" / "validate_roundtrip.py"),
+                    str(dna_dst),
+                    "--format",
+                    "dna",
+                    "--snapgene-exe",
+                    str(snapgene_exe),
+                    "--json",
+                ],
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+            )
+            if roundtrip.returncode != 0:
+                raise GateRejected(
+                    "GATE_OFFICIAL_ROUNDTRIP_FAILED",
+                    f"SnapGene roundtrip process failed with exit code {roundtrip.returncode}: {roundtrip.stderr[-500:]}",
                 )
-                if roundtrip.returncode != 0:
-                    raise GateRejected(
-                        "GATE_OFFICIAL_ROUNDTRIP_FAILED",
-                        f"SnapGene roundtrip process failed with exit code {roundtrip.returncode}: {roundtrip.stderr[-500:]}",
-                    )
-                try:
-                    rt_data = json.loads(roundtrip.stdout)
-                except Exception as exc:
-                    raise GateRejected(
-                        "GATE_OFFICIAL_ROUNDTRIP_FAILED",
-                        f"Failed to parse SnapGene roundtrip JSON output: {exc}",
-                    )
-                if not rt_data.get("ok") and not rt_data.get("passed") and rt_data.get("core_passed") is not True:
-                    raise GateRejected(
-                        "GATE_OFFICIAL_ROUNDTRIP_FAILED",
-                        f"SnapGene official roundtrip verification rejected: {rt_data.get('errors') or rt_data.get('reasons')}",
-                    )
+            try:
+                rt_data = json.loads(roundtrip.stdout)
+            except Exception as exc:
+                raise GateRejected(
+                    "GATE_OFFICIAL_ROUNDTRIP_FAILED",
+                    f"Failed to parse SnapGene roundtrip JSON output: {exc}",
+                )
+            if not isinstance(rt_data, dict) or not any(rt_data.get(key) is True for key in ("ok", "passed", "core_passed")):
+                raise GateRejected(
+                    "GATE_OFFICIAL_ROUNDTRIP_FAILED",
+                    f"SnapGene official roundtrip verification rejected: {rt_data}",
+                )
 
         # Build attested hashed DELIVERY-MANIFEST.json
         manifest = dict(manifest_payload)
@@ -349,16 +352,11 @@ def _promote_verified_candidate(
         )
 
         # Atomic directory promotion
-        try:
-            tmp.replace(authoritative)
-        except OSError:
-            shutil.move(str(tmp), str(authoritative))
+        tmp.replace(authoritative)
 
     except Exception:
         if tmp.exists():
             shutil.rmtree(tmp, ignore_errors=True)
-        if authoritative.exists():
-            shutil.rmtree(authoritative, ignore_errors=True)
         raise
 
     return {

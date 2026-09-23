@@ -40,6 +40,7 @@ def compute_plan_sha256(plan: dict) -> str:
         "expected_components": plan.get("expected_components", []),
         "forbidden_components": plan.get("forbidden_components", []),
         "steps": plan.get("steps", []),
+        "scope_note": plan.get("scope_note"),
     }
     if "product_features" in plan:
         semantic["product_features"] = plan["product_features"]
@@ -61,6 +62,11 @@ def plan(task: dict, base_dir: str | None = None) -> tuple[dict, dict]:
     raw_plan["handler_id"] = handler.handler_id
     raw_plan["handler_version"] = handler.handler_version
     raw_plan["method_maturity"] = handler.method_maturity
+    if vtask["task_kind"] not in ("composite_pipeline", "pipeline"):
+        raw_plan["scope_note"] = (
+            "Deterministic sequence and annotation model. Experimental preparation "
+            "has not been simulated; use a Recipe or explicit reaction Pipeline for that evidence."
+        )
 
     p_sha = compute_plan_sha256(raw_plan)
     raw_plan["plan_sha256"] = p_sha

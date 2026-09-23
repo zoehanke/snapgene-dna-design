@@ -384,6 +384,41 @@ def _simulate_fragment_pcr(fragment, forward, reverse, fwd_tail="", rev_tail="")
     return result
 
 
+def _anchored_primer_fallback(fragment, fwd_tail, rev_tail, primer3_core):
+    """Reuse the Core's full-template search when short region candidates fail."""
+    from core.tools.amplification import design_overhang_primers
+    from primer3_core_backend import discover_primer3_core
+    # Core currently discovers its executable. Do not silently substitute a
+    # different binary for an explicitly selected planner backend.
+    selected = discover_primer3_core(primer3_core)
+    automatic = discover_primer3_core()
+    if not selected or not automatic or pathlib.Path(selected).resolve() != pathlib.Path(automatic).resolve():
+        raise PlannerError("ANCHORED_BACKEND_UNAVAILABLE: cannot reuse the configured Primer3 backend")
+    template, interval, _ = _planned_pcr_template(fragment)
+    result = design_overhang_primers(template, *interval,
+        fwd_5prime_overhang=fwd_tail, rev_5prime_overhang=rev_tail,
+        min_core_len=18, max_core_len=40)
+    result["search_bounds"] = {"minimum_core_length": 18, "maximum_core_length": 40,
+                               "reason": "alternative to the default short-region candidate search"}
+    candidates, validations = [], []
+    for side in ("forward", "reverse"):
+        primer = result[side + "_primer"]
+        relative = int(primer["binding"]["template_start_0based"]) - interval[0]
+        if template.annotations.get("topology") == "circular":
+            relative %= len(template)
+        candidates.append({"sequence": primer["full_sequence"], "binding": primer["binding_core"],
+            "binding_length": primer["binding_core_length"], "tm": primer["binding_core_tm"],
+            "gc": gc_percent(primer["binding_core"]), "tail": primer["overhang_5prime"],
+            "bind_start": relative, "bind_end": relative + primer["binding_core_length"] - 1})
+        validations.append({"passed": True, "problems": [], "binding": primer["binding"],
+                            "source": "validated Core anchored pair and complete-oligo checks"})
+    return {"forward_candidates": [candidates[0]], "reverse_candidates": [candidates[1]],
+        "pairs": [{"forward_index": 0, "reverse_index": 0}],
+        "backend": result["engine"], "complete_oligo_validator": "primer3-core",
+        "validation": {"forward": [validations[0]], "reverse": [validations[1]]},
+        "anchored_search": result}
+
+
 def plan_assembly(source_paths, intent, primer3_core=None,
                   user_rules_dir=None, consent_broker=None,
                   operation_log=None, _use_downstream_overlap=False):
@@ -501,13 +536,14 @@ def plan_assembly(source_paths, intent, primer3_core=None,
                     Seq(item["sequence"]), get_enzyme(enzyme_name),
                     circular=(item["role"] == "backbone"
                               and intent.get("topology") == "circular"))
-                if len(hits) != 1:
+                expected_count = 2 if len(enzymes) == 1 and item["role"] != "backbone" else 1
+                if len(hits) != expected_count:
                     unique_per_fragment = False
                     break
             if not unique_per_fragment:
                 alternatives.append({
                     "method": "gibson",
-                    "reason": ("酶 %s 在每个片段中必须恰好出现一次"
+                    "reason": ("酶 %s 的位点数不符合所选反应：骨架须1个；单酶插入源须2个，双酶每种须1个"
                                % enzyme_name),
                 })
                 method = "gibson"
@@ -610,10 +646,20 @@ def plan_assembly(source_paths, intent, primer3_core=None,
                 pair = candidate_pair
                 break
             if pair is None:
-                raise PlannerError(
-                    "PRIMER_PAIR_REQUIRED: no acceptable complete-oligo pair for %s; structural_checks=%s"
-                    % (fragment["name"], rejected_pairs)
-                )
+                try:
+                    design = _anchored_primer_fallback(fragment, fwd_tail, rev_tail, primer3_core)
+                    forward, reverse = design["forward_candidates"][0], design["reverse_candidates"][0]
+                    f_offset, r_end = int(forward["bind_start"]), int(reverse["bind_end"]) + 1
+                    structure = check_complete_oligo_pair(forward["sequence"], reverse["sequence"], primer3_core,
+                        annealing_temperature=min(float(forward["tm"]), float(reverse["tm"]))-5.0)
+                    if not structure["passed"]:
+                        raise PlannerError("Anchored pair failed complete-oligo validation")
+                    pair = design["pairs"][0]
+                except Exception as fallback_error:
+                    raise PlannerError(
+                        "PRIMER_PAIR_REQUIRED: no acceptable complete-oligo pair for %s; structural_checks=%s; anchored_search=%s"
+                        % (fragment["name"], rejected_pairs, fallback_error)
+                    ) from fallback_error
             # Validate and execute only the selected pair.  Other candidates
             # remain available for review but cannot block a pair that was
             # actually selected for delivery.
@@ -650,6 +696,9 @@ def plan_assembly(source_paths, intent, primer3_core=None,
                     "use": "PCR 下游引物（5'->3'）",
                 },
                 "backend": design["backend"],
+                "complete_oligo_validator": design.get("complete_oligo_validator"),
+                "anchored_search": design.get("anchored_search"),
+                "rejected_short_candidates": rejected_pairs,
                 "validation": design["validation"],
                 "complete_oligo_structure": structure,
                 "boundary_restoration": {"forward_bp": f_offset, "reverse_bp": len(fragment["sequence"]) - r_end},
@@ -735,6 +784,8 @@ def plan_assembly(source_paths, intent, primer3_core=None,
         item.get("fragment") for item in primers
         if item.get("pcr_required", True) and
         not item.get("error") and item.get("backend") != "primer3-core"
+        and not (item.get("complete_oligo_validator") == "primer3-core"
+                 and item.get("complete_oligo_structure", {}).get("passed") is True)
     ]
     if unverified_primers:
         feasibility.setdefault("errors", []).append({
@@ -820,9 +871,9 @@ def plan_assembly(source_paths, intent, primer3_core=None,
             "enzymes": enzymes,
             "enzyme_crosschecks": enzyme_crosschecks,
             "digest_ligate_note": (
-                "planner validates site counts per fragment; sticky-end "
-                "compatibility and final ligated sequence are enforced by "
-                "simulate_cloning.digest_ligate"
+                "planner validates reaction-specific site counts; both declared enzymes, "
+                "sticky-end compatibility and final ligated sequence are enforced by "
+                "core.tools.assembly.simulate_digest_ligation"
                 if method == "digest-ligate" else None),
             "overlap_junctions": junctions,
             "alternatives": alternatives,

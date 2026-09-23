@@ -189,6 +189,7 @@ def ensure_primer3_core(explicit=None, auto_install=False, verbose=True):
             [sys.executable, "-m", "pip", "install", "primer3-py>=2.3.0"],
             capture_output=True,
             text=True,
+            encoding="utf-8", errors="replace",
             timeout=180,
             creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
         )

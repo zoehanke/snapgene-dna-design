@@ -10,6 +10,7 @@ Usage:
 import argparse
 import json
 import os
+import sys
 
 from Bio import SeqIO
 
@@ -20,7 +21,8 @@ SEQ_EXTS = (".dna", ".gb", ".genbank", ".fa", ".fasta", ".fna", ".fsa", ".embl",
 
 def list_files(directory):
     return [os.path.join(directory, f) for f in sorted(os.listdir(directory))
-            if os.path.splitext(f)[1].lower() in SEQ_EXTS]
+            if os.path.splitext(f)[1].lower() in SEQ_EXTS
+            and os.path.isfile(os.path.join(directory, f))]
 
 
 def op_parse(path):
@@ -75,8 +77,14 @@ def main():
         raise SystemExit("no sequence files found in %s" % args.directory)
 
     results = []
+    conflicts = {}
+    if args.op == "convert":
+        from convert import conversion_conflicts
+        conflicts = conversion_conflicts(files, args.directory, args.format)
     for f in files:
         try:
+            if f in conflicts:
+                raise ValueError(conflicts[f])
             if args.op == "parse":
                 results.append(op_parse(f))
             elif args.op == "validate":
@@ -89,8 +97,10 @@ def main():
             results.append({"file": f, "status": "error", "error": str(e)})
 
     report = {"op": args.op, "total": len(files), "results": results}
+    success = all(item.get("status") != "error" and not item.get("errors", 0)
+                  for item in results)
     if args.json:
-        sg_common.jprint(report)
+        sg_common.jprint(report, ok=success)
     else:
         print("batch %s: %d files" % (args.op, len(files)))
         for r in results:
@@ -104,7 +114,8 @@ def main():
                     r["file"], r["errors"], r["warnings"]))
             else:
                 print("  %s: %s" % (r["file"], json.dumps(r, ensure_ascii=False)[:120]))
+    return 0 if success else 1
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

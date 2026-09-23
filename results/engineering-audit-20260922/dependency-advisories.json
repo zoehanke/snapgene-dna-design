@@ -1,0 +1,59 @@
+{
+  "date": "2026-09-22",
+  "source": "https://api.osv.dev/v1/querybatch",
+  "scope": "pinned core requirements; no assertion of absence of unknown vulnerabilities",
+  "packages": [
+    {
+      "name": "attrs",
+      "version": "26.1.0"
+    },
+    {
+      "name": "biopython",
+      "version": "1.88"
+    },
+    {
+      "name": "html2text",
+      "version": "2025.4.15"
+    },
+    {
+      "name": "jsonschema",
+      "version": "4.26.0"
+    },
+    {
+      "name": "jsonschema-specifications",
+      "version": "2025.9.1"
+    },
+    {
+      "name": "numpy",
+      "version": "2.0.2"
+    },
+    {
+      "name": "primer3-py",
+      "version": "2.3.0"
+    },
+    {
+      "name": "referencing",
+      "version": "0.37.0"
+    },
+    {
+      "name": "rpds-py",
+      "version": "2026.6.3"
+    },
+    {
+      "name": "sgffp",
+      "version": "0.21.0"
+    },
+    {
+      "name": "snapgene_reader",
+      "version": "0.1.23"
+    },
+    {
+      "name": "typing_extensions",
+      "version": "4.16.0"
+    },
+    {
+      "name": "xmltodict",
+      "version": "1.0.4"
+    }
+  ]
+}

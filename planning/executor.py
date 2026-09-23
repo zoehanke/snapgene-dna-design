@@ -427,64 +427,51 @@ def _golden_gate_product(fragments, topology_value, enzymes):
 
 
 def _digest_ligate_product(fragments, topology_value, enzymes):
-    if len(fragments) != 2 or not enzymes:
+    if len(fragments) != 2 or len(enzymes or []) not in (1, 2):
         raise ExecutionError(
             "DIGEST_LIGATE_REQUIRES_VECTOR_INSERT",
-            "digest-ligate requires exactly one vector, one insert, and one enzyme",
+            "digest-ligate requires one vector, one insert, and one or two enzymes",
         )
-    from scripts.simulate_cloning import digest_ligate
+    if topology_value != "circular":
+        raise ExecutionError("DIGEST_PRODUCT_TOPOLOGY", "Plasmid digest-ligation produces a circular product")
+    from core.io.input_resolution import resolve_sequence_record
+    from core.tools.assembly import simulate_digest_ligation
+    from core.tools.sequence_ops import slice_record_interval
 
-    vector_source = fragments[0].get("_source_record")
-    vector_interval = fragments[0].get("source_interval", [0, 0])
-    if vector_source is not None:
-        if vector_interval != [0, len(vector_source.seq)]:
-            if vector_source.features:
-                raise ExecutionError(
-                    "DIGEST_VECTOR_FEATURE_MAPPING_UNSUPPORTED",
-                    "digest-ligate vector interval is not the complete annotated record",
-                    {"interval": vector_interval,
-                     "feature_count": len(vector_source.features)},
-                )
-            vector = _record(fragments[0]["name"], fragments[0]["sequence"], "circular")
+    records = []
+    for fragment in fragments:
+        pcr = fragment.get("_pcr_product")
+        if pcr is not None:
+            record = resolve_sequence_record(pcr)
         else:
-            vector = copy.deepcopy(vector_source)
-            vector.id = fragments[0]["name"]
-            vector.name = fragments[0]["name"]
-            vector.annotations["topology"] = "circular"
-    else:
-        vector = _record(fragments[0]["name"], fragments[0]["sequence"], "circular")
-    insert = _record(fragments[1]["name"], fragments[1]["sequence"], "linear")
+            source = fragment.get("_source_record")
+            if source is None:
+                raise ExecutionError("DIGEST_SOURCE_RECORD_REQUIRED", "Native digestion requires the actual source record")
+            start, end = fragment["source_interval"]
+            if start == 0 and end == len(source) and int(fragment.get("_extraction_strand") or 1) == 1:
+                record = copy.deepcopy(source)
+            else:
+                length = end-start if end >= start else len(source)-start+end
+                record = slice_record_interval(source, start, length, circular=source.annotations.get("topology") == "circular")
+                if int(fragment.get("_extraction_strand") or 1) == -1:
+                    record = record.reverse_complement(annotations=True)
+            if str(record.seq).upper() != fragment["sequence"].upper():
+                raise ExecutionError("DIGEST_FRAGMENT_RECORD_MISMATCH", "Selected fragment is not a contiguous physical digestion substrate")
+        record.id = fragment["name"]
+        records.append(record)
     try:
-        product, _parts, junctions = digest_ligate(vector, insert, enzymes[0])
+        result = simulate_digest_ligation(records[0], records[1], list(enzymes), orientation="forward")
     except Exception as error:
         code = getattr(error, "code", "DIGEST_LIGATE_EXECUTION_FAILED")
         raise ExecutionError(code, str(error), getattr(error, "details", {}))
-
-    feature_specs = [_feature_spec(feature) for feature in product.features]
-    # The simulator inserts the fragment at the vector top-cut boundary.  Add
-    # a simple insert feature only after the real product has been obtained.
-    insert_length = len(insert.seq)
-    insert_start = next((int(f.location.start) for f in product.features
-                         if f.qualifiers.get("label") == ["insert"]), 0)
-    insert_end = next((int(f.location.end) for f in product.features
-                       if f.qualifiers.get("label") == ["insert"]),
-                      insert_start + insert_length)
-    insert_feature = _misc_spec(
-        fragments[1]["name"],
-        insert_start, insert_end,
-        fragments[1]["role"], fragments[1]["source_path"])
-    feature_specs.append(insert_feature)
-    # Preserve complete insert annotations in product coordinates.  A clipped
-    # or compound feature is rejected rather than silently dropped.
-    feature_specs.extend(_overlap_source_specs(
-        fragments[1], insert_start, insert_length))
+    product = resolve_sequence_record(result)
     return {
         "sequence": str(product.seq).upper(),
-        "feature_specs": feature_specs,
-        "executor": "scripts.simulate_cloning.digest_ligate",
+        "feature_specs": [_feature_spec(feature) for feature in product.features],
+        "executor": "core.tools.assembly.simulate_digest_ligation",
         "status": "validated",
         "method": "digest-ligate",
-        "junctions": junctions,
+        "junctions": result["junctions"],
         "circular": True,
     }
 

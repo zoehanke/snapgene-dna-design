@@ -9,13 +9,15 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
+from Bio import SeqIO
+
 from evidence_trace.settings import get_level, set_level, settings_path
 from evidence_trace.recorder import Recorder, project, load_events
 from evidence_trace.coverage import extract_choices, match_choices
 from evidence_trace.runtime import traced_run, observe, TraceStopped
 
 ROOT = Path(__file__).resolve().parents[1]
-TEMPLATE = ROOT / "tests/data/pBP-eGFP.gb"
+TEMPLATE = ROOT / "fixtures/synthetic/pSynthetic-GFP.gb"
 
 
 class CaptureTests(unittest.TestCase):
@@ -152,10 +154,12 @@ class CaptureTests(unittest.TestCase):
             set_level(level)
             pipeline = self.path / level / "pipeline"
             result = execute_agent_pipeline("capture-pcr", [{"step_id": "pcr", "tool": "prepare_pcr_fragment",
-                "params": {"template": "$src", "start": 6, "end": 723, "name": "GFP"}}],
+                "params": {"template": "$src", "start": 6, "end": 723, "name": "trace_fragment"}}],
                 [{"source_id": "src", "path": str(TEMPLATE)}], out_dir=pipeline,
                 product_topology="linear", user_confirmed=True)
             self.assertEqual(result["status"], "delivered")
+            expected_fragment = str(SeqIO.read(str(TEMPLATE), 'genbank').seq[6:723])
+            self.assertEqual(str(SeqIO.read(str(pipeline / 'authoritative/construct.dna'), 'snapgene').seq), expected_fragment)
             recipe = self.path / level / "recipe"
             run_recipe_cli("site_directed_mutagenesis", {"template_seq_or_file": str(TEMPLATE),
                 "start_0based": 198, "end_0based": 201, "alt_seq": "CAT", "method": "inverse_pcr", "target_flank_bp": 25},

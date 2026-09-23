@@ -6,11 +6,15 @@ silently fabricated sequence.  CRISPOR upload requests reuse the hardened
 ``SequenceUploadConsent`` full-parameter authorization from dev3.
 """
 import hashlib
+import io
 import json
 import sys
 import urllib.error
 import urllib.parse
 import urllib.request
+
+from Bio import SeqIO
+from sg_common import normalize_dna
 
 from sequence_upload_consent import SequenceUploadConsent
 
@@ -70,16 +74,24 @@ def ncbi_search(term, database="nucleotide", retmax=5, timeout=20):
         })
         payload = json.loads(_get(
             "%s/esearch.fcgi?%s" % (NCBI_EUTILS, params), timeout))
+        if not isinstance(payload, dict) or not isinstance(payload.get("esearchresult"), dict):
+            raise ValueError("Invalid NCBI search response")
         ids = payload.get("esearchresult", {}).get("idlist", [])
+        if not isinstance(ids, list) or any(not isinstance(uid, str) for uid in ids):
+            raise ValueError("Invalid NCBI id list")
         if not ids:
             return {"status": "offline-unverified",
                     "reason": "NCBI returned no matching ids"}
         summary = json.loads(_get(
             "%s/esummary.fcgi?db=%s&id=%s&retmode=json"
             % (NCBI_EUTILS, database, ",".join(ids)), timeout))
+        if not isinstance(summary, dict) or not isinstance(summary.get("result"), dict):
+            raise ValueError("Invalid NCBI summary response")
         records = []
         for uid in ids:
             item = summary.get("result", {}).get(uid, {})
+            if not isinstance(item, dict) or not (item.get("caption") or item.get("accessionversion")):
+                raise ValueError("NCBI summary is missing record %s" % uid)
             records.append({
                 "id": uid,
                 "accession": item.get("caption") or item.get("accessionversion"),
@@ -103,9 +115,20 @@ def fetch_genbank(accession, timeout=30):
             "retmode": "text",
         })
         text = _get("%s/efetch.fcgi?%s" % (NCBI_EUTILS, params), timeout)
+        record = SeqIO.read(io.StringIO(text), "genbank")
+        sequence = normalize_dna(record.seq, "NCBI GenBank sequence")
+        requested = str(accession).strip()
+        # Numeric UIDs may resolve to an accession. Accession queries must
+        # match the actual returned record, including an explicitly requested version.
+        if not requested.isdigit():
+            matches = record.id == requested if "." in requested else record.id.split(".")[0] == requested
+            if not matches:
+                raise ValueError("Returned accession does not match requested accession")
         return {"status": "verified-online", "accession": accession,
+                "resolved_accession": record.id, "sequence_length": len(sequence),
+                "verification_scope": "One parsed non-empty GenBank DNA record; no experimental or scientific validation.",
                 "format": "genbank", "text": text}
-    except (urllib.error.URLError, TimeoutError, OSError) as error:
+    except (urllib.error.URLError, TimeoutError, OSError, ValueError) as error:
         return {"status": "offline-unverified",
                 "reason": "NCBI efetch failed: %s" % error}
 
@@ -176,17 +199,19 @@ def authorized_blast_url(consent, sequence, purpose, scope):
     The raw sequence is placed in the URL only when `consent.allowed(...)`
     returns True for the exact destination/purpose/sequence/scope tuple.
 
-    Limitation: the current build submits only the first 100 nt in the URL
-    (NCBI BLAST URL practical limit); longer submissions require a
-    credentialed BLAST client / file upload, which is not implemented.
+    Limitation: this link helper supports at most 100 nt. Larger sequences
+    are refused rather than silently searching only a prefix.
     """
     normalized = _normalize_sequence(sequence)
+    if len(normalized) > 100:
+        return {"status": "unsupported", "reason": "BLAST_URL_SEQUENCE_TOO_LONG_USE_FILE_UPLOAD",
+                "url": None, "contains_sequence": False}
     if consent is None or not consent.allowed(BLAST_URL, purpose, normalized,
                                               scope):
         return {"status": "denied", "reason": "BLAST_CONSENT_REQUIRED",
                 "url": None, "contains_sequence": False}
     normalized = _normalize_sequence(sequence)
-    query = urllib.parse.quote(normalized[:100], safe="")
+    query = urllib.parse.quote(normalized, safe="")
     return {
         "status": "authorized",
         "reason": "one-time bound consent verified",

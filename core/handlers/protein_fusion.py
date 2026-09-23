@@ -3,16 +3,14 @@
 from __future__ import annotations
 
 import hashlib
-import pathlib
 
-from Bio import SeqIO
 from Bio.Seq import Seq
-from Bio.SeqFeature import FeatureLocation, SeqFeature
 from Bio.SeqRecord import SeqRecord
 
 from core.errors import PlanningError, TaskValidationError
 from core.evidence_chain import validate_goal_components
-from core.handlers.base import TaskHandler
+from core.handlers.base import TaskHandler, record_slice, product_features
+from core.io.input_resolution import resolve_sequence_record
 from core.interval import extract_interval
 
 _STOP_CODONS = ("TAA", "TAG", "TGA")
@@ -81,7 +79,7 @@ class ProteinFusionHandler(TaskHandler):
         # 5' partner
         p5_spec = op["partner5"]
         s5 = source_map[p5_spec["source_id"]]
-        r5 = SeqIO.read(s5["_resolved_path"], "genbank" if s5["_resolved_path"].lower().endswith((".gb", ".gbk")) else "fasta")
+        r5 = resolve_sequence_record(s5["_resolved_path"])
         p5_s0, p5_e0 = int(p5_spec["interval_0based"][0]), int(p5_spec["interval_0based"][1])
         if p5_s0 < 0 or p5_e0 < 0 or p5_s0 > len(r5) or p5_e0 > len(r5) or p5_s0 >= p5_e0:
             raise PlanningError("FUSION_PARTNER_INTERVAL_OUT_OF_RANGE", "partner5 interval outside source length")
@@ -90,7 +88,7 @@ class ProteinFusionHandler(TaskHandler):
         # 3' partner
         p3_spec = op["partner3"]
         s3 = source_map[p3_spec["source_id"]]
-        r3 = SeqIO.read(s3["_resolved_path"], "genbank" if s3["_resolved_path"].lower().endswith((".gb", ".gbk")) else "fasta")
+        r3 = resolve_sequence_record(s3["_resolved_path"])
         p3_s0, p3_e0 = int(p3_spec["interval_0based"][0]), int(p3_spec["interval_0based"][1])
         if p3_s0 < 0 or p3_e0 < 0 or p3_s0 > len(r3) or p3_e0 > len(r3) or p3_s0 >= p3_e0:
             raise PlanningError("FUSION_PARTNER_INTERVAL_OUT_OF_RANGE", "partner3 interval outside source length")
@@ -137,6 +135,11 @@ class ProteinFusionHandler(TaskHandler):
             raise PlanningError("FUSION_PARTNER3_NOT_IN_FRAME", "partner3 is not a multiple of 3 nt")
 
         product = p5_stripped + linker_dna + p3_final
+        part5 = record_slice(r5, p5_s0, p5_e0, int(p5_spec.get("strand", 1)))
+        part3 = record_slice(r3, p3_s0, p3_e0, int(p3_spec.get("strand", 1)))
+        part5 = record_slice(part5, 0, len(p5_stripped))
+        part3 = record_slice(part3, 0, len(p3_final))
+        product_record = part5 + SeqRecord(Seq(linker_dna)) + part3
 
         expected_components = [
             {
@@ -221,6 +224,7 @@ class ProteinFusionHandler(TaskHandler):
             "sources": [s5, s3],
             "product_topology": "linear",
             "product_sequence": product,
+            "product_features": product_features(product_record, product),
             "product_sequence_sha256": hashlib.sha256(product.encode("utf-8")).hexdigest().upper(),
             "expected_components": expected_components,
             "forbidden_components": list(task.get("product", {}).get("forbidden_components", [])),
@@ -246,47 +250,6 @@ class ProteinFusionHandler(TaskHandler):
             ],
         }
 
-    def execute(self, task: dict, plan: dict, out_dir: pathlib.Path) -> dict:
-        out_dir.mkdir(parents=True, exist_ok=True)
-        seq_str = plan["product_sequence"]
-        prod_rec = SeqRecord(
-            Seq(seq_str),
-            id=task["task_id"],
-            name="fusion_construct",
-            description=f"Protein fusion construct from {task['task_id']}",
-        )
-        prod_rec.annotations["molecule_type"] = "DNA"
-        prod_rec.annotations["topology"] = "linear"
-
-        # Add fused CDS feature
-        prod_rec.features.append(
-            SeqFeature(
-                FeatureLocation(0, len(seq_str), strand=1),
-                type="CDS",
-                qualifiers={"label": ["fused_protein"], "translation": [str(Seq(seq_str).translate(to_stop=False))]},
-            )
-        )
-
-        gb_path = out_dir / "construct.gb"
-        with open(gb_path, "w", encoding="utf-8") as fh:
-            SeqIO.write(prod_rec, fh, "genbank")
-
-        fa_path = out_dir / "construct.fasta"
-        fa_path.write_text(f">{task['task_id']}\n{seq_str}\n", encoding="utf-8")
-
-        artifact_hashes = {
-            "construct.gb": hashlib.sha256(gb_path.read_bytes()).hexdigest().upper(),
-            "construct.fasta": hashlib.sha256(fa_path.read_bytes()).hexdigest().upper(),
-        }
-
-        return {
-            "artifact_class": "intermediate",
-            "method_maturity": self.method_maturity,
-            "product_gb": str(gb_path),
-            "product_fasta": str(fa_path),
-            "artifact_hashes": artifact_hashes,
-            "product_sequence_sha256": plan["product_sequence_sha256"],
-        }
 
     def recompute(self, task: dict, plan: dict) -> str:
         """Independently recompute protein fusion sequence from sources and operations."""
@@ -295,14 +258,14 @@ class ProteinFusionHandler(TaskHandler):
 
         p5_spec = op["partner5"]
         s5 = sources_by_id[p5_spec["source_id"]]
-        r5 = SeqIO.read(s5["_resolved_path"], "genbank" if s5["_resolved_path"].lower().endswith((".gb", ".gbk")) else "fasta")
+        r5 = resolve_sequence_record(s5["_resolved_path"])
         p5_s0, p5_e0 = p5_spec.get("interval_0based", [0, len(r5.seq)])
         p5 = extract_interval(r5, p5_s0, p5_e0, topology=s5.get("topology", "linear"), strand=int(p5_spec.get("strand", 1)), whole_record_approved=True).upper()
         p5_stripped = p5[:-3] if p5[-3:].upper() in _STOP_CODONS else p5
 
         p3_spec = op["partner3"]
         s3 = sources_by_id[p3_spec["source_id"]]
-        r3 = SeqIO.read(s3["_resolved_path"], "genbank" if s3["_resolved_path"].lower().endswith((".gb", ".gbk")) else "fasta")
+        r3 = resolve_sequence_record(s3["_resolved_path"])
         p3_s0, p3_e0 = p3_spec.get("interval_0based", [0, len(r3.seq)])
         p3 = extract_interval(r3, p3_s0, p3_e0, topology=s3.get("topology", "linear"), strand=int(p3_spec.get("strand", 1)), whole_record_approved=True).upper()
         p3_final = p3[:-3] if (op["stop_policy"] == "no-stop" and p3[-3:].upper() in _STOP_CODONS) else p3

@@ -61,10 +61,28 @@ def extract_choices(design, prefix="", subject="design"):
 
 def normalize(value):
     if isinstance(value, dict) and "source_path" in value:
-        value = value["source_path"]
+        return {**value, "source_path": normalize(value["source_path"])}
     if isinstance(value, str) and ("/" in value or "\\" in value):
         return os.path.normcase(os.path.normpath(value)).replace("\\", "/")
     return value
+
+
+def source_match(expected, observed):
+    """Compare declared identity, keeping a path match distinct from a version match."""
+    file_like = any((isinstance(v, dict) and 'source_path' in v) or
+                    (isinstance(v, str) and ('/' in v or '\\' in v or v.lower().endswith(('.gb', '.gbk', '.dna', '.fa', '.fasta'))))
+                    for v in (expected, observed))
+    if not file_like:
+        return normalize(expected) == normalize(observed), 'not_versioned'
+    def identity(value):
+        return (normalize(value.get('source_path')), value.get('source_sha256')) if isinstance(value, dict) else (normalize(value), None)
+    old_path, old_hash = identity(expected)
+    new_path, new_hash = identity(observed)
+    if old_path != new_path:
+        return False, 'different_path'
+    if isinstance(old_hash, str) and old_hash and isinstance(new_hash, str) and new_hash:
+        return old_hash.lower() == new_hash.lower(), 'matched' if old_hash.lower() == new_hash.lower() else 'different_version'
+    return True, 'unknown'
 
 
 def match_choices(choices, decisions):
@@ -72,6 +90,7 @@ def match_choices(choices, decisions):
     output = []
     for choice in choices:
         candidates = []
+        version_states = []
         for decision in decisions:
             target = decision.get("targets") or {}
             targets = target if isinstance(target, list) else [target]
@@ -87,9 +106,11 @@ def match_choices(choices, decisions):
                 if not matches_field:
                     continue
                 expected = t.get("value", t.get(field, t.get("file") if choice["choice_kind"] == "source" else None))
-                exact = expected is not None and normalize(expected) == normalize(choice["value"])
-                if expected is not None and not exact:
+                same, version = source_match(expected, choice['value']) if choice['choice_kind'] == 'source' else (normalize(expected) == normalize(choice['value']), 'not_versioned')
+                version_states.append(version)
+                if expected is not None and not same:
                     continue
+                exact = expected is not None and same and version != 'unknown'
                 ambiguous_scope = not scope and sum(c["parameter"] == field and normalize(c["value"]) == normalize(choice["value"]) for c in choices) > 1 and parameter != choice["input_path"]
                 candidates.append((decision, exact and not ambiguous_scope))
         matched = [d for d, ok in candidates if ok]
@@ -97,12 +118,19 @@ def match_choices(choices, decisions):
         associated = list(dict.fromkeys(d["key"] for d, _ in candidates))
         status = "explained" if exact else "needs review" if candidates else "unexplained design choice"
         provenance = [{"decision_ref": d["key"], **decision_provenance(d)} for d in matched]
+        version_state = next((v for v in ('matched', 'unknown', 'different_version', 'different_path') if v in version_states), 'not_established')
+        reason = "明确目标和值匹配且有已提交说明；来源另列" if exact else "仅字段关联、作用域含糊或缺 rationale" if candidates else "没有可可靠关联的 Decision.targets；未补造解释"
+        if not matched and version_state == 'unknown':
+            reason = '路径关联成立，但文件版本信息不足；未认定为同一版本'
+        elif not matched and version_state == 'different_version':
+            reason = '文件路径相同，但观察到的版本与声明目标版本不同'
         output.append({**choice, "status": status, "decision_refs": associated,
+                       "source_version_match": version_state,
                        "target_match": "matched" if matched else "ambiguous" if candidates else "unmatched",
                        "matched_decision_refs": list(dict.fromkeys(d["key"] for d in matched)),
                        "explanation_provenance": provenance,
                        "original_explanation_recorded": any(p["original_explanation_recorded"] for p in provenance),
-                       "reason": "明确目标和值匹配且有已提交说明；来源另列" if exact else "仅字段关联、作用域含糊或缺 rationale" if candidates else "没有可可靠关联的 Decision.targets；未补造解释"})
+                       "reason": reason})
     return output
 
 

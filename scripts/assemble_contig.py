@@ -10,22 +10,11 @@ to reconstruct read membership.
 """
 import argparse
 
-from Bio import SeqIO
-from Bio.Seq import Seq
-
-from sg_common import jprint, load_seq
+from sg_common import jprint, load_sequence_records
 
 
 def load_reads(paths):
-    reads = []
-    for path in paths:
-        try:
-            for rec in SeqIO.parse(path, "fasta"):
-                reads.append((rec.id, str(rec.seq).upper()))
-        except Exception:
-            rec, _ = load_seq(path)
-            reads.append((rec.id or "read", str(rec.seq).upper()))
-    return reads
+    return [(rec.id, str(rec.seq)) for rec in load_sequence_records(paths)]
 
 
 def best_overlap(a, b, min_overlap):
@@ -43,10 +32,11 @@ def best_overlap(a, b, min_overlap):
 
 
 def assemble(reads, min_overlap=20):
-    """Greedy assembly. Returns (contigs, placements)."""
-    remaining = dict(reads)
-    contigs = []  # each: (id, sequence)
-    placements = []  # dict read_id -> (contig_idx, start0, strand)
+    """Greedy exact, same-strand assembly. Returns (id, sequence) pairs."""
+    if min_overlap < 1:
+        raise ValueError("min_overlap must be positive")
+    if not reads or any(not seq for _id, seq in reads):
+        raise ValueError("non-empty reads are required")
 
     # iterative greedy merge
     # work with a list of fragments (id -> seq); merge into larger fragments
@@ -103,6 +93,8 @@ def main():
     contigs = assemble(reads, args.min_overlap)
 
     result = {
+        "method": "greedy-exact-same-strand-overlap",
+        "limitations": ["No read quality or error correction; reverse-complement reads are not inferred."],
         "read_count": len(reads),
         "contig_count": len(contigs),
         "contigs": [{"id": cid, "length": len(seq), "sequence": seq}

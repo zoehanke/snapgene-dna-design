@@ -218,6 +218,42 @@ def load_seq(source):
     return rec, "raw"
 
 
+def load_sequence_records(paths):
+    """Read multi-FASTA or individual supported records without losing inputs.
+
+    Files with another known format use the canonical single-record reader.
+    Unknown suffixes are probed as FASTA, then by that reader. All handles
+    are owned here, including parser failures on Windows.
+    """
+    records = []
+    for path in paths:
+        suffix = pathlib.Path(path).suffix.lower()
+        if suffix in {".dna", ".gb", ".genbank", ".embl", ".emb"}:
+            loaded = [load_seq(str(path))[0]]
+        else:
+            try:
+                try:
+                    with open(path, "r", encoding="utf-8-sig") as handle:
+                        loaded = list(SeqIO.parse(handle, "fasta"))
+                except UnicodeDecodeError:
+                    with open(path, "r", encoding="latin-1") as handle:
+                        loaded = list(SeqIO.parse(handle, "fasta"))
+            except ValueError:
+                if suffix in {".fa", ".fasta", ".fna", ".fsa"}:
+                    raise
+                loaded = [load_seq(str(path))[0]]
+            if not loaded and suffix not in {".fa", ".fasta", ".fna", ".fsa"}:
+                loaded = [load_seq(str(path))[0]]
+        if not loaded:
+            raise ValueError("No sequence records in %s" % path)
+        for record in loaded:
+            record.seq = Seq(normalize_dna(record.seq, "%s in %s" % (record.id, path)))
+        records.extend(loaded)
+    if not records:
+        raise ValueError("No sequence records supplied")
+    return records
+
+
 def features_to_dict(record):
     """Serialize features with both legacy and lossless v0.3 locations."""
     # Lazy import avoids making the canonical model depend on file I/O helpers.

@@ -335,6 +335,9 @@ def validate_rule(rule, persistent=False):
     status = rule.get("status", "pending")
     if status not in ALLOWED_STATUSES:
         errors.append("unsupported status: %s" % status)
+    version = rule.get("version", 1)
+    if isinstance(version, bool) or not isinstance(version, int) or version < 1:
+        errors.append("version must be a positive integer")
     errors.extend(validate_condition(rule.get("when"), "when"))
     action = rule.get("action")
     if not isinstance(action, dict) or action.get("type") not in ALLOWED_ACTIONS:

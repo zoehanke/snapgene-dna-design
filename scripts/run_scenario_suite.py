@@ -694,6 +694,9 @@ def scenarios():
                  {"name":"i","file":"i.gb","length":400,"seq":"GGTCTC"+flanked(380,80)}],
         intent={"method":"golden_gate","backbone":{"source":0},"fragments":[{"source":1,"interval":[0,400]}]})
     # --- F release-iteration expansion: digest-ligate ---
+    # Whole supplied inserts include both enzyme sites. Earlier hard-coded
+    # ends were two bases short of their actual sequences; keep that fault
+    # as a negative regression, not as the intended positive cloning input.
     add("plan", "S63", "NEB traditional cloning: restriction enzyme digest + ligation protocol",
         "EcoRI/BamHI 经典酶切连接", "classic digest-ligation with unique sites",
         sources=[{"name":"v","file":"v.gb","length":900,"seed":81,
@@ -701,7 +704,7 @@ def scenarios():
                  {"name":"i","file":"i.gb","length":500,"seed":82,
                   "seq":"GAATTC"+flanked(450,82)+"GGATCC"}],
         intent={"method":"digest-ligate","enzymes":["EcoRI","BamHI"],
-                "backbone":{"source":0},"fragments":[{"source":1,"interval":[0,500]}]})
+                "backbone":{"source":0},"fragments":[{"source":1}]})
     add("plan", "S64", "Addgene protocol: plasmid cloning by restriction enzyme digest (https://www.addgene.org/protocols/subcloning/)",
         "HindIII/XbaI 双酶切连接", "Addgene restriction subcloning",
         sources=[{"name":"v","file":"v.gb","length":900,"seed":83,
@@ -709,7 +712,7 @@ def scenarios():
                  {"name":"i","file":"i.gb","length":400,"seed":84,
                   "seq":"AAGCTT"+flanked(350,84)+"TCTAGA"}],
         intent={"method":"digest-ligate","enzymes":["HindIII","XbaI"],
-                "backbone":{"source":0},"fragments":[{"source":1,"interval":[0,400]}]})
+                "backbone":{"source":0},"fragments":[{"source":1}]})
     add("plan", "S65", "Green & Sambrook 2012, Molecular Cloning: A Laboratory Manual (4th ed.), CSHL Press",
         "双酶切定向克隆（手册标准流程）", "Molecular Cloning directional ligation",
         sources=[{"name":"v","file":"v.gb","length":1000,"seed":85,
@@ -717,7 +720,7 @@ def scenarios():
                  {"name":"i","file":"i.gb","length":350,"seed":86,
                   "seq":"GGATCC"+flanked(300,86)+"CTCGAG"}],
         intent={"method":"digest-ligate","enzymes":["BamHI","XhoI"],
-                "backbone":{"source":0},"fragments":[{"source":1,"interval":[0,350]}]})
+                "backbone":{"source":0},"fragments":[{"source":1}]})
     # --- G release-iteration expansion: SOEing / overlap fusion ---
     add("plan", "S66", "Ho et al. 1989, Gene 77:51-59, DOI 10.1016/0378-1119(89)90358-2",
         "SOEing 基因剪接融合", "gene splicing by overlap extension",
@@ -1053,6 +1056,7 @@ def run_all(out_dir):
     print("PASS %d / FAIL %d / total %d" % (
         sum(r["status"] == "PASS" for r in results),
         sum(r["status"] == "FAIL" for r in results), len(results)))
+    return results
 
 
 def render_markdown(results):
@@ -1100,8 +1104,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--out-dir", default=str(ROOT / "reports" / "scenarios"))
     args = parser.parse_args()
-    run_all(args.out_dir)
-    return 0
+    results = run_all(args.out_dir)
+    return 0 if results and all(row['status'] == 'PASS' for row in results) else 1
 
 
 if __name__ == "__main__":

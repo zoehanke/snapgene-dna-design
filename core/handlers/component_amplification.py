@@ -3,17 +3,15 @@
 from __future__ import annotations
 
 import hashlib
-import pathlib
 from typing import TYPE_CHECKING
 
-from Bio import SeqIO
 from Bio.Seq import Seq
-from Bio.SeqFeature import FeatureLocation, SeqFeature
 from Bio.SeqRecord import SeqRecord
 
 from core.errors import PlanningError, TaskValidationError
 from core.evidence_chain import check_backbone_contamination, validate_goal_components
-from core.handlers.base import TaskHandler
+from core.handlers.base import TaskHandler, record_slice, product_features
+from core.io.input_resolution import resolve_sequence_record
 from core.interval import extract_interval, validate_interval
 
 if TYPE_CHECKING:
@@ -64,7 +62,7 @@ class ComponentAmplificationHandler(TaskHandler):
     def plan(self, task: dict) -> dict:
         self.validate_contract(task)
         tmpl = [s for s in task["sources"] if s["role"] == "template"][0]
-        record = SeqIO.read(tmpl["_resolved_path"], "genbank" if tmpl["_resolved_path"].lower().endswith((".gb", ".gbk")) else "fasta")
+        record = resolve_sequence_record(tmpl["_resolved_path"])
         topology = tmpl.get("topology", "linear")
         n = len(record)
 
@@ -145,27 +143,6 @@ class ComponentAmplificationHandler(TaskHandler):
 
             feature_type = found.type
             qualifiers = dict(found.qualifiers)
-            if feature_type == "CDS":
-                starts = ("ATG", "CTG", "TTG")
-                stops = ("TAA", "TAG", "TGA")
-                is_complete_orf = (
-                    extracted[:3].upper() in starts
-                    and extracted[-3:].upper() in stops
-                    and len(extracted) % 3 == 0
-                )
-                if is_complete_orf:
-                    try:
-                        table_num = int(qualifiers.get("transl_table", ["11"])[0])
-                    except ValueError:
-                        table_num = 11
-                    try:
-                        translation = str(Seq(extracted).translate(table=table_num, to_stop=False))
-                        qualifiers["translation"] = [translation]
-                    except Exception:
-                        feature_type = "gene"
-                else:
-                    feature_type = "gene"
-                    qualifiers.pop("translation", None)
 
             sel_dict = {
                 "kind": "feature",
@@ -186,6 +163,8 @@ class ComponentAmplificationHandler(TaskHandler):
         right_tail = arms.get("right_arm") or ""
 
         final_seq = left_tail.upper() + extracted.upper() + right_tail.upper()
+        selected_record = record_slice(record, s0, e0, sel_dict["strand"])
+        product_record = SeqRecord(Seq(left_tail.upper())) + selected_record + SeqRecord(Seq(right_tail.upper()))
 
         expected_components = []
         # Find features inside the extracted interval in template
@@ -218,7 +197,7 @@ class ComponentAmplificationHandler(TaskHandler):
                 "source_sha256": tmpl["sha256"],
                 "interval_0based": sel_dict.get("interval_0based"),
                 "strand": sel_dict.get("strand", 1),
-                "transformation": "PCR amplification",
+                "transformation": "selected component extraction; primer preparation not modeled",
                 "expected_sequence": extracted,
                 "product_interval_0based": [len(left_tail), len(left_tail) + len(extracted)],
             })
@@ -235,6 +214,7 @@ class ComponentAmplificationHandler(TaskHandler):
             "component_length": len(extracted),
             "product_topology": "linear",
             "product_sequence": final_seq,
+            "product_features": product_features(product_record, final_seq),
             "product_sequence_sha256": hashlib.sha256(final_seq.encode("utf-8")).hexdigest().upper(),
             "expected_components": expected_components,
             "forbidden_components": list(task.get("product", {}).get("forbidden_components", [])),
@@ -254,62 +234,11 @@ class ComponentAmplificationHandler(TaskHandler):
             ],
         }
 
-    def execute(self, task: dict, plan: dict, out_dir: pathlib.Path) -> dict:
-        out_dir.mkdir(parents=True, exist_ok=True)
-        seq_str = plan["product_sequence"]
-        prod_rec = SeqRecord(
-            Seq(seq_str),
-            id=task["task_id"],
-            name="amplified_component",
-            description=f"PCR product from {task['task_id']}",
-        )
-        prod_rec.annotations["molecule_type"] = "DNA"
-        prod_rec.annotations["topology"] = "linear"
-
-        # Transfer features from selection if feature qualifiers or migrated features exist
-        sel = plan.get("selection", {})
-        left_len = len(task.get("operation", {}).get("homology_arms", {}).get("left_arm", ""))
-        if sel.get("qualifiers"):
-            s_len = len(sel.get("extracted_sequence", ""))
-            feat = SeqFeature(
-                FeatureLocation(left_len, left_len + s_len, strand=1),
-                type=sel.get("feature_type", "misc_feature"),
-                qualifiers=sel.get("qualifiers"),
-            )
-            prod_rec.features.append(feat)
-        for f_dict in sel.get("features", []):
-            feat = SeqFeature(
-                FeatureLocation(left_len + f_dict["start"], left_len + f_dict["end"], strand=f_dict.get("strand", 1)),
-                type=f_dict.get("type", "misc_feature"),
-                qualifiers=f_dict.get("qualifiers", {}),
-            )
-            prod_rec.features.append(feat)
-
-        gb_path = out_dir / "construct.gb"
-        with open(gb_path, "w", encoding="utf-8") as fh:
-            SeqIO.write(prod_rec, fh, "genbank")
-
-        fa_path = out_dir / "construct.fasta"
-        fa_path.write_text(f">{task['task_id']}\n{seq_str}\n", encoding="utf-8")
-
-        artifact_hashes = {
-            "construct.gb": hashlib.sha256(gb_path.read_bytes()).hexdigest().upper(),
-            "construct.fasta": hashlib.sha256(fa_path.read_bytes()).hexdigest().upper(),
-        }
-
-        return {
-            "artifact_class": "intermediate",
-            "method_maturity": self.method_maturity,
-            "product_gb": str(gb_path),
-            "product_fasta": str(fa_path),
-            "artifact_hashes": artifact_hashes,
-            "product_sequence_sha256": plan["product_sequence_sha256"],
-        }
 
     def recompute(self, task: dict, plan: dict) -> str:
         """Independently recompute amplified component sequence from source record and task operations."""
         tmpl = [s for s in task["sources"] if s["role"] == "template"][0]
-        record = SeqIO.read(tmpl["_resolved_path"], "genbank" if tmpl["_resolved_path"].lower().endswith((".gb", ".gbk")) else "fasta")
+        record = resolve_sequence_record(tmpl["_resolved_path"])
         topology = tmpl.get("topology", "linear")
         n = len(record)
 

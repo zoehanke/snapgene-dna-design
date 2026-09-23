@@ -3,15 +3,13 @@
 from __future__ import annotations
 
 import hashlib
-import pathlib
 
-from Bio import SeqIO
-from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
 from core.errors import PlanningError, TaskValidationError
 from core.evidence_chain import validate_goal_components
-from core.handlers.base import TaskHandler
+from core.handlers.base import TaskHandler, record_slice, product_features, overlap_record
+from core.io.input_resolution import resolve_sequence_record
 from core.interval import extract_interval
 
 
@@ -93,12 +91,13 @@ class OverlapAssemblyHandler(TaskHandler):
         source_map = {s["source_id"]: s for s in task["sources"]}
 
         extracted_frags = []
+        fragment_records = []
         for spec in frags_spec:
             sid = spec["source_id"]
             if sid not in source_map:
                 raise PlanningError("SOURCE_ID_NOT_FOUND", f"source {sid} not in task sources")
             src = source_map[sid]
-            rec = SeqIO.read(src["_resolved_path"], "genbank" if src["_resolved_path"].lower().endswith((".gb", ".gbk")) else "fasta")
+            rec = resolve_sequence_record(src["_resolved_path"])
             interval = spec["interval_0based"]
             s0, e0 = int(interval[0]), int(interval[1])
             if s0 < 0 or e0 < 0 or s0 > len(rec) or e0 > len(rec) or s0 >= e0:
@@ -109,6 +108,7 @@ class OverlapAssemblyHandler(TaskHandler):
                 raise PlanningError("FRAGMENT_SEQUENCE_EMPTY", f"fragment {sid} resolved to an empty sequence")
             if len(seq) <= overlap:
                 raise PlanningError("OVERLAP_TOO_LONG", f"fragment {sid} length {len(seq)} is not longer than overlap {overlap}")
+            fragment_records.append(record_slice(rec, s0, e0, strand))
             extracted_frags.append({
                 "source_id": sid,
                 "source_sha256": src["sha256"],
@@ -120,6 +120,7 @@ class OverlapAssemblyHandler(TaskHandler):
 
         circular = (task.get("product", {}).get("topology") == "circular")
         assembled_seq, junctions = _assemble_overlap(extracted_frags, overlap, circular)
+        product_record = overlap_record(fragment_records, assembled_seq, overlap, circular)
 
         expected_components = []
         for i, f in enumerate(extracted_frags):
@@ -146,6 +147,7 @@ class OverlapAssemblyHandler(TaskHandler):
             "junctions": junctions,
             "product_topology": "circular" if circular else "linear",
             "product_sequence": assembled_seq,
+            "product_features": product_features(product_record, assembled_seq),
             "product_sequence_sha256": hashlib.sha256(assembled_seq.encode("utf-8")).hexdigest().upper(),
             "expected_components": expected_components,
             "forbidden_components": list(task.get("product", {}).get("forbidden_components", [])),
@@ -161,38 +163,6 @@ class OverlapAssemblyHandler(TaskHandler):
             ],
         }
 
-    def execute(self, task: dict, plan: dict, out_dir: pathlib.Path) -> dict:
-        out_dir.mkdir(parents=True, exist_ok=True)
-        seq_str = plan["product_sequence"]
-        prod_rec = SeqRecord(
-            Seq(seq_str),
-            id=task["task_id"],
-            name="overlap_construct",
-            description=f"Overlap assembly construct from {task['task_id']}",
-        )
-        prod_rec.annotations["molecule_type"] = "DNA"
-        prod_rec.annotations["topology"] = plan["product_topology"]
-
-        gb_path = out_dir / "construct.gb"
-        with open(gb_path, "w", encoding="utf-8") as fh:
-            SeqIO.write(prod_rec, fh, "genbank")
-
-        fa_path = out_dir / "construct.fasta"
-        fa_path.write_text(f">{task['task_id']}\n{seq_str}\n", encoding="utf-8")
-
-        artifact_hashes = {
-            "construct.gb": hashlib.sha256(gb_path.read_bytes()).hexdigest().upper(),
-            "construct.fasta": hashlib.sha256(fa_path.read_bytes()).hexdigest().upper(),
-        }
-
-        return {
-            "artifact_class": "intermediate",
-            "method_maturity": self.method_maturity,
-            "product_gb": str(gb_path),
-            "product_fasta": str(fa_path),
-            "artifact_hashes": artifact_hashes,
-            "product_sequence_sha256": plan["product_sequence_sha256"],
-        }
 
     def recompute(self, task: dict, plan: dict) -> str:
         """Independently recompute assembled overlap sequence from sources and operations."""
@@ -204,7 +174,7 @@ class OverlapAssemblyHandler(TaskHandler):
         extracted_frags = []
         for i, f in enumerate(frags):
             src = sources_by_id[f["source_id"]]
-            rec = SeqIO.read(src["_resolved_path"], "genbank" if src["_resolved_path"].lower().endswith((".gb", ".gbk")) else "fasta")
+            rec = resolve_sequence_record(src["_resolved_path"])
             s0, e0 = f["interval_0based"]
             seq = extract_interval(rec, s0, e0, topology=src.get("topology", "linear"), strand=f.get("strand", 1), whole_record_approved=True)
             extracted_frags.append({"sequence": seq})

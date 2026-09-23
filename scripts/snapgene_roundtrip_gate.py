@@ -25,14 +25,16 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 from core import execute, finalize, plan, validate  # noqa: E402
 
-SNAPGENE = r"D:\SnapGene\SnapGene.exe"
+from core.tools.snapgene_io import find_snapgene_executable
+
+SNAPGENE = str(find_snapgene_executable() or "SnapGene")
 
 
 def roundtrip(path, fmt="snapgene-gb"):
     cp = subprocess.run(
         [sys.executable, "-X", "utf8", "-B",
          str(ROOT / "scripts" / "validate_roundtrip.py"), str(path),
-         "--format", fmt, "--snapgene-exe", SNAPGENE, "--json"],
+         "--format", fmt, "--snapgene-exe", SNAPGENE, "--require-snapgene", "--json"],
         capture_output=True, text=True, encoding="utf-8", errors="replace")
     try:
         return json.loads(cp.stdout)["data"]
@@ -108,13 +110,15 @@ def main():
                 dna, "snapgene-gb")
     out = (ROOT / "reports" / "v0.9.1-architecture-recovery" / "gates" /
            "snapgene_official_roundtrip.json")
+    out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(report, ensure_ascii=False, indent=2),
                    encoding="utf-8")
     print(json.dumps({
         k: {"core_passed": v.get("core_passed"),
             "strict_passed": v.get("strict_passed")}
         for k, v in report["cases"].items()}, ensure_ascii=False, indent=1))
-    return 0
+    return 0 if report['cases'] and all(case.get('core_passed') is True
+                                        for case in report['cases'].values()) else 1
 
 
 if __name__ == "__main__":

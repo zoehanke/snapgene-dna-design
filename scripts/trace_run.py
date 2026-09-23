@@ -7,6 +7,7 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from evidence_trace.runtime import trace_file_call, TraceStopped
+from evidence_trace.models import command_snapshot, snapshot
 
 
 def main():
@@ -23,7 +24,12 @@ def main():
         parser.error('Provide a command after --')
     def execute(argv):
         # No shell interpolation. The command's own stdout/stderr remain visible.
-        result = subprocess.run(argv, encoding='utf-8', errors='replace', check=True)
+        try:
+            result = subprocess.run(argv, encoding='utf-8', errors='replace', check=True)
+        except subprocess.CalledProcessError as exc:
+            # CalledProcessError embeds argv in its text. Never journal credentials
+            # through an error after successfully redacting the input observation.
+            raise subprocess.CalledProcessError(exc.returncode, snapshot(command_snapshot(argv))) from None
         return {'exit_code': result.returncode}
     try:
         trace_file_call('local_command', execute, args=(command,), trace_dir=args.trace_dir,

@@ -160,7 +160,7 @@ class ChainTests(unittest.TestCase):
 
     def test_normal_phase2_failures_preserve_actual_authoritative_dna(self):
         from agent.pipeline_agent import execute_agent_pipeline
-        template = Path(__file__).resolve().parent / "data/pBP-eGFP.gb"
+        template = Path(__file__).resolve().parents[1] / "fixtures/synthetic/pSynthetic-GFP.gb"
         self.recorder.link({"statement_id": "E", "claim_id": "C", "relation": "support"})
         def run(out, **options):
             return execute_agent_pipeline("phase2-fault", [

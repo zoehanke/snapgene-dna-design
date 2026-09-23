@@ -50,11 +50,9 @@ def _semantic_component_amplification(task):
     if selection.get("kind") == "interval":
         interval = selection.get("interval_0based") or []
         if len(interval) == 2:
-            from Bio import SeqIO
+            from core.io.input_resolution import resolve_sequence_record
             source = [s for s in task["sources"] if s["role"] == "template"][0]
-            record = SeqIO.read(source["_resolved_path"], "genbank"
-                                if source["_resolved_path"].lower().endswith(
-                                    (".gb", ".gbk")) else "fasta")
+            record = resolve_sequence_record(source["_resolved_path"])
             a, b = int(interval[0]), int(interval[1])
             seq = str(record.seq)
             if a == b and source.get("topology") == "linear":

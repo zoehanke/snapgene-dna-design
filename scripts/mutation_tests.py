@@ -4,11 +4,11 @@
 The release gate requires a mutation-test kill rate >= 90% across the 12
 specified mutations below. Each mutation is a deliberate source-level change
 that must be caught by the behavior checks (a "kill"). A mutant that still
-passes its behavior check is a "survivor" and fails the gate.
+passes its behavior check is a "survivor" and lowers the kill rate; the aggregate gate uses the stated 90% threshold.
 
 Method
 ------
-For every mutant the whole ``scripts/`` tree is copied to a fresh temporary
+For every mutant the scripts and their project runtime dependencies are copied to a fresh temporary
 directory, the mutation is applied to the copy, and a dedicated check process
 (running against the mutated copy) verifies the required behavior. The same
 check must pass against a pristine copy; if it does not, the check itself is
@@ -48,7 +48,7 @@ MUTATIONS = [
     {
         "id": "M01",
         "title": "zero-contribution fragment check removed",
-        "file": "assembly_model.py",
+        "file": "core/models/assembly_model.py",
         "old": "        if contribution <= 0:",
         "new": "        if contribution < 0:",
         "check": "check_m01_zero_contribution",
@@ -56,7 +56,7 @@ MUTATIONS = [
     {
         "id": "M02",
         "title": "Gibson overlap mismatch check removed",
-        "file": "assembly_model.py",
+        "file": "core/models/assembly_model.py",
         "old": "    if left != right:",
         "new": "    if left != right and False:",
         "check": "check_m02_overlap_mismatch",
@@ -64,7 +64,7 @@ MUTATIONS = [
     {
         "id": "M03",
         "title": "circular closing overlap no longer trimmed",
-        "file": "assembly_model.py",
+        "file": "core/models/assembly_model.py",
         "old": "        return \"\".join(fragment.sequence[overlap_length:] for fragment in fragments)",
         "new": "        return \"\".join(fragment.sequence for fragment in fragments)",
         "check": "check_m03_circular_trim",
@@ -72,7 +72,7 @@ MUTATIONS = [
     {
         "id": "M04",
         "title": "sticky ends always compatible",
-        "file": "assembly_model.py",
+        "file": "core/models/assembly_model.py",
         "old": "    return _complement(left.overhang_sequence) == right.overhang_sequence",
         "new": "    return True",
         "check": "check_m04_sticky_compat",
@@ -80,7 +80,7 @@ MUTATIONS = [
     {
         "id": "M05",
         "title": "CompoundLocation parts globally sorted by start",
-        "file": "simulate_cloning.py",
+        "file": "scripts/simulate_cloning.py",
         "old": "    if len(parts) == 1:\n        return parts[0]\n    if operator != \"join\":",
         "new": "    if len(parts) == 1:\n        return parts[0]\n    parts = sorted(parts, key=lambda p: int(p.start))\n    if operator != \"join\":",
         "check": "check_m05_compound_order",
@@ -88,7 +88,7 @@ MUTATIONS = [
     {
         "id": "M06",
         "title": "feature extract() consistency check removed",
-        "file": "simulate_cloning.py",
+        "file": "scripts/simulate_cloning.py",
         "old": "        if migrated_extract != source_extract:",
         "new": "        if migrated_extract != source_extract and False:",
         "check": "check_m06_extract_check",
@@ -96,7 +96,7 @@ MUTATIONS = [
     {
         "id": "M07",
         "title": "origin coordinate invariants disabled",
-        "file": "assembly_model.py",
+        "file": "core/models/assembly_model.py",
         "old": "    if sum(int(origin[\"length\"]) for origin in origins) != product_length:",
         "new": "    if sum(int(origin[\"length\"]) for origin in origins) != product_length and False:",
         "check": "check_m07_origins",
@@ -104,15 +104,15 @@ MUTATIONS = [
     {
         "id": "M08",
         "title": "Golden Gate accepts fragments containing recognition sites",
-        "file": "golden_gate.py",
-        "old": "                if not fragment or _contains_recognition(fragment, enzyme):",
-        "new": "                if not fragment:",
+        "file": "core/tools/assembly.py",
+        "old": "            if _contains_recognition_site(fragment, enzyme):",
+        "new": "            if False and _contains_recognition_site(fragment, enzyme):",
         "check": "check_m08_gg_recognition",
     },
     {
         "id": "M09",
         "title": "Golden Gate overhang mismatch tolerated",
-        "file": "golden_gate.py",
+        "file": "scripts/golden_gate.py",
         "old": "    if mismatches:\n        jfail(",
         "new": "    if False and mismatches:\n        jfail(",
         "check": "check_m09_gg_mismatch",
@@ -120,7 +120,7 @@ MUTATIONS = [
     {
         "id": "M10",
         "title": "Gateway att-site uniqueness check removed",
-        "file": "simulate_advanced.py",
+        "file": "core/tools/recombination.py",
         "old": "    if len(left_good) != 1 or len(right_good) != 1:",
         "new": "    if False and (len(left_good) != 1 or len(right_good) != 1):",
         "check": "check_m10_att_unique",
@@ -128,7 +128,7 @@ MUTATIONS = [
     {
         "id": "M11",
         "title": "failure envelope reports ok:true",
-        "file": "sg_common.py",
+        "file": "scripts/sg_common.py",
         "old": "        \"ok\": False,\n        \"command\": os.path.basename(sys.argv[0]),",
         "new": "        \"ok\": True,\n        \"command\": os.path.basename(sys.argv[0]),",
         "check": "check_m11_failure_envelope",
@@ -136,7 +136,7 @@ MUTATIONS = [
     {
         "id": "M12",
         "title": "ConstructModel.insert boundary off-by-one",
-        "file": "construct_model.py",
+        "file": "core/models/construct_model.py",
         "old": "            new_start = start0 + (delta if start0 >= pos0 else 0)",
         "new": "            new_start = start0 + (delta if start0 > pos0 else 0)",
         "check": "check_m12_insert_boundary",
@@ -435,6 +435,8 @@ def _run_check(check_name, scripts_dir, python):
         result_path.unlink()
     env = dict(__import__("os").environ)
     env["MUTATION_RESULT_FILE"] = str(result_path)
+    env["PYTHONPATH"] = str(scripts_dir.parent)
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
     completed = subprocess.run(
         [python, str(check_path), "--check", check_name],
         cwd=str(scripts_dir.parent), capture_output=True, text=True,
@@ -479,7 +481,10 @@ def main(argv=None):
         with tempfile.TemporaryDirectory(prefix="mut-%s-" % mutation["id"]) as td:
             tree = pathlib.Path(td)
             scripts_copy = tree / "scripts"
-            shutil.copytree(SCRIPTS, scripts_copy)
+            shutil.copytree(SCRIPTS, scripts_copy, ignore=shutil.ignore_patterns('__pycache__', '*.pyc'))
+            for directory in ('core', 'evidence_trace', 'planning', 'design', 'rules', 'agent', 'schemas', 'parts', 'references'):
+                shutil.copytree(ROOT / directory, tree / directory, ignore=shutil.ignore_patterns('__pycache__', '*.pyc'))
+            shutil.copy2(ROOT / 'VERSION', tree / 'VERSION')
 
             # 1) pristine check must hold (validates the check itself).
             pristine, pristine_payload = _run_check(
@@ -489,10 +494,14 @@ def main(argv=None):
                 pristine_ok = False
 
             # 2) apply the mutation to the copy.
-            target = scripts_copy / mutation["file"]
-            mutated_source = _apply_mutation(target.read_text(encoding="utf-8"),
-                                             mutation)
-            target.write_text(mutated_source, encoding="utf-8")
+            target = tree / mutation["file"]
+            try:
+                mutated_source = _apply_mutation(target.read_text(encoding="utf-8"), mutation)
+                target.write_text(mutated_source, encoding="utf-8")
+            except (OSError, ValueError) as exc:
+                results.append({'id': mutation['id'], 'title': mutation['title'], 'status': 'error', 'detail': str(exc)})
+                pristine_ok = False
+                continue
 
             # 3) behavior check against the mutant: kill = behavior broke.
             mutant, mutant_payload = _run_check(

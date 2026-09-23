@@ -239,9 +239,9 @@ class ConstructionTaskTests(unittest.TestCase):
         self.assertTrue(cdss)
         self.assertTrue(cdss[0].qualifiers.get("translation"))
 
-    def test_broken_cds_component_is_annotated_as_gene(self):
-        # Blind-test B04 finding: a minus-strand CDS whose extraction does
-        # not form a complete ORF must not be re-annotated as a CDS.
+    def test_broken_source_cds_is_preserved_and_rejected(self):
+        # Preserve the original B04 failure. Relabeling its invalid CDS as a
+        # gene used to bypass validation instead of repairing the source.
         stored = "TTACCCAAATTTCATGGG"
         rec = _record("A" * 20 + stored + "C" * 40, "template", "circular",
                       features=[SeqFeature(
@@ -262,11 +262,13 @@ class ConstructionTaskTests(unittest.TestCase):
         task, p = plan(task)
         ex = execute(task, p, self.out)
         report = validate(task, p, ex)
-        self.assertEqual(report["overall"], "verified", report["error_codes"])
+        self.assertEqual(report["overall"], "failed")
+        self.assertFalse(report["artifact_valid"])
         product = SeqIO.read(ex["product_gb"], "genbank")
-        self.assertFalse([f for f in product.features if f.type == "CDS"])
-        genes = [f for f in product.features if f.type == "gene"]
-        self.assertTrue(genes)
+        self.assertTrue([f for f in product.features if f.type == "CDS"])
+        self.assertFalse([f for f in product.features if f.type == "gene"])
+        with self.assertRaises(GateRejected):
+            finalize(task, p, ex, report, self.out)
 
     def test_circular_wrap_interval_component(self):
         seq = "GGATCC" + "C" * 56

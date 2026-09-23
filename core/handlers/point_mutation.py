@@ -3,14 +3,13 @@
 from __future__ import annotations
 
 import hashlib
-import pathlib
 
-from Bio import SeqIO
-from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
 from core.errors import PlanningError, TaskValidationError
-from core.handlers.base import TaskHandler
+from core.handlers.base import TaskHandler, product_features
+from core.io.input_resolution import resolve_sequence_record
+from core.models.construct_model import ConstructModel
 
 
 class PointMutationHandler(TaskHandler):
@@ -51,7 +50,7 @@ class PointMutationHandler(TaskHandler):
     def plan(self, task: dict) -> dict:
         self.validate_contract(task)
         tmpl_source = [s for s in task["sources"] if s["role"] == "template"][0]
-        record = SeqIO.read(tmpl_source["_resolved_path"], "genbank" if tmpl_source["_resolved_path"].lower().endswith((".gb", ".gbk")) else "fasta")
+        record = resolve_sequence_record(tmpl_source["_resolved_path"])
         seq_chars = list(str(record.seq).upper())
         n = len(seq_chars)
 
@@ -79,6 +78,8 @@ class PointMutationHandler(TaskHandler):
             })
 
         mutated_seq = "".join(seq_chars)
+        product_record = ConstructModel(record).mutate(
+            [(m["position_0based"], m["alt"]) for m in verified_muts]).to_record()
 
         return {
             "task_id": task["task_id"],
@@ -91,6 +92,7 @@ class PointMutationHandler(TaskHandler):
             "mutations": verified_muts,
             "product_topology": tmpl_source.get("topology", "circular"),
             "product_sequence": mutated_seq,
+            "product_features": product_features(product_record, mutated_seq),
             "product_sequence_sha256": hashlib.sha256(mutated_seq.encode("utf-8")).hexdigest().upper(),
             "expected_components": [],
             "forbidden_components": list(task.get("product", {}).get("forbidden_components", [])),
@@ -106,43 +108,11 @@ class PointMutationHandler(TaskHandler):
             ],
         }
 
-    def execute(self, task: dict, plan: dict, out_dir: pathlib.Path) -> dict:
-        out_dir.mkdir(parents=True, exist_ok=True)
-        seq_str = plan["product_sequence"]
-        prod_rec = SeqRecord(
-            Seq(seq_str),
-            id=task["task_id"],
-            name="mutant",
-            description=f"Point mutant from {task['task_id']}",
-        )
-        prod_rec.annotations["molecule_type"] = "DNA"
-        prod_rec.annotations["topology"] = plan["product_topology"]
-
-        gb_path = out_dir / "construct.gb"
-        with open(gb_path, "w", encoding="utf-8") as fh:
-            SeqIO.write(prod_rec, fh, "genbank")
-
-        fa_path = out_dir / "construct.fasta"
-        fa_path.write_text(f">{task['task_id']}\n{seq_str}\n", encoding="utf-8")
-
-        artifact_hashes = {
-            "construct.gb": hashlib.sha256(gb_path.read_bytes()).hexdigest().upper(),
-            "construct.fasta": hashlib.sha256(fa_path.read_bytes()).hexdigest().upper(),
-        }
-
-        return {
-            "artifact_class": "intermediate",
-            "method_maturity": self.method_maturity,
-            "product_gb": str(gb_path),
-            "product_fasta": str(fa_path),
-            "artifact_hashes": artifact_hashes,
-            "product_sequence_sha256": plan["product_sequence_sha256"],
-        }
 
     def recompute(self, task: dict, plan: dict) -> str:
         """Independently recompute mutated sequence from source and task operations."""
         tmpl_source = [s for s in task["sources"] if s["role"] == "template"][0]
-        record = SeqIO.read(tmpl_source["_resolved_path"], "genbank" if tmpl_source["_resolved_path"].lower().endswith((".gb", ".gbk")) else "fasta")
+        record = resolve_sequence_record(tmpl_source["_resolved_path"])
         seq_chars = list(str(record.seq).upper())
         n = len(seq_chars)
 

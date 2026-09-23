@@ -29,7 +29,7 @@ those SnapGene files and are therefore subject to the same restrictions.
 **Do not redistribute this package commercially, or claim these fixture files
 under MIT, without written authorization from GraphPad/SnapGene.**
 
-For a commercial-safe redistribution:
+For a redistribution excluding the known restricted fixtures:
 
 - Delete `fixtures/pDONR201.dna` **and** the entire `fixtures/golden/`
   directory (the derived `.gb`/`.fa` fixtures included), and
@@ -56,9 +56,9 @@ Upstream identity, license text and per-file SHA-256 are in
   CRISPRseek 1.52.0 (Artistic-2.0), Kim et al. 2018, DOI 10.1038/nbt.4061.
   License: `third_party/deepcpf1/LICENSE`.
 
-## Optional Primer3 runtime
+## Primer3 runtime
 
-Primer3 and primer3-py are licensed under GPL-2.0-or-later. They are optional
+Primer3 and primer3-py are licensed under GPL-2.0-or-later. They are required for supported primer design and used as
 external tools and are **not included** in either package produced by this
 project. `scripts/primer3_core_backend.py` invokes a user-installed
 `primer3_core` executable as a separate process. Installing primer3-py is one

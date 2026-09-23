@@ -32,7 +32,7 @@ the overhang is ``seq[7:11]`` on the top strand. The reverse orientation
 GAGACC is searched too, with the reflected cut geometry.
 
 This remains an experimental sequence-level approximation: ligation
-fidelity, feature migration, methylation, and reaction constraints are not
+fidelity, methylation, and reaction constraints are not
 modeled. Do not use the output as a wet-lab-ready design.
 """
 import argparse

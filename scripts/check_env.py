@@ -2,7 +2,7 @@
 """check_env.py - Verify the skill's Python environment and real backends.
 
 Exit code 0 only when every core dependency and bundled model artifact is
-present.  Optional backend availability (primer3_core, Cas-OFFinder v2/v3,
+present and the required primer3_core backend is available. Optional backends (Cas-OFFinder v2/v3,
 SnapGene, online connectivity) is reported explicitly; it never prints
 "All required deps present" when a release-real dependency is missing.
 """
@@ -128,7 +128,7 @@ def main():
 
     missing_required = [r for r in required if r["status"] == "missing"]
     bad_artifacts = [a for a in artifacts if a["status"] != "ok"]
-    core_ok = not missing_required and not bad_artifacts
+    core_ok = not missing_required and not bad_artifacts and primer3_core['status'] == 'available'
     optional_missing = [r for r in optional if r["status"] == "missing"]
     release_real_ok = (
         core_ok and not optional_missing
@@ -151,7 +151,7 @@ def main():
         "online": online,
         "core_ok": core_ok,
         "release_real_ok": release_real_ok,
-        "missing_required": [r["dist"] for r in missing_required],
+        "missing_required": [r["dist"] for r in missing_required] + ([] if primer3_core['status'] == 'available' else ['primer3_core']),
         "missing_optional": [r["dist"] for r in optional_missing],
     }
 
@@ -186,7 +186,7 @@ def main():
         print("NCBI online: %s" % online["status"])
         missing_names = [item["dist"] for item in optional_missing]
         print("\nCORE_ENV_OK" if core_ok else
-              "CORE_ENV_MISSING: %s" % (", ".join(missing_required +
+              "CORE_ENV_MISSING: %s" % (", ".join(report['missing_required'] +
               [a["path"] for a in bad_artifacts]) or "-"))
         print("RELEASE_REAL_OK" if release_real_ok else
               "RELEASE_REAL_INCOMPLETE: %s" % ", ".join(

@@ -351,7 +351,7 @@ class ReaderTests(unittest.TestCase):
 
     def test_reader_failure_does_not_block_real_core_or_change_artifacts(self):
         from agent.pipeline_agent import execute_agent_pipeline
-        template = ROOT / "tests/data/pBP-eGFP.gb"
+        template = ROOT / "fixtures/synthetic/pSynthetic-GFP.gb"
         def run(out):
             return execute_agent_pipeline("reader-fault", [
                 {"step_id": "reverse", "tool": "reverse_complement", "params": {"seq": "$src"}},

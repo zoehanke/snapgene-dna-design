@@ -307,6 +307,14 @@ class Recorder:
         graph = project(self.events)
         by_key = {n["key"]: n for n in graph["nodes"]}
         p = json.loads(json.dumps(link, ensure_ascii=False))
+        if 'required_dimensions' in p:
+            from evidence_trace.applicability import DIMENSIONS
+            dimensions = p['required_dimensions']
+            if not isinstance(dimensions, list) or not dimensions or any(d not in DIMENSIONS for d in dimensions):
+                raise ValueError('required_dimensions must name supported context dimensions')
+        for field in ('conditions', 'limitations'):
+            if field in p and (not isinstance(p[field], list) or any(not isinstance(v, str) for v in p[field])):
+                raise ValueError(field + ' must be a list of text')
         for field, kind in (("statement_id", "statement"), ("claim_id", "claim")):
             key = graph["latest"].get(p[field], p[field])
             if key not in by_key or by_key[key]["kind"] != kind:

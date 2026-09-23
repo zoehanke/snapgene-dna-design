@@ -9,7 +9,7 @@ import pathlib
 import sys
 import uuid
 
-from evidence_trace.models import file_digest, snapshot
+from evidence_trace.models import file_digest, snapshot, command_snapshot
 from evidence_trace.recorder import Recorder, project
 from evidence_trace.settings import get_level
 
@@ -23,6 +23,8 @@ def input_snapshot(value, key=""):
     if isinstance(value, dict):
         return {str(k): input_snapshot(v, str(k)) for k, v in value.items()}
     if isinstance(value, (list, tuple)):
+        if value and all(isinstance(v, str) for v in value):
+            value = command_snapshot(value)
         return [input_snapshot(v, key) for v in value]
     if isinstance(value, (str, pathlib.Path)) and len(str(value)) < 1024 and "\n" not in str(value):
         p = pathlib.Path(value)
@@ -51,13 +53,14 @@ def trace_options(args):
 
 
 class TraceRun:
-    def __init__(self, out_dir, route, directory=None, bundle=None, mode="normal", level=None):
+    def __init__(self, out_dir, route, directory=None, bundle=None, mode="normal", level=None, *, scan_outputs=True):
         self.out = pathlib.Path(out_dir).resolve()
         self.directory = pathlib.Path(directory).resolve() if directory else self.out / "evidence-trace"
         self.route, self.mode = route, mode
         self.run_id = uuid.uuid4().hex
         self.errors, self.decisions, self.validations = [], [], []
         self.artifacts = set()
+        self.output_baseline = None
         self.recorder = None
         self.outcome = "unfinished"
         self.closed = False
@@ -69,6 +72,10 @@ class TraceRun:
             reserved = [self.out / x for x in ("candidate", "intermediate", "intermediates", "authoritative", "annotated_sources")]
             if self.directory == self.out or any(self.directory.is_relative_to(p) for p in reserved):
                 raise ValueError("Trace directory overlaps design artifact directories")
+            if scan_outputs:
+                self.output_baseline = {str(p.resolve()): file_digest(p) for p in self.out.rglob('*')
+                    if p.is_file() and not p.resolve().is_relative_to(self.directory)
+                    and p.suffix.lower() in {'.gb', '.dna', '.fasta', '.fa', '.json', '.tsv'}}
             recorder = Recorder(self.directory, mode_at_capture=level)
             recorder.acquire()
             self.recorder = recorder
@@ -210,9 +217,13 @@ class TraceRun:
                 return
             self.artifacts.add(stamp)
             relative = path.relative_to(self.out).as_posix()
+            previous = self.output_baseline
+            observation = ('presence_only' if previous is None or previous.get(str(path)) == sha
+                           else 'modified' if str(path) in previous else 'created')
             self.recorder.record({"id": f"A-{self.run_id}-{len(self.artifacts)}", "kind": "artifact",
                 "path": str(path), "relative_path": relative, "sha256": sha,
                 "role": "authoritative" if relative.startswith("authoritative/") else "intermediate-or-candidate",
+                "generation_observation": observation,
                 "decision_ids": self.decisions, "validated_by": self.validations,
                 "result_event_ref": result_event_ref, "association_scope": "same_run",
                 "validation_scope": "Run-level association; inspect each check's actual scope."}, runtime=True, actor="runtime")
@@ -267,7 +278,7 @@ def observe_value(stage, value):
 
 
 def observe_files(stage, fn, *, args=(), kwargs=None, input_paths=(), output_paths,
-                  artifact_role="derived", expected_paths=()):
+                  artifact_role="derived", expected_paths=(), output_directories=()):
     """Observe one file operation. Preserve before/after identities, including in-place edits."""
     run = _CURRENT.get()
     if run is None or run.recorder is None:
@@ -275,10 +286,20 @@ def observe_files(stage, fn, *, args=(), kwargs=None, input_paths=(), output_pat
     def stamps(paths):
         return [{"path": str(pathlib.Path(p).resolve()),
                  "sha256": file_digest(p) if pathlib.Path(p).is_file() else None} for p in paths]
-    before = run.safe(lambda: stamps([*input_paths, *expected_paths])) or []
+    directories = [pathlib.Path(p).resolve() for p in output_directories]
+    baseline_complete = False
+    def capture_before():
+        nonlocal baseline_complete
+        existing = [p for directory in directories for p in directory.rglob('*')
+                    if p.is_file() and not p.resolve().is_relative_to(run.directory)]
+        result = stamps([*input_paths, *expected_paths, *existing])
+        baseline_complete = True
+        return result
+    before = run.safe(capture_before) or []
     started = run.safe(lambda: run.event("stage_started", {"stage": stage,
         "input": input_snapshot({"args": args, "kwargs": kwargs or {}}),
-        "input_files": before[:len(input_paths)], "observation_phase": "submitted_inputs"}))
+        "input_files": before[:len(input_paths)], "output_directories": [str(p) for p in directories],
+        "observation_phase": "submitted_inputs"}))
     stage_ref = started["event_id"] if started else None
     try:
         result = fn(*args, **(kwargs or {}))
@@ -301,7 +322,8 @@ def observe_files(stage, fn, *, args=(), kwargs=None, input_paths=(), output_pat
             path = pathlib.Path(item["path"])
             if path.is_relative_to(run.directory):
                 continue
-            status = "presence_only" if previous.get(item["path"]) == item["sha256"] else "modified" if previous.get(item["path"]) else "created"
+            known = item['path'] in previous or (baseline_complete and any(path.is_relative_to(p) for p in directories))
+            status = "presence_only" if not known or previous.get(item['path']) == item['sha256'] else "modified" if previous.get(item['path']) else "created"
             key = run.recorder.record({"id": "A-" + uuid.uuid4().hex, "kind": "artifact", **item,
                 "role": artifact_role, "generation_observation": status, "input_artifact_refs": inputs,
                 "input_files": before[:len(input_paths)], "result_event_ref": event["event_id"],
@@ -313,12 +335,13 @@ def observe_files(stage, fn, *, args=(), kwargs=None, input_paths=(), output_pat
 
 
 def trace_file_call(route, fn, *, args=(), kwargs=None, input_paths=(), output_paths=lambda result: (),
-                    expected_paths=(), artifact_role="derived", trace_dir=None,
+                    expected_paths=(), output_directories=(), artifact_role="derived", trace_dir=None,
                     trace_input=None, trace_mode="normal", trace=False):
     """File CLIs opt into an explicit shared trace; nested calls reuse the active run."""
     if _CURRENT.get() is not None:
         return observe_files(route, fn, args=args, kwargs=kwargs, input_paths=input_paths,
-                             output_paths=output_paths, expected_paths=expected_paths, artifact_role=artifact_role)
+                             output_paths=output_paths, expected_paths=expected_paths, artifact_role=artifact_role,
+                             output_directories=output_directories)
     if not trace_dir:
         return fn(*args, **(kwargs or {}))
     try:
@@ -331,11 +354,12 @@ def trace_file_call(route, fn, *, args=(), kwargs=None, input_paths=(), output_p
     if level == "off":
         return fn(*args, **(kwargs or {}))
     anchor = next(iter(expected_paths), next(iter(input_paths), pathlib.Path(trace_dir).parent / "operation"))
-    run = TraceRun(pathlib.Path(anchor).resolve().parent, route, trace_dir, trace_input, trace_mode, level)
+    run = TraceRun(pathlib.Path(anchor).resolve().parent, route, trace_dir, trace_input, trace_mode, level, scan_outputs=False)
     token, error = _CURRENT.set(run), None
     try:
         return observe_files(route, fn, args=args, kwargs=kwargs, input_paths=input_paths,
-                             output_paths=output_paths, expected_paths=expected_paths, artifact_role=artifact_role)
+                             output_paths=output_paths, expected_paths=expected_paths, artifact_role=artifact_role,
+                             output_directories=output_directories)
     except Exception as exc:
         error = exc
         raise

@@ -29,6 +29,29 @@ def file_digest(path):
     return h.hexdigest()
 
 
+def command_snapshot(values):
+    """Redact credential options without changing the command that is executed."""
+    result, hide_next = [], False
+    secret = re.compile(r'^--?(?:api[-_]?key|access[-_]?token|auth[-_]?token|token|password|passwd|credential|secret|authorization)(?:=|$)', re.I)
+    for value in values:
+        if hide_next:
+            result.append('[omitted]')
+            hide_next = False
+        elif secret.match(value):
+            flag, equals, _ = value.partition('=')
+            result.append(flag + '=[omitted]' if equals else flag)
+            hide_next = not equals
+        elif re.match(r'^(?:authorization|proxy-authorization|x-api-key)\s*:', value, re.I):
+            result.append(value.split(':', 1)[0] + ': [omitted]')
+        elif '=' in value and value.startswith('-'):
+            flag, content = value.split('=', 1)
+            summary = snapshot(content)
+            result.append(flag + '=[sequence omitted]' if isinstance(summary, dict) and summary.get('omitted') == 'sequence' else value)
+        else:
+            result.append(value)
+    return result
+
+
 def snapshot(value, key=""):
     """Detached runtime summary: keep parameters, omit raw sequences/secrets."""
     if any(x in key.lower() for x in ("password", "credential", "api_key", "token")):
@@ -45,6 +68,8 @@ def snapshot(value, key=""):
     if isinstance(value, dict):
         return {str(k): snapshot(v, str(k)) for k, v in value.items()}
     if isinstance(value, (tuple, list)):
+        if value and all(isinstance(v, str) for v in value):
+            value = command_snapshot(value)
         return [snapshot(v, key) for v in value]
     if hasattr(value, "seq"):
         return {"record_id": value.id, "sequence": snapshot(str(value.seq)),

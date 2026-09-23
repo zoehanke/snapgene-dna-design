@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import hashlib
 import pathlib
+from collections import Counter
 
 from Bio import SeqIO
 from Bio.Seq import Seq
@@ -24,14 +25,17 @@ from core.task import canonical_json, task_sha256
 from core.tools.sequence_ops import DNA_IUPAC_ALPHABET, validate_cds_feature
 
 
-def _validate_requested_components(task: dict, product_record) -> tuple[list[dict], list[str]]:
+def _validate_requested_components(task: dict, product_record, plan: dict | None = None) -> tuple[list[dict], list[str]]:
     """Check the user's component sequences against the actual file, never the plan."""
     from core.io.input_resolution import resolve_sequence_record
     from Bio.SeqFeature import FeatureLocation
 
     def names(feature):
-        return {str(v).casefold() for key in ("label", "gene", "product", "locus_tag")
-                for v in feature.qualifiers.get(key, [])}
+        values = []
+        for key in ("label", "gene", "product", "locus_tag"):
+            item = feature.qualifiers.get(key, [])
+            values.extend(item if isinstance(item, (list, tuple)) else [item])
+        return {str(v).casefold() for v in values}
 
     sources = {}
     source_errors = {}
@@ -53,6 +57,16 @@ def _validate_requested_components(task: dict, product_record) -> tuple[list[dic
             spec = {"name": component} if isinstance(component, str) else component
             name = spec.get("name", "component")
             sequence = spec.get("expected_sequence") or spec.get("sequence")
+            # Historical product.required_components may name a declared
+            # transformed component (e.g. a fusion partner with its stop removed).
+            # Explicit top-level sequence/source requirements remain independent.
+            if (not forbidden and isinstance(component, str)
+                    and component in task.get("product", {}).get("required_components", [])
+                    and component not in task.get("expected_components", [])):
+                matches = [c for c in (plan or {}).get("expected_components", [])
+                           if str(c.get("name", "")).casefold() == name.casefold()]
+                if len(matches) == 1:
+                    sequence = matches[0].get("expected_sequence")
             candidates = {str(sequence).upper()} if sequence else set()
             sid = spec.get("source_id")
             records = [sources[sid]] if sid in sources else ([] if sid else list(sources.values()))
@@ -121,6 +135,8 @@ def _validate_artifact(execution: dict, plan: dict) -> tuple[bool, SeqIO.SeqReco
     try:
         with gb_path.open(encoding="utf-8") as handle:
             gb_rec = SeqIO.read(handle, "genbank")
+        from core.tools.snapgene_io import normalize_primer_qualifiers
+        gb_rec = normalize_primer_qualifiers(gb_rec)
         with fa_path.open(encoding="utf-8") as handle:
             fa_rec = SeqIO.read(handle, "fasta")
     except Exception as exc:
@@ -159,6 +175,28 @@ def _validate_artifact(execution: dict, plan: dict) -> tuple[bool, SeqIO.SeqReco
     return (len(errors) == 0), gb_rec, errors
 
 
+def _validate_annotation_retention(task, handler, product_record):
+    """Rebuild annotations from task sources, not caller-supplied plan features."""
+    from core.io.input_resolution import resolve_sequence_record
+    expected_plan = handler.plan(task)
+    expected_record = resolve_sequence_record({"sequence": expected_plan["product_sequence"],
+        "features": expected_plan["product_features"], "topology": expected_plan["product_topology"]})
+
+    def signature(feature):
+        identity = {key: feature.qualifiers[key] for key in (
+            "label", "gene", "locus_tag", "product", "codon_start", "transl_table",
+            "partial", "pseudo", "primer_sequence", "binding_sequence") if key in feature.qualifiers}
+        return canonical_json({"type": feature.type, "parts": [
+            [str(p.start), str(p.end), p.strand] for p in feature.location.parts],
+            "operator": getattr(feature.location, "operator", None), "identity": identity})
+
+    expected = Counter(signature(f) for f in expected_record.features)
+    actual = Counter(signature(f) for f in product_record.features)
+    if expected - actual:
+        return ["ANNOTATION_RETENTION_FAILED: product lost or changed source-derived feature geometry, identity or coding metadata"], expected_plan
+    return [], expected_plan
+
+
 def validate(task: dict, plan: dict, execution: dict) -> dict:
     """Public seam: execute three-layer validation and return ValidationResult."""
     t_sha = task_sha256(task)
@@ -173,6 +211,7 @@ def validate(task: dict, plan: dict, execution: dict) -> dict:
     # 2. Computation Validation
     comp_ok = False
     comp_errors = []
+    source_plan = None
     if prod_rec is not None:
         try:
             recomputed = handler.recompute(task, plan).upper()
@@ -183,6 +222,13 @@ def validate(task: dict, plan: dict, execution: dict) -> dict:
                 comp_errors.append(f"Recomputed sequence ({len(recomputed)} bp) does not match product ({len(observed)} bp)")
         except Exception as exc:
             comp_errors.append(f"Recomputation failed: {exc}")
+        try:
+            annotation_errors, source_plan = _validate_annotation_retention(task, handler, prod_rec)
+            art_errors.extend(annotation_errors)
+            art_ok = art_ok and not annotation_errors
+        except Exception as exc:
+            art_ok = False
+            art_errors.append(f"Annotation recomputation failed: {exc}")
 
     # 3. Goal Validation
     goal_ok = False
@@ -190,21 +236,24 @@ def validate(task: dict, plan: dict, execution: dict) -> dict:
     goal_errors = []
     if prod_rec is not None:
         try:
+            if source_plan is None:
+                raise ValueError("Cannot establish goal components from the original task sources")
             goal_ok, evidence_traces, goal_errors = handler.validate_goal(
-                task, plan, execution, prod_rec, str(prod_rec.seq).upper()
+                task, source_plan, execution, prod_rec, str(prod_rec.seq).upper()
             )
-            if task["task_kind"] != "composite_pipeline" and (task.get("expected_components") or task.get("forbidden_components")):
-                traces, errors = _validate_requested_components(task, prod_rec)
+            if task["task_kind"] != "composite_pipeline":
+                traces, errors = _validate_requested_components(task, prod_rec, source_plan)
                 evidence_traces.extend(traces)
                 goal_errors.extend(errors)
                 goal_ok = goal_ok and not errors
         except Exception as exc:
+            goal_ok = False
             goal_errors.append(f"Goal validation failed: {exc}")
 
     all_errors = art_errors + comp_errors + goal_errors
 
     # Derive overall status
-    if art_ok and comp_ok and goal_ok:
+    if art_ok and comp_ok and goal_ok and not all_errors:
         if handler.method_maturity == "validated":
             overall = "verified"
         else:

@@ -16,7 +16,10 @@ from evidence_trace.runtime import TraceStopped, observe, traced_run
 from scripts.run_recipe import run_recipe_cli
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-TEMPLATE = ROOT / "tests/data/pBP-eGFP.gb"
+# Mandatory sidecar contracts use the redistributable synthetic template.
+# The historical supplied-material reaction remains an explicit integration below.
+TEMPLATE = ROOT / "fixtures/synthetic/pSynthetic-GFP.gb"
+EXTERNAL_TEMPLATE = ROOT / "tests/data/pBP-eGFP.gb"
 
 
 def context():
@@ -138,7 +141,14 @@ class TraceRuntimeTests(unittest.TestCase):
             self.assertTrue(all(nodes[k]["actor"] == "runtime" for k in artifact["references"]["validated_by"]))
 
     def test_recipe_ab_full_template_actual_pcr(self):
-        params = {"template_seq_or_file": str(TEMPLATE), "start_0based": 198,
+        self.assert_recipe_ab(TEMPLATE)
+
+    @unittest.skipUnless(EXTERNAL_TEMPLATE.is_file(), "External pBP-eGFP integration material is not distributed")
+    def test_external_pbp_original_inverse_pcr_workflow(self):
+        self.assert_recipe_ab(EXTERNAL_TEMPLATE)
+
+    def assert_recipe_ab(self, template):
+        params = {"template_seq_or_file": str(template), "start_0based": 198,
                   "end_0based": 201, "alt_seq": "CAT", "method": "inverse_pcr", "target_flank_bp": 25}
         a, b = self.path / "off", self.path / "on"
         original = copy.deepcopy(params)
@@ -147,6 +157,11 @@ class TraceRuntimeTests(unittest.TestCase):
         run_recipe_cli("site_directed_mutagenesis", params, b, True, True, trace=True, trace_input=context())
         self.assertEqual(params, original)
         self.assert_artifacts_equal(a, b)
+        # Independence from the implementation: the requested substitution is
+        # the only sequence change, for either source material.
+        source = str(SeqIO.read(str(template), "genbank").seq)
+        product = str(SeqIO.read(str(b / "authoritative/construct.gb"), "genbank").seq)
+        self.assertEqual(product, source[:198] + "CAT" + source[201:])
         self.assertEqual((a / "primer_order_table.tsv").read_bytes(), (b / "primer_order_table.tsv").read_bytes())
         g = read_graph(b / "evidence-trace")
         self.assertEqual(g["runs"][0]["status"], "delivered")

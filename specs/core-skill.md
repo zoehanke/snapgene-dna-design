@@ -1,6 +1,6 @@
 # Core skill
 
-Updated: 2026-09-21. This spec defines the current DNA product contract. [History](../docs/history.md) explains its evolution; [development plans](../docs/development-plans/README.md) own implementation scope, validation and handoff. [Safety spec](safety-module.md) owns Evidence Trace; [SKILL.md](../SKILL.md) and [Recipe reference](../references/recipes.md) own usage and signatures.
+Updated: 2026-09-23. This spec defines the current DNA product contract. [History](../docs/history.md) explains its evolution; [development plans](../docs/development-plans/README.md) own implementation scope, validation and handoff. [Safety spec](safety-module.md) owns Evidence Trace; [SKILL.md](../SKILL.md) and [Recipe reference](../references/recipes.md) own usage and signatures.
 
 ## Goal and current functionality
 
@@ -56,9 +56,32 @@ Current modules and orchestration are implementation choices, not permanent rest
 - Run representative tasks through public entry points and inspect resulting files against independent source/target evidence; rejecting an invalid task is not successful design completion.
 - Replaying a reported success/failure is necessary regression evidence, not proof of general readiness. Check independent inputs and both valid and invalid boundaries of the changed contract; retain unmet acceptance items.
 - Verify relevant sequence, topology, feature coordinates/strands and complete primers through export/read-back. Claim desktop SnapGene compatibility only with actual desktop evidence.
-- Keep mandatory regressions reproducible with tracked/generated inputs; explicitly invoked private integrations and skipped backends are separate evidence. For release work, verify a package outside the checkout.
+- Keep mandatory regressions reproducible with redistributable or generated inputs; external-material integrations and skipped backends are separate evidence. For release work, verify a package outside the checkout, including mandatory Trace A/B checks, rather than relying on fixtures excluded from that package.
 - For Trace changes, compare Off/Observed/Full DNA, annotations, primers, preparation, validation semantics and authoritative artifacts; injected normal-mode Trace failure must preserve otherwise successful DNA work.
 - Inherited pET annotation conflicts still block formal delivery in the recorded GFP/A206K case. Resolve that source/annotation and validation interaction separately; Trace success does not close it.
 - Remaining product questions: underserved real workflows, duplicated orchestration worth consolidating, host clarification reliability, measurable user effort saved and reproducible optional-backend claims.
 
-The [current repair plan](../docs/development-plans/workflow-phase-3-usability-repair-v0.3.2.md) covers task priority, prompt isolation, primer export and scoped validation as well as Trace usability. Primer extraction/export and staged guidance are implemented; host behavior improvement still needs controlled evidence; the [predecessor](../docs/development-plans/safety-phase-3-readability-v0.3.1.md) preserves earlier engineering evidence. Historical releases/audits do not certify current universal correctness.
+The [preceding usability repair](../docs/development-plans/workflow-phase-3-usability-repair-v0.3.2.md) covers task priority, prompt isolation, primer export and scoped validation as well as Trace usability. Primer extraction/export and staged guidance are implemented; host behavior improvement still needs controlled evidence; the [predecessor](../docs/development-plans/safety-phase-3-readability-v0.3.1.md) preserves earlier engineering evidence. Historical releases/audits do not certify current universal correctness.
+
+
+## 2026-09-22 verified scope
+
+The [engineering cycle](../docs/remediation-plan.md) supersedes the earlier phase as current work. [Final evidence](../docs/final-remediation-report.md) records failures and limits as well as passes. No remote push or public submission is authorized in this cycle.
+
+| Status | Scope |
+|---|---|
+| IMPLEMENTED | Shared source parsing and annotated Handler execution; task/source-derived component checks; failed or contradictory validation cannot authorize delivery. |
+| VALIDATED | Independent positive/negative public-entry tests for sequence, source version, compound/negative features, task/plan/receipt tampering and file read-back. Existing regression, actual PCR demo, Primer3, local model and Cas-OFFinder synthetic-reference tests have separate recorded results. This is bounded software evidence. |
+| EXPERIMENTAL | Legacy intent planning, sequence-only reaction approximations, predictive guide scores and scientific generalization beyond tested inputs. |
+| PLANNED | Further real-user/host comparisons, independently curated problematic source annotations and representative wet-lab validation; no automatic authorization for new modules. |
+| OUT OF SCOPE | Inferring experimental success, certifying biological safety or ecological effects from sequence/file checks. |
+
+Non-Composite ConstructionTask handlers model declared sequence/annotation changes. Their plan and delivery `scope_note` must state that physical preparation is not established; use an actual Recipe/Pipeline for preparation claims. New plans bind `product_features` and scope to the plan hash. Regenerate old plans missing the annotation contract; do not reuse old receipts as current evidence.
+
+Derive translation only from a valid complete CDS with no supplied translation. Do not overwrite conflicting source translations or demote invalid CDS annotations to make validation pass. Recompute expected components and feature transformations from the original task/source, not mutable plan declarations.
+
+Execution and validation receipts require their version hashes. An explicitly requested desktop verification must fail when its executable or valid boolean result is missing. Each delivery attempt owns a fresh in-directory staging folder; failure cleanup must preserve another attempt's files and must not derive filesystem paths from task/recipe labels.
+
+Release packaging uses reviewed tracked paths, or an explicit source list outside Git. Exclude untracked local inputs and known restricted/external fixtures from the redistributable variant. A file's presence in Git is not proof of redistribution rights. Validate the extracted package separately from the checkout.
+
+Release status remains incomplete: all current Core/Trace coverage targets passed, but the overall gate failed for the legacy preview orchestrator/delivery targets. Preserve this test debt and the existing thresholds; do not infer general release readiness from the passing functional suite.

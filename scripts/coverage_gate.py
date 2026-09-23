@@ -47,8 +47,8 @@ SCRIPTS = HERE
 # export, round-trip validation, construct QC and the editing engine.
 CORE_MODULES = [
     "sg_common",
-    "assembly_model",
-    "construct_model",
+    "core.models.assembly_model",
+    "core.models.construct_model",
     "simulate_cloning",
     "simulate_advanced",
     "golden_gate",
@@ -103,6 +103,9 @@ V08_CORE_MODULES = [
     "deepcpf1_model",
 ]
 CORE_MODULES = CORE_MODULES + V08_CORE_MODULES + V09_CORE_MODULES
+CORE_MODULES += ['core.task', 'core.runtime_plan', 'core.runtime_execute', 'core.runtime_validate',
+                 'core.runtime_gate', 'core.io.input_resolution', 'evidence_trace.runtime',
+                 'evidence_trace.recorder', 'evidence_trace.process', 'evidence_trace.report']
 
 LINE_THRESHOLD = 90.0
 BRANCH_THRESHOLD = 85.0
@@ -145,9 +148,11 @@ def _coveragerc(target_dir):
         "    %s\n"
         "    %s\n"
         "    %s\n"
+        "    %s\n"
+        "    %s\n"
         "    %s\n" % (
             SCRIPTS, ROOT / "planning", ROOT / "rules",
-            ROOT / "design", ROOT / "agent"),
+            ROOT / "design", ROOT / "agent", ROOT / 'core', ROOT / 'evidence_trace'),
         encoding="utf-8",
     )
     return cfg
@@ -263,6 +268,8 @@ def main(argv=None):
                 step_env.pop("COVERAGE_FILE", None)
             print(f"[coverage_gate] Starting step: {name}...", flush=True)
             completed = _run(cmd, cwd=cwd, env=step_env, timeout=1800)
+            (out_dir / (name + ".stdout.log")).write_text(completed.stdout or "", encoding="utf-8")
+            (out_dir / (name + ".stderr.log")).write_text(completed.stderr or "", encoding="utf-8")
             print(f"[coverage_gate] Step {name} finished (rc={completed.returncode})", flush=True)
             step_results[name] = {
                 "returncode": completed.returncode,
@@ -286,7 +293,8 @@ def main(argv=None):
         json_run = _run(
             [python, "-m", "coverage", "json", "--rcfile", str(cfg),
              "--data-file", str(data_file), "-o", str(json_path),
-             "--include", str(SCRIPTS) + "/*," + str(ROOT / "planning") + "/*," + str(ROOT / "rules") + "/*," + str(ROOT / "design") + "/*," + str(ROOT / "agent") + "/*"],
+             "--include", ','.join(str(ROOT / part) + '/*' for part in
+                                   ('scripts','planning','rules','design','agent','core','evidence_trace'))],
             cwd=ROOT, env=env)
         if json_run.returncode != 0:
             raise RuntimeError(
@@ -298,7 +306,7 @@ def main(argv=None):
         for name in core_modules:
             info = None
             target = (name.replace(".", "/") + ".py"
-                      if "." in name else name + ".py")
+                      if "." in name else "scripts/" + name + ".py")
             for path, candidate in report_json.get("files", {}).items():
                 normalized = path.replace("\\", "/")
                 if (normalized == target
@@ -319,7 +327,7 @@ def main(argv=None):
                 gate_ok = False
                 continue
             summary = info["summary"]
-            line_percent = float(summary["percent_covered"])
+            line_percent = 100.0 * summary['covered_lines'] / summary['num_statements'] if summary['num_statements'] else 100.0
             branch_percent = _branch_percent(info)
             is_v09 = name in V09_CORE_MODULES
             is_v08 = name in V08_CORE_MODULES or is_v09

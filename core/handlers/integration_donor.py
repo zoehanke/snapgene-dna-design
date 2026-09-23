@@ -3,17 +3,15 @@
 from __future__ import annotations
 
 import hashlib
-import pathlib
 
-from Bio import SeqIO
 from Bio.Seq import Seq
-from Bio.SeqFeature import FeatureLocation, SeqFeature
 from Bio.SeqRecord import SeqRecord
 
 from core.errors import PlanningError, TaskValidationError
 from core.evidence_chain import check_backbone_contamination, validate_goal_components
-from core.handlers.base import TaskHandler
-from core.interval import extract_interval, validate_interval
+from core.handlers.base import TaskHandler, record_slice, product_features
+from core.io.input_resolution import resolve_sequence_record
+from core.interval import extract_interval
 
 
 class IntegrationDonorHandler(TaskHandler):
@@ -56,7 +54,7 @@ class IntegrationDonorHandler(TaskHandler):
     def plan(self, task: dict) -> dict:
         self.validate_contract(task)
         tmpl_source = [s for s in task["sources"] if s["role"] == "template"][0]
-        tmpl_rec = SeqIO.read(tmpl_source["_resolved_path"], "genbank" if tmpl_source["_resolved_path"].lower().endswith((".gb", ".gbk")) else "fasta")
+        tmpl_rec = resolve_sequence_record(tmpl_source["_resolved_path"])
 
         selection = task["target"]["selection"]
         interval = selection.get("interval_0based") or [0, len(tmpl_rec)]
@@ -67,11 +65,12 @@ class IntegrationDonorHandler(TaskHandler):
         arms = op.get("homology_arms") or {}
         left = str(arms.get("left_arm") or "")
         right = str(arms.get("right_arm") or "")
+        left_record, right_record = SeqRecord(Seq(left.upper())), SeqRecord(Seq(right.upper()))
 
         locus_spec = op.get("locus") or {}
         if locus_spec.get("source_id"):
             ref_source = next(s for s in task["sources"] if s["source_id"] == locus_spec["source_id"])
-            ref = SeqIO.read(ref_source["_resolved_path"], "genbank" if ref_source["_resolved_path"].lower().endswith((".gb", ".gbk")) else "fasta")
+            ref = resolve_sequence_record(ref_source["_resolved_path"])
             ref_topo = ref_source.get("topology", "linear")
             la, lb = int(locus_spec["interval_0based"][0]), int(locus_spec["interval_0based"][1])
             if la < 0 or lb < 0 or la > len(ref) or lb > len(ref):
@@ -79,14 +78,16 @@ class IntegrationDonorHandler(TaskHandler):
             if la > lb:
                 raise PlanningError("INTEGRATION_LOCUS_WRAP_UNSUPPORTED", "locus interval must not wrap the reference")
 
-            # Boundary checks for flanks on linear record
+            strand = int(locus_spec.get("strand", 1))
+            upstream_length = len(left) if strand == 1 else len(right)
+            downstream_length = len(right) if strand == 1 else len(left)
+            # Negative-strand biological left/right exchange genomic flanks.
             if ref_topo == "linear":
-                if la - len(left) < 0 or lb + len(right) > len(ref):
+                if la - upstream_length < 0 or lb + downstream_length > len(ref):
                     raise PlanningError("INTEGRATION_LOCUS_OUT_OF_RANGE", "homology arm flank extends beyond linear chromosome boundary")
 
-            strand = int(locus_spec.get("strand", 1))
-            upstream = extract_interval(ref, la - len(left), la, topology=ref_topo, whole_record_approved=True) if left else ""
-            downstream = extract_interval(ref, lb, lb + len(right), topology=ref_topo, whole_record_approved=True) if right else ""
+            upstream = extract_interval(ref, la - upstream_length, la, topology=ref_topo, whole_record_approved=True) if upstream_length else ""
+            downstream = extract_interval(ref, lb, lb + downstream_length, topology=ref_topo, whole_record_approved=True) if downstream_length else ""
             expected_left = upstream if strand == 1 else (str(Seq(downstream).reverse_complement()) if downstream else "")
             expected_right = downstream if strand == 1 else (str(Seq(upstream).reverse_complement()) if upstream else "")
 
@@ -102,8 +103,15 @@ class IntegrationDonorHandler(TaskHandler):
                     "right homology arm does not match the declared locus flank",
                     details={"expected": expected_right, "given": right},
                 )
+            if left:
+                left_record = (record_slice(ref, la-len(left), la) if strand == 1
+                               else record_slice(ref, lb, lb+len(left), -1))
+            if right:
+                right_record = (record_slice(ref, lb, lb+len(right)) if strand == 1
+                                else record_slice(ref, la-len(right), la, -1))
 
         donor_seq = left.upper() + component_seq.upper() + right.upper()
+        product_record = left_record + record_slice(tmpl_rec, s0, e0) + right_record
 
         expected_components = [{
             "name": "donor_component",
@@ -149,6 +157,7 @@ class IntegrationDonorHandler(TaskHandler):
             "sources": task["sources"],
             "product_topology": "linear",
             "product_sequence": donor_seq,
+            "product_features": product_features(product_record, donor_seq),
             "product_sequence_sha256": hashlib.sha256(donor_seq.encode("utf-8")).hexdigest().upper(),
             "expected_components": expected_components,
             "forbidden_components": list(task.get("product", {}).get("forbidden_components", [])),
@@ -168,43 +177,11 @@ class IntegrationDonorHandler(TaskHandler):
             ],
         }
 
-    def execute(self, task: dict, plan: dict, out_dir: pathlib.Path) -> dict:
-        out_dir.mkdir(parents=True, exist_ok=True)
-        seq_str = plan["product_sequence"]
-        prod_rec = SeqRecord(
-            Seq(seq_str),
-            id=task["task_id"],
-            name="integration_donor",
-            description=f"Integration donor construct from {task['task_id']}",
-        )
-        prod_rec.annotations["molecule_type"] = "DNA"
-        prod_rec.annotations["topology"] = "linear"
-
-        gb_path = out_dir / "construct.gb"
-        with open(gb_path, "w", encoding="utf-8") as fh:
-            SeqIO.write(prod_rec, fh, "genbank")
-
-        fa_path = out_dir / "construct.fasta"
-        fa_path.write_text(f">{task['task_id']}\n{seq_str}\n", encoding="utf-8")
-
-        artifact_hashes = {
-            "construct.gb": hashlib.sha256(gb_path.read_bytes()).hexdigest().upper(),
-            "construct.fasta": hashlib.sha256(fa_path.read_bytes()).hexdigest().upper(),
-        }
-
-        return {
-            "artifact_class": "intermediate",
-            "method_maturity": self.method_maturity,
-            "product_gb": str(gb_path),
-            "product_fasta": str(fa_path),
-            "artifact_hashes": artifact_hashes,
-            "product_sequence_sha256": plan["product_sequence_sha256"],
-        }
 
     def recompute(self, task: dict, plan: dict) -> str:
         """Independently recompute integration donor sequence from sources and operations."""
         tmpl_source = [s for s in task["sources"] if s["role"] == "template"][0]
-        tmpl_rec = SeqIO.read(tmpl_source["_resolved_path"], "genbank" if tmpl_source["_resolved_path"].lower().endswith((".gb", ".gbk")) else "fasta")
+        tmpl_rec = resolve_sequence_record(tmpl_source["_resolved_path"])
 
         selection = task.get("target", {}).get("selection") or {}
         interval = selection.get("interval_0based") or [0, len(tmpl_rec)]

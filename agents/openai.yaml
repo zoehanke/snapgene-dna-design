@@ -1,7 +1,7 @@
 interface:
   display_name: "SnapGene DNA Design"
-  short_description: "Professional molecular biology and SnapGene plasmid design skill runtime."
-  default_prompt: "Use $snapgene-dna-design (LLM-Native Skill Runtime) to design, inspect, clone, mutate, tag, or verify plasmids and DNA sequences. Follow the 5-step operational loop: (1) Run `scripts/inspect_plasmid.py` to inspect sequence features without guessing coordinates; (2) Clarify design intent with the user in natural language; (3) Route standard workflows to `scripts/run_recipe.py` (Gibson, restriction cloning, Golden Gate, CRISPR HDR, mutagenesis, protein tagging, verification) or custom workflows to `scripts/run_pipeline.py`; (4) Audit biological guardrails (BIO-01 through BIO-10); (5) Deliver primer tables, protocol steps, and export verified SnapGene .dna and GenBank .gb constructs into authoritative delivery."
+  short_description: "Local DNA construction, annotated files, and evidence records."
+  default_prompt: "Use $snapgene-dna-design following SKILL.md. Start from the requested result and supplied material: determine reuse, preparation, or new design. Clarify only information that changes the necessary action; retain existing authorization. Execute supported Recipes or Pipeline operations, inspect actual files and check scope, then deliver the main conclusion and artifacts. Evidence Trace records the work alongside it; organize the report after the design result is established."
 
 policy:
   allow_implicit_invocation: true

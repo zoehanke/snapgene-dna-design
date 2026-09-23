@@ -1,0 +1,58 @@
+{
+  "date": "2026-09-22",
+  "baseline_commit": "b87a1d8",
+  "platform": "Windows/Python 3.12.4",
+  "full_suite": {
+    "tests": 927,
+    "passed": 927,
+    "skipped": 0,
+    "seconds": 1632.098,
+    "real_backends": [
+      "Primer3",
+      "Cas-OFFinder 2.4.1",
+      "Cas-OFFinder 3.0.0b3",
+      "Azimuth",
+      "DeepCpf1"
+    ],
+    "online_checks": true,
+    "coverage_instrumented": true
+  },
+  "properties": {
+    "valid": 5000,
+    "invalid": 1600,
+    "passed": 6600
+  },
+  "mutation": {
+    "caught": 12,
+    "total": 12
+  },
+  "scenarios": {
+    "contract_passed": 90,
+    "executed": 40,
+    "partial_analysis": 11,
+    "blocked_as_designed": 39
+  },
+  "limits": [
+    "software checks, not wet-lab outcomes",
+    "no current remote CI",
+    "desktop SnapGene strict equality false",
+    "no independent human comprehension evaluation"
+  ],
+  "completed_date": "2026-09-23",
+  "isolated_core_package": {
+    "tests": 899,
+    "passed": 887,
+    "skipped": 12,
+    "seconds": 399.954,
+    "failed": 0
+  },
+  "coverage": {
+    "target_count": 54,
+    "targets_met": 52,
+    "gate_ok": false,
+    "failed_modules": [
+      "agent.orchestrator",
+      "agent.delivery"
+    ]
+  }
+}

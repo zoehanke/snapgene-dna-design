@@ -158,12 +158,28 @@ class M1PlannerTests(unittest.TestCase):
                         fake_primer_result(seq, kwargs.get("fwd_tail", ""),
                                            kwargs.get("rev_tail", ""))):
                 plan = planner_plan_assembly(sources, intent)
-            # The unchanged fixture's complete oligos have measured hairpins
-            # above 47 C. Mocked core-only zeroes cannot certify this plan.
-            self.assertEqual(plan["status"], "blocked")
+            # Mocked core-only zeroes must not certify the supplied bad pairs.
+            # A separately checked anchored search may legitimately find a
+            # different pair without changing the requested DNA.
+            self.assertEqual(plan["status"], "complete")
             self.assertEqual(plan["assembly_strategy"]["method"], "overlap")
-            self.assertTrue(any('structural_checks' in p.get('error','') for p in plan['primers']))
-            self.assertIsNone(plan['final_construct']['sequence'])
+            rescued = [p for p in plan["primers"] if p.get("anchored_search")]
+            self.assertTrue(rescued)
+            for primer in rescued:
+                self.assertTrue(primer["rejected_short_candidates"])
+                self.assertTrue(all(not check["passed"] for check in primer["rejected_short_candidates"]))
+                self.assertTrue(primer["complete_oligo_structure"]["passed"])
+                self.assertTrue(primer["pcr_product"]["amplicon"])
+                fragment = next(f for f in plan["fragment_assignments"] if f["name"] == primer["fragment"])
+                f_tail = primer["forward"].get("tail") or ""
+                r_tail = primer["reverse"].get("tail") or ""
+                original_bad_pair = (f_tail + fragment["sequence"][:18],
+                    r_tail + str(Seq(fragment["sequence"][-18:]).reverse_complement()))
+                self.assertNotEqual((primer["forward"]["sequence"], primer["reverse"]["sequence"]),original_bad_pair)
+                self.assertEqual(primer["pcr_product"]["amplicon"],
+                    f_tail + fragment["sequence"] + str(Seq(r_tail).reverse_complement()))
+            self.assertEqual(plan["final_construct"]["sequence"],
+                             "".join(f["sequence"] for f in plan["fragment_assignments"]))
             self.assertEqual(len(plan["fragment_assignments"]), 2)
             self.assertTrue(plan["assembly_strategy"]["overlap_junctions"][0]
                             ["length"] >= 15)
@@ -679,8 +695,14 @@ class AdditionalV09CoverageTests(unittest.TestCase):
             result = online_sources.ncbi_search("EGFP")
         self.assertEqual(result["status"], "verified-online")
         self.assertEqual(result["records"][0]["accession"], "NM_001")
+        # An HTTP response must contain a parsed record, not just a LOCUS prefix.
+        record = SeqRecord(Seq("ACGT"), id="X", name="X")
+        record.annotations["molecule_type"] = "DNA"
+        import io
+        buffer = io.StringIO()
+        SeqIO.write(record, buffer, "genbank")
         with mock.patch.object(online_sources, "_get",
-                               return_value="LOCUS       X"):
+                               return_value=buffer.getvalue()):
             result = online_sources.fetch_genbank("X")
         self.assertEqual(result["status"], "verified-online")
         with mock.patch.object(online_sources, "_get",
