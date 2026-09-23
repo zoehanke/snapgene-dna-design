@@ -132,13 +132,9 @@ class Orchestrator:
         return self.session.spec
 
     def confirm(self):
-        self.session.confirm()
         if self.session.spec.get("mode") == "formal":
-            self.session.spec["approvals"]["primers-ready-to-order"] = {
-                "value": True,
-                "evidence_layer": "user-provided",
-                "description": "user confirmed formal ordering conditions",
-            }
+            raise DesignSpecError("LEGACY_AGENT_FORMAL_DEPRECATED")
+        self.session.confirm()
         return self.session.spec
 
     def resolve_evidence(self):
@@ -152,7 +148,8 @@ class Orchestrator:
         for idx, (path, summary) in enumerate(
                 sorted(self.session.file_summaries.items()), 1):
             if summary.get("error"):
-                continue
+                set_status(spec, "blocked", "unreadable source", force=True)
+                raise DesignSpecError(f"SOURCE_UNREADABLE: {path}: {summary['error']}")
             spec["sources"].append(make_sequence_source(
                 "source-%02d" % idx, "user-file", summary["sha256"],
                 source_path=path, interval_0based=[0, summary["length"]],
@@ -184,6 +181,9 @@ class Orchestrator:
 
     def execute(self):
         spec = self.session.spec
+        if spec.get("mode") == "formal":
+            set_status(spec, "blocked", "LEGACY_AGENT_FORMAL_DEPRECATED", force=True)
+            raise DesignSpecError("LEGACY_AGENT_FORMAL_DEPRECATED")
         if spec.get("status") == "blocked":
             raise DesignSpecError(
                 "EXECUTION_BLOCKED: planning status is blocked; resolve the "
@@ -192,26 +192,23 @@ class Orchestrator:
             set_status(spec, "blocked", "method selection is missing", force=True)
             raise DesignSpecError(
                 "EXECUTION_BLOCKED: no compatible method was selected")
-        if spec["mode"] == "formal":
-            if self._primers_required(spec):
-                from primer3_core_backend import probe_primer3_core
-                probe = probe_primer3_core()
-                if probe["status"] != "available":
-                    set_status(spec, "blocked", "primer3_core unavailable",
-                               force=True)
-                    raise DesignSpecError(
-                        "formal mode requires real primer3_core")
         try:
+            self.session.construct_gb = None
+            self.session.construct_fasta = None
+            self.session.construct_dna = None
+            self.session.artifacts = []
             artifacts = self._run_existing_tools(spec)
         except DesignSpecError as error:
             set_status(spec, "blocked", str(error), force=True)
             raise
-        self.session.artifacts.extend(artifacts)
+        self.session.artifacts = artifacts
         set_status(spec, "executed", "existing tools executed")
         return artifacts
 
     def verify(self):
         spec = self.session.spec
+        if spec.get("status") != "executed":
+            raise DesignSpecError("PREVIEW_EXECUTION_REQUIRED")
         construct = self.session.construct_gb
         if not construct or not pathlib.Path(construct).exists():
             set_status(spec, "blocked", "construct.gb missing", force=True)
@@ -264,13 +261,12 @@ class Orchestrator:
         from agent.delivery import write_delivery
         spec = self.session.spec
         if spec.get("mode") == "formal":
-            blockers = formal_blockers(spec)
-            if blockers:
-                set_status(spec, "blocked",
-                            "formal delivery blockers: %s" % blockers,
-                            force=True)
-                raise DesignSpecError("FORMAL_BLOCKERS: %s" % blockers)
-        spec["outputs"]["delivery_flags"] = delivery_flags(spec)
+            set_status(spec, "blocked", "LEGACY_AGENT_FORMAL_DEPRECATED", force=True)
+            raise DesignSpecError("LEGACY_AGENT_FORMAL_DEPRECATED")
+        if spec.get("status") != "verified":
+            raise DesignSpecError("PREVIEW_VERIFICATION_REQUIRED")
+        spec["outputs"]["delivery_flags"] = {"delivery_grade": "legacy-preview",
+            "ready_to_order": False, "ready_for_wet_lab": False}
         delivery = write_delivery(
             spec, self.session, delivery_dir or self.out_dir,
             construct_gb=self.session.construct_gb,
@@ -334,7 +330,7 @@ class Orchestrator:
                 for enzyme_name in ("BsaI", "BsmBI", "Esp3I", "BbsI"):
                     per_fragment[enzyme_name] = len(restriction_hits(
                         Seq(str(record.seq)), get_enzyme(enzyme_name),
-                        circular=True))
+                        circular=record.annotations.get("topology") == "circular"))
                 counts.append(per_fragment)
             result["type_iis_site_counts"] = counts
             # The executor needs one unambiguous flanking pair per source
@@ -359,6 +355,8 @@ class Orchestrator:
         """
         obj = spec.get("objective", {})
         files = list(self.session.file_summaries.keys())
+        if not files:
+            raise DesignSpecError("SOURCE_REQUIRED: supply a source record before execution")
         method = (spec.get("objective", {}).get("selected_method")
                   or spec.get("constraints", {}).get("method")
                   or "gibson")
@@ -412,6 +410,7 @@ class Orchestrator:
                           "returncode": completed.returncode,
                           "stdout": (completed.stdout or "")[-4000:],
                           "stderr": (completed.stderr or "")[-4000:]})
+        self.session.artifacts = artifacts
         if completed.returncode != 0:
             actions = self._recovery_for(spec, method, completed)
             set_status(spec, "blocked", "existing tool failed", force=True)

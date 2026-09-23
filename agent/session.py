@@ -62,9 +62,9 @@ def summarize_file(path):
                                                                      ["?"])[0]])[0],
                 "start0": int(f.location.start),
                 "end0": int(f.location.end),
-                "strand": int(f.location.strand),
+                "strand": f.location.strand,
                 "parts": [
-                    [int(p.start), int(p.end), int(p.strand)]
+                    [int(p.start), int(p.end), p.strand]
                     for p in f.location.parts],
             }
             for f in rec.features
@@ -147,7 +147,7 @@ class Session:
         """Return list of mismatched paths vs session file summaries."""
         mismatches = []
         for path, summary in self.file_summaries.items():
-            if pathlib.Path(path).exists() and \
+            if not pathlib.Path(path).is_file() or \
                     file_sha256(path) != summary.get("sha256"):
                 mismatches.append(path)
         return mismatches

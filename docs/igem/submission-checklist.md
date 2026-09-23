@@ -11,7 +11,7 @@
 ## PARTIALLY READY
 
 - BS1–BS6技术证据：程序与合成案例可复现，实际广泛效用/生物学效果仍有限。
-- 独立包与运行验证通过；整体覆盖门槛仍因两个旧预览模块FAIL，未标正式发布。
+- 本机运行与覆盖54/54通过；独立包以最终报告为准。远程CI、正式发布及提交仍需单独完成。
 - 开源许可：原代码许可明确，外部序列和参考图权属仍待确认。
 
 ## MISSING
@@ -33,6 +33,7 @@
 - 专属软件GitLab仓库建立/内容提交及URL回执。
 - Wiki `/software` 内容发布、链接和格式检查。
 - Judging Form奖项自荐、Attributions、Safety等适用表单。
+- Check-in如适用，最后提交为9月23日23:00北京时间；最终Project Safety Form为10月7日23:00，由PI提交。软件检查不能代替这些动作。
 - 冻结前核对提交状态；主要软件相关freeze为10-21 15:00 UTC。
 
 团队级报名/费用/roster、安全手续、Registry、视频、问答等不因本仓库有文件而完成。Tianjin accepted/Foundational Advance只核实其公开页面信息，不认证全部其他条件。

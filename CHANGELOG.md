@@ -9,6 +9,7 @@ Local remediation on the development branch; no new release or remote publicatio
 - Bind Trace choices to file versions, distinguish observed presence from generation, and minimize captured credentials without changing DNA execution.
 - Package reviewed sources only; keep mandatory regressions independent of nonredistributable material. Test extracted packages separately.
 - Add reproducible benchmarks, current user/developer documentation and source-backed iGEM 2026 preparation materials. External user, scientific and submission evidence remains separate.
+- Complete legacy-preview acceptance: immutable snapshots, no stale artifact handoff, explicit source/state failures and real CLI coverage. Restore all scenarios under instrumentation and enable required Primer3 checks in CI.
 
 ## 1.0.0 · 可用大版本
 

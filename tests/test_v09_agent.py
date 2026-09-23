@@ -433,7 +433,6 @@ class AgentE2ETests(unittest.TestCase):
     def test_legacy_routes_retain_invalid_input_evidence(self):
         with tempfile.TemporaryDirectory() as tmp:
             tmp=pathlib.Path(tmp)
-            coverage_mode = bool(os.environ.get("COVERAGE_PROCESS_START"))
             # Preserve original inputs, including unsupported biological goals
             # and unsuitable primer boundaries. These are rejection tests.
             normal_tasks=[
@@ -444,8 +443,6 @@ class AgentE2ETests(unittest.TestCase):
                 ("用 Gibson 插入供体片段，宿主大肠杆菌", None),
                 ("组装两个质粒片段，宿主酵母", None),
             ]
-            if coverage_mode:
-                normal_tasks = normal_tasks[:2]
             for text,_ in normal_tasks:
                 with self.subTest(text=text):
                     if "Golden Gate" in text:
@@ -473,18 +470,6 @@ class AgentE2ETests(unittest.TestCase):
                         continue
                     error='LEGACY_GOAL_UNSUPPORTED' if ('启动子' in text or '抗性' in text) else 'TOOL_FAILED'
                     self._run_chain(text,tmp,expected_error=error)
-            if coverage_mode:
-                return
-            # Gateway LR with real Gateway fixtures
-            gw_paths=[str(ROOT/"fixtures/golden/pENTR-EmGFP.gb"),
-                      str(ROOT/"fixtures/golden/pDEST40.dna")]
-            if not (ROOT/"fixtures/golden/pENTR-EmGFP.gb").exists() or not (ROOT/"fixtures/golden/pDEST40.dna").exists():
-                self.skipTest("Gateway academic fixtures not packaged")
-            with self.subTest(text="Gateway LR"):
-                session,delivery=self._run_chain(
-                    "Gateway LR 从 entry 到 destination，宿主大肠杆菌",
-                    tmp, paths=gw_paths)
-                self.assertIn(session.spec["status"], ("verified","delivered"))
             # point mutation with one template
             mut_path=write_gb(tmp/"template.gb","pTEMPLATE",600,
                               features=[(20,500,"CDS","orf",1)])
@@ -524,6 +509,18 @@ class AgentE2ETests(unittest.TestCase):
                     "missing information not answered",
                     ["提供文件角色、宿主与构建目标后重新开始"])
                 self.assertEqual(session.spec["status"], "blocked")
+
+
+    @unittest.skipUnless((ROOT/"fixtures/golden/pENTR-EmGFP.gb").exists() and
+                         (ROOT/"fixtures/golden/pDEST40.dna").exists(),
+                         "Gateway academic fixtures not packaged")
+    def test_gateway_original_external_material(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            paths=[str(ROOT/"fixtures/golden/pENTR-EmGFP.gb"),str(ROOT/"fixtures/golden/pDEST40.dna")]
+            session,delivery=self._run_chain("Gateway LR 从 entry 到 destination，宿主大肠杆菌",
+                                             pathlib.Path(tmp),paths=paths)
+            self.assertEqual(session.spec['status'],'delivered')
+            self.assertEqual(delivery['manifest']['artifact_class'],'preview')
 
 
 class DesignSpecCliTests(unittest.TestCase):

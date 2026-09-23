@@ -32,6 +32,7 @@ import argparse
 import json
 import os
 import pathlib
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -267,7 +268,16 @@ def main(argv=None):
                 step_env.pop("COVERAGE_PROCESS_START", None)
                 step_env.pop("COVERAGE_FILE", None)
             print(f"[coverage_gate] Starting step: {name}...", flush=True)
-            completed = _run(cmd, cwd=cwd, env=step_env, timeout=1800)
+            # Full instrumentation took 27 minutes before all legacy scenarios
+            # were restored. This is a runner timeout, not a performance gate.
+            try:
+                completed = _run(cmd, cwd=cwd, env=step_env,
+                                 timeout=3600 if name == "unittest" else 1800)
+            except subprocess.TimeoutExpired as error:
+                def decoded(value):
+                    return value.decode("utf-8", errors="replace") if isinstance(value, bytes) else (value or "")
+                completed = subprocess.CompletedProcess(cmd, 124, decoded(error.stdout),
+                    decoded(error.stderr) + "\nCoverage step timed out; results are incomplete.\n")
             (out_dir / (name + ".stdout.log")).write_text(completed.stdout or "", encoding="utf-8")
             (out_dir / (name + ".stderr.log")).write_text(completed.stderr or "", encoding="utf-8")
             print(f"[coverage_gate] Step {name} finished (rc={completed.returncode})", flush=True)
@@ -288,6 +298,9 @@ def main(argv=None):
             raise RuntimeError(
                 "coverage combine failed: %s"
                 % (combine.stderr or combine.stdout))
+        # Keep the real coverage database as well as JSON; do not force another
+        # full run merely to inspect contexts or export a different view.
+        shutil.copyfile(data_file, out_dir / "coverage.data")
 
         json_path = out_dir / "coverage.json"
         json_run = _run(

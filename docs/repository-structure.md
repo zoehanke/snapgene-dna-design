@@ -13,6 +13,7 @@
 | fixtures/、tests/data/ | 合成与外部回归材料 | parser fixture 不一定是有效生物设计；许可不同 |
 | tests/ | 单元、接口、回归与部分真实后端测试 | skip 与通过分开 |
 | benchmarks/、results/ | 可重复性能方法与公开摘要 | 不提交用户 DNA/秘密 |
+| examples/ | 可直接运行的开发接口例子 | 解释作用范围，与实际制备demo分开 |
 | references/ | 精确参数与方法说明 | CLI 签名仍以源码为准 |
 | specs/、docs/ | 当前契约、原因、计划和实证 | 当前 spec 与历史审计分开 |
 | third_party/ | Azimuth 转换代码及模型、DeepCpf1 权重和许可证 | 不随意编辑/替换，保留来源和哈希 |

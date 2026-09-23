@@ -9,17 +9,19 @@ source construct is not core-safe.
 from __future__ import annotations
 
 import csv
+import copy
 import hashlib
 import json
 import pathlib
 import shutil
 import sys
+import tempfile
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from design.spec import canonical_json, now_iso, spec_sha256  # noqa: E402
-from provenance import read_version  # noqa: E402
+from design.spec import DesignSpecError, now_iso, spec_sha256  # noqa: E402
+from scripts.provenance import read_version  # noqa: E402
 
 
 def sha256_file(path):
@@ -39,30 +41,23 @@ def _write_json(path, obj):
 
 def _primers_csv(path, artifacts):
     primers = []
-    for artifact in artifacts or []:
-        if artifact.get("stdout"):
-            text = artifact["stdout"]
-            # plan_assembly JSON output contains primers inside plan.json;
-            # primers.csv is populated from plan file when present.
     plan = pathlib.Path(path).parent / "construction-plan.json"
-    if plan.exists():
-        try:
-            data = json.loads(plan.read_text(encoding="utf-8"))
-            for item in data.get("primers", []):
-                for side in ("forward", "reverse"):
-                    primer = item.get(side) or {}
-                    if primer.get("sequence"):
-                        primers.append({
-                            "name": primer.get("name", ""),
-                            "fragment": item.get("fragment", ""),
-                            "side": side,
-                            "sequence": primer.get("sequence", ""),
-                            "tm": primer.get("tm", ""),
-                            "gc": primer.get("gc", ""),
-                            "tail": primer.get("tail", ""),
-                        })
-        except Exception:
-            pass
+    data = json.loads(plan.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        raise ValueError("Construction plan must be a JSON object")
+    for item in data.get("primers", []):
+        for side in ("forward", "reverse"):
+            primer = item.get(side) or {}
+            if primer.get("sequence"):
+                primers.append({
+                    "name": primer.get("name", ""),
+                    "fragment": item.get("fragment", ""),
+                    "side": side,
+                    "sequence": primer.get("sequence", ""),
+                    "tm": primer.get("tm", ""),
+                    "gc": primer.get("gc", ""),
+                    "tail": primer.get("tail", ""),
+                })
     with open(path, "w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=[
             "name", "fragment", "side", "sequence", "tm", "gc", "tail"])
@@ -80,10 +75,10 @@ def _materials_csv(path, spec):
         for material in chosen.get("required_materials", []):
             rows.append({"category": "method", "item": material,
                          "source": "; ".join(chosen.get("source_evidence", []))})
-    rows.append({"category": "primer-polymerase",
-                 "item": spec.get("constraints", {}).get(
-                     "polymerase_preference", "high-fidelity polymerase"),
-                 "source": "NEB polymerase selection guidance"})
+    polymerase = spec.get("constraints", {}).get("polymerase_preference")
+    if polymerase:
+        rows.append({"category": "primer-polymerase", "item": polymerase,
+                     "source": "declared design constraint"})
     with open(path, "w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=["category", "item", "source"])
         writer.writeheader()
@@ -94,8 +89,42 @@ def _materials_csv(path, spec):
 
 def write_delivery(spec, session, directory, construct_gb=None,
                    artifacts=None, force_dna=False):
-    directory = pathlib.Path(directory) / "preview"
-    directory.mkdir(parents=True, exist_ok=True)
+    """Publish an immutable preview snapshot separately from working files."""
+    if spec.get("mode") != "exploration":
+        raise DesignSpecError("LEGACY_AGENT_FORMAL_DEPRECATED")
+    if construct_gb and spec.get("status") != "verified":
+        raise DesignSpecError("PREVIEW_VERIFICATION_REQUIRED")
+    parent = pathlib.Path(directory) / "preview"
+    parent.mkdir(parents=True, exist_ok=True)
+    target = parent / "delivery"
+    if target.exists():
+        raise FileExistsError(f"Preview delivery already exists: {target}; use a new output directory")
+    stage = pathlib.Path(tempfile.mkdtemp(prefix=".delivery-", dir=parent))
+    try:
+        result = _write_snapshot(copy.deepcopy(spec), session, stage,
+                                 construct_gb, artifacts, force_dna)
+        stage.rename(target)
+    except Exception:
+        shutil.rmtree(stage, ignore_errors=True)
+        raise
+    result["directory"] = str(target)
+    return result
+
+
+def _write_snapshot(spec, session, directory, construct_gb, artifacts, force_dna):
+    construct = pathlib.Path(construct_gb) if construct_gb else None
+    if construct is not None and not construct.is_file():
+        raise FileNotFoundError(f"Preview candidate not found: {construct}")
+    flags = {"delivery_grade": "legacy-preview", "ready_to_order": False,
+             "ready_for_wet_lab": False,
+             "reason": "Legacy sequence preview; formal construction uses the ConstructionTask runtime."}
+    spec.setdefault("outputs", {})["delivery_flags"] = flags
+    if construct is None:
+        spec["outputs"]["construct_note"] = "No construct was provided; this package contains reports only."
+    elif not construct.with_suffix('.dna').is_file():
+        spec["outputs"]["dna_note"] = "No native DNA artifact was provided; the GenBank preview is included."
+    elif not force_dna:
+        spec["outputs"]["dna_note"] = "Native DNA preview omitted by the export option; the GenBank preview is included."
     spec_path = _write_json(directory / "DESIGN-SPEC.json", spec)
     spec_hash = spec_sha256(spec)
     _write_text(directory / "DESIGN-SPEC-SHA256.txt", spec_hash + "\n")
@@ -132,14 +161,7 @@ def write_delivery(spec, session, directory, construct_gb=None,
         "assumptions": spec.get("assumptions", []),
         "derived_facts": spec.get("derived_facts", []),
         "approvals": spec.get("approvals", {}),
-        "delivery_flags": {
-            "delivery_grade": "legacy-preview",
-            "ready_to_order": False,
-            "ready_for_wet_lab": False,
-            "reason": ("v0.9.1: the legacy keyword-parser path never produces "
-                       "authoritative, orderable or wet-lab products; use "
-                       "core.run_construction_task for formal construction"),
-        },
+        "delivery_flags": flags,
     }
     _write_json(directory / "evidence-report.json", evidence)
 
@@ -162,31 +184,18 @@ def write_delivery(spec, session, directory, construct_gb=None,
     _primers_csv(directory / "primers.csv", artifacts or [])
     _materials_csv(directory / "materials.csv", spec)
 
-    construct = pathlib.Path(construct_gb) if construct_gb else None
     files = []
-    if construct and construct.exists():
+    if construct:
         shutil.copyfile(construct, directory / "construct.preview.gb")
         files.append(directory / "construct.preview.gb")
-        fasta = pathlib.Path(str(construct).replace(".gb", ".fa"))
+        fasta = construct.with_suffix('.fa')
         if fasta.exists():
             shutil.copyfile(fasta, directory / "construct.fasta")
             files.append(directory / "construct.fasta")
-        dna = pathlib.Path(str(construct).replace(".gb", ".dna"))
+        dna = construct.with_suffix('.dna')
         if dna.exists() and force_dna:
             shutil.copyfile(dna, directory / "construct.dna")
             files.append(directory / "construct.dna")
-        elif dna.exists():
-            spec.setdefault("outputs", {})["dna_note"] = (
-                "construct.dna available but omitted: native .dna may lose "
-                "qualifiers/notes; authoritative GenBank is the canonical "
-                "delivery format")
-        else:
-            spec.setdefault("outputs", {})["dna_note"] = (
-                "construct.dna omitted: source construct has no .dna "
-                "artifact; authoritative GenBank remains available")
-    else:
-        spec.setdefault("outputs", {})["construct_note"] = (
-            "no construct.gb available at delivery time")
 
     manifest_files = {
         "DESIGN-SPEC.json": sha256_file(directory / "DESIGN-SPEC.json"),
@@ -240,7 +249,7 @@ def write_delivery(spec, session, directory, construct_gb=None,
 
 def os_probe_summary():
     try:
-        import primer3_core_backend
+        from scripts import primer3_core_backend
         probe = primer3_core_backend.probe_primer3_core()
         return {"status": probe.get("status"),
                 "version": probe.get("version"),

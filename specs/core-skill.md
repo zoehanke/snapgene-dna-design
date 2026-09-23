@@ -84,4 +84,6 @@ Execution and validation receipts require their version hashes. An explicitly re
 
 Release packaging uses reviewed tracked paths, or an explicit source list outside Git. Exclude untracked local inputs and known restricted/external fixtures from the redistributable variant. A file's presence in Git is not proof of redistribution rights. Validate the extracted package separately from the checkout.
 
-Release status remains incomplete: all current Core/Trace coverage targets passed, but the overall gate failed for the legacy preview orchestrator/delivery targets. Preserve this test debt and the existing thresholds; do not infer general release readiness from the passing functional suite.
+The reopened local acceptance now passes all 54 coverage targets at the existing thresholds, including legacy preview. Keep its scope distinct from external user effectiveness, wet-lab outcomes, other-platform CI and authorized publication.
+
+Legacy-preview handoff now uses an immutable snapshot in preview/delivery, separate from preview working files. Preview working files and delivery snapshots are separate; snapshots include actual omission reasons, stay consistent with their hashes and cannot absorb stale outputs. Missing/unreadable sources and unverified state block preview handoff. Its deprecated formal route stays blocked. Coverage instrumentation must not change which regression scenarios execute.

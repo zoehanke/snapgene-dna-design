@@ -4,10 +4,10 @@
 Public seams (the only interfaces tests and Skill flows may rely on):
 
     validate_construction_task(task)          -> validated task
-    plan(task)                                -> explicit plan
-    execute(task, plan)                       -> execution artifacts
+    plan(task)                                -> (validated task, explicit plan)
+    execute(task, plan, out_dir)              -> execution artifacts
     validate(task, plan, execution)           -> three-layer report
-    finalize(task, plan, execution, validation) -> authoritative delivery
+    finalize(task, plan, execution, validation, out_dir) -> authoritative delivery
 """
 from core.task import validate_construction_task
 from core.session import ConstructionTaskSession, collect_task_questions

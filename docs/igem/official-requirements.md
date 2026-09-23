@@ -1,6 +1,6 @@
 # iGEM 2026 官方要求核对
 
-核对日期：2026-09-22。直接读取当年的官方渲染页面；旧 `/special-prizes`、`/team-wiki` 链接已出现 legacy/空页，以下优先使用当前页面。搜索摘要只作定位，不把其他队伍 Wiki 当规则来源。本机页面抓取留在 output/audit-20260922/official-*.json，不复制整页版权内容进发布包。
+核对日期：2026-09-22；日历于2026-09-23再次用实际浏览器渲染核对。旧 `/special-prizes`、`/team-wiki` 链接已出现 legacy/空页，以下优先使用当前页面。搜索摘要只作定位，不把其他队伍 Wiki 当规则来源。本机页面抓取留在 output/audit-20260922/official-*，不复制整页版权内容进发布包。
 
 | 编号 | 当前核实事实 | 官方来源 |
 |---|---|---|
@@ -12,6 +12,7 @@
 | O6 | 软件材料不替代Safety Forms、正式表单、视频与现场/线上问答 | [Deliverable Guides](https://competition.igem.org/deliverables/guides) |
 | O7 | MIT 在OSI批准名单；这不认证团队对所有外部文件拥有权利 | [OSI MIT](https://opensource.org/license/mit) |
 | O8 | 实际实验须遵循对应安全政策，Trace不是Check In或实验审批 | [Safety Policies](https://responsibility.igem.org/safety-policies) |
+| O9 | 如涉及非White List的生物、元件或活动，Check-in最后提交时间为9月23日15:00 UTC，覆盖活动须先获批；最终Project Safety Form为10月7日15:00 UTC，由一位Team PI提交 | [2026 Calendar](https://competition.igem.org/calendar) |
 
 Best Software 六项公开评审维度，后续文档用编号引用，避免反复抄规则：BS1 格式/标准互操作；BS2 验证；BS3 对其他项目有用；BS4 外部集成；BS5 易用性；BS6 可维护和可复现文档。这里是简译，原文以 O1 页面为准。
 

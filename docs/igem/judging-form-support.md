@@ -8,6 +8,12 @@
 
 BS1–BS6证据索引：[best-software-evidence](best-software-evidence.md)、[traceability](traceability-matrix.md)。合成benchmark测量的是运行成本，不是实验成功率或用户效率。
 
+可供团队据实改写的英文核心段落：
+
+> SnapGene DNA Design turns explicit design requests and supplied sequence records into inspectable computational constructs through reusable recipes and composable tools. The implementation computes preparation intermediates where the selected route supports them, preserves annotations and full primer information, and checks saved artifacts before formal delivery. Evidence Trace separately records observed execution and sourced public explanations. Our validation combines independent positive and negative sequence cases, real external-tool integrations and extracted-package tests. Computational validation, user effectiveness and experimental outcomes are reported separately.
+
+提交前从最终报告填写最终测试、覆盖与bench数据；选两项与本团队实际需求对应的结果展开，不堆测试总数。标准互操作引用[兼容表](standards-compatibility.md)，外部集成引用[实际接口](../integration.md)，维护和复现引用[开发指南](../developer-guide.md)。任何“其他队伍已受益”“节省多少时间”“提高安全性”的句子都需要外部记录支持。
+
 ## NEEDS HUMAN INPUT
 
 队员贡献与外部帮助归属；对源文件/图片/代码的许可确认；最终表述、项目贡献定位及奖项自荐。

@@ -13,6 +13,8 @@ python -X utf8 -B scripts/run_recipe.py --recipe recipe_protein_tagging --params
 
 有现成载体/模板时，按[用户指南](user-guide.md)选择任务；完整构建参数见[Recipe](../references/recipes.md)。文件必须实际读回，核对序列和特征。
 
+开发者若要逐阶段理解task、plan、execution和validation，可运行[Core API例子](../examples/core_workflow.py)，对应说明见[实际集成](integration.md)。
+
 ## Trace
 
 需要完整正式文件与Trace的公开工程示例，可运行：

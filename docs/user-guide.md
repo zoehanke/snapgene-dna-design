@@ -27,3 +27,26 @@ candidate/intermediate 表示计算或待核验产物；authoritative 表示通�
 ## 准确使用边界
 
 Python 和格式往返证明的是序列文件及有限反应模型。预测评分不证明编辑效率；局部匹配不证明全基因组唯一；DNA 构建不证明功能复活或生态安全。具体失败看[排障](troubleshooting.md)。
+
+## 一个完整例子怎样使用
+
+先用公开工程示例确认本机安装与整条执行路线：
+
+```text
+python -X utf8 -B scripts/demo_engineering_cycle.py --out-dir output/my-first-demo
+```
+
+该例明确是合成材料和预设路线。它实际运行inverse PCR、生成制备记录、正式文件和Trace，再独立核对源与产物。不要把其中短CDS的GFP标签解释成经过荧光实验验证的基因。
+
+打开结果时，先读任务和最终文件，再查完整引物与制备步骤。`.dna`供桌面SnapGene检查；`.gb`保留可读的序列与特征；FASTA只带序列。`trace/index.html`解释此次操作和检查。所用路径见脚本打印结果；不要从文件夹里随便找一个历史同名文件当本次产物。
+
+自己的任务由宿主根据实际来源填写Recipe参数，签名见[配方参考](../references/recipes.md)。多步流程中，后一反应引用前一真实产物；有后置分析步骤时，用`output_step`明确交付哪个序列结果。更改目标或来源后使用新输出目录，保留前次记录。
+
+## 出错时怎么判断
+
+- 入口要求澄清：读具体缺少的参数，只补会改变这次设计的信息。
+- 计算或验证失败：查看result.json中的对象、错误及candidate；此时不能将candidate改名当authoritative。
+- Trace不完整：查看记录缺口，DNA结果和验证另行判断；后补说明保留其来源。
+- 目录已有正式文件或预览交接包：换新输出目录；程序保留旧包，避免混入残留文件。
+
+旧`run_design_agent.py`仅供兼容预览和规则维护。它的工作文件在`preview/`，交接包在`preview/delivery/`，不能成为正式构建或可订购证明。日常新设计使用Recipe、Pipeline或ConstructionTask。

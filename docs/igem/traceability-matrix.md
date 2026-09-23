@@ -17,3 +17,19 @@
 | Safety相关 | safety spec边界 | runtime/recorder/process/applicability/impact | engineering_trace、phase2/3、三档A/B | safety-module-evidence | Safety / 审查支持，不是安全裁决 |
 
 工程新测试对应完整文件名：tests/test_engineering_core_audit.py、test_engineering_trace_audit.py、test_engineering_auxiliary_audit.py、test_engineering_release_audit.py；所有最终数字与遗留以 docs/final-remediation-report.md 为准。
+
+## 直接证据入口
+
+下面补齐可点击的具体文件，避免评审或接手者还需猜缩写对应哪个实现。
+
+| 维度 | 需求与Spec | 实现 | 可执行检查 | 数据/方法 | 面向用户的说明与Wiki位置 |
+|---|---|---|---|---|---|
+| BS1 格式/注释 | [Core契约](../../specs/core-skill.md) | [snapgene_io](../../core/tools/snapgene_io.py)、[construct_model](../../core/models/construct_model.py) | [引物往返](../../tests/test_primer_io_repair.py)、[位置变换](../../tests/test_preparation_primer_locations.py) | [实际桌面结果](../../results/engineering-audit-20260922/snapgene-roundtrip.json) | [标准表](standards-compatibility.md)；Wiki Interoperability |
+| BS2 正确性 | [Core验收](../../specs/core-skill.md) | [validate](../../core/runtime_validate.py)、[gate](../../core/runtime_gate.py) | [Core反例](../../tests/test_engineering_core_audit.py)、[交付边界](../../tests/test_engineering_core_boundaries.py) | [测量方法](../benchmark.md)、[当前汇总](../../results/engineering-audit-20260922/validation-summary.json) | [验证](../validation.md)；Wiki Validation/Results |
+| BS3 实际用途 | [主目标](../../specs/core-skill.md) | [Recipes](../../core/recipes/__init__.py)、[Pipeline](../../core/handlers/composite_pipeline.py) | [实际制备Demo](../../scripts/demo_engineering_cycle.py) | [需补外部证据](external-evidence-needed.md) | [用户指南](../user-guide.md)；Wiki Contribution |
+| BS4 集成 | [接口边界](../../specs/core-skill.md) | [Core API](../../core/__init__.py)、[Primer3](../../scripts/primer3_core_backend.py) | [可选后端真实测试](../../tests/test_v08_dev3.py)、[可执行API](../../examples/core_workflow.py) | [受测依赖](../../requirements-tested.txt) | [集成](../integration.md)；Wiki Integration |
+| BS5 可读使用 | [报告契约](../../specs/safety-module.md) | [report](../../evidence_trace/report.py)、[details](../../evidence_trace/details.py) | [报告独立案例](../../tests/test_trace_report_generalization.py) | [浏览器检查](../../results/engineering-audit-20260922/browser-check.json)、[截图](../../results/engineering-audit-20260922/trace-desktop.png) | [快速开始](../quick-start.md)；Wiki User Experience；独立用户证据仍缺 |
+| BS6 维护/复现 | [开发规则](../../AGENTS.md) | [工具注册](../../core/tools/registry.py)、[构建](../../scripts/build_release.py) | [包边界](../../tests/test_engineering_release_audit.py)、[旧预览契约](../../tests/test_legacy_preview_contract.py) | [环境与复现](../reproducibility.md) | [开发](../developer-guide.md)、[扩展](../extension-guide.md)；Wiki Design/Availability |
+| Safety审查支持 | [Safety Spec](../../specs/safety-module.md) | [runtime](../../evidence_trace/runtime.py)、[process](../../evidence_trace/process.py) | [来源/采集反例](../../tests/test_engineering_trace_audit.py)、[组织边界](../../tests/test_engineering_process_boundaries.py) | [证据强度与限制](safety-module-evidence.md) | Wiki Safety；外部效果未验证 |
+
+程序结果、原始源码和官网规则各自支持不同主张。未上传的Wiki/仓库仍标待发布，不能从这些本地链接推断官方已接收。

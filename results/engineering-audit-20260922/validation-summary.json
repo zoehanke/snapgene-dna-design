@@ -3,10 +3,10 @@
   "baseline_commit": "b87a1d8",
   "platform": "Windows/Python 3.12.4",
   "full_suite": {
-    "tests": 927,
-    "passed": 927,
+    "tests": 937,
+    "passed": 937,
     "skipped": 0,
-    "seconds": 1632.098,
+    "seconds": 1697.872,
     "real_backends": [
       "Primer3",
       "Cas-OFFinder 2.4.1",
@@ -40,19 +40,20 @@
   ],
   "completed_date": "2026-09-23",
   "isolated_core_package": {
-    "tests": 899,
-    "passed": 887,
+    "tests": 909,
+    "passed": 897,
     "skipped": 12,
-    "seconds": 399.954,
+    "seconds": 342.534,
     "failed": 0
   },
   "coverage": {
     "target_count": 54,
-    "targets_met": 52,
-    "gate_ok": false,
-    "failed_modules": [
-      "agent.orchestrator",
-      "agent.delivery"
-    ]
+    "targets_met": 54,
+    "gate_ok": true,
+    "failed_modules": []
+  },
+  "cold_import_followup": {
+    "tests": 9,
+    "passed": 9
   }
 }

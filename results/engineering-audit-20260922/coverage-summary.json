@@ -1,7 +1,7 @@
 {
   "gate": "core-module-coverage",
   "mode": "default",
-  "gate_ok": false,
+  "gate_ok": true,
   "suites_ok": true,
   "line_threshold": 90.0,
   "branch_threshold": 85.0,
@@ -324,12 +324,12 @@
     },
     {
       "branch_ok": true,
-      "branch_percent": 73.81,
-      "branches_covered": 31,
+      "branch_percent": 76.19,
+      "branches_covered": 32,
       "branches_total": 42,
       "line_ok": true,
-      "line_percent": 81.65,
-      "lines_covered": 129,
+      "line_percent": 85.44,
+      "lines_covered": 135,
       "lines_total": 158,
       "module": "plan_assembly",
       "reason": null
@@ -383,37 +383,37 @@
       "reason": null
     },
     {
-      "branch_ok": false,
-      "branch_percent": 51.82,
-      "branches_covered": 57,
+      "branch_ok": true,
+      "branch_percent": 77.27,
+      "branches_covered": 85,
       "branches_total": 110,
-      "line_ok": false,
-      "line_percent": 69.1,
-      "lines_covered": 208,
-      "lines_total": 301,
+      "line_ok": true,
+      "line_percent": 89.25,
+      "lines_covered": 274,
+      "lines_total": 307,
       "module": "agent.orchestrator",
       "reason": null
     },
     {
-      "branch_ok": false,
-      "branch_percent": 0.0,
-      "branches_covered": 0,
-      "branches_total": 42,
-      "line_ok": false,
-      "line_percent": 15.65,
-      "lines_covered": 18,
-      "lines_total": 115,
+      "branch_ok": true,
+      "branch_percent": 92.31,
+      "branches_covered": 48,
+      "branches_total": 52,
+      "line_ok": true,
+      "line_percent": 96.35,
+      "lines_covered": 132,
+      "lines_total": 137,
       "module": "agent.delivery",
       "reason": null
     },
     {
       "branch_ok": true,
-      "branch_percent": 81.25,
-      "branches_covered": 26,
+      "branch_percent": 84.38,
+      "branches_covered": 27,
       "branches_total": 32,
       "line_ok": true,
-      "line_percent": 79.41,
-      "lines_covered": 81,
+      "line_percent": 80.39,
+      "lines_covered": 82,
       "lines_total": 102,
       "module": "planning.method_selector",
       "reason": null
@@ -432,12 +432,12 @@
     },
     {
       "branch_ok": true,
-      "branch_percent": 86.96,
-      "branches_covered": 80,
+      "branch_percent": 88.04,
+      "branches_covered": 81,
       "branches_total": 92,
       "line_ok": true,
-      "line_percent": 93.23,
-      "lines_covered": 179,
+      "line_percent": 93.75,
+      "lines_covered": 180,
       "lines_total": 192,
       "module": "primer_design_engine",
       "reason": null
@@ -659,12 +659,12 @@
       "reason": null
     }
   ],
+  "completed_date": "2026-09-23",
   "step_returncodes": {
     "property_quick": 0,
     "rich_fixtures": 0,
     "smoke_core": 0,
     "unittest": 0
   },
-  "completed_date": "2026-09-23",
-  "scope": "default correctness coverage gate; optional model coverage excluded by existing policy, actual model tests separately executed"
+  "scope": "Default correctness coverage gate; original thresholds, same scenarios with/without instrumentation"
 }

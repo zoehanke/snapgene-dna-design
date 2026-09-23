@@ -10,6 +10,8 @@ python -X utf8 -B benchmarks/plot_results.py
 
 ## 方法
 
+计算基准使用核心依赖；`plot_results.py`额外需要Matplotlib，版本范围见requirements-optional.txt。绘图依赖与可选预测模型的运行依赖是两回事，按实际运行脚本安装。
+
 每项3次，报告全部样本、中位数和Python分配峰值。5k/50k/500k bp随机序列固定种子，注释密度固定；测切片、Native导出/读回及包含新Python进程启动的inspect。Trace测100/1000个合成Requirement节点的图与报告重建，不代表相同规模复杂科学网络。tracemalloc不含外部程序/native分配；没有把它叫整个机器RSS。
 
 基线b87a1d8与修复工作树，依赖未盲目升级。期间机器可能有并行验证负载，重复数少且未随机化执行顺序，因此不主张微小差异是代码优化。没有新增缓存服务。
@@ -34,3 +36,5 @@ python -X utf8 -B benchmarks/plot_results.py
 [Sanger/MSA小输入对照](../results/engineering-audit-20260922/auxiliary-benchmarks.json)：Sanger检查两个方向，耗时约增加一倍；MSA保留原碱基而无显著速度变化。接受的是正确性修复，不宣传提速。动态规划仍不适合任意大基因组全对全比对。
 
 12个mutation测试、6600个属性案例和90个场景契约属于软件测试，不是性能或生物学成功率。
+
+r3收尾改动集中于旧预览交接、测试和文档，未改变以上DNA计算/Trace重建算法。保留本周期实际测量，不把新增覆盖或预览路径修复宣传为提速。

@@ -11,6 +11,7 @@
 | 90场景分布 | 分开执行/partial/blocked | scenario-summary.json及本地原报告 | 是，部分本地外部fixtures受限 | BS2 | 不作为湿实验成功率 |
 | 桌面自动往返 | 外部格式互操作 | snapgene-roundtrip.json | 需合法SnapGene环境 | BS1/BS4 | core-compatible；strict未通过 |
 | 实际inverse-PCR演示 | 完整工具链与Trace | demo_engineering_cycle.py | 是，公开合成fixture | BS2/BS4/BS5 | 本机执行，预设场景 |
+| 可执行Core API例子 | 供开发者逐阶段读实际JSON | examples/core_workflow.py | 是，2500bp公开输入、6个特征 | BS4/BS6 / Integration | 实际执行；文件编辑模型 |
 | 实际报告与构建图 | 解释交付结果 | results/engineering-audit-20260922 的SVG、桌面/窄窗截图、browser-check.json | 是，原报告可重建 | BS2/BS5 / Workflow | 实际渲染；非真人理解证明 |
 | 真实可选后端 | 验证接口、方向和参考输出 | 官方Cas-OFFinder v2/v3、Azimuth/DeepCpf1，27项无skip | 需依赖和OpenCL | BS2/BS4 | 合成参考已测，非任意基因组 |
 | 新用户评价 | 其他团队独立完成任务 | 原始任务、操作记录与反馈 | 需外部人员 | BS3/BS5 | MISSING |
