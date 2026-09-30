@@ -5,6 +5,7 @@
 - Restriction and Type IIS annotations use the shared slicing contract: clipped CDS features retain partial status and correct phase, and do not assert their source's complete translation. Cut primers remain partial annotations.
 - Explicit peptide-tag and protease-cleavage products are distinguished from complete proteins while retaining translation, codon-table and internal-stop validation.
 - Competing delivery attempts explicitly reject an existing delivery and preserve the winner instead of surfacing a Windows permission error.
+- Reproduced Windows transient rename denial retries only the same verified staging directory, for at most 350 ms. Persistent errors still fail; no conversion rerun or non-atomic copy is used.
 - Installations bind a verified package to its source commit and local Python executable; prior installs are preserved in a backup. Host usability testing remains separate from regression checks.
 
 ## 2026-09-22/23 engineering audit, incorporated into 1.0.2

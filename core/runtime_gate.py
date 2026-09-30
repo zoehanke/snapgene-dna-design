@@ -352,15 +352,22 @@ def _promote_verified_candidate(
         )
 
         # Atomic directory promotion
-        try:
-            tmp.replace(authoritative)
-        except OSError as exc:
-            # Another attempt can finish after the initial existence check.
-            # Preserve its delivery and report the same collision contract.
-            if authoritative.exists():
-                raise GateRejected("GATE_AUTHORITATIVE_ALREADY_EXISTS",
-                                   "another attempt already delivered; refusing to overwrite its directory") from exc
-            raise
+        import time
+        for delay in (0, 0.05, 0.1, 0.2):
+            if delay:
+                time.sleep(delay)
+            try:
+                tmp.replace(authoritative)
+                break
+            except OSError as exc:
+                # A competitor's delivery is never overwritten or cleaned.
+                if authoritative.exists():
+                    raise GateRejected("GATE_AUTHORITATIVE_ALREADY_EXISTS",
+                                       "another attempt already delivered; refusing to overwrite its directory") from exc
+                # Windows can briefly deny rename after export/readback. Retry
+                # only that atomic operation, not conversion or validation.
+                if os.name != "nt" or getattr(exc, "winerror", None) not in (5, 32, 33) or delay == 0.2:
+                    raise
 
     except Exception:
         if tmp.exists():

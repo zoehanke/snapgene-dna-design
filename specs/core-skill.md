@@ -82,7 +82,7 @@ Derive translation only from a valid complete CDS with no supplied translation. 
 
 Execution and validation receipts require their version hashes. An explicitly requested desktop verification must fail when its executable or valid boolean result is missing. Each delivery attempt owns a fresh in-directory staging folder; failure cleanup must preserve another attempt's files and must not derive filesystem paths from task/recipe labels.
 
-An attempt that loses atomic promotion to an existing delivery reports the same explicit collision rejection as an already-existing destination. Other filesystem failures remain errors. Installed-package evidence binds the actual source commit and file manifest, plus a checked local Python executable when supplied; source-tree tests do not validate a different installation.
+An attempt that loses atomic promotion to an existing delivery reports the same explicit collision rejection as an already-existing destination. Reproduced Windows transient rename denial may retry the same verified staging directory for a bounded interval; persistent/other filesystem failures remain errors, and copying is not an atomic-promotion substitute. Installed-package evidence binds the actual source commit and file manifest, plus a checked local Python executable when supplied; source-tree tests do not validate a different installation.
 
 Release packaging uses reviewed tracked paths, or an explicit source list outside Git. Exclude untracked local inputs and known restricted/external fixtures from the redistributable variant. A file's presence in Git is not proof of redistribution rights. Validate the extracted package separately from the checkout.
 

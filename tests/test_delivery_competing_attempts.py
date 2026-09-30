@@ -6,6 +6,7 @@ from pathlib import Path
 import tempfile
 import threading
 import unittest
+import os
 from unittest.mock import patch
 
 from Bio import SeqIO
@@ -19,6 +20,68 @@ from core.tools.snapgene_io import read_native_dna_record
 
 
 class CompetingDeliveryTests(unittest.TestCase):
+    @unittest.skipUnless(os.name == "nt", "Requires actual Windows file-sharing semantics")
+    def test_transient_windows_lock_retries_but_persistent_lock_stays_failed(self):
+        import ctypes
+        from ctypes import wintypes
+        kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+        kernel.CreateFileW.argtypes = [wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD,
+            ctypes.c_void_p, wintypes.DWORD, wintypes.DWORD, wintypes.HANDLE]
+        kernel.CreateFileW.restype = wintypes.HANDLE
+        kernel.CloseHandle.argtypes = [wintypes.HANDLE]
+        kernel.CloseHandle.restype = wintypes.BOOL
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            record = SeqRecord(Seq("ATGGCTTAA"), id="candidate",
+                annotations={"molecule_type": "DNA", "topology": "linear"},
+                features=[SeqFeature(FeatureLocation(0, 9, strand=1), type="CDS")])
+            gb, fasta = root/"candidate.gb", root/"candidate.fasta"
+            for path, fmt in ((gb, "genbank"), (fasta, "fasta")):
+                with path.open("w", encoding="utf-8") as stream:
+                    SeqIO.write(record, stream, fmt)
+            sanity = quick_biological_sanity_check(record, topology="linear")
+            real_replace = Path.replace
+            for transient in (True, False):
+                with self.subTest(transient=transient):
+                    attempts, handles, timers = [], [], []
+                    destination = root/str(transient)
+
+                    def locked_replace(path, target):
+                        attempts.append(path)
+                        if not handles:
+                            # A real read handle without FILE_SHARE_DELETE.
+                            handle = kernel.CreateFileW(str(path/"construct.dna"), 0x80000000,
+                                                        3, None, 3, 0x80, None)
+                            self.assertNotEqual(handle, ctypes.c_void_p(-1).value)
+                            handles.append(handle)
+                            if transient:
+                                timer = threading.Timer(0.03, kernel.CloseHandle, [handle])
+                                timers.append(timer)
+                                timer.start()
+                        return real_replace(path, target)
+
+                    try:
+                        with patch.object(Path, "replace", locked_replace):
+                            if transient:
+                                finalize_candidate_construct(gb, fasta, destination,
+                                    {"recipe": "Windows lock test"}, sanity, user_confirmed=True)
+                            else:
+                                with self.assertRaises(PermissionError):
+                                    finalize_candidate_construct(gb, fasta, destination,
+                                        {"recipe": "Windows lock test"}, sanity, user_confirmed=True)
+                    finally:
+                        for timer in timers:
+                            timer.join()
+                        if not transient:
+                            for handle in handles:
+                                kernel.CloseHandle(handle)
+                    self.assertGreater(len(attempts), 1)
+                    self.assertEqual(len(set(attempts)), 1)
+                    self.assertEqual((destination/"authoritative").exists(), transient)
+                    if transient:
+                        self.assertEqual(str(read_native_dna_record(destination/"authoritative/construct.dna").seq), "ATGGCTTAA")
+                    self.assertTrue(gb.is_file())
+
     def test_same_destination_has_one_complete_winner_and_explicit_rejection(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
