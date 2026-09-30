@@ -1,6 +1,6 @@
 # 交付缺陷修复
 
-目标版本 v1.0.2；文档 r2；2026-09-30；状态：源码与独立包验收通过，安装及远程CI收尾。
+目标版本 v1.0.2；文档 r3；开始于2026-09-30；状态：修复、独立包与Codex安装验收完成，远程CI按最终提交核验。
 前序：[工程修复](../remediation-plan.md)、[实用性修复](workflow-phase-3-usability-repair-v0.3.2.md)。契约：[Core](../../specs/core-skill.md)、[Trace](../../specs/safety-module.md)。分支 `codex/real-workflow-readiness-20260907`，不修改 main。
 
 ## 本轮范围
@@ -48,3 +48,11 @@ Chr1 的同源转移注释含未知碱基/缺stop，不批量延长或豁免。�
 公开包从已提交快照构建，排除未提交Reader Demo、本地DNA、输出和限制再分发材料。清单与限制内容检查通过；安装使用最终源码提交的重新构建包，并核对其所有执行代码与上述受测包相同。`INSTALL-SOURCE.json`记录实际提交、包哈希和已验证Python；旧Codex完整目录保存在`.codex/backups`。安装后再次运行环境、直接CLI、两个故障回归和完整制备演示，才算安装完成。
 
 本轮不发布GitHub Release或修改main。推送只到指定开发分支；精确提交CI以GitHub状态为准，不能拿本机通过替代。宿主真实题库验收仍另行执行。
+
+### 安装交付
+
+Codex安装目录 `C:/Users/祝浩淇/.codex/skills/snapgene-dna-design` 更新为v1.0.2，源码修复提交 `3142405`；文件来自对应已提交快照，452条清单SHA-256核验通过。旧安装完整保存为 `C:/Users/祝浩淇/.codex/backups/snapgene-install-v1.0.2-20260930T162135Z/previous-install`。包及副本位于本机 `output/delivery-fixes-20260930/package/`，个人安装来源与解释器写入INSTALL-SOURCE，未带入公开包。
+
+安装后从 `D:/codex_project/skill测试` 运行已安装绝对入口，实际制备演示成功正式交付，序列、蛋白、源标签及4个交付文件Trace关联均通过；安装目录新增8项故障回归通过。环境使用已验证Python312，默认Anaconda缺依赖这一事实不被忽略，也未擅自修改全局PATH或其他Python环境。DSH未在本轮覆盖。
+
+本次收尾文档提交不修改执行代码，安装的软件快照可由3142405和包哈希准确复现。源码945项全部通过；公开包917项909通过、8跳过。受测代码与最终包274个共有Python文件文本相同，Git仅规范化CRLF/LF；默认Trace级别不变。当前范围内故障修复闭合，保留原失败日志和源注释限制；Benchmark、真人理解、湿实验及整体Chr1注释校订仍不算完成。
