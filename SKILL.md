@@ -11,6 +11,8 @@ First decide whether supplied material can be reused, needs physical preparation
 
 ## Short workflow
 
+Use the installation's verified Python executable from `INSTALL-SOURCE.json` (`python_executable`) when provided; otherwise choose an interpreter and run `scripts/check_env.py --json` once. Use that interpreter for all commands below. Setup instructions are in [docs/installation.md](docs/installation.md).
+
 1. **Inspect sources.** Identify every source record, topology, feature interval, strand, and coordinate system. Start with:
 
    ```text

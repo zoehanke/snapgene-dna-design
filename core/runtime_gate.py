@@ -352,7 +352,15 @@ def _promote_verified_candidate(
         )
 
         # Atomic directory promotion
-        tmp.replace(authoritative)
+        try:
+            tmp.replace(authoritative)
+        except OSError as exc:
+            # Another attempt can finish after the initial existence check.
+            # Preserve its delivery and report the same collision contract.
+            if authoritative.exists():
+                raise GateRejected("GATE_AUTHORITATIVE_ALREADY_EXISTS",
+                                   "another attempt already delivered; refusing to overwrite its directory") from exc
+            raise
 
     except Exception:
         if tmp.exists():

@@ -222,8 +222,9 @@ class CoreBoundaryContracts(unittest.TestCase):
                 (Path(target)/'other-result.txt').write_text('keep',encoding='utf-8')
                 raise FileExistsError('competing writer completed')
             return real_replace(path,target)
-        with mock.patch.object(Path,'replace',race), self.assertRaises(FileExistsError):
+        with mock.patch.object(Path,'replace',race), self.assertRaises(GateRejected) as rejected:
             finalize_candidate_construct(self.source,fasta,destination,{'recipe':'../../not-a-path'},sanity,True)
+        self.assertEqual(rejected.exception.error_code,'GATE_AUTHORITATIVE_ALREADY_EXISTS')
         self.assertEqual((destination/'authoritative/other-result.txt').read_text(encoding='utf-8'),'keep')
         self.assertFalse(list(destination.glob('.authoritative-*.tmp')))
 

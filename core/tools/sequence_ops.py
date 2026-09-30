@@ -36,6 +36,12 @@ def cds_partial_evidence(feature) -> list[str]:
     if any(not isinstance(p.start, ExactPosition) or not isinstance(p.end, ExactPosition) for p in parts):
         reasons.append("fuzzy location boundary")
     text = " ".join(str(v) for key in ("product", "gene", "note", "label") for v in values(key)).lower()
+    products = [str(v).strip().lower() for v in values("product")]
+    if any(re.match(r"^(?:epitope|affinity|fusion) tag\b", product) for product in products):
+        reasons.append("explicit peptide tag product")
+    if any(re.fullmatch(r"(?:[\w-]+ )?(?:protease )?(?:recognition and )?cleavage site", product)
+           for product in products):
+        reasons.append("explicit protease cleavage-site product")
     if re.search(r"\b(?:n|c)-terminal\s+portion\b", text):
         reasons.append("terminal portion annotation")
     if re.search(r"\bfragment\b", text):

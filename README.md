@@ -1,6 +1,6 @@
 # SnapGene DNA Design
 
-**v1.0.1 development · 主任务与报告实用性修复。** Historical v1.0.0 release scope: [release notes](docs/RELEASE-v1.0.0.md).
+**v1.0.2 · 酶切注释与交付修复。** Current scope: [delivery repair](docs/development-plans/workflow-delivery-fixes-v1.0.2.md). Historical v1.0.0 scope: [release notes](docs/RELEASE-v1.0.0.md).
 
 New contributors: read [project history](docs/history.md) for the decisions and feedback behind this design, [current specs](specs/core-skill.md) for the product contract, and [development plans](docs/development-plans/README.md) for implementation status.
 

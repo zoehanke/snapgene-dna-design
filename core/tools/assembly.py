@@ -156,51 +156,25 @@ def _arc_indices(length: int, start0: int, end0: int) -> list[int]:
     return [(start0 + i) % length for i in range(span)]
 
 
-def _feature_dicts_for_arc(record: SeqRecord, start0: int, end0: int) -> list[dict[str, Any]]:
-    """Extract source features that survive a circular/linear arc.
+def _feature_dicts_for_arc(record: SeqRecord, start0: int, end0: int, *,
+                           circular: bool | None = None) -> list[dict[str, Any]]:
+    """Use the shared slice contract for retained reaction annotations.
 
-    ``SeqRecord[start:end]`` cannot represent an origin-spanning interval and
-    silently drops the useful mapping in that case.  This mapper keeps
-    qualifiers and strands, splitting only the portions actually retained by
-    the reaction.
+    A cut CDS is partial and has a new phase, not its source's complete
+    translation. A cut primer is a retained fragment, not an intact site.
     """
-    source_len = len(record.seq)
-    indices = _arc_indices(source_len, start0, end0)
-    source_to_product = {source: i for i, source in enumerate(indices)}
-    migrated: list[dict[str, Any]] = []
-    for feature in getattr(record, "features", []):
-        if feature.location is None:
-            continue
-        mapped_parts = []
-        for part in getattr(feature.location, "parts", [feature.location]):
-            run: list[int] = []
-            runs: list[tuple[int, int]] = []
-            for source in range(int(part.start), int(part.end)):
-                mapped = source_to_product.get(source % source_len) if source_len else None
-                if mapped is None:
-                    if run:
-                        runs.append((run[0], run[-1] + 1))
-                        run = []
-                    continue
-                if run and mapped != run[-1] + 1:
-                    runs.append((run[0], run[-1] + 1))
-                    run = []
-                run.append(mapped)
-            if run:
-                runs.append((run[0], run[-1] + 1))
-            mapped_parts.extend(
-                FeatureLocation(a, b, strand=part.strand) for a, b in runs if b > a
-            )
-        if not mapped_parts:
-            continue
-        copied = copy.deepcopy(feature)
-        copied.location = (
-            mapped_parts[0]
-            if len(mapped_parts) == 1
-            else CompoundLocation(mapped_parts, operator=getattr(feature.location, "operator", "join"))
-        )
-        migrated.append(feature_to_dict(copied, len(indices)))
-    return migrated
+    from core.tools.sequence_ops import slice_record_interval
+
+    source_len = len(record)
+    if not source_len:
+        return []
+    raw_span = int(end0) - int(start0)
+    span = source_len if raw_span and raw_span % source_len == 0 else raw_span % source_len
+    if circular is None:
+        circular = record.annotations.get("topology") == "circular"
+    fragment = slice_record_interval(record, int(start0) % source_len, span,
+                                     circular=circular)
+    return [feature_to_dict(feature, len(fragment)) for feature in fragment.features]
 
 
 def _shift_feature_dict(feature: dict[str, Any], offset: int, total_length: int) -> dict[str, Any]:
@@ -339,7 +313,7 @@ def type_iis_fragment(
                 "wraps_origin": bool(circular and start0 >= end0),
                 "left_hit": left,
                 "right_hit": right,
-                "features": _feature_dicts_for_arc(rec, start0, end0),
+                "features": _feature_dicts_for_arc(rec, start0, end0, circular=circular),
             })
 
     if len(candidates) != 1:

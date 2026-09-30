@@ -1,8 +1,15 @@
 # Changelog
 
-## Unreleased · 2026-09-22/23 engineering audit
+## 1.0.2 · 2026-09-30 delivery repair
 
-Local remediation on the development branch; no new release or remote publication. VERSION remains 1.0.1 until a release is authorized. Current evidence and limits: [final engineering report](docs/final-remediation-report.md).
+- Restriction and Type IIS annotations use the shared slicing contract: clipped CDS features retain partial status and correct phase, and do not assert their source's complete translation. Cut primers remain partial annotations.
+- Explicit peptide-tag and protease-cleavage products are distinguished from complete proteins while retaining translation, codon-table and internal-stop validation.
+- Competing delivery attempts explicitly reject an existing delivery and preserve the winner instead of surfacing a Windows permission error.
+- Installations bind a verified package to its source commit and local Python executable; prior installs are preserved in a backup. Host usability testing remains separate from regression checks.
+
+## 2026-09-22/23 engineering audit, incorporated into 1.0.2
+
+Historical local remediation on the development branch; VERSION was 1.0.1 during that cycle. Its evidence and limits remain in the [final engineering report](docs/final-remediation-report.md). The current delivery repair packages those changes with the fixes above.
 
 - Preserve annotated records across task handlers, recompute constraints from actual sources, and reject incomplete or contradictory delivery receipts.
 - Correct double-digest execution, primer search boundaries, MSA/Sanger results, rejected state updates and file-conversion failures.
