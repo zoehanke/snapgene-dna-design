@@ -2,6 +2,8 @@
 
 队伍：Tianjin #6404；项目背景：Nezha yeast genome revival；范围：本软件为通用DNA设计工具，并非基因组功能复活实验本身。规则和资格条件见[官方核对](official-requirements.md)，尚未满足全部提交条件。
 
+后续行动与建议分工见[工作任务表](best-software-task-table.md)。本页的历史工程证据与2026-10首轮真实宿主测试分开，不能据工程套件通过宣称用户任务已经可用。
+
 | 维度 | 本项目贡献与实现 | 支撑证据 | 强项 / 弱项与剩余事项 |
 |---|---|---|---|
 | BS1 | SeqRecord、GB/FASTA/Native；core/io、models、tools/snapgene_io | test_primer_io_repair、test_preparation_primer_locations、test_final_feature_restoration；[兼容表](standards-compatibility.md) | 注释和坐标可测；无SBOL，不虚构支持 |
