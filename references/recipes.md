@@ -208,6 +208,10 @@ The tool performs the pML104 inverse-PCR and KLD preparation route, restores the
 
 `method="quikchange"` designs complete complementary mutagenic oligos and counts actual sequence differences against the original template. `method="inverse_pcr"` designs a full-plasmid PCR intermediate from the original circular template, then models circularization and verifies the resulting product. A QuikChange complementary pair is expected by that method; do not apply an unrelated generic dimer rejection rule as if the intended complementarity were a failed product.
 
+QuikChange source annotations now identify each oligo's exact 3-prime wild-type anchoring segment; the complete mutagenic oligo, mismatch count and whole-oligo QuikChange Tm remain separate. Preparation export replays the original reference window and actual complementary oligos, including circular-origin changes and indels, rather than treating the method as an unchecked exception. Automatic preparation replay supports PCR, inverse PCR and QuikChange; unknown method labels are rejected, not silently exported as verified products.
+
+The source map shows the exact 3-prime anchor, not every mismatched annealing base. The remaining 5-prime sequence includes the other wild-type flank and the intended mutation; it is not solely an unpaired PCR overhang. Markdown uses the reported method Tm; missing temperatures are shown as not provided, never invented zero values. This sequence model does not establish amplification efficiency.
+
 Inspect `details.preparation`, `details.pcr_evidence`, method-specific primer rows, the DpnI reminder, and the feature-preserving product. The source template must be the complete parental record, including when the edit crosses the circular origin.
 
 **Reading:** Zheng et al., *Nucleic Acids Research* (2004), DOI `10.1093/nar/gnh110`; Green and Sambrook, Ch. 13; Agilent QuikChange instructions.

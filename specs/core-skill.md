@@ -55,6 +55,10 @@ Current modules and orchestration are implementation choices, not permanent rest
 
 ## Acceptance and open issues
 
+Evaluation integrity: runtime must not return reference answers or waive checks based on benchmark/sample identity. Fixed domain components and protocol constants require stated purpose/provenance; their presence alone is not evidence of cheating. Prove defects and check independent positive/negative inputs before changing code. Preserve failed inputs and document corrected test expectations; never weaken biological requirements or thresholds to manufacture success.
+
+Development regression and independently managed heldout evaluation are separate. Developers must not inspect heldout inputs, answers, products or case-level feedback. Formal evaluation freezes code, package, rubric and conditions; actual tool/filesystem/history/network access must be checked. Shared-directory or new-chat trials are not isolation. Retain contaminated runs outside the heldout denominator and every repeated attempt. Record developer/human intervention and input correction; corrected-material results cannot count as original-input independent success. Scoring metadata records examiner declarations, not programmatically proven isolation. Without qualifying heldout evidence, report regression fixes only, with no claim of improved general task-success rate.
+
 - Run representative tasks through public entry points and inspect resulting files against independent source/target evidence; rejecting an invalid task is not successful design completion.
 - Replaying a reported success/failure is necessary regression evidence, not proof of general readiness. Check independent inputs and both valid and invalid boundaries of the changed contract; retain unmet acceptance items.
 - Verify relevant sequence, topology, feature coordinates/strands and complete primers through export/read-back. Claim desktop SnapGene compatibility only with actual desktop evidence.

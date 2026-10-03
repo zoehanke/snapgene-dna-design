@@ -300,6 +300,17 @@ def recipe_site_directed_mutagenesis(
                 right_flank=str(Seq(left_flank_seq).reverse_complement()),
             ),
         ]
+        # Source annotation records exact 3-prime wild-type anchoring, while
+        # the complete mutagenic oligo and its whole-oligo QuikChange Tm remain.
+        for primer, core, core_start in (
+            (primer_rows[0], right_flank_seq, end),
+            (primer_rows[1], str(Seq(left_flank_seq).reverse_complement()), start-len(left_flank_seq)),
+        ):
+            begin = core_start % n if circular else core_start
+            finish = (begin+len(core)) % n if circular else begin+len(core)
+            primer["binding_sequence"] = core
+            primer["binding_interval_0based"] = [begin, finish or n]
+            primer["binding_core_tm"] = calc_primer_tm(core)["tm"]
         product_method = "quikchange_mutagenic_extension"
     else:
         # Inverse PCR uses full-plasmid amplification followed by circulariza-

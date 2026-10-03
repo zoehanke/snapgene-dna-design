@@ -9,6 +9,7 @@
 
 - Before creating, resuming or closing a development plan, read [docs/development-plans/README.md](docs/development-plans/README.md), the relevant spec and current plan, including the predecessor handoff. Record unresolved-item dispositions and follow the current authorized scope; a roadmap does not itself authorize later phases.
 - For onboarding or changes to product direction, architecture or long-term rules, read [docs/history.md](docs/history.md). It explains decisions; it does not override current specs or expand the task.
+- For benchmarks or task-success claims, read [docs/question-bank/scoring-v0.1.md](docs/question-bank/scoring-v0.1.md). Developers may inspect regression cases; never inspect independently managed heldout materials, answers, products or case-level feedback.
 
 ## Working rules
 
@@ -21,6 +22,8 @@
 - Use explicit UTF-8 for text I/O and subprocess text streams. Verify relevant Windows/non-ASCII behavior when changing these paths.
 - Validate the changed behavior through its actual public entry point and inspect resulting files. Use focused regression tests; for release work, run the applicable suite and integrations described in README. Full suite: `python -X utf8 -B -m unittest discover -s tests`.
 - Treat a supplied example as regression evidence, not the completion criterion. For the affected contract, include independent success and failure cases with expectations derived from source facts or invariants, not the implementation under test. Report simplification must preserve findings, evidence ownership and usable detail access.
+- Never select answers or validation exceptions by task number, test path, sample filename, material identity or reference hash. Explain legitimate domain constants. Prove each defect before fixing; retain incorrect historical inputs/expectations and their correction evidence, without relaxing targets or gates.
+- Separate developer intervention, corrected inputs, regression and heldout outcomes. A new chat/shared work directory is not isolation. Freeze code/package/rubric before formal evaluation, retain contaminated and repeated runs, and report unverified items explicitly; no heldout evidence means no claim of general success-rate improvement.
 - Report performed checks, failures, skips and limits accurately. Documentation-only changes need content/link checks, not a biological regression run. Historical test counts are not current validation.
 - After requested development, commit and push validated changes to the user-designated development branch. Check CI for that exact commit; never merge or push to `main` without explicit authorization.
 - Update the relevant spec when a product boundary or development rule changes; append consequential decisions and participant feedback to `docs/history.md`. Keep specs current and compact, history explanatory, and implementation/test details in code, references or phase plans. Superseded decisions remain in history.

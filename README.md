@@ -1,6 +1,6 @@
 # SnapGene DNA Design
 
-**v1.0.3 · 真实模板、引物与目标保留修复。** [本版说明](docs/RELEASE-v1.0.3.md) · [本轮实现与限制](docs/development-plans/workflow-host-readiness-v1.0.3.md) · [真实任务评分](docs/question-bank/scoring-v0.1.md)。Historical v1.0.0 scope: [release notes](docs/RELEASE-v1.0.0.md).
+**v1.0.4 · 通用制备重放与评测资格修复。** [本轮审查](docs/development-plans/general-capability-audit-v1.0.4.md) · [前版说明](docs/RELEASE-v1.0.3.md) · [真实任务评分](docs/question-bank/scoring-v0.1.md)。当前证据为开发回归和非隔离试用，没有通用任务成功率提高结论。Historical v1.0.0 scope: [release notes](docs/RELEASE-v1.0.0.md).
 
 New contributors: read [project history](docs/history.md) for the decisions and feedback behind this design, [current specs](specs/core-skill.md) for the product contract, and [development plans](docs/development-plans/README.md) for implementation status.
 

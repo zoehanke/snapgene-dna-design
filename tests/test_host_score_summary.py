@@ -7,6 +7,8 @@ class HostScoreSummaryTests(unittest.TestCase):
     def row():
         return dict(task_id='case',run_id='1',model='test_model',skill_version='test_version',
                     human_interventions='0',
+                    evaluation_kind='heldout',input_condition='original',
+                    isolation_status='verified',freeze_record='synthetic-examiner-freeze.json',
                     evidence='independent-check.json',**{f:'PASS' for f in FIELDS})
 
     def test_correct_dna_does_not_compensate_for_failed_preparation(self):

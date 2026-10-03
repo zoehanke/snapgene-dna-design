@@ -37,6 +37,45 @@ from core.tools.snapgene_io import export_plasmid
 from core.io.input_resolution import resolve_sequence_record
 
 
+def _check_quikchange_preparation(item, template, product):
+    """Replay a mutagenic replacement from the original window and actual oligos."""
+    from Bio.Seq import Seq
+    forward, reverse = item["primers"]
+    sequence = str(template.seq).upper()
+    fwd = str(forward.get("sequence") or forward.get("seq") or forward.get("full_sequence") or "").upper()
+    rev = str(reverse.get("sequence") or reverse.get("seq") or reverse.get("full_sequence") or "").upper()
+    evidence = item["product"].get("evidence", {}) if isinstance(item["product"], dict) else {}
+    reference = str(evidence.get("reference_segment") or "").upper()
+    left, right = str(forward.get("left_flank") or "").upper(), str(forward.get("right_flank") or "").upper()
+    if (not reference or not left or not right or len(reference) < len(left)+len(right)
+            or not fwd.startswith(left) or not fwd.endswith(right)
+            or not reference.startswith(left) or not reference.endswith(right)
+            or rev != str(Seq(fwd).reverse_complement())):
+        raise ValueError("PREPARATION_PRODUCT_MISMATCH: incomplete or contradictory mutagenic oligos/source window")
+    circular = template.annotations.get("topology", "linear") == "circular"
+    search = sequence+sequence if circular else sequence
+    positions = [i for i in range(len(sequence)) if search[i:i+len(reference)] == reference]
+    position = forward.get("position_0based")
+    if isinstance(position, dict) and "start_0based" in position:
+        start = int(position["start_0based"])-len(left)
+        if circular:
+            start %= len(sequence)
+        positions = [i for i in positions if i == start]
+    if len(positions) != 1 or (circular and len(reference) > len(sequence)):
+        raise ValueError("PREPARATION_PRODUCT_MISMATCH: source window is missing or ambiguous at the declared mutation")
+    start = positions[0]
+    if circular:
+        rotated = sequence[start:]+sequence[:start]
+        expected = fwd+rotated[len(reference):]
+        actual = str(product.seq).upper()
+        matches = len(actual) == len(expected) and actual in expected+expected
+    else:
+        expected = sequence[:start]+fwd+sequence[start+len(reference):]
+        matches = str(product.seq).upper() == expected
+    if not matches:
+        raise ValueError("PREPARATION_PRODUCT_MISMATCH: QuikChange product does not follow from source and actual oligos")
+
+
 def write_preparation_artifacts(preparation: list[dict], out_dir: str | pathlib.Path) -> dict:
     """Write the actual prepared fragments, source primer maps and order table."""
     from Bio import SeqIO
@@ -47,13 +86,18 @@ def write_preparation_artifacts(preparation: list[dict], out_dir: str | pathlib.
     # Check all declared PCRs before writing products or order tables. A desired
     # sequence supplied as "product" is not proof of preparation from these oligos.
     for item in preparation:
-        if str(item.get("method", "PCR")).lower() not in {"pcr", "inverse_pcr"}:
-            continue
+        method = str(item.get("method", "PCR")).strip().lower()
+        if method not in {"pcr", "inverse_pcr", "quikchange"}:
+            raise ValueError(f"PREPARATION_METHOD_UNSUPPORTED: cannot verify '{method}'")
         primers = item.get("primers", [])
         if len(primers) != 2:
             raise ValueError(f"PREPARATION_PRIMERS: '{item.get('id')}' requires its actual pair")
         fwd, rev = primers
         template = resolve_sequence_record(item["template"])
+        product = resolve_sequence_record(item["product"])
+        if method == "quikchange":
+            _check_quikchange_preparation(item, template, product)
+            continue
         if fwd.get("strand") in (-1, "-1", "-") and rev.get("strand") in (1, "1", "+"):
             # The row is expressed on the source's reverse strand (e.g. a
             # guide cassette). Keep that declared orientation when replaying.
@@ -66,7 +110,6 @@ def write_preparation_artifacts(preparation: list[dict], out_dir: str | pathlib.
         actual = simulate_pcr(template, sequence(fwd), sequence(rev),
                               forward_binding_core_length=core_length(fwd),
                               reverse_binding_core_length=core_length(rev))
-        product = resolve_sequence_record(item["product"])
         if actual["amplicon"] != str(product.seq).upper():
             raise ValueError(f"PREPARATION_PRODUCT_MISMATCH: '{item.get('id')}' does not match actual template and primers")
     for index, item in enumerate(preparation, 1):
@@ -79,6 +122,10 @@ def write_preparation_artifacts(preparation: list[dict], out_dir: str | pathlib.
         fragment = export_plasmid(product, out / "intermediates", prefix,
                                   product.annotations.get("topology", "linear"))
         source_copy = annotate_record_primers(template, primers)
+        if str(item.get("method", "PCR")).strip().lower() == "quikchange":
+            for feature in source_copy.features[-len(primers):]:
+                feature.qualifiers.setdefault("note", []).append(
+                    "QuikChange: location marks the exact 3-prime wild-type anchor; remaining primer sequence includes a 5-prime matching flank and intended internal mutation, not solely an unpaired overhang.")
         source_files = export_plasmid(source_copy, out / "annotated_sources", prefix + "_source",
                                       template.annotations.get("topology", "linear"))
         # When the input is Native, preserve its non-modeled packets as well.
@@ -131,17 +178,17 @@ def run_recipe_cli(
     user_confirmed: bool = False,
 ) -> dict[str, Any]:
     fn, canonical_name = get_recipe_function(recipe_name)
-    params = dict(params)
-    requirements = {key: params.pop(key, []) for key in ("expected_components", "forbidden_components")}
-    requirements["sources"] = params.pop("sources", [])
-    if any(not isinstance(value, list) for value in requirements.values()):
-        raise ValueError("expected_components and forbidden_components must be lists")
     out_path = pathlib.Path(out_dir).resolve()
     candidate_dir = out_path / "candidate"
     candidate_dir.mkdir(parents=True, exist_ok=True)
     result_json_path = candidate_dir / f"{canonical_name}_result.json"
     # Retained candidate files are diagnostics, not this attempt's receipt.
     result_json_path.unlink(missing_ok=True)
+    params = dict(params)
+    requirements = {key: params.pop(key, []) for key in ("expected_components", "forbidden_components")}
+    requirements["sources"] = params.pop("sources", [])
+    if any(not isinstance(value, list) for value in requirements.values()):
+        raise ValueError("expected_components, forbidden_components and sources must be lists")
 
     # 1. Execute Recipe
     res: RecipeResult = observe("recipe_execute", fn, **params)
@@ -310,9 +357,11 @@ def format_markdown_summary(exec_summary: dict[str, Any]) -> str:
         lines.append("| :--- | :--- | :--- | :--- | :--- |")
         for pr in res.primers:
             seq = pr.get("sequence") or pr.get("seq") or ""
-            tm = pr.get("tm") or pr.get("tm_celsius") or 0.0
+            tm = next((pr[key] for key in ("tm", "tm_celsius", "qc_tm", "binding_core_tm")
+                       if pr.get(key) is not None), None)
+            tm_text = str(round(float(tm), 1)) if tm is not None else "not provided"
             role = pr.get("role") or pr.get("name", "primer")
-            lines.append(f"| `{pr.get('name')}` | `{seq}` | {len(seq)} nt | {round(float(tm), 1)} | {role} |")
+            lines.append(f"| `{pr.get('name')}` | `{seq}` | {len(seq)} nt | {tm_text} | {role} |")
 
     # Biological Guardrails Checklist
     lines.append("\n### Biological Guardrails Status")
