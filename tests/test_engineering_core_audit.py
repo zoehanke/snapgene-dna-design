@@ -1,4 +1,6 @@
 """Independent source/target regressions for the 2026-09 engineering audit."""
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import copy
 import tempfile
 import unittest

@@ -154,4 +154,4 @@
 
 ## 查看依据
 
-[首轮检查报告](../../output/host-test-review-20261002/summary.md)　·　[六项评审证据](best-software-evidence.md)　·　[官方评审标准](https://competition.igem.org/judging/special-prizes)
+[首轮检查报告](../../snapgene-dna-design/output/host-test-review-20261002/summary.md)　·　[六项评审证据](best-software-evidence.md)　·　[官方评审标准](https://competition.igem.org/judging/special-prizes)

@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
 """RG-P1-04: README/SKILL command examples must be executable or removed."""
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import pathlib
 import subprocess
 import sys
 import unittest
 
-ROOT = pathlib.Path(__file__).resolve().parents[1]
+ROOT = SKILL_ROOT
 SCRIPTS = ROOT / "scripts"
 
 

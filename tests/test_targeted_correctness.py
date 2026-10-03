@@ -1,4 +1,6 @@
 """Regression tests for the concrete extraction, delivery and annotation failures."""
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import json
 import os
 import pathlib
@@ -22,7 +24,7 @@ from core.tools.feature_ops import get_feature
 from core.tools.restriction import digest_sequence, find_restriction_sites
 from core.tools.snapgene_io import export_snapgene
 
-ROOT = pathlib.Path(__file__).resolve().parents[1]
+ROOT = SKILL_ROOT
 
 
 def real_cloning_task(vector_path=None, donor_path=None):

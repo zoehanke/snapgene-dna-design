@@ -1,4 +1,6 @@
 """Actual public submission/capture paths, including adversarial organization and absent context."""
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import copy
 import json
 import os
@@ -15,7 +17,7 @@ from evidence_trace.process import organize, save_report_plan, assemble
 from evidence_trace.intake import observe_material, record_handoff
 from evidence_trace.runtime import trace_file_call, TraceStopped
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = SKILL_ROOT
 
 
 def packet(recorder):

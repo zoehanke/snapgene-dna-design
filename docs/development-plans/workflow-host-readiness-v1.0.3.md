@@ -65,7 +65,7 @@
 - 第6题换实际guide后得到90 bp供体，PAM已破坏，全835 aa蛋白仅R105G变化。这是实际原子工具回归，不是宿主自动换路的证明。
 - 第8题依据原官方C1融合骨架说明另存注释校订副本：保留原DNA、坐标与域翻译，记录真实完整ORF，不豁免CDS错误。两轮公开Recipe正式交付，第二轮使用第一轮authoritative文件；这仍是固定参数回放。
 
-证据：[QC补查](../../output/host-readiness-20261003/remaining-qc-pcr-checks.json)、[PAM回归](../../output/host-readiness-20261003/required-pam/regression.json)、[源注释依据](../../output/host-readiness-20261003/source-annotations/evidence.json)、[两轮交付](../../output/host-readiness-20261003/rounds-reviewed/summary.json)。本机证据和真实DNA不随源码发布。
+证据：[QC补查](../../snapgene-dna-design/output/host-readiness-20261003/remaining-qc-pcr-checks.json)、[PAM回归](../../snapgene-dna-design/output/host-readiness-20261003/required-pam/regression.json)、[源注释依据](../../snapgene-dna-design/output/host-readiness-20261003/source-annotations/evidence.json)、[两轮交付](../../snapgene-dna-design/output/host-readiness-20261003/rounds-reviewed/summary.json)。本机证据和真实DNA不随源码发布。
 
 ### 新自然请求试用
 
@@ -77,7 +77,7 @@
 
 试用发生在最终QC修复前的开发快照。后续QC修复使用公开入口回归，不能称作第二次独立宿主试用。开放文件系统与公开真实序列也不构成绝对盲测；未观察到答案访问，不证明模型先验未见过材料。
 
-证据：[独立源/反应/文件检查](../../output/host-readiness-20261003/host-pilot/independent-review.json)、[原执行命令及归因](../../output/host-readiness-20261003/host-pilot/work/delivery_final/EXECUTION.md)、[正式GB桌面回读](../../output/host-readiness-20261003/host-pilot/desktop-genbank-roundtrip.json)、[带引物DNA桌面回读](../../output/host-readiness-20261003/host-pilot/desktop-native-roundtrip.json)。
+证据：[独立源/反应/文件检查](../../snapgene-dna-design/output/host-readiness-20261003/host-pilot/independent-review.json)、[原执行命令及归因](../../snapgene-dna-design/output/host-readiness-20261003/host-pilot/work/delivery_final/EXECUTION.md)、[正式GB桌面回读](../../snapgene-dna-design/output/host-readiness-20261003/host-pilot/desktop-genbank-roundtrip.json)、[带引物DNA桌面回读](../../snapgene-dna-design/output/host-readiness-20261003/host-pilot/desktop-native-roundtrip.json)。
 
 ### 评分与交接
 

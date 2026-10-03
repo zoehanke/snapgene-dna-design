@@ -1,4 +1,6 @@
 """Change provenance, conservative judgments and non-interference."""
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import copy
 import tempfile
 import unittest
@@ -136,7 +138,7 @@ class ChangeTests(unittest.TestCase):
 
     def test_impact_failure_preserves_real_authoritative_files(self):
         from agent.pipeline_agent import execute_agent_pipeline
-        template = Path(__file__).resolve().parents[1] / "fixtures/synthetic/pSynthetic-GFP.gb"
+        template = SKILL_ROOT / "fixtures/synthetic/pSynthetic-GFP.gb"
         def run(out, **options):
             return execute_agent_pipeline("impact-fault", [
                 {"step_id": "reverse", "tool": "reverse_complement", "params": {"seq": "$src"}},

@@ -1,4 +1,6 @@
 """Independent provenance and privacy contracts from the engineering audit."""
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import json
 import os
 from pathlib import Path
@@ -13,7 +15,7 @@ from evidence_trace.intake import record_handoff
 from evidence_trace.recorder import Recorder, project
 from evidence_trace.runtime import observe, trace_file_call, traced_run
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = SKILL_ROOT
 
 
 class EngineeringTraceAuditTests(unittest.TestCase):

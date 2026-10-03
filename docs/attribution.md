@@ -15,4 +15,4 @@
 
 AI 参与了代码、审查、测试设计和文档草拟；不冒充人类专家独立背书。正式 Attributions Form 需队员核实贡献、外部帮助及AI使用情况。iGEM页面是否公开表单属于团队提交动作，不由本仓库完成。
 
-完整文件与来源见[THIRD_PARTY_NOTICE](../THIRD_PARTY_NOTICE.md)及 third_party/UPSTREAM-MANIFEST.json。MIT 是 OSI 批准许可，但已有 MIT 文本不是所有外部素材均有授权的证明。许可证问题未解决前，不能仅凭包名宣称任意用途均可分发。
+完整文件与来源见[THIRD_PARTY_NOTICE](../snapgene-dna-design/THIRD_PARTY_NOTICE.md)及 third_party/UPSTREAM-MANIFEST.json。MIT 是 OSI 批准许可，但已有 MIT 文本不是所有外部素材均有授权的证明。许可证问题未解决前，不能仅凭包名宣称任意用途均可分发。

@@ -4,24 +4,26 @@
 
 ## 常用命令
 
+从项目外层运行；DNA CLI位于`snapgene-dna-design/scripts/`，开发工具位于`tools/`。
+
 ```text
 python -X utf8 -B -m unittest discover -s tests
-python -X utf8 -B scripts/run_test_suite.py
-python -X utf8 -B scripts/property_tests.py --quick --out-dir output/property
-python -X utf8 -B scripts/run_scenario_suite.py --out-dir output/scenarios
+python -X utf8 -B tools/run_test_suite.py
+python -X utf8 -B tools/property_tests.py --quick --out-dir output/property
+python -X utf8 -B tools/run_scenario_suite.py --out-dir output/scenarios
 python -X utf8 -B benchmarks/runtime.py output/benchmarks.json
-python -X utf8 -B scripts/build_release.py . output/packages
+python -X utf8 -B tools/build_release.py snapgene-dna-design output/packages
 ```
 
 发布 runner 要求真实 Primer3 测试启用。PowerShell：`$env:SNAPGENE_RUN_PRIMER3='1'`；bash：`export SNAPGENE_RUN_PRIMER3=1`。其他真实后端另需各自资源，不伪造 flag 代替程序。
 
-项目没有配置全仓库 mypy/ruff 门限，也没有 JavaScript 构建器。Python AST/实际导入、`node --check evidence_trace/view.js` 和实际浏览器分别检查语法与交互，不把语法检查写成类型检查或 UX 验收。
+项目没有配置全仓库 mypy/ruff 门限，也没有 JavaScript 构建器。Python AST/实际导入、`node --check snapgene-dna-design/evidence_trace/view.js` 和实际浏览器分别检查语法与交互，不把语法检查写成类型检查或 UX 验收。
 
 ## 调试
 
 从用户入口向下跟踪：CLI→runtime/Recipe→工具→保存文件→验证→gate。同时读输入和输出，不只看返回布尔值。Trace 可提供日志，但它本身也要测失败；正常模式不能拖死已正确的 DNA 操作。
 
-变更契约要同步 spec；说明原因写 history；执行证据写计划/结果。当前审计按用户要求只作本地提交，不自动推送远程。测试资料、密钥和临时环境不能入包。
+变更契约要同步 spec；说明原因写 history；执行证据写计划/结果。开发结束按授权提交并推送指定开发分支，检查该提交的CI；不自动合并或推送main。测试资料、密钥和临时环境不能入包。
 
 ## 技术栈及实际职责
 
@@ -55,20 +57,20 @@ requirements声明安装依赖，pip负责解析和安装；虚拟环境隔离�
 
 ```text
 python -X utf8 -B -m unittest discover -s tests -p test_legacy_preview_contract.py -v
-python -X utf8 -B scripts/coverage_gate.py --out-dir output/coverage
+python -X utf8 -B tools/coverage_gate.py --out-dir output/coverage
 ```
 
 先跑改动涉及的测试，再跑必要整套检查。覆盖工具会保留各步stdout/stderr、coverage.data和JSON；先看失败测试与对象，再看百分比。插桩期间也必须执行同样的场景，不能因检测到COVERAGE_PROCESS_START而提前return。通过针对性测试不意味着整套门槛已通过。
 
 需要断点时，在CLI调用主函数前或发生错误的工具函数设置断点，以同一命令和参数启动；记录`sys.executable`确认调试器没有切换到另一套Python。无需先掌握所有文件，优先跟踪一个输入到一个真实产物。
 
-CI定义在[.github/workflows/test.yml](../.github/workflows/test.yml)，矩阵为Ubuntu/Windows与Python 3.10/3.11/3.12。本轮将其改为明确启用真实Primer3并调用正式runner，另执行环境检查，避免核心后端测试默认skip。配置变更不等于云端执行通过；当前禁止push，新的远程矩阵仍未运行。
+CI定义在[.github/workflows/test.yml](../.github/workflows/test.yml)，矩阵为Ubuntu/Windows与Python 3.10/3.11/3.12。本轮将其改为明确启用真实Primer3并调用正式runner，另执行环境检查，避免核心后端测试默认skip。配置变更不等于云端执行通过；以对应提交的真实CI结果为准。
 
 ## 构建、安装和发布不同
 
 本项目没有编译成服务器的“部署”。build_release选择受控文件并打ZIP；安装Skill是把完整目录交给宿主加载；公开发布还需要授权、许可和验证。新增受控文件先暂存，否则默认打包不会纳入未跟踪内容。解包后从仓库外运行，才能发现偷偷依赖开发目录或外部fixture的问题。
 
-本周期Git推送、iGEM发布和表单提交仍禁止自动进行。正式迁移见[迁移说明](igem/gitlab-migration.md)。
+Git推送遵循当前任务授权；公开发布、iGEM发布和表单提交需单独授权。正式迁移见[迁移说明](igem/gitlab-migration.md)。
 
 ## 知识交接顺序
 

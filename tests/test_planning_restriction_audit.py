@@ -1,4 +1,6 @@
 """Whole native restriction sources must use both declared enzymes."""
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import tempfile
 import unittest
 from pathlib import Path

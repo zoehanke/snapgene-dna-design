@@ -13,6 +13,8 @@ Verifies:
 """
 from __future__ import annotations
 
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
+
 import pathlib
 import unittest
 
@@ -203,7 +205,7 @@ class TestDefectGovernance(unittest.TestCase):
 
     def test_architectural_decoupling_no_core_to_scripts_inversion(self):
         """Verify that no file in core/ imports from scripts/."""
-        core_dir = pathlib.Path(__file__).resolve().parents[1] / "core"
+        core_dir = SKILL_ROOT / "core"
         py_files = list(core_dir.rglob("*.py"))
         self.assertGreater(len(py_files), 10, "Should find all core python files")
 

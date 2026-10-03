@@ -1,7 +1,9 @@
 """Independent examiner metadata cases, not simulated biological successes."""
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import unittest
 
-from scripts.summarize_host_scores import FIELDS, aggregate_feedback, summarize
+from tools.summarize_host_scores import FIELDS, aggregate_feedback, summarize
 
 
 class EvaluationIntegrityTests(unittest.TestCase):

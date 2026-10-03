@@ -1,4 +1,6 @@
 """Preparation invariants derived from new synthetic inputs and ordered oligos."""
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import copy
 import pathlib
 import random

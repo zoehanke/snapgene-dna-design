@@ -5,6 +5,8 @@ These tests use committed real-vector fixtures (see fixtures/golden/README.md)
 instead of generating inputs and expected outputs from the package's own att
 constants. Expected Gateway and TA products are committed GenBank files.
 """
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import json
 import os
 import pathlib
@@ -20,7 +22,7 @@ from Bio.SeqFeature import FeatureLocation, SeqFeature
 from Bio.SeqRecord import SeqRecord
 
 HERE = pathlib.Path(__file__).resolve().parent
-ROOT = HERE.parent
+ROOT = SKILL_ROOT
 SCRIPTS = ROOT / "scripts"
 FIXTURES = ROOT / "fixtures"
 GOLDEN = FIXTURES / "golden"

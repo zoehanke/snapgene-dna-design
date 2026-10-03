@@ -1,4 +1,6 @@
 """Competing real exports must preserve the winner and reject the loser."""
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import hashlib
 import json
 from concurrent.futures import ThreadPoolExecutor

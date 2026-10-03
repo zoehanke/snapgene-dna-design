@@ -9,7 +9,7 @@ import tempfile
 import time
 
 p=argparse.ArgumentParser()
-p.add_argument('--root',type=Path,default=Path(__file__).resolve().parents[1])
+p.add_argument('--root',type=Path,default=Path(__file__).resolve().parents[1]/'snapgene-dna-design')
 p.add_argument('--output',required=True,type=Path)
 a=p.parse_args()
 sys.path.insert(0,str(a.root.resolve()))

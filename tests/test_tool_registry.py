@@ -2,6 +2,8 @@
 """Unit tests for unified Tool Registry and dynamic CompositePipeline execution."""
 from __future__ import annotations
 
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
+
 import inspect
 import pathlib
 import tempfile

@@ -8,6 +8,8 @@ Radically cured biological validation:
           + in vivo recleavage audit + genomic junction integration PCR & Sanger verification.
 - Case C: Desktop SnapGene native binary .dna export and viewer verification.
 """
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import os
 import pathlib
 import shutil

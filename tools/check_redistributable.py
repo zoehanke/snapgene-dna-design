@@ -2,13 +2,15 @@
 """check_redistributable.py - Content-hash license checker for release packages.
 
 Usage:
-    python scripts/check_redistributable.py <path-to-zip-or-directory>
-    python scripts/check_redistributable.py <path> --academic
+    python tools/check_redistributable.py <path-to-zip-or-directory>
+    python tools/check_redistributable.py <path> --academic
 
 Every regular file in a ZIP or directory is SHA-256 hashed. Restricted
 content is detected by hash, not by path, so renames, case changes, extra
 directories, or path separator variants cannot bypass the check.
 """
+
+from project_paths import PROJECT_ROOT as REPOSITORY_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS, TESTS_ROOT
 import argparse
 import hashlib
 import json

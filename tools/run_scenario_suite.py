@@ -7,6 +7,8 @@ simulation model (e.g. SLIC approximated by Gibson homology joining), the
 report states that approximation explicitly instead of claiming the
 method-specific biochemistry was modeled.
 """
+
+from project_paths import PROJECT_ROOT as REPOSITORY_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS, TESTS_ROOT
 import argparse
 import json
 import os
@@ -21,7 +23,7 @@ from Bio.Seq import Seq
 from Bio.SeqFeature import FeatureLocation, SeqFeature
 from Bio.SeqRecord import SeqRecord
 
-ROOT = pathlib.Path(__file__).resolve().parents[1]
+ROOT = SKILL_ROOT
 SCRIPTS = ROOT / "scripts"
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(SCRIPTS))
@@ -928,7 +930,7 @@ def render_human_report(results):
     complete = sum(1 for r in results if r["plan_status"] == "complete")
     lines = [
         "# SnapGene DNA Design 场景验证人类可读报告", "",
-        "本报告由 `scripts/run_scenario_suite.py` 自动生成，与机器可读的 "
+        "本报告由 `tools/run_scenario_suite.py` 自动生成，与机器可读的 "
         "`scenario-results.json` 并存。每个场景均来自权威论文或官方协议文档。",
         "",
         "## 1. 执行摘要", "",
@@ -1066,7 +1068,7 @@ def render_markdown(results):
     blocked_count = sum(1 for r in results if r["plan_status"] == "blocked")
     approximation_count = sum(1 for r in results if r["approximation"])
     lines = ["# %d 个文献来源场景：执行与限制套件" % len(results), "",
-             "生成方式：`scripts/run_scenario_suite.py`；每个场景均为真实文献/"
+             "生成方式：`tools/run_scenario_suite.py`；每个场景均为真实文献/"
              "官方协议来源；所有结果均由本工具链实际运行产生。", "",
              "**执行级 PASS 不代表生物学验证成功**。PASS 包含实际执行成功与"
              "明确预期的 fail-closed blocked；blocked 不代表构建体成功。状态分布："

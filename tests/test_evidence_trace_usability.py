@@ -1,3 +1,5 @@
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import json
 import os
 from pathlib import Path
@@ -14,7 +16,7 @@ from evidence_trace.process import organize
 from evidence_trace.details import readable_details
 from test_evidence_trace_process import packet
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = SKILL_ROOT
 
 
 class UsabilityTests(unittest.TestCase):

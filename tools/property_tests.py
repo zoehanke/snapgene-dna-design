@@ -12,11 +12,13 @@ report is written to ``reports/property/property-tests.json``.
 
 Usage::
 
-    python -X utf8 scripts/property_tests.py             # full gate scale
-    python -X utf8 scripts/property_tests.py --quick     # 5% for CI/smoke
-    python -X utf8 scripts/property_tests.py --methods gibson,ta
-    python -X utf8 scripts/property_tests.py --json
+    python -X utf8 tools/property_tests.py             # full gate scale
+    python -X utf8 tools/property_tests.py --quick     # 5% for CI/smoke
+    python -X utf8 tools/property_tests.py --methods gibson,ta
+    python -X utf8 tools/property_tests.py --json
 """
+
+from project_paths import PROJECT_ROOT as REPOSITORY_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS, TESTS_ROOT
 import argparse
 import io
 import json
@@ -34,7 +36,7 @@ from Bio.SeqFeature import CompoundLocation, FeatureLocation, SeqFeature
 from Bio.SeqRecord import SeqRecord
 
 HERE = pathlib.Path(__file__).resolve().parent
-ROOT = HERE.parent
+ROOT = SKILL_ROOT
 sys.path.insert(0, str(HERE))
 
 from assembly_model import AssemblyError  # noqa: E402

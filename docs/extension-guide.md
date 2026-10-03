@@ -41,7 +41,7 @@ assert get_tool("example_count_ambiguous").execute(template="ACNT")["ambiguous_b
 
 ## Handler实现清单
 
-新增任务类型需要同时检查[construction-task-v1.json](../schemas/construction-task-v1.json)、`core/registry.py`的类型/语义校验与`core/handlers/__init__.py`的HANDLERS映射。实现`validate_contract`、`clarify`、`plan`、`recompute`、`validate_goal`；优先使用现有基类写出，不另建交付出口。计划必须包含真实变换后的features及作用范围；不能从产物倒推一份总能通过的“预期”。
+新增任务类型需要同时检查[construction-task-v1.json](../snapgene-dna-design/schemas/construction-task-v1.json)、`core/registry.py`的类型/语义校验与`core/handlers/__init__.py`的HANDLERS映射。实现`validate_contract`、`clarify`、`plan`、`recompute`、`validate_goal`；优先使用现有基类写出，不另建交付出口。计划必须包含真实变换后的features及作用范围；不能从产物倒推一份总能通过的“预期”。
 
 扩展验收应包括：独立预期的有效任务；关键边界错误；源注释保留；保存后读回；不完整证据不能正式交付。只测一个固定教程答案不够。实验性方法仍按实际成熟度处理，不通过改标签进入正式交付。
 

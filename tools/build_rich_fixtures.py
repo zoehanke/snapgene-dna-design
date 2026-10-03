@@ -13,12 +13,14 @@ feature semantics:
 
 Run from the package root:
 
-    python -X utf8 scripts/build_rich_fixtures.py            # write fixtures/rich/
-    python -X utf8 scripts/build_rich_fixtures.py --out DIR  # custom target
+    python -X utf8 tools/build_rich_fixtures.py            # write fixtures/rich/
+    python -X utf8 tools/build_rich_fixtures.py --out DIR  # custom target
 
-The fixtures are then validated by ``scripts/validate_rich_fixtures.py`` and
+The fixtures are then validated by ``tools/validate_rich_fixtures.py`` and
 by ``tests/test_rich_fixtures.py``.
 """
+
+from project_paths import PROJECT_ROOT as REPOSITORY_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS, TESTS_ROOT
 import argparse
 import pathlib
 
@@ -27,7 +29,7 @@ from Bio.SeqFeature import CompoundLocation, FeatureLocation, SeqFeature
 from Bio.SeqRecord import SeqRecord
 
 HERE = pathlib.Path(__file__).resolve().parent
-ROOT = HERE.parent
+ROOT = SKILL_ROOT
 DEFAULT_OUT = ROOT / "fixtures" / "rich"
 
 UNICODE_NOTE = "引物设计验证 fixture · café Σ DNA π 质粒"

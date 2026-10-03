@@ -108,7 +108,7 @@
 
 ### 复现与主持人核对（试读后展开）
 
-本稿来自 [Phase 3 演示脚本](../../scripts/demo_evidence_trace_phase3.py) 及本地 `output/evidence-trace-phase3/demo-final/` 中的原始事件和正式文件。文件读回确认：第一版 714 bp、第二版 717 bp，均为 linear；不是仅按坐标心算。
+本稿来自 [Phase 3 演示脚本](../../snapgene-dna-design/scripts/demo_evidence_trace_phase3.py) 及本地 `output/evidence-trace-phase3/demo-final/` 中的原始事件和正式文件。文件读回确认：第一版 714 bp、第二版 717 bp，均为 linear；不是仅按坐标心算。
 
 旧记录定位：需求 R01@1；来源选择 D01@1/2；边界 D02@1/2；来源陈述 E01@1；用途判断 C01@1/2。完整 Validation 与文件锚点保留在原 events.jsonl/graph.json 中，不放到默认正文。
 

@@ -2,6 +2,8 @@
 """Unit tests for liberated pipeline agent (agent/pipeline_agent.py)."""
 from __future__ import annotations
 
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
+
 import pathlib
 import tempfile
 import unittest

@@ -1,4 +1,6 @@
 """Public organization contracts for branched, revised and adversarial submissions."""
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import copy
 import os
 from pathlib import Path

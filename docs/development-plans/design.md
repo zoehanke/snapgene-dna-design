@@ -6,7 +6,7 @@ r15，2026-09-20。当前阅读规则的唯一来源；设计转向原因见[项
 
 [安全 spec](../../specs/safety-module.md) 定义事实边界，[当前计划](safety-phase-3-readability-v0.3.1.md) 定义实施与验收，[Reader Demo](safety-phase-3-reading-draft.md) 提供具体样稿。实现阅读结构前还须读 [标准空白框架](evidence-trace-reader-template.md)：本文件定义阅读规则，框架定义可选结构，案例检验填入后的效果。结构或显示规则变化时同步相应文档，不重复整段规范；完整框架不代表栏目必须全部出现。此文件不作为宿主运行时生成网页的提示词。
 
-数据接口见 [数据层到阅读层映射](../../references/evidence-trace-reader-mapping.md)。底层 reader 提供事实与旧日志支持；正式 HTML 消费完整组织结果的 report 投影，原记录留在详情引用中。关系必须区分声明依据、修订、调用阶段、材料引用和实际生成，不能把普通排序画成因果线。
+数据接口见 [数据层到阅读层映射](../../snapgene-dna-design/references/evidence-trace-reader-mapping.md)。底层 reader 提供事实与旧日志支持；正式 HTML 消费完整组织结果的 report 投影，原记录留在详情引用中。关系必须区分声明依据、修订、调用阶段、材料引用和实际生成，不能把普通排序画成因果线。
 
 ## 为谁服务
 

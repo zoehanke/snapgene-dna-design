@@ -19,15 +19,17 @@ Measurement strategy (canonical coverage.py parallel workflow)
 
 Usage::
 
-    python -X utf8 scripts/coverage_gate.py                 # run + enforce
-    python -X utf8 scripts/coverage_gate.py --json          # JSON report on stdout
-    python -X utf8 scripts/coverage_gate.py --no-enforce    # report only, exit 0
-    python -X utf8 scripts/coverage_gate.py --core a,b,c    # override core set
+    python -X utf8 tools/coverage_gate.py                 # run + enforce
+    python -X utf8 tools/coverage_gate.py --json          # JSON report on stdout
+    python -X utf8 tools/coverage_gate.py --no-enforce    # report only, exit 0
+    python -X utf8 tools/coverage_gate.py --core a,b,c    # override core set
 
 Exit code is 0 only when the suites pass and every core module meets both
 thresholds (or when ``--no-enforce`` is given). Reports are written to
 ``reports/coverage/``.
 """
+
+from project_paths import PROJECT_ROOT as REPOSITORY_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS, TESTS_ROOT
 import argparse
 import json
 import os
@@ -38,9 +40,9 @@ import sys
 import tempfile
 
 HERE = pathlib.Path(__file__).resolve().parent
-ROOT = HERE.parent
-TESTS = ROOT / "tests"
-SCRIPTS = HERE
+ROOT = SKILL_ROOT
+TESTS = TESTS_ROOT
+SCRIPTS = RUNTIME_SCRIPTS
 
 # Modules the formal gate measures. These are the correctness-critical core:
 # shared helpers, the unified fragment model, the construct model, the four
@@ -239,23 +241,23 @@ def main(argv=None):
 
         python = sys.executable
 
-        unittest_cmd = [python, str(SCRIPTS / "run_test_suite.py")]
+        unittest_cmd = [python, str(TOOLS_ROOT / 'run_test_suite.py')]
         if args.mode == "default":
             unittest_cmd.append("--allow-primer3-skip")
         steps = [
             ("unittest", unittest_cmd, ROOT),
-            ("smoke_core", [python, str(SCRIPTS / "smoke_core.py")], ROOT),
-            ("property_quick", [python, str(SCRIPTS / "property_tests.py"),
+            ("smoke_core", [python, str(TOOLS_ROOT / 'smoke_core.py')], ROOT),
+            ("property_quick", [python, str(TOOLS_ROOT / 'property_tests.py'),
                                 "--quick"], ROOT),
             ("rich_fixtures", [python,
-                               str(SCRIPTS / "validate_rich_fixtures.py")], ROOT),
+                               str(TOOLS_ROOT / 'validate_rich_fixtures.py')], ROOT),
         ]
         if args.mode == "release-real":
             # Literature scenario suite is part of the release-real CI gate;
             # it uses the real primer3_core from the preflighted environment.
             steps.append((
                 "scenario_suite",
-                [python, str(SCRIPTS / "run_scenario_suite.py"),
+                [python, str(TOOLS_ROOT / 'run_scenario_suite.py'),
                  "--out-dir", str(target_dir / "scenario-out")],
                 ROOT))
         step_results = {}

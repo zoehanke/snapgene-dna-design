@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 """tests/test_cli_scenarios.py - Automated regression tests for Host LLM CLI entrypoints."""
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import hashlib
 import json
 import os
@@ -11,7 +13,7 @@ import unittest
 
 from Bio import SeqIO
 
-ROOT = pathlib.Path(__file__).resolve().parents[1]
+ROOT = SKILL_ROOT
 SCRIPTS = ROOT / "scripts"
 FIXTURES = ROOT / "fixtures"
 

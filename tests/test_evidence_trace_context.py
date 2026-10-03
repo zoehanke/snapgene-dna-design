@@ -1,4 +1,6 @@
 """Source assertions, phase anchors and scoped associations; no reader implementation."""
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import json
 import os
 from pathlib import Path
@@ -13,7 +15,7 @@ from evidence_trace.recorder import Recorder, load_events, project
 from evidence_trace.runtime import observe, traced_run, TraceStopped
 from evidence_trace.settings import set_level
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = SKILL_ROOT
 
 
 class ContextTests(unittest.TestCase):

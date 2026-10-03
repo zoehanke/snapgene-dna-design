@@ -2,6 +2,8 @@
 """Red-to-green tests for shared complete-CDS validation and extraction."""
 from __future__ import annotations
 
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
+
 import pathlib
 import sys
 import tempfile
@@ -15,7 +17,7 @@ from Bio.SeqFeature import CompoundLocation, FeatureLocation, SeqFeature
 from Bio.SeqRecord import SeqRecord
 
 
-ROOT = pathlib.Path(__file__).resolve().parents[1]
+ROOT = SKILL_ROOT
 SCRIPTS = ROOT / "scripts"
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))

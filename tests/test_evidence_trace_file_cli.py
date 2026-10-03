@@ -1,4 +1,6 @@
 """Real file CLI A/B: source inspection, conversion, primer edits and preview export."""
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import json
 import os
 from pathlib import Path
@@ -13,7 +15,7 @@ from Bio.Seq import Seq
 from Bio.SeqFeature import SeqFeature, SimpleLocation
 from Bio.SeqRecord import SeqRecord
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = SKILL_ROOT
 
 
 class FileCLITests(unittest.TestCase):

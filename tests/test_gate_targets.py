@@ -10,6 +10,8 @@ Exercises the core modules systematically so the coverage gate
 
 These tests are synthetic and run in both release packages.
 """
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import json
 import pathlib
 import subprocess
@@ -24,7 +26,7 @@ from Bio.SeqFeature import CompoundLocation, FeatureLocation, Reference, SeqFeat
 from Bio.SeqRecord import SeqRecord
 
 HERE = pathlib.Path(__file__).resolve().parent
-ROOT = HERE.parent
+ROOT = SKILL_ROOT
 SCRIPTS = ROOT / "scripts"
 FIXTURES = ROOT / "fixtures" / "rich"
 sys.path.insert(0, str(SCRIPTS))

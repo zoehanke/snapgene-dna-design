@@ -1,4 +1,6 @@
 """Independent report contracts, including contradictions absent from the demo."""
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import json
 import os
 from pathlib import Path
@@ -13,7 +15,7 @@ from evidence_trace.process import organize
 from evidence_trace.projection import build_facts
 from evidence_trace.report import markdown
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = SKILL_ROOT
 
 
 class ReportGeneralizationTests(unittest.TestCase):

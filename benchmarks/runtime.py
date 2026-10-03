@@ -1,7 +1,7 @@
 """Reproducible synthetic file/Trace timings; not biological validation."""
 import sys,time,json,platform,statistics,tracemalloc,tempfile,random,subprocess,os
 from pathlib import Path
-ROOT=Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT))
+ROOT=Path(__file__).resolve().parents[1]/'snapgene-dna-design';sys.path.insert(0,str(ROOT))
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 from Bio.SeqFeature import SeqFeature,SimpleLocation

@@ -12,14 +12,14 @@
 | 8 | mCherry2-C1 4722 bp；DsRed参考225 aa | [完整viewer 310151](https://www.addgene.org/browse/sequence/310151/)、[UniProt Q9U6Y8](https://rest.uniprot.org/uniprotkb/Q9U6Y8.fasta) |
 | 9 | 胞质探针8004 bp；基质探针8202 bp；pRS416 4898 bp | [胞质源](https://www.addgene.org/83238/sequences/)、[基质源](https://www.addgene.org/83240/sequences/)、上述骨架 |
 
-版本、URL、原响应和文件/DNA哈希留在[原始归档](../../output/question-bank-20261002/raw/)及[来源记录](../../output/question-bank-20261002/provenance-t07-t09.md)。两份pRS保存原`.dna`再转GB，pRS416与[U03450.1](https://www.ncbi.nlm.nih.gov/nuccore/U03450.1)环形全序列一致。YTK直接取原ZIP成员，未重建部件。
+版本、URL、原响应和文件/DNA哈希留在[原始归档](../../snapgene-dna-design/output/question-bank-20261002/raw)及[来源记录](../../snapgene-dna-design/output/question-bank-20261002/provenance-t07-t09.md)。两份pRS保存原`.dna`再转GB，pRS416与[U03450.1](https://www.ncbi.nlm.nih.gov/nuccore/U03450.1)环形全序列一致。YTK直接取原ZIP成员，未重建部件。
 
-Addgene完整viewer无需登录即提供显示数据；其广告GBK链接返回404。本轮原样提取公开显示的每个碱基，核对坐标连续、上下链互补、官方完整长度，并转换所有功能feature。完整原JSON保留；格式转换不表示作者原生GB已经取得，也没有访问登录接口。[转换核验](../../output/question-bank-20261002/viewer-conversion-t07-t09-t08.json)
+Addgene完整viewer无需登录即提供显示数据；其广告GBK链接返回404。本轮原样提取公开显示的每个碱基，核对坐标连续、上下链互补、官方完整长度，并转换所有功能feature。完整原JSON保留；格式转换不表示作者原生GB已经取得，也没有访问登录接口。[转换核验](../../snapgene-dna-design/output/question-bank-20261002/viewer-conversion-t07-t09-t08.json)
 
 ## 不能隐藏的输入事实
 
 - **第7题：**原1M有两处His6，TEV处实际为ENLYFQS。要求切后Gly加完整sfGFP，仍须执行者在设计时实现；准备者没有预改接口。sfGFP供体是负链。原标签端位文字矛盾保留在执行材料说明中。
-- **第8题：**参考143/161/163对应实际母本148W/166I/168Q，原密码子TGG/ATC/CAG，质粒1-based坐标分别1093..1095、1147..1149、1153..1155。两个最优全局比对在这些位点一致。DsRed参考第163位自身是K；编号定义位置，Q指实际母本，不得偷改参考。对应关系属于检查者答案，执行包只给未编辑参考和编号规则。[映射核对](../../output/question-bank-20261002/raw/T08-reference-mapping.json)
+- **第8题：**参考143/161/163对应实际母本148W/166I/168Q，原密码子TGG/ATC/CAG，质粒1-based坐标分别1093..1095、1147..1149、1153..1155。两个最优全局比对在这些位点一致。DsRed参考第163位自身是K；编号定义位置，Q指实际母本，不得偷改参考。对应关系属于检查者答案，执行包只给未编辑参考和编号规则。[映射核对](../../snapgene-dna-design/output/question-bank-20261002/raw/T08-reference-mapping.json)
 - [原论文附表S1](https://journals.plos.org/plosone/article/file?type=supplementary&id=10.1371/journal.pone.0171257.s001)明确I161S/Q163E后再加W143L，解决正文一处I163E冲突。实际提供母本不冒称与作者实验库存完全相同，光谱表现不作DNA验收结论。
 - **第9题：**原viewer只有骨架和调控feature，缺具名探针CDS。已核查正链完整ORF分别3210..4625与3204..4823，含终止、471/539 aa。执行材料提供功能背景及输入边界，不伪造原注释，也不把两份来源说成只差Su9。
 
@@ -29,6 +29,6 @@ Addgene完整viewer无需登录即提供显示数据；其广告GBK链接返回4
 
 ## 核验与交付范围
 
-九题共41份完整GenBank，原文件哈希未变；匿名副本DNA逐碱基相同、拓扑相同、全部feature几何和提取序列相同。编号参考未编辑。执行包无参考成品、参考引物、作者/DOI、原材料编号、网页链接；必要背景已放自然请求，inventory留在检查者历史材料中。[材料核验记录](../../output/question-bank-20261002/materials-v0.3/validation.json)
+九题共41份完整GenBank，原文件哈希未变；匿名副本DNA逐碱基相同、拓扑相同、全部feature几何和提取序列相同。编号参考未编辑。执行包无参考成品、参考引物、作者/DOI、原材料编号、网页链接；必要背景已放自然请求，inventory留在检查者历史材料中。[材料核验记录](../../snapgene-dna-design/output/question-bank-20261002/materials-v0.3/validation.json)
 
 第4、7、9题输入现已齐，但没有新增唯一最终序列/引物金标准；人工仍按源文件、目标结构、实际反应及继承关系独立检查。没有把某个构建路线锁成唯一答案。没有运行这些新增题，也没有声称Skill或湿实验通过。

@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 """Small regressions for real-template PCR and mutagenesis preparation."""
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import unittest
 import random
 

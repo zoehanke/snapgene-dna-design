@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 """v0.9.0 module tests: M1 planner, M2 rules, M3 primers, M4/M5/M6."""
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import json
 import os
 import pathlib
@@ -16,7 +18,7 @@ from Bio.SeqFeature import FeatureLocation, SeqFeature
 from Bio.SeqRecord import SeqRecord
 
 HERE = pathlib.Path(__file__).resolve().parent
-ROOT = HERE.parent
+ROOT = SKILL_ROOT
 SCRIPTS = ROOT / "scripts"
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(SCRIPTS))

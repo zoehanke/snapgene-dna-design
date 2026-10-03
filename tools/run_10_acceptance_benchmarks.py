@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""scripts/run_10_acceptance_benchmarks.py - 10 Synthetic Workflow Smoke Cases.
+"""tools/run_10_acceptance_benchmarks.py - 10 Synthetic Workflow Smoke Cases.
 
 Evaluates 10 synthetic molecular biology design cases against the skill runtime:
 1. Simple Insertion: Insert GFP CDS into vector MCS.
@@ -23,6 +23,8 @@ The smoke result is based on case completion and explicit assertions, not a rele
 """
 from __future__ import annotations
 
+from project_paths import PROJECT_ROOT as REPOSITORY_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS, TESTS_ROOT
+
 import json
 import os
 import pathlib
@@ -33,7 +35,7 @@ import time
 from typing import Any
 
 # Ensure project root is in sys.path
-PROJECT_ROOT = pathlib.Path(__file__).resolve().parent.parent
+PROJECT_ROOT = SKILL_ROOT
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 

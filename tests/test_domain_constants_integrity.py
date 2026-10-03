@@ -1,4 +1,6 @@
 """Focused tests of domain constants versus sample-identity exemptions."""
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import random
 import unittest
 from Bio.Seq import Seq

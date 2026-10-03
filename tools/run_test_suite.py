@@ -5,17 +5,19 @@
 lives inside a zip archive (e.g. ``python310.zip``), so the coverage gate
 executes this file instead::
 
-    python -X utf8 scripts/run_test_suite.py
+    python -X utf8 tools/run_test_suite.py
 
 Exit code is 0 only when every test passes.
 """
+
+from project_paths import PROJECT_ROOT as REPOSITORY_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS, TESTS_ROOT
 import argparse
 import pathlib
 import sys
 import unittest
 
 HERE = pathlib.Path(__file__).resolve().parent
-ROOT = HERE.parent
+ROOT = SKILL_ROOT
 
 
 def main():
@@ -29,7 +31,7 @@ def main():
     sys.path.insert(0, str(ROOT))
     sys.path.insert(0, str(HERE))
     loader = unittest.TestLoader()
-    suite = loader.discover(str(ROOT / "tests"))
+    suite = loader.discover(str(TESTS_ROOT))
     runner = unittest.TextTestRunner(verbosity=1)
     result = runner.run(suite)
     primer3_skips = []

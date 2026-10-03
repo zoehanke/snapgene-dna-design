@@ -1,4 +1,6 @@
 """Phase 2: interpreted context stays separate from source/claim truth and Core."""
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import copy
 import json
 from pathlib import Path
@@ -68,7 +70,7 @@ class CoverageTests(unittest.TestCase):
             folder = Path(tmp)
             design = folder / "design.json"
             design.write_text(json.dumps({"method": "inverse_pcr", "start_0based": 198}), encoding="utf-8")
-            done = subprocess.run([sys.executable, "-X", "utf8", "-B", str(Path(__file__).resolve().parents[1] / "scripts/trace_design.py"),
+            done = subprocess.run([sys.executable, "-X", "utf8", "-B", str(RUNTIME_SCRIPTS / "trace_design.py"),
                 "coverage", "--trace-dir", str(folder / "no-trace"), "--design-json", str(design)],
                 capture_output=True, text=True, encoding="utf-8", errors="replace")
             self.assertEqual(done.returncode, 0, done.stderr)
@@ -160,7 +162,7 @@ class ChainTests(unittest.TestCase):
 
     def test_normal_phase2_failures_preserve_actual_authoritative_dna(self):
         from agent.pipeline_agent import execute_agent_pipeline
-        template = Path(__file__).resolve().parents[1] / "fixtures/synthetic/pSynthetic-GFP.gb"
+        template = SKILL_ROOT / "fixtures/synthetic/pSynthetic-GFP.gb"
         self.recorder.link({"statement_id": "E", "claim_id": "C", "relation": "support"})
         def run(out, **options):
             return execute_agent_pipeline("phase2-fault", [

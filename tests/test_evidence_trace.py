@@ -1,4 +1,6 @@
 """Evidence Trace contracts, real entry-point A/B and failure isolation."""
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import copy
 import json
 import pathlib
@@ -15,11 +17,11 @@ from evidence_trace.recorder import Recorder, load_events, project
 from evidence_trace.runtime import TraceStopped, observe, traced_run
 from scripts.run_recipe import run_recipe_cli
 
-ROOT = pathlib.Path(__file__).resolve().parents[1]
+ROOT = SKILL_ROOT
 # Mandatory sidecar contracts use the redistributable synthetic template.
 # The historical supplied-material reaction remains an explicit integration below.
 TEMPLATE = ROOT / "fixtures/synthetic/pSynthetic-GFP.gb"
-EXTERNAL_TEMPLATE = ROOT / "tests/data/pBP-eGFP.gb"
+EXTERNAL_TEMPLATE = PROJECT_ROOT / "tests/data/pBP-eGFP.gb"
 
 
 def context():

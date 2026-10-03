@@ -1,3 +1,5 @@
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import json
 import random
 import subprocess
@@ -14,7 +16,7 @@ from core.errors import PlanningError
 from core.handlers.composite_pipeline import CompositePipelineHandler
 
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = SKILL_ROOT
 
 
 def _pcr_step(template, forward, reverse):

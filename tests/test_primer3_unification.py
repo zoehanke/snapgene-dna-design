@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 """tests/test_primer3_unification.py - Tests for unified Primer3 integration in core tools."""
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import unittest
 
 from core.tools.amplification import design_overhang_primers
@@ -73,7 +75,7 @@ class TestPrimer3Unification(unittest.TestCase):
         import sys
         import json
         proc = subprocess.run(
-            [sys.executable, "scripts/install_primer3.py", "--json"],
+            [sys.executable, str(RUNTIME_SCRIPTS / "install_primer3.py"), "--json"],
             capture_output=True,
             text=True,
             timeout=30,

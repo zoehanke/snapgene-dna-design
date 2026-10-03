@@ -80,7 +80,7 @@
 
 当前文档阶段更新两份三层设计、机器 JSON 示例、相关 spec/design.md、标准框架、当前计划、索引和映射指针；保留用户 Reader Demo 修改。后续实现按三层 r3 修改 `evidence_trace/`、选定 CLI、宿主指引及相关测试，不提前宣称新命令可用。
 
-不修改 DNA Core、planner、Handler、执行参数、Validation 语义或 authoritative artifact；不增加哈希机制、模型服务、会话注册、依赖或第二份事实源。保留一套 Skill。配置兼容细节在 [使用说明](../../references/evidence-trace.md)，本轮不重复设计。
+不修改 DNA Core、planner、Handler、执行参数、Validation 语义或 authoritative artifact；不增加哈希机制、模型服务、会话注册、依赖或第二份事实源。保留一套 Skill。配置兼容细节在 [使用说明](../../snapgene-dna-design/references/evidence-trace.md)，本轮不重复设计。
 
 ## 已完成工程证据与交接
 
@@ -107,7 +107,7 @@ r7 修订：记录项目负责人对第二步的明确验收；与未执行的�
 - 关联：Decision 与补充解释可引用确切节点版本或事件。现有 trace-input 可显式选择 context_refs，依赖仍保留但不把所有依赖中的旧 Decision 当作本次活跃决定。默认沿用 latest_records 并明确标注。
 - 实际检查与文件：新增 result_event_ref 回指本运行的真实返回事件；同运行关联明确标为 same_run，仍不能作为某个 Claim 或序列区域已被验证的证明。
 - 缺口：issues 只表示日志/引用/采集故障及未完成运行；coverage_gaps、explanation_gaps、association_gaps 分开。Observed 无额外说明、缺少强制 Claim、未请求检查不再自动生成检查失败。真实失败和证据问题仍保留。
-- 用法见 [使用说明](../../references/evidence-trace.md)；同步 SKILL 和两个 spec。没有新增依赖、哈希机制、会话系统或程序结果生成器。
+- 用法见 [使用说明](../../snapgene-dna-design/references/evidence-trace.md)；同步 SKILL 和两个 spec。没有新增依赖、哈希机制、会话系统或程序结果生成器。
 
 | 验证 | 结果 | 记录 |
 |---|---|---|
@@ -127,7 +127,7 @@ r8 修订：完成第三步实现、相关回归和真实工程案例，记录�
 
 ## 第四步实际实现与交接
 
-数据层与阅读层的完整对应表见 [映射文档](../../references/evidence-trace-reader-mapping.md)。它是接口说明；design.md 继续保存阅读规则，标准框架继续保存可选结构，不新建重复 UX 规范系统。
+数据层与阅读层的完整对应表见 [映射文档](../../snapgene-dna-design/references/evidence-trace-reader-mapping.md)。它是接口说明；design.md 继续保存阅读规则，标准框架继续保存可选结构，不新建重复 UX 规范系统。
 
 - 新增纯函数 reader.py：从现有图、条件证据、运行及阶段记录派生 context、steps、runs、relations、review 和 diagnostics。Requirement/Decision 对应要求/选择；检查与有意义的程序发现合并进过程；Source/Statement/Claim 留在对应选择的依据旁支。
 - 一次返回的检查只显示一次。未请求检查不生成空步骤；普通 partial/unknown 适用性保留为条件边界，不每条变成待办。失败、明确反对关系、缺失判断依据与变化问题按步骤聚合。

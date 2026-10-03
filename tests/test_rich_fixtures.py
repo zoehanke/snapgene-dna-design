@@ -6,13 +6,15 @@ Covers the v0.5 formal gate checklist: forward/reverse CDS, CompoundLocation
 Fixtures are fully synthetic (``fixtures/rich/``), so they are safe for both
 the academic-full and the redistributable packages.
 """
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import pathlib
 import sys
 import unittest
 from unittest import mock
 
 HERE = pathlib.Path(__file__).resolve().parent
-ROOT = HERE.parent
+ROOT = SKILL_ROOT
 SCRIPTS = ROOT / "scripts"
 FIXTURES = ROOT / "fixtures" / "rich"
 sys.path.insert(0, str(SCRIPTS))

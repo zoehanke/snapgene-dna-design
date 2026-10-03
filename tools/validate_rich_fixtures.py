@@ -19,11 +19,13 @@ Unicode and multi-value qualifiers. This runner:
 
 Usage::
 
-    python -X utf8 scripts/validate_rich_fixtures.py            # run + enforce
-    python -X utf8 scripts/validate_rich_fixtures.py --json
-    python -X utf8 scripts/validate_rich_fixtures.py --no-enforce
-    python -X utf8 scripts/validate_rich_fixtures.py --snapgene-exe "C:\\SnapGene\\SnapGene.exe"
+    python -X utf8 tools/validate_rich_fixtures.py            # run + enforce
+    python -X utf8 tools/validate_rich_fixtures.py --json
+    python -X utf8 tools/validate_rich_fixtures.py --no-enforce
+    python -X utf8 tools/validate_rich_fixtures.py --snapgene-exe "C:\\SnapGene\\SnapGene.exe"
 """
+
+from project_paths import PROJECT_ROOT as REPOSITORY_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS, TESTS_ROOT
 import argparse
 import json
 import os
@@ -34,8 +36,8 @@ import sys
 from snapgene_compatibility import analyze
 
 HERE = pathlib.Path(__file__).resolve().parent
-ROOT = HERE.parent
-SCRIPTS = HERE
+ROOT = SKILL_ROOT
+SCRIPTS = RUNTIME_SCRIPTS
 FIXTURES = ROOT / "fixtures" / "rich"
 REPORT_DIR = ROOT / "reports" / "rich"
 
@@ -116,7 +118,7 @@ def main(argv=None):
     args = parser.parse_args(argv)
 
     if not FIXTURES.is_dir():
-        print("fixtures/rich not found (run scripts/build_rich_fixtures.py first)")
+        print("fixtures/rich not found (run tools/build_rich_fixtures.py first)")
         return 1
     out_dir = pathlib.Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)

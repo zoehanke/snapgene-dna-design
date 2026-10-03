@@ -4,7 +4,7 @@
 
 基于本地提交 `d52165b440f9c04b79272507f87c4fdb5aafacc8`，分支 `codex/real-workflow-readiness-20260907`。本次只新增本文，不修改代码、当前 spec、阶段状态或用户对 Reader Demo 的未提交修改。
 
-关联：[safety spec](../specs/safety-module.md)、[core spec](../specs/core-skill.md)、[Phase 3.1 r9](development-plans/safety-phase-3-readability-v0.3.1.md)、[design.md](development-plans/design.md)、[数据到阅读层映射](../references/evidence-trace-reader-mapping.md)。本文是当前补救计划的研究输入，不另立一个已经生效的开发阶段。
+关联：[safety spec](../specs/safety-module.md)、[core spec](../specs/core-skill.md)、[Phase 3.1 r9](development-plans/safety-phase-3-readability-v0.3.1.md)、[design.md](development-plans/design.md)、[数据到阅读层映射](../snapgene-dna-design/references/evidence-trace-reader-mapping.md)。本文是当前补救计划的研究输入，不另立一个已经生效的开发阶段。
 
 ## 1. 核心判断
 

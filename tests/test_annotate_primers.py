@@ -4,6 +4,8 @@
 Validates that primer add, remove, replace, and clear operations on existing
 .dna and .gb files strictly preserve sequence integrity and non-primer annotations.
 """
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import hashlib
 import json
 import os

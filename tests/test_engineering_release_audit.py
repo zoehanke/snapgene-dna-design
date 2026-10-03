@@ -1,4 +1,6 @@
 """Release source boundaries and honest required-runtime reporting."""
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import contextlib
 import io
 import json
@@ -9,7 +11,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = SKILL_ROOT
 sys.path.insert(0, str(ROOT/'scripts'))
 import build_release
 import check_env
@@ -53,6 +55,24 @@ class ReleaseAuditTests(unittest.TestCase):
             for invalid in ('../outside.txt', '.env', 'C:/outside.txt'):
                 with self.subTest(invalid=invalid), self.assertRaises(ValueError):
                     build_release._collect(root,source_files=[invalid])
+
+    def test_nested_git_source_only_packages_requested_subtree(self):
+        with tempfile.TemporaryDirectory() as temp:
+            repository = Path(temp)
+            source = repository / '独立 runtime'
+            source.mkdir()
+            subprocess.run(['git', 'init', '-q', str(repository)], check=True)
+            (repository / 'AGENTS.md').write_text('development instructions', encoding='utf-8')
+            (repository / 'review.txt').write_text('checker-only data', encoding='utf-8')
+            (source / 'VERSION').write_text('1.0.0', encoding='utf-8')
+            (source / 'entry.py').write_text('print(1)', encoding='utf-8')
+            sibling = repository / '独立 runtime extra'
+            sibling.mkdir()
+            (sibling / 'other.py').write_text('print(2)', encoding='utf-8')
+            subprocess.run(['git', '-C', str(repository), 'add', '.'], check=True)
+            (source / 'private.gb').write_text('untracked material', encoding='utf-8')
+            self.assertEqual({e['path'] for e in build_release._collect(source)},
+                             {'VERSION', 'entry.py'})
 
     def test_missing_required_primer_runtime_makes_environment_fail(self):
         with patch.object(check_env,'probe',return_value={'module':'fake','dist':'fake','status':'ok','version':'test'}), \

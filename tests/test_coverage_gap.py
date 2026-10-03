@@ -6,6 +6,8 @@ reach (error guards, fallback paths, human-readable CLI output, and the
 official-SnapGene round-trip code path exercised through mocks). They are
 synthetic and safe for both release packages.
 """
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import json
 import pathlib
 import subprocess
@@ -20,7 +22,7 @@ from Bio.SeqFeature import CompoundLocation, FeatureLocation, SeqFeature
 from Bio.SeqRecord import SeqRecord
 
 HERE = pathlib.Path(__file__).resolve().parent
-ROOT = HERE.parent
+ROOT = SKILL_ROOT
 SCRIPTS = ROOT / "scripts"
 FIXTURES = ROOT / "fixtures" / "rich"
 sys.path.insert(0, str(SCRIPTS))

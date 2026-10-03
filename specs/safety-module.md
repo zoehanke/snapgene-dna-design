@@ -1,6 +1,6 @@
 # Safety module: Evidence Trace
 
-Updated: 2026-09-23. This spec owns current Trace behavior and evidence boundaries. [History](../docs/history.md) records why they changed; [development plans](../docs/development-plans/README.md) own phase scope and results; [usage](../references/evidence-trace.md) owns CLI/Schema details; [design.md](../docs/development-plans/design.md) owns reading rules and links the optional framework and visual reference.
+Updated: 2026-09-23. This spec owns current Trace behavior and evidence boundaries. [History](../docs/history.md) records why they changed; [development plans](../docs/development-plans/README.md) own phase scope and results; [usage](../snapgene-dna-design/references/evidence-trace.md) owns CLI/Schema details; [design.md](../docs/development-plans/design.md) owns reading rules and links the optional framework and visual reference.
 
 ## Purpose and present scope
 

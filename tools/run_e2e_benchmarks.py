@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""scripts/run_e2e_benchmarks.py - Command-line runner for Scientific Composite Benchmarks.
+"""tools/run_e2e_benchmarks.py - Command-line runner for Scientific Composite Benchmarks.
 
 Radically cured biological validation:
 1. Scenario A: In-frame Gibson Assembly fusion cloning with C-terminal 6xHis tag,
@@ -11,9 +11,11 @@ Radically cured biological validation:
 3. Desktop Integration: Checks native binary .dna generation and SnapGene viewer path.
 
 Usage:
-    python scripts/run_e2e_benchmarks.py [--open]
+    python tools/run_e2e_benchmarks.py [--open]
 """
 from __future__ import annotations
+
+from project_paths import PROJECT_ROOT as REPOSITORY_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS, TESTS_ROOT
 
 import argparse
 import json
@@ -27,7 +29,7 @@ from Bio.SeqFeature import FeatureLocation, SeqFeature
 from Bio.SeqRecord import SeqRecord
 
 # Ensure project root is in sys.path
-PROJECT_ROOT = pathlib.Path(__file__).resolve().parent.parent
+PROJECT_ROOT = SKILL_ROOT
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 

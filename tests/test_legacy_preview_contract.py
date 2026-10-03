@@ -1,4 +1,6 @@
 """Legacy preview contracts: actual handoff, source identity and safe failure."""
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import copy
 import csv
 import hashlib
@@ -18,7 +20,7 @@ from agent.session import Session, summarize_file
 from agent.delivery import write_delivery
 from design.spec import DesignSpecError, new_spec, spec_sha256
 
-ROOT=Path(__file__).resolve().parents[1]
+ROOT= SKILL_ROOT
 
 
 class LegacyPreviewContracts(unittest.TestCase):

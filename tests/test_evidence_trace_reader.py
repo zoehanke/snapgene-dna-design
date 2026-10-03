@@ -1,4 +1,6 @@
 """Reader mapping contracts; simulated facts here, actual DNA A/B in capture tests."""
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import copy
 import json
 import os
@@ -14,7 +16,7 @@ from evidence_trace.recorder import Recorder, load_events, project
 from evidence_trace.reader import reader_for_run
 from evidence_trace.runtime import observe, traced_run
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = SKILL_ROOT
 
 
 class ReaderTests(unittest.TestCase):

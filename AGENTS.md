@@ -1,11 +1,15 @@
 # Repository instructions
 
+## Workspace layout
+
+Project/Git root contains development instructions, specs, docs, tests, benchmarks and tools. `snapgene-dna-design/` is the Skill root. Its README and SKILL.md are runtime/user entry points. Preserve standalone Skill operation; runtime modules must not import project development helpers. Build packages from the Skill root, excluding development data.
+
 ## Read before work
 
 - For skill behavior, DNA operations, architecture, CLI, tests or releases, read [specs/core-skill.md](specs/core-skill.md).
 - For biosafety, biosecurity, ethics or safety-feature research/development, read [specs/safety-module.md](specs/safety-module.md). Also read the core spec when changing the design workflow or shared code.
-- For skill-facing instructions or examples, also read [SKILL.md](SKILL.md) and the relevant signature in [references/recipes.md](references/recipes.md).
-- For external sequence services, read [references/privacy-and-consent.md](references/privacy-and-consent.md); for biological recommendations, read [references/source-policy.md](references/source-policy.md).
+- For skill-facing instructions or examples, also read [SKILL.md](snapgene-dna-design/SKILL.md) and the relevant signature in [references/recipes.md](snapgene-dna-design/references/recipes.md).
+- For external sequence services, read [references/privacy-and-consent.md](snapgene-dna-design/references/privacy-and-consent.md); for biological recommendations, read [references/source-policy.md](snapgene-dna-design/references/source-policy.md).
 
 - Before creating, resuming or closing a development plan, read [docs/development-plans/README.md](docs/development-plans/README.md), the relevant spec and current plan, including the predecessor handoff. Record unresolved-item dispositions and follow the current authorized scope; a roadmap does not itself authorize later phases.
 - For onboarding or changes to product direction, architecture or long-term rules, read [docs/history.md](docs/history.md). It explains decisions; it does not override current specs or expand the task.
@@ -20,7 +24,7 @@
 - Preserve original source material; explain annotation corrections separately from DNA changes.
 - Keep user DNA, restricted fixtures and generated artifacts out of source commits. Check existing worktree changes before editing; preserve unrelated work.
 - Use explicit UTF-8 for text I/O and subprocess text streams. Verify relevant Windows/non-ASCII behavior when changing these paths.
-- Validate the changed behavior through its actual public entry point and inspect resulting files. Use focused regression tests; for release work, run the applicable suite and integrations described in README. Full suite: `python -X utf8 -B -m unittest discover -s tests`.
+- Validate the changed behavior through its actual public entry point and inspect resulting files. Use focused regression tests; for release work, run the applicable suite and integrations described in README. From project root: `python -X utf8 -B tools/run_test_suite.py` or `python -X utf8 -B -m unittest discover -s tests`.
 - Report simplification must preserve findings, evidence ownership and usable detail access.
 - A new chat/shared work directory is not isolation. Freeze code/package/rubric before formal evaluation, retain contaminated and repeated runs, and report unverified items explicitly; no heldout evidence means no claim of general success-rate improvement.
 - Report performed checks, failures, skips and limits accurately. Documentation-only changes need content/link checks, not a biological regression run. Historical test counts are not current validation.

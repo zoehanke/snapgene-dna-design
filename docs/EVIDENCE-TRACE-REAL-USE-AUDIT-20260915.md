@@ -84,13 +84,13 @@
 
 ## 文件入口与复核范围
 
-- [执行者交接](../output/trace-real-use-20260915-01/worker/HANDOFF.md)
-- [原始 Trace](../output/trace-real-use-20260915-01/worker/evidence-trace/events.jsonl)及[当前 HTML](../output/trace-real-use-20260915-01/worker/evidence-trace/index.html)
-- [对照候选 DNA](../output/trace-real-use-20260915-01/worker/control-clone-nheI-t7repair/candidate/recipe_restriction_cloning.dna)
-- [A206K 候选 DNA](../output/trace-real-use-20260915-01/worker/a206k-clone-nheI-t7repair/candidate/recipe_restriction_cloning.dna)
-- [带新增引物的对照 QC](../output/trace-real-use-20260915-01/worker/qc-control-a206k-check/verification_with_A206K_seq.dna)
-- [带新增引物的候选 QC](../output/trace-real-use-20260915-01/worker/qc-candidate-a206k-check/verification_with_A206K_seq.dna)
-- [独立产物检查](../output/trace-real-use-20260915-01/observer/product-checks.json)及[检查脚本](../output/trace-real-use-20260915-01/observer/check_products.py)
-- [宿主公开事件快照](../output/trace-real-use-20260915-01/observer/host-public-events.json)：仅本次子任务的公开消息及工具调用，排除内部推理；与被测 Trace 分开保存，不回填。
+- [执行者交接](../snapgene-dna-design/output/trace-real-use-20260915-01/worker/HANDOFF.md)
+- [原始 Trace](../snapgene-dna-design/output/trace-real-use-20260915-01/worker/evidence-trace/events.jsonl)及[当前 HTML](../snapgene-dna-design/output/trace-real-use-20260915-01/worker/evidence-trace/index.html)
+- [对照候选 DNA](../snapgene-dna-design/output/trace-real-use-20260915-01/worker/control-clone-nheI-t7repair/candidate/recipe_restriction_cloning.dna)
+- [A206K 候选 DNA](../snapgene-dna-design/output/trace-real-use-20260915-01/worker/a206k-clone-nheI-t7repair/candidate/recipe_restriction_cloning.dna)
+- [带新增引物的对照 QC](../snapgene-dna-design/output/trace-real-use-20260915-01/worker/qc-control-a206k-check/verification_with_A206K_seq.dna)
+- [带新增引物的候选 QC](../snapgene-dna-design/output/trace-real-use-20260915-01/worker/qc-candidate-a206k-check/verification_with_A206K_seq.dna)
+- [独立产物检查](../snapgene-dna-design/output/trace-real-use-20260915-01/observer/product-checks.json)及[检查脚本](../snapgene-dna-design/output/trace-real-use-20260915-01/observer/check_products.py)
+- [宿主公开事件快照](../snapgene-dna-design/output/trace-real-use-20260915-01/observer/host-public-events.json)：仅本次子任务的公开消息及工具调用，排除内部推理；与被测 Trace 分开保存，不回填。
 
 生成物位于忽略的 output 目录，仅在本机可用，不随报告提交到源码仓库。未执行湿实验或桌面 SnapGene 打开检查；解析往返通过不冒充桌面验收。仅此一项任务，未估计一般成功率、Full 的额外成本或用户阅读效率。

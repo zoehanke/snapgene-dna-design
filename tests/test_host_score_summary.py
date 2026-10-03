@@ -1,5 +1,7 @@
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import unittest
-from scripts.summarize_host_scores import summarize, FIELDS
+from tools.summarize_host_scores import summarize, FIELDS
 
 
 class HostScoreSummaryTests(unittest.TestCase):

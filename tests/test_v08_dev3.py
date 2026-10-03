@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 """v0.8.0-dev3 regression tests for P0/P1 fixes and real backends."""
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import json
 import os
 import pathlib
@@ -15,7 +17,7 @@ from Bio.SeqFeature import FeatureLocation, SeqFeature
 from Bio.SeqRecord import SeqRecord
 
 HERE = pathlib.Path(__file__).resolve().parent
-ROOT = HERE.parent
+ROOT = SKILL_ROOT
 SCRIPTS = ROOT / "scripts"
 SCHEMAS = ROOT / "schemas"
 sys.path.insert(0, str(SCRIPTS))

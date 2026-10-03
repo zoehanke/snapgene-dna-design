@@ -1,4 +1,6 @@
 """Global collection and supplied explanation provenance through public entry points."""
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import copy
 import json
 import os
@@ -16,7 +18,7 @@ from evidence_trace.recorder import Recorder, project, load_events
 from evidence_trace.coverage import extract_choices, match_choices
 from evidence_trace.runtime import traced_run, observe, TraceStopped
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = SKILL_ROOT
 TEMPLATE = ROOT / "fixtures/synthetic/pSynthetic-GFP.gb"
 
 

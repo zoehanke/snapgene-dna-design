@@ -2,6 +2,8 @@
 """Summarize examiner evidence, not the executing model's self-reported success."""
 from __future__ import annotations
 
+from project_paths import PROJECT_ROOT as REPOSITORY_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS, TESTS_ROOT
+
 import argparse
 import csv
 import json
@@ -114,7 +116,7 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--scores',required=True,type=pathlib.Path)
     parser.add_argument('--applicability',type=pathlib.Path,
-                        default=pathlib.Path(__file__).resolve().parents[1]/'benchmarks/host-readiness-v0.1/applicability.json')
+                        default=REPOSITORY_ROOT/'benchmarks/host-readiness-v0.1/applicability.json')
     parser.add_argument('--out',type=pathlib.Path)
     parser.add_argument('--aggregate-only',action='store_true',
                         help='Emit developer feedback without task IDs, evidence paths or per-run results')

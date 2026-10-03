@@ -2,6 +2,8 @@
 """Regression tests for the final release's public entry points."""
 from __future__ import annotations
 
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
+
 import inspect
 import json
 import pathlib
@@ -13,7 +15,7 @@ import unittest
 from core.tools.registry import TOOL_REGISTRY, get_tool
 
 
-ROOT = pathlib.Path(__file__).resolve().parents[1]
+ROOT = SKILL_ROOT
 
 
 class FinalPublicInterfaceTests(unittest.TestCase):

@@ -31,7 +31,7 @@ sequenceDiagram
 
 ## 同一个任务中的几种数据
 
-运行[API例子](../examples/core_workflow.py)后，可按下表读实际JSON。这里展示关键字段，完整对象由程序保存，省略字段不等于不存在。
+运行[API例子](../snapgene-dna-design/examples/core_workflow.py)后，可按下表读实际JSON。这里展示关键字段，完整对象由程序保存，省略字段不等于不存在。
 
 | 文件/对象 | 关键内容 | 读者应该问什么 |
 |---|---|---|
@@ -58,4 +58,4 @@ sequenceDiagram
 | 某Validation检查某产物 | 实际检查结果和对象范围 | 同run所有Decision都被验证 |
 | Decision修订影响旧依据 | 版本变化、明确/可能依赖 | 旧科学结论自动错误 |
 
-原事件不因页面折叠而删除；新增事实可以让旧组织变为陈旧，需追加新组织。后补解释必须保留“后来补充”的来源，不能回填成当时理由。精确Schema和提交例子以[Trace参考](../references/evidence-trace.md)为准，避免在多份文档维护不同格式。
+原事件不因页面折叠而删除；新增事实可以让旧组织变为陈旧，需追加新组织。后补解释必须保留“后来补充”的来源，不能回填成当时理由。精确Schema和提交例子以[Trace参考](../snapgene-dna-design/references/evidence-trace.md)为准，避免在多份文档维护不同格式。

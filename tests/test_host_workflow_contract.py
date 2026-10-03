@@ -1,4 +1,6 @@
 """Public workflow failures exposed by real host tasks, using independent DNA."""
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import copy
 import json
 import pathlib
@@ -13,7 +15,7 @@ from Bio.Seq import Seq
 from Bio.SeqFeature import FeatureLocation, SeqFeature
 from Bio.SeqRecord import SeqRecord
 
-ROOT = pathlib.Path(__file__).resolve().parents[1]
+ROOT = SKILL_ROOT
 
 
 class HostWorkflowContractTests(unittest.TestCase):

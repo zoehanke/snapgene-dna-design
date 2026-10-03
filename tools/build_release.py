@@ -8,6 +8,8 @@ DEVELOPMENT-NOTICE.md / THIRD_PARTY_NOTICE.md content instead of sharing
 one contradictory notice. DEVELOPMENT-MANIFEST.json is refreshed only
 when explicitly requested with --refresh-dev-manifest.
 """
+
+from project_paths import PROJECT_ROOT as REPOSITORY_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS, TESTS_ROOT
 import argparse
 import hashlib
 import json
@@ -102,10 +104,16 @@ def _exclusion_reason(path, digest):
 
 
 def _source_files(root):
-    if (root / '.git').exists():
-        result = subprocess.run(['git', '-C', str(root), 'ls-files', '-z', '--cached'],
+    root = pathlib.Path(root).resolve()
+    probe = subprocess.run(['git', '-C', str(root), 'rev-parse', '--show-toplevel'],
+                           capture_output=True, encoding='utf-8', errors='strict')
+    if probe.returncode == 0:
+        repository = pathlib.Path(probe.stdout.strip()).resolve()
+        prefix = root.relative_to(repository).as_posix()
+        prefix = '' if prefix == '.' else prefix + '/'
+        result = subprocess.run(['git', '-C', str(repository), 'ls-files', '-z', '--cached'],
                                 check=True, capture_output=True, encoding='utf-8', errors='strict')
-        return [p for p in result.stdout.split('\0') if p]
+        return [p[len(prefix):] for p in result.stdout.split('\0') if p and p.startswith(prefix)]
     manifest = root / 'RELEASE-MANIFEST.json'
     if manifest.is_file():
         return [e['path'] for e in json.loads(manifest.read_text(encoding='utf-8'))['entries']]
@@ -159,7 +167,7 @@ def _development_manifest(root, version, source_files=None):
     manifest = {
         "manifest_kind": "development-manifest",
         "version": version,
-        "generator": "scripts/build_release.py",
+        "generator": "tools/build_release.py",
         "entries": entries,
     }
     (root / "DEVELOPMENT-MANIFEST.json").write_text(

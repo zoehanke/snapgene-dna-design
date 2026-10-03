@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 """tests/test_experience_helper.py - Unit tests for Tier 4 Lab Experience Rules Helper."""
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import unittest
 
 from core.tools.experience_helper import (

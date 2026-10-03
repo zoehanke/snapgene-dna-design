@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
+
 import json
 import subprocess
 import sys
@@ -19,7 +21,7 @@ from core.errors import PlanningError
 from core.handlers.composite_pipeline import CompositePipelineHandler, run_pipeline_steps
 
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = SKILL_ROOT
 
 
 class FinalPipelineRecordTests(unittest.TestCase):

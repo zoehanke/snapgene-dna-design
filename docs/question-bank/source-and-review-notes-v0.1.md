@@ -31,11 +31,11 @@
 
 ## 原有本地资料在哪里
 
-- [YTK 官方原ZIP](../../output/realistic-exam-sources-20260906/ytk_genbank_files.zip)与[EcoFlex 官方原ZIP](../../output/realistic-exam-sources-20260906/ecoflex-kit-genbank-files.zip)。这些是负责人准备资源，不是自动可发的题包。
-- [旧来源清单](../../output/realistic-exam-sources-20260906/SOURCES.json)：下载日期、原URL、归档哈希。
+- [YTK 官方原ZIP](../../snapgene-dna-design/output/realistic-exam-sources-20260906/ytk_genbank_files.zip)与[EcoFlex 官方原ZIP](../../snapgene-dna-design/output/realistic-exam-sources-20260906/ecoflex-kit-genbank-files.zip)。这些是负责人准备资源，不是自动可发的题包。
+- [旧来源清单](../../snapgene-dna-design/output/realistic-exam-sources-20260906/SOURCES.json)：下载日期、原URL、归档哈希。
 - [旧文献试题](../REAL-WORLD-SKILL-PAPER-EXAM-20260906.md)与[旧独立答案总览](../REAL-WORLD-SKILL-REFERENCE-ANSWERS-20260906.md)：保留历史要求与边界，不覆盖原稿。
-- [旧答案目录说明](../../output/reference-answers-20260906/README.md)：有输入、作者成品、计算推导、原始来源和输入缺口的具体位置。不要把带答案和预制片段的整个目录给执行者。
-- [本次新增来源笔记](../../output/question-bank-20261001/additional-source-notes.md)：新三题的页面核对、限制与材料状态。本机研究笔记不作为公开包数据。
+- [旧答案目录说明](../../snapgene-dna-design/output/reference-answers-20260906/README.md)：有输入、作者成品、计算推导、原始来源和输入缺口的具体位置。不要把带答案和预制片段的整个目录给执行者。
+- [本次新增来源笔记](../../snapgene-dna-design/output/question-bank-20261001/additional-source-notes.md)：新三题的页面核对、限制与材料状态。本机研究笔记不作为公开包数据。
 
 ## 新三题的核对结论
 

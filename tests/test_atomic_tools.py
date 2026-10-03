@@ -2,6 +2,8 @@
 """Unit tests for atomic biological tools (core/tools/)."""
 from __future__ import annotations
 
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
+
 import pathlib
 import random
 import tempfile

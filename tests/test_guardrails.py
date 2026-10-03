@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 """tests/test_guardrails.py - Rigorous unit tests for Tier 3 Biological Guardrails (BIO-01 through BIO-10)."""
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import unittest
 
 from Bio.Seq import Seq

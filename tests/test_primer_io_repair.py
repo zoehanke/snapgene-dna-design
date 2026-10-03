@@ -1,3 +1,5 @@
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import tempfile
 import unittest
 from pathlib import Path
@@ -192,7 +194,7 @@ class PrimerIORepairTests(unittest.TestCase):
                 }
             ],
         )
-        root = Path(__file__).resolve().parents[1]
+        root = SKILL_ROOT
         with tempfile.TemporaryDirectory(prefix="primer-io-convert-") as temp:
             path = Path(temp)
             source = path / "source.gb"

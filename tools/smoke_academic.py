@@ -4,6 +4,8 @@
 Run with:  python tests/test_smoke.py
 Portable: locates the scripts directory relative to this file.
 """
+
+from project_paths import PROJECT_ROOT as REPOSITORY_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS, TESTS_ROOT
 import json
 import os
 import shutil
@@ -13,7 +15,7 @@ import tempfile
 import atexit
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-SCRIPTS = os.path.abspath(os.path.join(HERE, "..", "scripts"))
+SCRIPTS = str(RUNTIME_SCRIPTS)
 PY = sys.executable
 sys.path.insert(0, SCRIPTS)
 
@@ -163,6 +165,112 @@ def main():
     check("reverse ORF translates to MK*",
           reverse_orfs and reverse_orfs[0]["translation"] == "MK*",
           str(reverse_orfs))
+
+    # --- round 2: check_env, validate_construct, edit_plasmid ---
+    FIXTURE = os.path.abspath(os.path.join(HERE, "..", "fixtures", "pDONR201.dna"))
+
+    # Native .dna export of a real plasmid preserves basics and emits fidelity warning
+    real_dna = os.path.join(tmp, "pDONR201-export.dna")
+    r = run_ok(script("write_dna.py"), FIXTURE, "--out", real_dna,
+               "--format", "dna", "--json")
+    _env = json.loads(r.stdout)
+    d = _env.get("data", _env)
+    check("native .dna warns about metadata fidelity", bool(d["warnings"]), str(d))
+    real_roundtrip, _ = sg_common.load_seq(real_dna)
+    check("native .dna preserves sequence/topology/basic features",
+          len(real_roundtrip.seq) == 4470
+          and sg_common.topology(real_roundtrip) == "circular"
+          and len(real_roundtrip.features) == 9,
+          "%d/%s/%d" % (len(real_roundtrip.seq), sg_common.topology(real_roundtrip),
+                         len(real_roundtrip.features)))
+
+    # check_env exits 0
+    r = run(script("check_env.py"), "--json")
+    check("check_env exits 0", r.returncode == 0, r.stderr[-200:])
+    _env = json.loads(r.stdout)
+    d = _env.get("data", _env)
+    check("check_env reports ok", d["core_ok"] is True, str(d.get("core_ok")))
+
+    # validate_construct on real fixture: passes (0 errors)
+    r = run(script("validate_construct.py"), FIXTURE, "--json")
+    _env = json.loads(r.stdout)
+    d = _env.get("data", _env)
+    check("validate_construct fixture passes", d["summary"]["pass"] is True, str(d["summary"]))
+    check("validate_construct detects CDS frame ok",
+          any(c["check"] == "cds_frame" and c["status"] == "ok" for c in d["checks"]))
+
+    # P0: compound/wrapped CDS uses extracted segment length, not its outer span
+    from validate_construct import validate
+    compound = SeqRecord(Seq("ATGAAACCCC"), id="compound")
+    compound.annotations.update({"molecule_type": "DNA", "topology": "circular"})
+    compound.features.append(SeqFeature(
+        CompoundLocation([
+            FeatureLocation(8, 10, strand=1),
+            FeatureLocation(0, 4, strand=1),
+        ], operator="join"),
+        type="CDS", qualifiers={"label": ["wrapped_cds"]},
+    ))
+    vd = validate(compound)
+    compound_frame_errors = [
+        c for c in vd["checks"]
+        if c["check"] == "cds_frame" and c["status"] == "error"
+    ]
+    check("compound CDS validates extracted 6 bp length",
+          not compound_frame_errors, str(compound_frame_errors))
+
+    # edit_plasmid insert migrates downstream features (+4 after pos 100)
+    egb = os.path.join(tmp, "edited.gb")
+    r = run_ok(script("edit_plasmid.py"), FIXTURE, "--op", "insert",
+               "--pos", "100", "--seq", "AAAA", "--out", egb, "--json")
+    _env = json.loads(r.stdout)
+    d = _env.get("data", _env)
+    check("insert length 4470->4474", d["length_after"] == 4474, str(d["length_after"]))
+    rec4, _ = sg_common.load_seq(egb)
+    kanr = [f for f in rec4.features if "KanR" in str(f.qualifiers.get("label", ""))]
+    check("KanR feature migrated +4 (2868->2872)",
+          kanr and int(kanr[0].location.start) == 2871,  # 1-based 2872 == 0-based 2871
+          str([int(f.location.start) for f in kanr]))
+
+    # edit_plasmid delete removes a feature and shrinks
+    dgb = os.path.join(tmp, "deleted.gb")
+    r = run_ok(script("edit_plasmid.py"), FIXTURE, "--op", "delete",
+               "--start", "73", "--end", "100", "--out", dgb, "--json")
+    _env = json.loads(r.stdout)
+    d = _env.get("data", _env)
+    check("delete length 4470->4442", d["length_after"] == 4442, str(d["length_after"]))
+
+    # edit_plasmid mutate single base (length unchanged)
+    mgb = os.path.join(tmp, "mutated.gb")
+    r = run_ok(script("edit_plasmid.py"), FIXTURE, "--op", "mutate",
+               "--mutation", "1:T", "--out", mgb, "--json")
+    _env = json.loads(r.stdout)
+    d = _env.get("data", _env)
+    check("mutate length unchanged", d["length_after"] == 4470, str(d["length_after"]))
+    rec5, _ = sg_common.load_seq(mgb)
+    check("mutate base changed", str(rec5.seq[0]) == "T", str(rec5.seq[0]))
+
+    # P0: edit operations reject invalid coordinates and mutation alphabets
+    r = run(script("edit_plasmid.py"), "ATGC", "--op", "insert", "--pos", "0",
+            "--seq", "A", "--out", os.path.join(tmp, "bad-pos.gb"), "--json")
+    check("edit rejects insert position 0", r.returncode != 0, r.stderr[-200:])
+    r = run(script("edit_plasmid.py"), "ATGC", "--op", "mutate",
+            "--mutation", "1:ZZ", "--out", os.path.join(tmp, "bad-base.gb"), "--json")
+    check("edit rejects multi-base mutation", r.returncode != 0, r.stderr[-200:])
+
+    # P0: raw input rejects invalid DNA instead of silently deleting punctuation
+    r = run(script("parse_dna.py"), "ATGC-X", "--json")
+    check("raw DNA rejects invalid symbols", r.returncode != 0, r.stderr[-200:])
+
+    # --- SKILL.md example smoke test (documented commands run against fixture) ---
+    for cmd in [
+        ["parse_dna.py", FIXTURE, "--json"],
+        ["find_sites.py", FIXTURE, "--enzyme", "EcoRI,BamHI", "--json"],
+        ["analyze_seq.py", FIXTURE, "stats"],
+        ["validate_construct.py", FIXTURE, "--json"],
+    ]:
+        r = run(script(cmd[0]), *cmd[1:])
+        check("SKILL.md example runs: %s" % " ".join(cmd[:2]),
+              r.returncode == 0, r.stderr[-200:])
 
     # --- round 3: primer QC + golden gate ---
     # design_primers reports quality block in JSON
@@ -327,6 +435,32 @@ def main():
     d = _env.get("data", _env)
     check("topo uses the same explicit premise model", d["product_sequence"] == "CCCCATGCGGGG",
           str(d))
+
+    # Gateway BP: real attP1/attP2 (pDONR201) + attB-flanked insert -> attL entry clone.
+    attb_ins = os.path.join(tmp, "attb_insert.fa")
+    with open(attb_ins, "w") as fh:
+        fh.write(">attB-insert\n%s\n" % (simadv.ATTB1 + "ATGCGT" + simadv.ATTB2))
+    r = run_ok(script("simulate_advanced.py"), "--method", "gateway-bp",
+               "--vector", FIXTURE, "--insert", attb_ins, "--json")
+    _env = json.loads(r.stdout)
+    d = _env.get("data", _env)
+    check("gateway-bp replaces attP region with attL sites",
+          simadv.ATTL1 in d["product_sequence"]
+          and str(Seq(simadv.ATTL2).reverse_complement()) in d["product_sequence"]
+          and simadv.ATTP1 not in d["product_sequence"]
+          and "ATGCGT" in d["product_sequence"],
+          d["product_sequence"][:120])
+    bp_bad_donor = os.path.join(tmp, "bp_bad_donor.gb")
+    _bad_donor_rec = SeqRecord(Seq("AAAACCCCGGGG"), id="badDonor", name="badDonor",
+                               annotations={"molecule_type": "DNA", "topology": "circular"})
+    with open(bp_bad_donor, "w") as fh:
+        SeqIO.write(_bad_donor_rec, fh, "genbank")
+    r = run(script("simulate_advanced.py"), "--method", "gateway-bp",
+            "--vector", bp_bad_donor, "--insert", attb_ins, "--json")
+    err = json.loads(r.stdout)
+    check("gateway-bp missing attP sites fails with ATT_SITE_MISSING",
+          r.returncode != 0 and err.get("ok") is False
+          and err["error"]["code"] == "ATT_SITE_MISSING", str(err))
 
     # Gateway LR: attL entry x attR destination -> attB expression clone.
     attl_entry = os.path.join(tmp, "attl_entry.gb")
@@ -511,9 +645,23 @@ def main():
     d = _env.get("data", _env)
     check("protein_tools anneal", d["length"] >= 4, str(d))
 
-    print("\n===== %d passed, %d failed =====" % (len(PASS), len(FAIL)))
-    return 1 if FAIL else 0
+    # convert
+    conv_gb = os.path.join(tmp, "conv.gb")
+    r = run_ok(script("convert.py"), FIXTURE, "--out", conv_gb, "--format", "genbank", "--json")
+    _env = json.loads(r.stdout)
+    d = _env.get("data", _env)
+    check("convert dna->genbank", d["results"][0]["status"] == "ok" and os.path.exists(conv_gb),
+          str(d))
 
+    # draw_map
+    svg_out = os.path.join(tmp, "map.svg")
+    r = run_ok(script("draw_map.py"), FIXTURE, "--out", svg_out, "--json")
+    _env = json.loads(r.stdout)
+    d = _env.get("data", _env)
+    check("draw_map writes svg", d["feature_count"] > 0 and os.path.exists(svg_out), str(d))
+
+    print("\n===== %d passed, %d failed =====" % (len(PASS), len(FAIL)))
+    sys.exit(1 if FAIL else 0)
 
 
 if __name__ == "__main__":

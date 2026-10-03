@@ -28,7 +28,7 @@
 
 公共受体记录的实际 BsmBI 末端为 ATCT/TTAG，而三盒链为 ATCT/GAAG。参考路线先用反向 PCR 将受体右侧 TTAG 改为 GAAG，明确命名为 `reference_pTU2_3TU`，然后分层组装。只允许这两处碱基改变，不能直接拿补充材料的理想序列覆盖输入。
 
-公共 registry 的 `pTU2-B-RFP.gb` 与 `pTU2-b-RFP.gb` 两份 ZIP 成员序列相同，元数据和文件哈希不同；Windows 解压会使两个路径冲突。因此来源身份以 ZIP 内精确成员名及哈希记录。Level 1 骨架为 AmpR，Level 2 为 CmR。具体产物和材料处理结论见 [题 2、3 完整答案](../output/reference-answers-20260906/q2-q3/README.md)。
+公共 registry 的 `pTU2-B-RFP.gb` 与 `pTU2-b-RFP.gb` 两份 ZIP 成员序列相同，元数据和文件哈希不同；Windows 解压会使两个路径冲突。因此来源身份以 ZIP 内精确成员名及哈希记录。Level 1 骨架为 AmpR，Level 2 为 CmR。具体产物和材料处理结论见 [题 2、3 完整答案](../snapgene-dna-design/output/reference-answers-20260906/q2-q3/README.md)。
 
 三个 Level 1 成品分别为 **3,003、2,935、2,902 bp**，Level 2 为 **4,674 bp**。考官另用 Biopython 的实际切位，从完整来源记录重建全部产物，序列与参考文件相同；Level 2 中三个完整报告 CDS 和 660 bp 的 cat 筛选 CDS 均保留。
 
@@ -46,7 +46,7 @@
 
 源 pBP-eGFP 的第 64/65 位实际为 F/G，与常见 EGFP 的 L/T 不同。此处 WT 仅指源文件，不将变体的实验性能套用到另一种 GFP 背景。具体引物和产物见 `q2-q3/README.md`。
 
-另一份独立计算从完整模板和实际引物重建三轮突变 PCR、三份克隆 PCR，并对完整扩增产物计算 NcoI/XhoI 切位，三份最终序列均与参考文件逐碱基相同。详见 [独立复核记录](../output/reference-answers-20260906/q5/Q3-independent-check.md)。
+另一份独立计算从完整模板和实际引物重建三轮突变 PCR、三份克隆 PCR，并对完整扩增产物计算 NcoI/XhoI 切位，三份最终序列均与参考文件逐碱基相同。详见 [独立复核记录](../snapgene-dna-design/output/reference-answers-20260906/q5/Q3-independent-check.md)。
 
 ## 题 4：mCherry-mNeonGreen 计时器
 
@@ -58,7 +58,7 @@
 
 Addgene verified 与 depositor 的两份成品同长，但骨架有三处 SNP；对应 pMaM17 也有同样的版本差异。发题时固定同一版本，不能把不同来源版本的差别误报成 skill 修改。
 
-**原文 pKBJ002.1 完整供体尚未取得，题 4 暂缓盲测。** 成品可作金标准，但从成品反切出“插入片段”只能核对结构，不能证明源模板 PCR 成立。另取公开 mNeonGreen `KC295282.1` 比较，蛋白相同，去 stop 的 DNA 仅 551/708 位一致，不能冒充同序列供体。详细记录见 [题 4 完整答案](../output/reference-answers-20260906/q4/README.md)。原 HTB2 整合、hphMX4 替换及单标签对照不属于这份论文答案。
+**原文 pKBJ002.1 完整供体尚未取得，题 4 暂缓盲测。** 成品可作金标准，但从成品反切出“插入片段”只能核对结构，不能证明源模板 PCR 成立。另取公开 mNeonGreen `KC295282.1` 比较，蛋白相同，去 stop 的 DNA 仅 551/708 位一致，不能冒充同序列供体。详细记录见 [题 4 完整答案](../snapgene-dna-design/output/reference-answers-20260906/q4/README.md)。原 HTB2 整合、hphMX4 替换及单标签对照不属于这份论文答案。
 
 ## 题 5：VAMSyB 四报告双表达质粒
 
@@ -96,11 +96,11 @@ GenBank 注释转换使用 1-based inclusive 到 0-based half-open 的正确映�
 
 | 题目 | 答案依据 | 当前能用于什么 |
 |---|---|---|
-| [1：YTK](../output/reference-answers-20260906/q1/README.md) | 作者完整源文件和成品，独立七模板 PCR 路线 | 可发完整输入，检验制备路线与外部成品 |
-| [2：EcoFlex](../output/reference-answers-20260906/q2-q3/README.md) | 公开部件及接头规则，改编构建 | 可发完整输入，必须处理实际受体不兼容 |
-| [3：GFP 变体](../output/reference-answers-20260906/q2-q3/README.md) | 文献突变身份，独立表达载体设计 | 可发完整输入，检验突变、扩增、双酶切和融合翻译 |
-| [4：计时器](../output/reference-answers-20260906/q4/README.md) | 作者完整成品和骨架，原始供体缺失 | 成品结构参照可用，制备路线盲测暂缓 |
-| [5：VAMSyB](../output/reference-answers-20260906/q5/README.md) | 作者完整前体与成品，独立三模板 PCR 路线 | 可发完整输入，检验跨原点片段及两个完整融合 ORF |
-| [6：CDC48](../output/reference-answers-20260906/q6/README.md) | 原文引物和编辑，固定 RefSeq 上独立推导 | 可检验给定局部参考上的载体、供体与编辑产物 |
+| [1：YTK](../snapgene-dna-design/output/reference-answers-20260906/q1/README.md) | 作者完整源文件和成品，独立七模板 PCR 路线 | 可发完整输入，检验制备路线与外部成品 |
+| [2：EcoFlex](../snapgene-dna-design/output/reference-answers-20260906/q2-q3/README.md) | 公开部件及接头规则，改编构建 | 可发完整输入，必须处理实际受体不兼容 |
+| [3：GFP 变体](../snapgene-dna-design/output/reference-answers-20260906/q2-q3/README.md) | 文献突变身份，独立表达载体设计 | 可发完整输入，检验突变、扩增、双酶切和融合翻译 |
+| [4：计时器](../snapgene-dna-design/output/reference-answers-20260906/q4/README.md) | 作者完整成品和骨架，原始供体缺失 | 成品结构参照可用，制备路线盲测暂缓 |
+| [5：VAMSyB](../snapgene-dna-design/output/reference-answers-20260906/q5/README.md) | 作者完整前体与成品，独立三模板 PCR 路线 | 可发完整输入，检验跨原点片段及两个完整融合 ORF |
+| [6：CDC48](../snapgene-dna-design/output/reference-answers-20260906/q6/README.md) | 原文引物和编辑，固定 RefSeq 上独立推导 | 可检验给定局部参考上的载体、供体与编辑产物 |
 
 参考包包含完整 GenBank/FASTA、来源记录、实际引物和计算重放。它是考官材料，不能整体交给执行代理。五题具备发题材料不等于五题 skill 已通过；最终 `.dna` 的桌面检查仍属于后续真实执行。

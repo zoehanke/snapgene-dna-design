@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 """tests/test_recipes.py - Rigorous unit tests for Tier 2 Standard Laboratory SOP Recipes."""
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import unittest
 
 from core.tools.amplification import simulate_pcr

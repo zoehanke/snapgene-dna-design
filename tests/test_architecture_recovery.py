@@ -4,6 +4,8 @@
 These tests exercise only the public seams:
 validate_construction_task / plan / execute / validate / finalize.
 """
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import json
 import pathlib
 import tempfile

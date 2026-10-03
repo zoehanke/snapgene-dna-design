@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 """Focused regressions for explicit HDR replacement and short dsDNA donors."""
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import unittest
 
 from Bio.Seq import Seq

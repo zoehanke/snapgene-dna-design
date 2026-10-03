@@ -1,8 +1,10 @@
 # Core skill
 
-Updated: 2026-10-03. This spec defines the current DNA product contract. [History](../docs/history.md) explains its evolution; [development plans](../docs/development-plans/README.md) own implementation scope, validation and handoff. [Safety spec](safety-module.md) owns Evidence Trace; [SKILL.md](../SKILL.md) and [Recipe reference](../references/recipes.md) own usage and signatures.
+Updated: 2026-10-03. This spec defines the current DNA product contract. [History](../docs/history.md) explains its evolution; [development plans](../docs/development-plans/README.md) own implementation scope, validation and handoff. [Safety spec](safety-module.md) owns Evidence Trace; [SKILL.md](../snapgene-dna-design/SKILL.md) and [Recipe reference](../snapgene-dna-design/references/recipes.md) own usage and signatures.
 
 ## Goal and current functionality
+
+Workspace layout: project/Git root owns AGENTS, specs, developer docs/tests/tools and the project navigation README. `snapgene-dna-design/` is the standalone Skill root with its own user README, SKILL.md, runtime code and references. Its packaged README is the same usage document maintained in source. Runtime code must not depend on the outer development tree; packages contain only the tracked Skill subtree and permitted materials, not developer records or grader tools. The migration changes paths and packaging, not DNA semantics.
 
 Help molecular and synthetic biology researchers turn real materials and a design request into correct, inspectable DNA constructs and usable preparation instructions. Serve general research and laboratory R&D; iGEM and safety work extend that practical purpose.
 

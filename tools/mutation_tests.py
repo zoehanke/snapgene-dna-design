@@ -16,13 +16,15 @@ broken and is reported as an error, never as a kill.
 
 Usage::
 
-    python -X utf8 scripts/mutation_tests.py            # run all 12 + enforce
-    python -X utf8 scripts/mutation_tests.py --json     # JSON report
-    python -X utf8 scripts/mutation_tests.py --no-enforce
+    python -X utf8 tools/mutation_tests.py            # run all 12 + enforce
+    python -X utf8 tools/mutation_tests.py --json     # JSON report
+    python -X utf8 tools/mutation_tests.py --no-enforce
 
 Exit code 0 only when every check is valid, the pristine checks pass, and the
 kill rate >= 90% (ceil). Reports are written to ``reports/mutation/``.
 """
+
+from project_paths import PROJECT_ROOT as REPOSITORY_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS, TESTS_ROOT
 import argparse
 import json
 import math
@@ -33,8 +35,8 @@ import sys
 import tempfile
 
 HERE = pathlib.Path(__file__).resolve().parent
-ROOT = HERE.parent
-SCRIPTS = HERE
+ROOT = SKILL_ROOT
+SCRIPTS = RUNTIME_SCRIPTS
 REPORT_ROOT = ROOT / "reports" / "mutation"
 
 MIN_KILL_RATE = 90.0

@@ -3,6 +3,8 @@
 Installer subprocesses are replaced to exercise offline/failure outcomes;
 these tests never install software or claim real-engine validation.
 """
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import contextlib
 import io
 import json
@@ -18,7 +20,7 @@ from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = SKILL_ROOT
 sys.path.insert(0, str(ROOT / "scripts"))
 import primer3_core_backend as primer3
 import sg_common

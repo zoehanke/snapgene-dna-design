@@ -1,4 +1,6 @@
-﻿## v0.9.1-dev1 — 架构恢复开发版（2026-08-28）
+> 历史资料，保留当时描述。当前规则见项目spec和开发计划。
+
+## v0.9.1-dev1 — 架构恢复开发版（2026-08-28）
 
 - ConstructionTask v1 + 统一 runtime（validate_construction_task / plan / execute / validate / finalize）。
 - 11 个 task kind 全部迁移到专用 planner；TASK_KIND_NOT_IMPLEMENTED 移除。

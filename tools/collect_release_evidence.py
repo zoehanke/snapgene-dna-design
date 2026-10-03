@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
 """collect_release_evidence.py - Write RC dependency/real-backend evidence."""
+
+from project_paths import PROJECT_ROOT as REPOSITORY_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS, TESTS_ROOT
 import json
 import pathlib
 import sys
 from importlib.metadata import version as dist_version
 
-ROOT = pathlib.Path(__file__).resolve().parents[1]
+ROOT = SKILL_ROOT
 sys.path.insert(0, str(ROOT / "scripts"))
 
 

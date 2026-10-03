@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 """validate_release_manifest.py - Verify RELEASE-MANIFEST.json against a ZIP."""
+
+from project_paths import PROJECT_ROOT as REPOSITORY_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS, TESTS_ROOT
 import argparse
 import hashlib
 import json
