@@ -1,6 +1,6 @@
 # Core skill
 
-Updated: 2026-09-23. This spec defines the current DNA product contract. [History](../docs/history.md) explains its evolution; [development plans](../docs/development-plans/README.md) own implementation scope, validation and handoff. [Safety spec](safety-module.md) owns Evidence Trace; [SKILL.md](../SKILL.md) and [Recipe reference](../references/recipes.md) own usage and signatures.
+Updated: 2026-10-03. This spec defines the current DNA product contract. [History](../docs/history.md) explains its evolution; [development plans](../docs/development-plans/README.md) own implementation scope, validation and handoff. [Safety spec](safety-module.md) owns Evidence Trace; [SKILL.md](../SKILL.md) and [Recipe reference](../references/recipes.md) own usage and signatures.
 
 ## Goal and current functionality
 
@@ -30,6 +30,8 @@ Lead the answer with the material conclusion, whether new design is needed and t
 
 - Practical task completion and correct artifacts take priority over tool counts, test counts or review frameworks.
 - Host AI handles intent and strategy; executable tools compute sequences and reactions. A desired sequence is not proof of PCR amplification from the supplied template and delivered primers.
+- Shared Primer3 subprocess integration belongs in Core tools; CLI compatibility imports do not own calculation logic. QC primer selection measures actual oligo structures as well as binding/Tm. It checks the recombinant template, while parental discrimination remains a separate control.
+- Keep the original must-haves before route selection; revise an unsuitable route instead of dropping a requirement. Recipe goals may reference named original source features. The exact PCR CLI uses the shared Core model, including 5-prime tails, and reports missing/ambiguous binding as failure. Declared preparation products are replayed against actual templates and oligos before export; tables name their template coordinate reference. A final file edited after that check needs renewed validation.
 - Assembly inputs must be supplied prepared material or products of an explicit preparation step; include real backbone preparation where required.
 - Preserve source, backbone, inserted-feature and primer annotations through transformations and export. Feature locations govern transformed primer coordinates; verify binding cores at those locations. A clipped primer site remains an explicitly partial annotation, not a complete binding site. Explain source annotation corrections separately from DNA changes.
 - Keep actual coordinate, strand, compound-location and circular-origin conventions consistent across each interface; no implicit biological defaults without evidence and applicability.
@@ -66,7 +68,7 @@ The [preceding usability repair](../docs/development-plans/workflow-phase-3-usab
 
 ## 2026-09-22 verified scope
 
-The [engineering cycle](../docs/remediation-plan.md) supersedes the earlier phase as current work. [Final evidence](../docs/final-remediation-report.md) records failures and limits as well as passes. No remote push or public submission is authorized in this cycle.
+This historical scope records the [engineering cycle](../docs/remediation-plan.md) and its [final evidence](../docs/final-remediation-report.md). Current work is identified by the [plan index](../docs/development-plans/README.md). Follow current user authorization for development-branch pushes; an old cycle's publication restriction is not a permanent prohibition. Never publish or modify main without authorization.
 
 | Status | Scope |
 |---|---|

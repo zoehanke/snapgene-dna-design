@@ -51,7 +51,23 @@ def find_binding(template, primer, allow_mismatch=0, circular=False):
 
 def simulate(template, fwd, rev, allow_mismatch=0, circular=False):
     """Return amplicon (5'->3' on top strand) and binding annotations."""
-    t = str(template)
+    if allow_mismatch == 0:
+        from core.tools.amplification import simulate_pcr
+        record = template if isinstance(template, SeqRecord) else SeqRecord(Seq(str(template)))
+        try:
+            result = simulate_pcr(record, fwd, rev,
+                                  topology="circular" if circular else "linear",
+                                  min_binding_len=min(15, len(fwd), len(rev)))
+        except ValueError as error:
+            return None, [str(error)]
+        def binding(hit, strand):
+            return {"start": hit["template_start_0based"] + 1,
+                    "end": hit["template_end_0based"],
+                    "strand": strand, "mismatches": 0}
+        return {**result, "length": result["amplicon_length"],
+                "forward_bind": binding(result["forward_binding"], "+"),
+                "reverse_bind": binding(result["reverse_binding"], "-")}, []
+    t = str(getattr(template, "seq", template))
     fwd_hits = find_binding(t, fwd, allow_mismatch, circular)
     rev_hits = find_binding(t, rev, allow_mismatch, circular)
     # forward primer must bind top strand (+1): 5' end of amplicon
@@ -148,7 +164,7 @@ def main():
     if args.allow_mismatch < 0:
         raise SystemExit("--allow-mismatch must be >= 0")
     result, notes = simulate(
-        str(rec.seq), fwd, rev, args.allow_mismatch,
+        rec, fwd, rev, args.allow_mismatch,
         circular=(topology(rec) == "circular"))
 
     out = {
@@ -165,6 +181,7 @@ def main():
         out["length"] = 0
 
     out["pcr_type"] = args.pcr_type
+    out["simulation_mode"] = "exact" if args.allow_mismatch == 0 else "approximate-full-primer"
     out["experience_rules"] = {"hits": [], "diagnostics": [],
                                "rules_evaluated": 0}
     if result and args.pcr_type in ("colony", "boiled_colony"):
@@ -206,8 +223,32 @@ def main():
         amp = SeqRecord(Seq(result["amplicon"]), id="amplicon", name="amplicon",
                         description="PCR product %d bp" % result["length"])
         from Bio import SeqIO
-        with open(args.out, "w", encoding="utf-8") as fh:
-            SeqIO.write(amp, fh, "fasta")
+        output_path = pathlib.Path(args.out)
+        if output_path.suffix.lower() in {".gb", ".gbk", ".dna"}:
+            from core.io.input_resolution import resolve_sequence_record
+            from core.tools.snapgene_io import export_plasmid, annotate_record_primers
+            amp = resolve_sequence_record({**result, "sequence": result["amplicon"], "topology": "linear"})
+            amp.id = amp.name = output_path.stem
+            if result.get("primers"):
+                forward, reverse = result["primers"]
+                offset = len(result["forward_binding"]["tail_5prime"])
+                core_length = result["template_core_length"]
+                mapped = [
+                    {**forward, "binding_interval_0based": [offset, offset+forward["binding_core_length"]]},
+                    {**reverse, "binding_interval_0based": [offset+core_length-reverse["binding_core_length"], offset+core_length]},
+                ]
+                amp = annotate_record_primers(amp, mapped)
+                source = annotate_record_primers(rec, result["primers"])
+                out["annotated_source"] = export_plasmid(source, output_path.parent/"annotated_sources",
+                                                        output_path.stem+"_source", topology(rec))
+            files = export_plasmid(amp, output_path.parent, output_path.stem, "linear")
+            if output_path.suffix.lower()==".gbk":
+                pathlib.Path(files["gb_file"]).replace(output_path)
+                files["gb_file"] = str(output_path)
+            out["product_files"] = files
+        else:
+            with output_path.open("w", encoding="utf-8", errors="replace") as fh:
+                SeqIO.write(amp, fh, "fasta")
         out["out_file"] = args.out
     elif args.out and (hard_blocked or requires_confirmation):
         out["out_file"] = None
@@ -217,7 +258,7 @@ def main():
             "--acknowledge-experience-warning")
 
     if args.json:
-        jprint(out)
+        jprint(out, ok=bool(result) and not hard_blocked and not requires_confirmation)
     else:
         if result:
             print("amplicon %d bp (fwd binds %s, rev binds %s)" % (
@@ -229,6 +270,8 @@ def main():
             print("  note: %s" % n)
 
     if hard_blocked:
+        raise SystemExit(2)
+    if result is None:
         raise SystemExit(2)
 
 

@@ -20,7 +20,20 @@ python scripts/run_recipe.py --recipe <recipe_name> --params-json params.json --
 
 When `details.preparation` is present, the CLI also writes actual products to `build/intermediates/`, primer-annotated source copies to `build/annotated_sources/`, and `build/primer_order_table.tsv`. The order table carries the complete oligo, binding sequence, interval, strand, and Tm fields. Long 5-prime additions are split by `core.tools.amplification.prepare_pcr_fragment` into successive PCR rows; each row records the actual prior template, product and `annealing_temperature_hint_C`. `--finalize --confirmed` is only meaningful for a complete construct and requires the user's existing authorization.
 
-Recipe CLI parameter JSON may also include `expected_components` and `forbidden_components`. These common fields do not belong to the direct Recipe function signature. Each item provides `name`, an explicit `expected_sequence` or `sequence`, and optionally `strand` (`1` or `-1`). The CLI reuses the existing goal validator on the saved GenBank candidate, records `goal_check`, and rejects failed requirements before promotion. Keep current-reaction enzyme sites separate from downstream interfaces that must survive the design.
+Recipe CLI parameter JSON may also include `sources`, `expected_components` and `forbidden_components`. These common fields do not belong to the direct Recipe function signature. A source supplies `source_id` and `path`; a component supplies `name` plus either an explicit `expected_sequence`/`sequence`, or a `source_id` whose original feature matches that name. `interval_0based` selects a non-wrapping source interval instead of a feature. Optional `strand` is `1` or `-1`. The existing goal validator checks the saved GenBank candidate against those original sources. Failed requirements reject promotion. Keep downstream interfaces separate from sites consumed by this reaction.
+
+For example, a common goal block can retain an original annotated connector without copying its DNA:
+
+```json
+{
+  "sources": [{"source_id": "original", "path": "source.gb"}],
+  "expected_components": [{"name": "connector", "source_id": "original"}]
+}
+```
+
+Preparation export re-simulates declared PCRs from actual templates and ordered oligos before writing files. `coordinate_reference` in the order table names the annotated template copy, relative to the run directory; its intervals are 0-based half-open. A negative-strand cassette retains its declared primer orientation. Source copies remain distinct from final-product primer maps.
+
+Use `python scripts/describe_tools.py <name>` for current callable parameters and tool schemas. For directly supplied primers, `python scripts/simulate_pcr.py template.gb --fwd SEQUENCE --rev SEQUENCE --out fragment.gb --json` uses the Core's exact tailed-PCR model and writes annotated GenBank/native files. No binding or ambiguous binding reports failure; the explicit mismatch mode is a separate approximate full-primer calculation.
 
 ## 1. `recipe_gibson_assembly`
 
@@ -120,6 +133,8 @@ This recipe performs the digest and assembly simulation. It does not invent a PC
 **Reading:** Engler et al., *PLoS ONE* (2008), DOI `10.1371/journal.pone.0003647`; Potapov et al., *ACS Synthetic Biology* (2018), DOI `10.1021/acssynbio.8b00333`.
 
 ## 4. `recipe_crispr_hdr_donor`
+
+`require_pam_disruption` defaults to `false` for compatibility. Set it to `true` when the user's task requires the selected PAM to be changed; a retained NGG PAM raises `PAM_DISRUPTION_REQUIRED`. The tool still preserves coding identity for its additional silent edit. Review another guide or valid coding context if this one cannot meet the constraint; warnings or seed mismatches are not an actual PAM change.
 
 **Callable:** `core.recipes.crispr_hdr.recipe_crispr_hdr_donor`
 **Returns:** `component`, `component_only`
@@ -225,6 +240,8 @@ The result is a design component, not a vector or a physical PCR product. Use it
 **Callable:** `core.recipes.verification.recipe_cloning_verification`
 **Returns:** `verification`, `qc_only`
 **Use for:** junction PCR, Sanger primer placement, and optional diagnostic digest prediction.
+
+QC候选必须唯一结合、核心Tm在52–72°C，并通过真实Primer3的单引物发夹/自二聚体检查。最终PCR对另做完整寡核苷酸配对检查；无可接受候选时不交不合格引物。默认结构阈值47°C沿用共享后端，不代表任何酶体系的实验保证。返回`complete_oligo_structure`和`sanger_oligo_structure`记录真实测量；亲本区分仍须另查。
 
 ### Signature parameters
 

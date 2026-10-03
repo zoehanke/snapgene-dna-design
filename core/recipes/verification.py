@@ -24,6 +24,7 @@ from core.tools.amplification import calc_primer_tm, check_primer_dimers, simula
 from core.models.construct_model import feature_to_dict
 from core.tools.inspection import _load_record
 from core.tools.restriction import digest_sequence
+from core.tools.primer3_backend import check_complete_oligo_pair
 
 AUTHORITATIVE_SOURCES = [
     {
@@ -94,6 +95,8 @@ def _optimize_verification_primer(
             info = calc_primer_tm(p)
             tm = info["tm"]
             gc = info["gc_percent"]
+            if not 52 <= tm <= 72:
+                continue
 
             # Thermodynamic objective penalties
             diff = abs(tm - target_tm)
@@ -116,7 +119,12 @@ def _optimize_verification_primer(
     if not candidates:
         return None
     candidates.sort(key=lambda x: x["score"])
-    return candidates[0]
+    for candidate in candidates:
+        structure = check_complete_oligo_pair(candidate["sequence"])
+        if structure["passed"]:
+            candidate["complete_oligo_structure"] = structure
+            return candidate
+    return None
 
 
 def recipe_cloning_verification(
@@ -253,6 +261,9 @@ def recipe_cloning_verification(
         warnings.append("No unique Sanger primer facing the junction at 50-100 bp distance; provide more flanking sequence or an alternative sequencing strategy.")
 
     colony_dimers = check_primer_dimers(fwd_primer_seq, rev_primer_seq)
+    colony_structure = check_complete_oligo_pair(fwd_primer_seq, rev_primer_seq)
+    if not colony_structure["passed"]:
+        raise ValueError("QC_PRIMER_STRUCTURE: selected colony-PCR pair fails complete-oligo structural QC; choose alternative assay boundaries")
 
     # 3. Diagnostic Restriction Digest Simulation
     enzymes_to_test = diagnostic_enzymes or ["EcoRI", "BamHI", "HindIII"]
@@ -286,7 +297,8 @@ def recipe_cloning_verification(
         "forward_primer_tm": fwd_tm,
         "reverse_primer_tm": rev_tm,
         "colony_pcr_primer_tm_compatible": (52 <= fwd_tm <= 72 and 52 <= rev_tm <= 72 and abs(fwd_tm-rev_tm) <= 3),
-        "primer_dimers_safe": not colony_dimers["high_dimer_risk"],
+        "primer_dimers_safe": not colony_dimers["high_dimer_risk"] and colony_structure["passed"],
+        "complete_oligo_structure_passed": colony_structure["passed"],
     }
 
     sop_reminders = [
@@ -381,6 +393,8 @@ def recipe_cloning_verification(
             "junction_pcr_primers": primers_dict,
             "diagnostic_restriction_digests": diagnostic_bands,
             "colony_pcr_simulation": pcr,
+            "complete_oligo_structure": colony_structure,
+            "sanger_oligo_structure": sanger_primer_res["complete_oligo_structure"] if sanger_primer_res else None,
             "quality_checks": quality_checks,
             "warnings": warnings,
             "sop_reminders": sop_reminders,

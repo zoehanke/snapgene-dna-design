@@ -2,6 +2,8 @@
 
 The guardrails subsystem (`core/guardrails/checklist.py`) performs automated, factual sanity checks across 10 essential biological quality gates (`BIO-01` through `BIO-10`).
 
+For a source fusion-tag domain without its own stop, first verify its stated role and the actual complete ORF in the source. If repository metadata explicitly identifies a fusion tag and the enclosing sequence has a valid frame/start/stop, retain the original source and make a documented annotation-only copy: preserve DNA, coordinates and supplied domain translation, record the old product description, qualify the tag role and annotate the independently checked complete ORF. Use the existing CDS validator on both. This is a source-specific metadata correction, not automatic extension, CDS demotion, a label-name exemption or evidence of protein function. Without that source evidence, keep the failure.
+
 Unlike arbitrary policy engines, these checks:
 1. **Respect Applicability**: Distinguish whether an input is a coding CDS, a linear PCR amplicon, an ssODN donor, or a circular plasmid construct.
 2. **Standardized Status**: Every check reports one of four explicit states:

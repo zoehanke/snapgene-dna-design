@@ -669,6 +669,7 @@ def init_default_registry() -> None:
                     "donor_type": {"type": "string"},
                     "target_is_cds": {"type": "boolean"},
                     "cds_frame_offset": {"type": "integer"},
+                    "require_pam_disruption": {"type": "boolean", "default": False},
                 },
                 "required": ["target_seq_or_file", "cut_position_0based", "edit_dna"],
             },
@@ -701,7 +702,7 @@ def init_default_registry() -> None:
             name="annotate_feature",
             callable=annotate_feature,
             category="compute",
-            description="Add or update feature annotation on a SeqRecord or file.",
+            description="Append a new feature annotation; existing features are preserved, not replaced.",
             parameters_schema={
                 "type": "object",
                 "properties": {

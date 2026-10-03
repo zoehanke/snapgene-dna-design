@@ -59,7 +59,7 @@ CORE_MODULES = [
     "edit_plasmid",
     "snapgene_compatibility",
     "export_delivery_bundle",
-    "primer3_core_backend",
+    "core.tools.primer3_backend",
     "design_primers",
     "operation_consent",
 ]

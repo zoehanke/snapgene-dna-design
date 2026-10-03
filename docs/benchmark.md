@@ -1,5 +1,7 @@
 # 性能测量
 
+自然请求到交付的完整任务评测另见[真实任务评分](question-bank/scoring-v0.1.md)。这里测程序耗时，不把运行速度当作设计成功率。
+
 本轮使用固定种子的合成数据，避免把可用性写成测试数量或固定满分。原始样本、Python/依赖/平台和CPU信息在 [baseline](../results/engineering-audit-20260922/baseline-benchmarks.json) 与 [final](../results/engineering-audit-20260922/final-benchmarks.json)。数据属于本机，不外推为性能保证。
 
 ```text

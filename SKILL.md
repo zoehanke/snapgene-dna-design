@@ -21,9 +21,11 @@ Use the installation's verified Python executable from `INSTALL-SOURCE.json` (`p
 
    Sequence inputs may be raw DNA, FASTA text, a sequence file, or a `SeqRecord` in direct Python calls. CLI JSON normally uses strings or file paths. Resolve the complete original record before designing PCR.
 
-2. **State intent and material status.** Record what is a complete provided fragment, what must be prepared from a source template, and what is only a design component. A backbone must have an actual PCR or digest preparation row, or be explicitly marked as supplied prepared material. Translate required and forbidden DNA components into the existing `expected_components` / `forbidden_components` fields before delivery. Recipe parameter JSON accepts these fields with explicit component sequences; Pipeline can also resolve source features. User authorization persists; do not ask for the same confirmation again.
+2. **State intent and material status.** Preserve the user's required components, interfaces, mutations and exclusions before choosing a route. Check that original list at handoff; a route that cannot satisfy it needs revision or an explicit incomplete result. Record what is provided prepared DNA, what must be prepared from a complete template, and what is only a design component. Express required/forbidden DNA in `expected_components` / `forbidden_components`; Recipe and Pipeline can resolve features from named `sources`, avoiding manual copying of long sequences. A backbone needs an actual preparation row or an explicit supplied-prepared status. User authorization persists.
 
 3. **Choose a route for the remaining work.** If new construction is needed, prefer a standard Recipe with the exact signatures and branch notes in [references/recipes.md](references/recipes.md). Use the composite pipeline for a multi-step or non-standard route. Already suitable material does not require a new construction run. When preparation is needed, keep its physical order visible:
+
+   Query current parameters with `python scripts/describe_tools.py <recipe_or_tool>`; omit the name to list available entries. Use existing PCR/digest/assembly operations for sequence calculations. If custom code is needed, verify its final ordered oligos and actual returned products before delivering, including any later edits.
 
    ```text
    complete source -> PCR and/or digest -> actual intermediate -> assembly or ligation -> product checks
@@ -31,11 +33,15 @@ Use the installation's verified Python executable from `INSTALL-SOURCE.json` (`p
 
    A theoretical tag, fusion, or other component result can guide design. It is not a PCR template. PCR must bind the complete original template and its returned product must feed the next digest or assembly step.
 
+   For a continuing task, reference the previous delivered file as the next actual template. Its retained sequence alone does not establish inheritance if preparation still uses the original parent. The PCR CLI supports 5-prime tails and annotated `.gb/.dna` output; its source copy and order tables use template coordinates, not final-product coordinates.
+
    In Gibson fragments mode, the runtime evaluates which forward or reverse primer carries each junction homology arm and keeps the selected layout in the preparation records.
 
 4. **Check biological context.** Verify source boundaries, orientation, cut geometry, junction sequence, topology, reading frame, and primer/template consistency. Distinguish sites consumed by the current reaction from sites required for the product's next use. A recipient or dropout cassette can need its flanking recognition sites even when its coding sequence is intact. Inspect all downstream interfaces before choosing PCR boundaries, then check their retained sequences and actual cut counts in the final file. For expression cloning, inspect the vector's real start point and the complete enzyme-to-insert boundary. Do not select a different downstream CDS to make a translation look valid. For HDR, distinguish insertion from replacement. For a guide vector, verify the full guide structure, including scaffold.
 
    Treat an annotated CDS as complete unless its metadata explicitly identifies a partial protein, bounded tag, start-codon marker, or fuzzy boundary. For a fusion, record the complete ORF and its contained protein domains before delivery. Absence of a stop codon is a failed check, not evidence of a partial CDS.
+
+   If the user requires an actual PAM change, set `require_pam_disruption=true` in the HDR tool/Recipe. It rejects a retained NGG PAM rather than substituting a warning. A guide that cannot meet the condition is a route-selection problem; preserve the requirement while choosing another guide.
 
 5. **Run and inspect artifacts.** Standard entry points are:
 
@@ -48,7 +54,7 @@ Use the installation's verified Python executable from `INSTALL-SOURCE.json` (`p
 
    Recipe component requirements use `name`, `expected_sequence` (or `sequence`), and optional `strand` (`1` or `-1`). They are checked against the saved GenBank candidate through the existing goal validator. Failed requirements retain candidate evidence and stop delivery. An absent requirement is not a verified user goal.
 
-   Verification designs use complete-template PCR simulation and actual primer coordinates. Read the returned Tm, junction coverage and Sanger distance; repeated sequence or insufficient flanks can prevent a usable assay. Parental-template discrimination needs an explicit parent control. QC `.dna` files retain source topology, features and the designed primers. For primer search, 60°C is a ranking target; accepted cores may fall within 52–72°C. Complete oligos are checked, and cores beyond 36 nt use Biopython nearest-neighbor calculations with same-condition Primer3 structure checks.
+   Verification designs use complete-template PCR simulation and actual primer coordinates. Read the returned Tm, junction coverage and Sanger distance; repeated sequence or insufficient flanks can prevent a usable assay. QC primer search also rejects measured hairpin/self-dimer candidates and checks the actual PCR pair through Primer3. Parental-template discrimination needs an explicit parent control. QC `.dna` files retain source topology, features and the designed primers. For primer search, 60°C is a ranking target; accepted cores may fall within 52–72°C. Complete oligos are checked, and cores beyond 36 nt use Biopython nearest-neighbor calculations with same-condition Primer3 structure checks.
 
 6. **Deliver the actual result.** `--finalize --confirmed` requests authoritative promotion for a complete construct. A component or QC result remains a component or QC result. Keep an assumption in the delivery gate only when resolving it changes this artifact or the requested action. General biological caveats belong with the affected downstream step, not as invented unresolved task assumptions. Report concrete warnings and unknowns; sequence computation does not establish wet-lab efficiency, expression, or genome-wide specificity.
 

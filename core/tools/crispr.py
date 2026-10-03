@@ -794,6 +794,7 @@ def design_hdr_donor(
     donor_type: str | None = None,
     target_is_cds: bool = False,
     cds_frame_offset: int = 0,
+    require_pam_disruption: bool = False,
 ) -> dict[str, Any]:
     """Design one HDR donor from the unedited target record.
 
@@ -845,6 +846,13 @@ def design_hdr_donor(
             if warning:
                 warnings.append(warning)
             edit_info["edited_target_sequence"] = edited_target
+
+    if require_pam_disruption:
+        if not guide:
+            raise ValueError("PAM_DISRUPTION_REQUIRED: provide the actual guide to check its PAM")
+        final_view = _edited_guide_view(guide, edited_target, edit_start, edit_end, edit_length, is_circular)
+        if final_view.get("edited_pam_sequence", "").endswith("GG"):
+            raise ValueError("PAM_DISRUPTION_REQUIRED: the selected guide retains an NGG PAM after the edit; review coding context or select another guide instead of dropping the requirement")
 
     # The requested arm lengths are measured outside the edit interval. This
     # keeps replacement and insertion on one geometry: donor = left arm +

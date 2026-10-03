@@ -536,19 +536,26 @@ def main():
     d = _env.get("data", _env)
     check("align_sanger confirms read", d["reads"][0]["identity"] >= 90, str(d))
 
-    # simulate_pcr
-    r = run_ok(script("simulate_pcr.py"), ref_fa,
-               "--fwd", "ATGCATGCAT", "--rev", "GCATGCATGC", "--json")
-    _env = json.loads(r.stdout)
-    d = _env.get("data", _env)
-    check("simulate_pcr produces amplicon", d["length"] > 0, str(d))
+    # Keep the repeated-template failure; its multiple products are not a success.
+    r = run(script("simulate_pcr.py"), ref_fa,
+            "--fwd", "ATGCATGCAT", "--rev", "GCATGCATGC", "--json")
+    d = json.loads(r.stdout)["data"]
+    check("simulate_pcr rejects ambiguous products",
+          r.returncode != 0 and d["length"] == 0 and any("ambiguity" in n for n in d["notes"]), str(d))
 
-    r = run_ok(script("simulate_pcr.py"), "AAAACCCCGGGGTTTT",
-               "--fwd", "GGGG", "--rev", "GGGG", "--json")
-    _env = json.loads(r.stdout)
-    d = _env.get("data", _env)
+    unique = "ACGTCAGGCTTACCGTAGCTCGATGCCATGTTCAGGACTACCGTATGACCTGA"
+    from Bio.Seq import Seq
+    r = run_ok(script("simulate_pcr.py"), unique,
+               "--fwd", unique[:18], "--rev", str(Seq(unique[-18:]).reverse_complement()), "--json")
+    d = json.loads(r.stdout)["data"]
+    check("simulate_pcr reproduces the independently specified unique product", d["amplicon"] == unique, str(d))
+
+    r = run(script("simulate_pcr.py"), "AAAACCCCGGGGTTTT",
+            "--fwd", "GGGG", "--rev", "GGGG", "--json")
+    envelope = json.loads(r.stdout)
+    d = envelope["data"]
     check("simulate_pcr rejects outward/upstream primer pair",
-          d["length"] == 0 and any("valid order" in n for n in d["notes"]), str(d))
+          r.returncode != 0 and not envelope["ok"] and d["length"] == 0, str(d))
 
     # simulate_gel
     r = run_ok(script("simulate_gel.py"), "--fragments", "1000,500,200", "--json")

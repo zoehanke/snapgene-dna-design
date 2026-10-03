@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import pathlib
+import re
 from typing import Any
 
 from Bio import SeqIO
@@ -98,28 +99,33 @@ def inspect_dna(file_path_or_record: str | pathlib.Path | SeqRecord) -> dict[str
     }
 
 
+def annotated_selection_marker(name: str) -> str | None:
+    """Recognize annotated marker names without matching unrelated gene substrings."""
+    markers = (
+        (r"amp(?:r|icillin)?|bla(?:tem\d*)?|beta-lactamase", "Ampicillin (AmpR / bla)"),
+        (r"kan(?:r|mx\d*|amycin)?|aph(?:\([^)]*\))?", "Kanamycin (KanR / aph)"),
+        (r"neo(?:r|mycin)?", "Neomycin / Kanamycin (NeoR)"),
+        (r"cmr|camr|cat|chloramphenicol", "Chloramphenicol (CmR / cat)"),
+        (r"tet(?:r|racycline)?", "Tetracycline (TetR)"),
+        (r"hyg(?:r|romycin)?|hph(?:nt\d+)?", "Hygromycin B (HygR)"),
+        (r"zeo(?:r|cin)?|ble(?:mx\d*)?", "Zeocin (ZeoR / ble)"),
+        (r"spec(?:r|tinomycin)?|aada\d*", "Spectinomycin (SpecR / aadA)"),
+        (r"gent(?:r|amicin)?|aac", "Gentamicin (GmR / aac)"),
+        (r"puro(?:r|mycin)?|pac", "Puromycin (PuroR)"),
+        (r"bsd|bsdr|blasticidin", "Blasticidin S (BsdR)"),
+    )
+    for pattern, description in markers:
+        if re.search(r"(?<![a-z0-9])(?:" + pattern + r")(?![a-z0-9])", name, re.I):
+            return description
+    return None
+
+
 def summarize_backbone(file_path_or_record: str | pathlib.Path | SeqRecord) -> dict[str, Any]:
     """Identify key vector backbone components: origins, resistance markers, promoters."""
     ins = inspect_dna(file_path_or_record)
     origins = []
     resistances = []
     promoters = []
-
-    res_keywords = {
-        "amp": "Ampicillin (AmpR / bla)",
-        "bla": "Ampicillin (AmpR / bla)",
-        "kan": "Kanamycin (KanR / aph)",
-        "neo": "Neomycin / Kanamycin (NeoR)",
-        "chlor": "Chloramphenicol (CmR / cat)",
-        "cam": "Chloramphenicol (CmR / cat)",
-        "tet": "Tetracycline (TetR)",
-        "hyg": "Hygromycin B (HygR)",
-        "zeo": "Zeocin (ZeoR / ble)",
-        "spec": "Spectinomycin (SpecR / aadA)",
-        "gent": "Gentamicin (GmR / aac)",
-        "puro": "Puromycin (PuroR)",
-        "bsd": "Blasticidin S (BsdR)",
-    }
 
     for f in ins.get("features", []):
         fn = f["name"].lower()
@@ -138,15 +144,12 @@ def summarize_backbone(file_path_or_record: str | pathlib.Path | SeqRecord) -> d
                 "strand": f["strand"],
             })
         elif ft in ("cds", "gene"):
-            for kw, desc in res_keywords.items():
-                if kw in fn:
-                    resistances.append({
-                        "name": f["name"],
-                        "marker_type": desc,
-                        "interval_0based": f["interval_0based"],
-                        "strand": f["strand"],
-                    })
-                    break
+            marker = annotated_selection_marker(f["name"])
+            if marker:
+                resistances.append({
+                    "name": f["name"], "marker_type": marker,
+                    "interval_0based": f["interval_0based"], "strand": f["strand"],
+                })
 
     return {
         "name": ins["name"],

@@ -451,11 +451,7 @@ def design_overhang_primers(
         (t_seq + t_seq)[start:start + target_length]
         if wraps_origin else t_seq[start:end]
     )
-    import sys
-    scripts_dir = pathlib.Path(__file__).resolve().parents[2] / "scripts"
-    if str(scripts_dir) not in sys.path:
-        sys.path.insert(0, str(scripts_dir))
-    from primer3_core_backend import (
+    from core.tools.primer3_backend import (
         check_complete_oligo_pair,
         design_anchored_pairs, discover_primer3_core,
     )

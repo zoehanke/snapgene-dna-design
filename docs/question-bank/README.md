@@ -4,6 +4,8 @@
 
 ## 发题与检查
 
+[评分规则](scoring-v0.1.md)和[检查者评分表](../../benchmarks/host-readiness-v0.1/scores-template.csv)供下一轮使用。首轮为探索性检查，材料通过不等于软件通过。
+
 - [执行材料包 v0.3](../../dist/dna-skill-test-materials-v0.3-executor.zip)：九题完整源文件和自然请求。每次只提供当前题材料，不给整个仓库或检查者目录。
 - [检查者材料包 v0.3](../../dist/dna-skill-test-materials-v0.3-reviewer.zip)：原始输入、来源映射、编号核对、已有参考答案和验收说明。不要放在执行AI可读的位置。
 - [执行题面](executor-tasks-v0.2.md)描述用户目标；[人工答案册](human-answer-key-v0.2.md)描述判断标准；[检查者说明](reviewer-notes-v0.2.md)保存原名和参考线索。

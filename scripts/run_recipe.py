@@ -41,8 +41,34 @@ def write_preparation_artifacts(preparation: list[dict], out_dir: str | pathlib.
     """Write the actual prepared fragments, source primer maps and order table."""
     from Bio import SeqIO
     from core.tools.snapgene_io import annotate_record_primers
+    from core.tools.amplification import simulate_pcr
     out = pathlib.Path(out_dir)
     outputs, orders = [], []
+    # Check all declared PCRs before writing products or order tables. A desired
+    # sequence supplied as "product" is not proof of preparation from these oligos.
+    for item in preparation:
+        if str(item.get("method", "PCR")).lower() not in {"pcr", "inverse_pcr"}:
+            continue
+        primers = item.get("primers", [])
+        if len(primers) != 2:
+            raise ValueError(f"PREPARATION_PRIMERS: '{item.get('id')}' requires its actual pair")
+        fwd, rev = primers
+        template = resolve_sequence_record(item["template"])
+        if fwd.get("strand") in (-1, "-1", "-") and rev.get("strand") in (1, "1", "+"):
+            # The row is expressed on the source's reverse strand (e.g. a
+            # guide cassette). Keep that declared orientation when replaying.
+            template = template.reverse_complement(id=True, name=True, annotations=True)
+        def sequence(primer):
+            return primer.get("sequence") or primer.get("seq") or primer.get("full_sequence")
+        def core_length(primer):
+            core = primer.get("binding_sequence") or primer.get("binding_core") or primer.get("core")
+            return len(core) if core else None
+        actual = simulate_pcr(template, sequence(fwd), sequence(rev),
+                              forward_binding_core_length=core_length(fwd),
+                              reverse_binding_core_length=core_length(rev))
+        product = resolve_sequence_record(item["product"])
+        if actual["amplicon"] != str(product.seq).upper():
+            raise ValueError(f"PREPARATION_PRODUCT_MISMATCH: '{item.get('id')}' does not match actual template and primers")
     for index, item in enumerate(preparation, 1):
         product = resolve_sequence_record(item["product"])
         template = resolve_sequence_record(item["template"])
@@ -67,6 +93,8 @@ def write_preparation_artifacts(preparation: list[dict], out_dir: str | pathlib.
                         "product": fragment, "fasta": str(fa), "annotated_source": source_files})
         for primer in primers:
             orders.append({"preparation": item.get("id", prefix), "template": template.id,
+                           "coordinate_reference": str(pathlib.Path(source_files["gb_file"]).resolve().relative_to(out.resolve())),
+                           "coordinate_system": "0-based half-open on annotated source",
                            "name": primer.get("name", "primer"),
                            "sequence_5to3": primer.get("sequence") or primer.get("seq"),
                            "binding_sequence_5to3": primer.get("binding_sequence") or primer.get("binding_core", ""),
@@ -105,11 +133,15 @@ def run_recipe_cli(
     fn, canonical_name = get_recipe_function(recipe_name)
     params = dict(params)
     requirements = {key: params.pop(key, []) for key in ("expected_components", "forbidden_components")}
+    requirements["sources"] = params.pop("sources", [])
     if any(not isinstance(value, list) for value in requirements.values()):
         raise ValueError("expected_components and forbidden_components must be lists")
     out_path = pathlib.Path(out_dir).resolve()
     candidate_dir = out_path / "candidate"
     candidate_dir.mkdir(parents=True, exist_ok=True)
+    result_json_path = candidate_dir / f"{canonical_name}_result.json"
+    # Retained candidate files are diagnostics, not this attempt's receipt.
+    result_json_path.unlink(missing_ok=True)
 
     # 1. Execute Recipe
     res: RecipeResult = observe("recipe_execute", fn, **params)
@@ -190,12 +222,11 @@ def run_recipe_cli(
                     writer.writerow([name, sequence, len(sequence), "oligo synthesis and annealing"])
         preparation_files["donor_oligo_order_table"] = str(oligo_path)
 
-    result_json_path = candidate_dir / f"{canonical_name}_result.json"
     result_dict = res.to_dict()
     result_dict["sanity_check"] = sanity
     result_dict["preparation_files"] = preparation_files
     goal_check = {"status": "not_requested", "checks": [], "errors": []}
-    if any(requirements.values()):
+    if requirements["expected_components"] or requirements["forbidden_components"]:
         from Bio import SeqIO
         from core.runtime_validate import _validate_requested_components
         with (candidate_dir / f"{canonical_name}.gb").open(encoding="utf-8", errors="replace") as handle:

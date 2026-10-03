@@ -55,6 +55,7 @@ def recipe_crispr_hdr_donor(
     cds_frame_offset: int = 0,
     edit_start_0based: int | None = None,
     edit_end_0based: int | None = None,
+    require_pam_disruption: bool = False,
 ) -> dict[str, Any]:
     """Run the HDR SOP around the shared atomic donor calculation."""
     requested = str(donor_type).strip().lower()
@@ -83,6 +84,7 @@ def recipe_crispr_hdr_donor(
         donor_type=donor_type,
         target_is_cds=target_is_cds,
         cds_frame_offset=cds_frame_offset,
+        require_pam_disruption=require_pam_disruption,
     )
 
     resolved_type = atomic["donor_type"]

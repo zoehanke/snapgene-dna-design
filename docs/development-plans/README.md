@@ -8,6 +8,7 @@
 
 | 计划 | 模块目标版本 | 文档修订 | 状态 | 前序 |
 |---|---|---|---|---|
+| [真实任务可用性修复](workflow-host-readiness-v1.0.3.md) · [团队任务清单](../igem/best-software-task-table.md) | 主产品v1.0.3 | r2 | 本轮代码、961项源码检查、独立包与新自然请求试用已验；评分规则已建立，原九题同宿主对照/真人/湿实验未关闭 | 交付修复v1.0.2与首轮九题结果 |
 | [交付缺陷修复](workflow-delivery-fixes-v1.0.2.md) | 主产品 v1.0.2 | r3 | 修复、源码945项、公开包917项与Codex安装验收完成；精确提交CI单独核验，宿主Benchmark暂缓 | 工程 r3 与实用性 r3 |
 | [完整工程审计与修复](../remediation-plan.md) · [最终报告](../final-remediation-report.md) | 当前源码修复，未另发版本 | r3 | 重新验收：本机覆盖54/54通过，旧预览与文档补齐；真人/实验/账户提交仍需外部证据，本轮不推送 | v0.3.2 未决项逐项处置 |
 | [主任务与 Trace 实用性修复](workflow-phase-3-usability-repair-v0.3.2.md) · [人工检查版](workflow-phase-3-usability-repair-review-v0.3.2.md) | Trace v0.3.2；主产品 v1.0.1 | r3 | 独立反例复查并修复通用缺陷；宿主对照、注释问题、独立真人理解未关闭 | Phase 3.1 与本轮三组测试 |

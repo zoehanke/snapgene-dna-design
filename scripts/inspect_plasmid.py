@@ -22,7 +22,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from core.tools.inspection import _load_record, inspect_dna
+from core.tools.inspection import _load_record, inspect_dna, annotated_selection_marker
 from core.tools.restriction import find_restriction_sites
 from evidence_trace.runtime import add_trace_arguments, trace_options, trace_file_call
 
@@ -99,7 +99,7 @@ def inspect_single_file(file_path: str | pathlib.Path, enzymes: list[str] | None
         name_lower = name.lower()
         if ftype in ("rep_origin", "origin"):
             oris.append(feat_dict)
-        elif ftype in ("CDS", "gene") and any(kw in name_lower for kw in ("ampr", "kanr", "cmr", "cat", "tet", "spec", "hyg", "puro", "neo", "bla", "resis")):
+        elif ftype in ("CDS", "gene") and annotated_selection_marker(name):
             markers.append(feat_dict)
         elif ftype == "promoter" or (ftype in ("misc_feature", "regulatory") and "promoter" in name_lower):
             promoters.append(feat_dict)
