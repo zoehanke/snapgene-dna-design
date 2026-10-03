@@ -17,13 +17,22 @@
 - Follow the user's current task scope. Distinguish confirmed decisions, implementation facts, hypotheses and open questions. Dated audits and proposals are historical context, not an automatic backlog.
 - Preserve room for alternative architectures. Prefer the smallest coherent solution to a demonstrated need; justify new abstractions, dependencies or checks by concrete benefit. Update affected callers and tests when changing interfaces.
 - Treat implementation proposals and old phase gates as revisable. Within the user's authorized task, resolve stale rules using current requirements and evidence, and update affected specs/plans with the reason. Do not request permission again for already authorized work or weaken correctness to bypass a failure.
-- Preserve source material and original failure cases. Correct faulty annotations or expectations with an explicit reason; do not change the biological target merely to make checks pass.
+- Preserve original source material; explain annotation corrections separately from DNA changes.
 - Keep user DNA, restricted fixtures and generated artifacts out of source commits. Check existing worktree changes before editing; preserve unrelated work.
 - Use explicit UTF-8 for text I/O and subprocess text streams. Verify relevant Windows/non-ASCII behavior when changing these paths.
 - Validate the changed behavior through its actual public entry point and inspect resulting files. Use focused regression tests; for release work, run the applicable suite and integrations described in README. Full suite: `python -X utf8 -B -m unittest discover -s tests`.
-- Treat a supplied example as regression evidence, not the completion criterion. For the affected contract, include independent success and failure cases with expectations derived from source facts or invariants, not the implementation under test. Report simplification must preserve findings, evidence ownership and usable detail access.
-- Never select answers or validation exceptions by task number, test path, sample filename, material identity or reference hash. Explain legitimate domain constants. Prove each defect before fixing; retain incorrect historical inputs/expectations and their correction evidence, without relaxing targets or gates.
-- Separate developer intervention, corrected inputs, regression and heldout outcomes. A new chat/shared work directory is not isolation. Freeze code/package/rubric before formal evaluation, retain contaminated and repeated runs, and report unverified items explicitly; no heldout evidence means no claim of general success-rate improvement.
+- Report simplification must preserve findings, evidence ownership and usable detail access.
+- A new chat/shared work directory is not isolation. Freeze code/package/rubric before formal evaluation, retain contaminated and repeated runs, and report unverified items explicitly; no heldout evidence means no claim of general success-rate improvement.
 - Report performed checks, failures, skips and limits accurately. Documentation-only changes need content/link checks, not a biological regression run. Historical test counts are not current validation.
 - After requested development, commit and push validated changes to the user-designated development branch. Check CI for that exact commit; never merge or push to `main` without explicit authorization.
 - Update the relevant spec when a product boundary or development rule changes; append consequential decisions and participant feedback to `docs/history.md`. Keep specs current and compact, history explanatory, and implementation/test details in code, references or phase plans. Superseded decisions remain in history.
+
+## 开发与修复原则
+
+- 目标是提高程序对真实任务的通用能力。测试通过是证据，不是目的。
+- 从失败中提炼通用问题。禁止按题号、样例身份或参考答案加入特判、预设结果或检查豁免。
+- 修复须保留原失败案例，并用独立输入验证成功与失败边界。不得用待测实现生成自己的验收答案。
+- 禁止为通过测试删要求、改目标或放宽检查。旧测试确有错误时，须提供独立依据并记录修改原因。
+- 已知题回归、陌生题评测、人工辅助结果分别报告。不得将样例通过宣称为普遍可靠，或将人工修正计为独立成功。
+
+样例身份包括测试路径、文件名、材料身份及参考哈希；正常领域常量须说明来源与用途。每项修复先说明原行为、违反的事实或要求及泛化依据。
