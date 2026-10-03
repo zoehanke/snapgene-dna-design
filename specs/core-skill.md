@@ -1,6 +1,6 @@
 # Core skill
 
-Updated: 2026-10-03. This spec defines the current DNA product contract. [History](../docs/history.md) explains its evolution; [development plans](../docs/development-plans/README.md) own implementation scope, validation and handoff. [Safety spec](safety-module.md) owns Evidence Trace; [SKILL.md](../snapgene-dna-design/SKILL.md) and [Recipe reference](../snapgene-dna-design/references/recipes.md) own usage and signatures.
+Updated: 2026-10-03. This spec defines the current DNA product contract. Developer documents have a [single router](../docs/README.md); closed plans are historical references, while unresolved handoffs stay in the plan index. [History](../docs/history.md) explains its evolution; [development plans](../docs/development-plans/README.md) own implementation scope, validation and handoff. [Safety spec](safety-module.md) owns Evidence Trace; [SKILL.md](../snapgene-dna-design/SKILL.md) and [Recipe reference](../snapgene-dna-design/references/recipes.md) own usage and signatures.
 
 ## Goal and current functionality
 
@@ -69,12 +69,12 @@ Development regression and independently managed heldout evaluation are separate
 - Preserve the original pET/Chr1 failures. Reaction clipping must use the shared partial-feature and CDS-phase contract; explicit peptide-tag/cleavage-site products are not complete proteins. Wrong translations, unknown bases and incompatible declared codon tables still fail. Evidence-backed source annotation corrections use a documented copy, never automatic mutation of the input or a validation exemption.
 - Remaining product questions: underserved real workflows, duplicated orchestration worth consolidating, host clarification reliability, measurable user effort saved and reproducible optional-backend claims.
 
-The [preceding usability repair](../docs/development-plans/workflow-phase-3-usability-repair-v0.3.2.md) covers task priority, prompt isolation, primer export and scoped validation as well as Trace usability. Primer extraction/export and staged guidance are implemented; host behavior improvement still needs controlled evidence; the [predecessor](../docs/development-plans/safety-phase-3-readability-v0.3.1.md) preserves earlier engineering evidence. Historical releases/audits do not certify current universal correctness.
+The [preceding usability repair](../docs/archive/plans/workflow-phase-3-usability-repair-v0.3.2.md) covers task priority, prompt isolation, primer export and scoped validation as well as Trace usability. Primer extraction/export and staged guidance are implemented; host behavior improvement still needs controlled evidence; the [predecessor](../docs/archive/plans/safety-phase-3-readability-v0.3.1.md) preserves earlier engineering evidence. Historical releases/audits do not certify current universal correctness.
 
 
-## 2026-09-22 verified scope
+## Delivery and compatibility contracts
 
-This historical scope records the [engineering cycle](../docs/remediation-plan.md) and its [final evidence](../docs/final-remediation-report.md). Current work is identified by the [plan index](../docs/development-plans/README.md). Follow current user authorization for development-branch pushes; an old cycle's publication restriction is not a permanent prohibition. Never publish or modify main without authorization.
+Current methods and evidence boundaries are maintained in [testing](../docs/testing.md), and unfinished work in the [handoff](../docs/development-plans/README.md). The archived engineering cycle records dated evidence, not a current startup gate or permanent publication restriction.
 
 | Status | Scope |
 |---|---|
@@ -94,6 +94,6 @@ An attempt that loses atomic promotion to an existing delivery reports the same 
 
 Release packaging uses reviewed tracked paths, or an explicit source list outside Git. Exclude untracked local inputs and known restricted/external fixtures from the redistributable variant. A file's presence in Git is not proof of redistribution rights. Validate the extracted package separately from the checkout.
 
-The reopened local acceptance now passes all 54 coverage targets at the existing thresholds, including legacy preview. Keep its scope distinct from external user effectiveness, wet-lab outcomes, other-platform CI and authorized publication.
+Keep historical coverage results scoped to their measured commit and environment; newer repairs do not inherit them. Record fresh checks only when actually run.
 
 Legacy-preview handoff now uses an immutable snapshot in preview/delivery, separate from preview working files. Preview working files and delivery snapshots are separate; snapshots include actual omission reasons, stay consistent with their hashes and cannot absorb stale outputs. Missing/unreadable sources and unverified state block preview handoff. Its deprecated formal route stays blocked. Coverage instrumentation must not change which regression scenarios execute.

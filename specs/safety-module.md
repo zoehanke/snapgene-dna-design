@@ -1,6 +1,6 @@
 # Safety module: Evidence Trace
 
-Updated: 2026-09-23. This spec owns current Trace behavior and evidence boundaries. [History](../docs/history.md) records why they changed; [development plans](../docs/development-plans/README.md) own phase scope and results; [usage](../snapgene-dna-design/references/evidence-trace.md) owns CLI/Schema details; [design.md](../docs/development-plans/design.md) owns reading rules and links the optional framework and visual reference.
+Updated: 2026-10-03. This spec owns current Trace behavior and evidence boundaries. Use the [developer router](../docs/README.md) for task-specific reading; completed plans are not default prerequisites. [History](../docs/history.md) records why they changed; [development plans](../docs/development-plans/README.md) own phase scope and results; [usage](../snapgene-dna-design/references/evidence-trace.md) owns CLI/Schema details; [design.md](../docs/trace-report/design.md) owns reading rules and links the optional framework and visual reference.
 
 ## Purpose and present scope
 
@@ -8,7 +8,7 @@ Updated: 2026-09-23. This spec owns current Trace behavior and evidence boundari
 
 Implemented scope: seven entry points plus an explicit local-command file observer, source observations, file handoff checks, authored process/report revisions, applicability comparisons, Change Impact and fixed offline HTML/Markdown. Current scope excludes safety scores, safe/unsafe certification, hidden-thought reconstruction and ecological prediction. Assurance Case, Conclusion Boundary and macro/laboratory framework integration remain later directions, not delivered capabilities.
 
-The [v0.3.2 repair plan](../docs/development-plans/workflow-phase-3-usability-repair-v0.3.2.md) records the implemented v0.3.2 repairs and outstanding host/human evaluation. Real tests exposed file-export faults, large repeated report payloads, incomplete capture and unreadable default details; v0.3.1 engineering success did not establish practical usability.
+The [v0.3.2 repair plan](../docs/archive/plans/workflow-phase-3-usability-repair-v0.3.2.md) records the implemented v0.3.2 repairs and outstanding host/human evaluation. Real tests exposed file-export faults, large repeated report payloads, incomplete capture and unreadable default details; v0.3.1 engineering success did not establish practical usability.
 
 ## Three-layer contract
 
@@ -77,9 +77,9 @@ Current modules, Schema and phase proposals may be revised within authorized wor
 Retain consent, provenance and license rules; avoid unrelated conversations, credentials and raw DNA copies by default. Current limitations include host observation coverage, declared authorship, unavailable/moved source files, exact model-cost measurement and independent human reading evidence. Core annotation/delivery defects remain Core issues rather than Trace failures. Phase numbers alone are not authorization to start later governance work.
 
 
-## 2026-09-22 verified scope
+## Implementation boundaries
 
-The [engineering cycle](../docs/remediation-plan.md) owns current implementation and [results](../docs/final-remediation-report.md); it does not authorize remote publication.
+The [archived engineering cycle](../docs/archive/reviews/remediation-plan.md) and [results](../docs/archive/reviews/final-remediation-report.md) record dated evidence. Current development scope and remaining acceptance are in the [handoff](../docs/development-plans/README.md), not an inherited phase gate.
 
 | Status | Scope |
 |---|---|

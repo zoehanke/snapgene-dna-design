@@ -1,29 +1,68 @@
-# 测试与结果
+# 测试、验收与复现
 
-基线 b87a1d8：845项，832通过、13跳过。发布runner正确地因未开启真实Primer3项目而失败；不能拿unit绿色替代release gate。单独开启相关开关后原32项通过31、1跳过。
+检查程序行为、实际文件与声明范围。任务成功评分读[题库评分规则](question-bank/scoring-v0.1.md)；这里统一软件回归、性能测量、环境复现和包验证，不维护第二套评分标准。
 
-重新打开验收后的完整回归：937项全部通过、无跳过，1697.872秒，包含覆盖统计开销，不是用户任务运行时间。实际启用Primer3、Cas-OFFinder v2/v3、两个模型及在线检查；此前893项/7跳过是尚未启用全部后端的中间结果。原错误CDS降级后通过的断言被纠正为保留CDS并拒绝；源码和失败材料保留。短core失败的mock现在检查坏pair不被使用以及实际可行替代pair，而不要求有解任务永远失败。
+## 按变更选择检查
+
+| 变更 | 必要检查 |
+|---|---|
+| 文档整理 | 原约束/未决项保留、相对链接、入口职责及无关文件未动 |
+| DNA计算、注释或交付 | 原失败和独立正反例；实际公开入口；最终序列、拓扑、features、完整引物及读回 |
+| Trace | 上述相关结果，加Off/Observed/Full一致性、normal/strict故障、旧/新版本、关系范围和报告可读性 |
+| HTML/JS | 实际离线浏览器、键盘、窄屏和选择状态；语法检查不是UX验收 |
+| 发布/安装 | 适用套件、实际后端、受控打包、仓库外解包公开入口、许可/manifest及精确提交CI |
+
+输入可用公开synthetic/rich fixtures或独立生成材料。原错误输入保留；源注释校订另存并记录介入。外部材料的许可、是否随包分发与回归成功分开。
+
+## 回归命令
+
+从项目根执行，使用依赖齐全的同一个解释器：
 
 ```powershell
 $env:SNAPGENE_RUN_PRIMER3='1'
-python -X utf8 -B scripts/run_test_suite.py
-python -X utf8 -B scripts/property_tests.py --out-dir output/property
-python -X utf8 -B scripts/mutation_tests.py --out-dir output/mutation
-python -X utf8 -B scripts/run_scenario_suite.py --out-dir output/scenarios
+python -X utf8 -B -m unittest discover -s tests -p test_preparation_primer_locations.py -v
+python -X utf8 -B tools/run_test_suite.py
+python -X utf8 -B tools/smoke_core.py
+python -X utf8 -B tools/property_tests.py --quick --out-dir output/property
+python -X utf8 -B tools/coverage_gate.py --out-dir output/coverage
 ```
 
-每项命令的退出码和内部状态都要读。场景runner、inspect、convert、batch发生失败现会返回非零；不会把打印了error但exit0误算成功。Mutation工具已从旧转发文件定位到真实Core源码，先证明未修改的检查通过，再测试mutant，12/12捕获；未降低90%阈值。
+bash使用`export SNAPGENE_RUN_PRIMER3=1`。真实Primer3跳过会使正式runner失败；`--allow-primer3-skip`仅用于明确的非发布诊断。可选模型、Cas-OFFinder、参考基因组或桌面程序另需实际资源，flag不能代替后端。
 
-新增工程测试分为core/trace/auxiliary/release和planning restriction，各从实际接口或必要窄seam验证，不以同一被测函数的返回值生成参考答案。对外部不可用环境保留skip/unavailable；无私有文件时不伪造数据。
+mutation、rich fixtures和scenario分别由`tools/mutation_tests.py`、`tools/validate_rich_fixtures.py`、`tools/run_scenario_suite.py`提供，参数以`--help`为准。场景需按executed/partial/blocked记录，不能将总场景数说成构建成功数。
 
-## Coverage
+Coverage读取真实模块的行/分支及套件退出码，目标和阈值以[代码](../tools/coverage_gate.py)为准。插桩不能减少实际执行场景。Mutation先证明原版检查通过；失败捕获率不等于实验可靠率。报告中分别写失败、skip、不可用和未核查。
 
-本轮修正了漏测Core/Trace、同名模块混淆及行/分支百分比混算。f6b5904曾仅52/54达标；继续修复旧预览并取消覆盖运行少跑场景后，**54/54达标，总门槛PASS**，所有执行套件退出0。原阈值保留；[当前机器结果](../results/engineering-audit-20260922/coverage-summary.json)包含各模块明细。
+## 真正检查最终结果
 
-原失败记录在output/audit-20260922/coverage-closed，关闭结果在coverage-r3，包含完整日志与coverage.data。冷导入修正另跑9项针对性回归通过。跨平台远程CI仍未运行；本机通过不能替代云端矩阵。
+从原材料、要求和实际操作独立核验，不能采信宿主自报PASS或仅对照参考序列。允许不同正确路线与环形起点。多轮必须使用上轮真实产物；检查制备、接口、读框、注释、文件和结论。
 
-## 其他检查
+Core API例子：`python -X utf8 -B snapgene-dna-design/examples/core_workflow.py --out-dir output/api-example`，属于序列文件编辑。实际准备链演示：`python -X utf8 -B snapgene-dna-design/scripts/demo_engineering_cycle.py --out-dir output/demo`，属于预设方案回归，两者都不是宿主陌生任务或湿实验。
 
-公开包在仓库外、仅安装核心依赖的环境中完整运行909项：897通过、12跳过，无失败。必需Trace/PCR契约使用公开合成材料；两项原pBP材料集成单独保留。初次包的13处缺文件错误已修，原日志保留，未靠整组跳过掩盖。
+Trace记录完整不等于宿主全流程覆盖或科学结论成立。浏览器动作正常不等于人理解正常。桌面SnapGene格式实测、操作者审查、实验表型和全基因组特异性分别提供证据。
 
-Python AST、JS语法、MD链接、用户入口、UTF-8中文路径、隔离环境安装和发行包校验分开记录。没有设置mypy/ruff等全项目类型/lint工具，因此不声称这类门限通过。没有本轮远程CI，因为用户禁止推送；旧b87 CI只属于旧提交。
+## 环境与独立包
+
+记录源码提交、包清单/哈希、解释器、依赖、平台、实际后端、输入条件与人工介入。同平台精确复现可参考Skill内requirements-tested；跨平台或可选后端不沿用未经验证的保证。精确模型token不可得时写未知。
+
+```text
+python -X utf8 -B tools/build_release.py snapgene-dna-design output/packages
+python -X utf8 -B tools/validate_release_manifest.py output/packages/snapgene-dna-design-v1.0.4-redistributable.zip --package redistributable --version 1.0.4
+python -X utf8 -B tools/check_redistributable.py output/packages/snapgene-dna-design-v1.0.4-redistributable.zip
+```
+
+包版本以Skill/VERSION为准，升级时替换命令中的版本。Git模式只收集经审核的Skill子树跟踪文件；新文件审核后入索引。非Git树用`--source-list reviewed-files.json`，已有发行包可用RELEASE-MANIFEST。禁止路径越界、符号链接和秘密入包。许可检查不等于法律授权证明。
+
+解包到仓库外，从该目录用真实CLI和独立输入验证；不能借用外层tests/tools或源树fixture。安装验证绑定实际源码提交及清单，不能用另一版本成绩替代。[CI定义](../.github/workflows/test.yml)覆盖Ubuntu/Windows与Python3.10/3.11/3.12，结果必须对应所报提交。
+
+## 性能与任务评测分开
+
+`benchmarks/runtime.py`、`benchmarks/construction.py`测程序耗时；`benchmarks/plot_results.py`绘图另需Matplotlib。保留所有样本、种子、环境、重复数和指标边界；tracemalloc不是完整进程RSS。Trace的合成节点重建不代表复杂科学网络性能。速度不能替代目标正确性，也不能宣称用户成本下降。
+
+正式任务评测按[评分规则](question-bank/scoring-v0.1.md)隔离材料与答案，冻结代码/包/规则，分别报告回归、保留评测、污染、校订输入、人工介入及全部重复运行。新对话或改文件名不构成陌生评测。本项目目前没有隔离保留评测成功率提高证据。
+
+## 最近已核查的工程证据
+
+2026-10-03布局提交`d5cfa09`：本机Python3.12的980项中972通过、8跳过，独立包公开CLI及Trace三档回归通过，[六环境CI通过](https://github.com/zoehanke/snapgene-dna-design/actions/runs/37114726717)。这是此前代码的工程基线，不是本次文档整理新跑的结果。
+
+旧937项、54/54覆盖和性能测量属于2026-09-22周期，原结果在[工程摘要](../results/engineering-audit-20260922/)及[档案](archive/README.md)。更晚修复不能直接继承旧覆盖成绩；旧完整后端结果也不能证明当前环境已启用所有后端。当前未关闭验证见[交接](development-plans/README.md)。

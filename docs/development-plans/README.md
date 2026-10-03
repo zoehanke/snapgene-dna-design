@@ -1,59 +1,38 @@
-# 开发计划索引
+# 当前状态与开发交接
 
-这里存放新建和当前执行的开发计划。旧审查、历史修复记录保留原位置，不自动成为待办。本索引负责计划导航，不另建任务管理体系。
+2026-10-03更新。这里管理当前任务和未关闭事项，不把所有历史阶段列作“当前计划”。开发入口见[docs](../README.md)，契约见两个spec，改变原因见[history](../history.md)。
 
-初次接手或调整长期方向时，先读[项目历史](../history.md)。Spec 管当前契约，History 管形成原因，计划管具体实施与证据；旧计划中的实现建议可在当前授权范围内修订，不作为永久架构限制。
+## 当前授权与已结束工作
 
-## 当前计划
+本轮开发文档整理已通过内容/引用检查：合并重复指南、归档历史计划；不改DNA代码、Trace行为或验收标准。布局迁移和v1.0.4通用修复已结束，没有自动启动下一轮生物设计或治理模块开发。
 
-| 计划 | 模块目标版本 | 文档修订 | 状态 | 前序 |
-|---|---|---|---|---|
-| [开发工作区与Skill目录分离](workspace-layout-v1.0.4.md) | 主产品v1.0.4，布局迁移 | r2 | 布局完成；980项含8跳过、独立包及三档Trace回归已验；远程CI按精确提交核对 | 通用能力审查与负责人目录反馈 |
-| [通用能力与评测诚信审查](general-capability-audit-v1.0.4.md) | 主产品v1.0.4 | r2 | 通用修复、本机979项及独立包公开入口/Trace三档已验；评分来源隔离与汇总反馈落实；没有保留评测或通用提升主张 | v1.0.3与负责人六项审查约束 |
-| [真实任务可用性修复](workflow-host-readiness-v1.0.3.md) · [团队任务清单](../igem/best-software-task-table.md) | 主产品v1.0.3 | r2，附分类纠正 | 961项源码及独立包为历史工程证据；公开材料试用并未隔离，换路/校订为开发介入；后续问题转上行计划 | 交付修复v1.0.2与首轮九题结果 |
-| [交付缺陷修复](workflow-delivery-fixes-v1.0.2.md) | 主产品 v1.0.2 | r3 | 修复、源码945项、公开包917项与Codex安装验收完成；精确提交CI单独核验，宿主Benchmark暂缓 | 工程 r3 与实用性 r3 |
-| [完整工程审计与修复](../remediation-plan.md) · [最终报告](../final-remediation-report.md) | 当前源码修复，未另发版本 | r3 | 重新验收：本机覆盖54/54通过，旧预览与文档补齐；真人/实验/账户提交仍需外部证据，本轮不推送 | v0.3.2 未决项逐项处置 |
-| [主任务与 Trace 实用性修复](workflow-phase-3-usability-repair-v0.3.2.md) · [人工检查版](workflow-phase-3-usability-repair-review-v0.3.2.md) | Trace v0.3.2；主产品 v1.0.1 | r3 | 独立反例复查并修复通用缺陷；宿主对照、注释问题、独立真人理解未关闭 | Phase 3.1 与本轮三组测试 |
-| [Phase 3.1：Design Decision Trace 与三层实现](safety-phase-3-readability-v0.3.1.md) | Evidence Trace v0.3.1 | r14 | 保留已有工程证据；新暴露的主任务、导出、采集和报告问题转入上行计划，不等于已实用验收 | Phase 3 v0.3 |
-| [Phase 3：Living Evidence Document & Change Impact](safety-phase-3-change-impact-v0.3.md) | Evidence Trace v0.3 | r2 | 工程完成；阅读问题转入补救计划 | Phase 2 |
-| [Phase 2：Evidence Applicability & Trace Usability](safety-phase-2-applicability-v0.2.md) | Evidence Trace v0.2 | r3 | 工程实现及本阶段验收完成 | Phase 1 |
-| [Phase 1：Evidence Trace](safety-phase-1-trace-v0.1.md) | v0.1 | r3 | 工程验收完成，试用反馈已转化为 Phase 2 UI/Capture 改进 | 无已执行阶段 |
+| 记录 | 当前分类 |
+|---|---|
+| [目录迁移](../archive/plans/workspace-layout-v1.0.4.md) | 已结束；`d5cfa09`独立包及六环境CI通过 |
+| [通用能力审查](../archive/plans/general-capability-audit-v1.0.4.md) | 已结束的修复/回归；未完成原九题独立验收，不是保留评测 |
+| [原宿主修复](../archive/plans/workflow-host-readiness-v1.0.3.md) | 已结束的实现；下面承接未验收项 |
 
-当前阅读/UI 规则：[design.md](design.md)；Phase 2 历史参考：[evidence-trace-phase2-reference.svg](evidence-trace-phase2-reference.svg)。
+## 未关闭事项
 
-当前视觉参考：[报告视觉设计 r1](evidence-trace-report-visual-design-v0.3.1.md)，含用户参考图。保留该方向，重点修正正文、默认详情、记录缺口和体积，不重新做一轮皮肤原型。原型认可和工程测试不代替实际阅读验收。
+| 事项 | 当前事实与处理边界 | 原记录 |
+|---|---|---|
+| 原九题完整复核及同宿主重测 | 已知开发题；换路、校订和污染分别统计，不算陌生题；未完成独立整体验收 | [v1.0.3交接](../archive/plans/workflow-host-readiness-v1.0.3.md)、[v1.0.4分类](../archive/plans/general-capability-audit-v1.0.4.md) |
+| 宿主提示干扰、成本及实际用户价值 | 未做受控无Skill/旧版/新版或模式对照；代码三档一致性不能代替 | [v0.3.2交接](../archive/plans/workflow-phase-3-usability-repair-v0.3.2.md) |
+| 新版报告的独立真人理解 | 浏览器工程证据已有，陌生读者回答尚未验证；未提交Reader Demo保留原文件，其三条旧产物链接已不可达，待稿件接续时核对 | [阅读规则](../trace-report/design.md)、[Demo](safety-phase-3-reading-draft.md) |
+| 复杂源注释及制备/QC限制 | pET/Chr1完整表达边界仍需逐件检查；不自动校订源文件、不豁免失败；候选搜索失败如实报告 | [v0.3.2](../archive/plans/workflow-phase-3-usability-repair-v0.3.2.md)、[v1.0.3](../archive/plans/workflow-host-readiness-v1.0.3.md) |
+| 外部试用、专家/实验与真实后端泛化 | 负责人确认外部试用及湿实验未安排；公开合成/本机证据不能补成实验或全基因组保证 | [团队任务](../igem/best-software-task-table.md)、[外部证据](../igem/external-evidence-needed.md) |
+| 正式iGEM提交与完整教学交接 | 权属、账号发布和提交回执仍需团队；原14节教学未整体完成，文档存在不等于讲解完成 | [iGEM](../igem/README.md)、[工程交接](../archive/reviews/final-remediation-report.md) |
 
-[Reader Demo 通用空白框架](evidence-trace-reader-template.md)：实现前必读的阅读结构契约，汇总可选步骤与附录；按实际任务取用，不要求全部出现。
+独立保留评测由独立评测者管理；开发者只接错误类别/汇总。Phase 4至Phase 6仍未授权执行，后续方向留在安全spec。未关闭事项不自动构成当前开发范围。
 
-正式 HTML 已替换 v0.3 的单 Decision 组织，但本轮 CDC15 测试仍暴露实际缺陷；当前代码、spec/design.md 与修复计划已同步，实际实现和未验收项见当前计划。GFP +3 bp、静态 [Reader Demo](safety-phase-3-reading-draft.md) 和真实 GFP/A206K 的历史证据保留，用户未提交修改未动。Phase 4 继续暂停。
+## 计划维护
 
-相关 spec：[主 skill](../../specs/core-skill.md)、[安全模块](../../specs/safety-module.md)。Phase 4 至 Phase 6 尚未创建执行计划，完整路线图留在安全 spec。
+有新开发授权时才建立或恢复相应阶段计划，标明范围、目标版本、修订、相关spec和承接项。只查本任务相关前序证据，不要求通读全部前序计划。
 
-## 三层重构设计与机器结果
+结束后在原计划记录实际实现、检查、失败/跳过、限制及每项去向；状态和未关闭项更新此页，已结束计划进入[历史档案](../archive/README.md)。新计划不能清空旧缺口；延期或取消须写理由。重要产品边界变更同步spec和history。
 
-2026-09-20，目标为 Evidence Trace v0.3.1，文档 r4。在 AI／人语义组织、完整机器过程和独立 report_plan 基础上，细化 research-report-v1 默认报告格式；顶层结构由程序固定，AI 在其中填写有来源的内容。两版逐章对应，代码已实现；旧版本保留在 Git，实际证据记录在当前计划，不重写历史结果。
+报告开发通常先读[design](../trace-report/design.md)，需要写静态稿时再查[可选框架](../trace-report/reader-template.md)。三层JSON示例和旧Phase稿在档案，仅用于有针对性的追溯。
 
-- [开发设计](safety-phase-3-three-layer-design-v0.3.1.md)：采集入口、数据契约、关系处理、报告接口、文件改动、兼容及验收。
-- [人工理解与审查](safety-phase-3-three-layer-review-v0.3.1.md)：面向不熟悉编程的负责人，解释各层原理、信息来源和需要确认的选择。
-- [完整机器结果示例](safety-phase-3-process-example-v0.3.1.json)：可解析、引用完整的模拟 JSON，区分原始记录、过程及报告编排，不是实际运行证据。
+## 本次文档整理验收
 
-依据：[可信度研究](../EVIDENCE-TRACE-TRUST-ARCHITECTURE-20260914.md)、[真实使用审查](../EVIDENCE-TRACE-REAL-USE-AUDIT-20260915.md)、[Archify 对照](../ARCHIFY-REFERENCE-REVIEW-20260919.md)。已确认职责同步两份 spec、design.md 和 Phase 3.1；接口细节仍可审查调整，不能把“结构核对通过”写成科学意义已证明。
-
-## 文件职责与版本
-
-- **Spec**：目标、已确认决定、约束、开放问题和跨阶段路线图。不因换计划重置。
-- **History**：方向、关键取舍及重要反馈的形成原因。追加被推翻决定的后续解释，不复制代码变更和日常测试记录；长期契约改变时同时改 Spec。
-- **阶段计划**：一次只执行一个阶段，写具体改动、验收、完成证据和交接项。阶段内可以分多个实现步骤。
-- **Design**：唯一 reader guideline，保存主链/旁支、条件性栏目、语言、交互与少量正反例；不另建重复指南，也不作为宿主运行时页面生成提示词。
-- **索引**：标明当前计划、前序、状态与文档修订。历史计划保留并标记完成或被替代，避免多个“当前版本”。
-- 文件名采用 `<module>-phase-<n>-<name>-v<目标版本>.md`。目标模块版本与主 skill 版本、文档修订号分开；文档改动不会升级软件。
-- 同一计划修订原文件、递增 r1/r2，并简记改动。新阶段或实质替代计划另建文件，双向链接前后计划；旧文件不覆盖。Git 保存文件内历史。
-
-## 防止换计划丢上下文
-
-1. 开始或恢复：读相关 spec、本索引、当前计划及前序计划的完成/交接记录；核对实际代码和证据，不能仅凭“完成”标签。
-2. 创建计划：注明编号、目标版本、文档修订、状态、关联 spec、前序与本次范围。逐项处理前序未完成项/限制及相关 spec 开放问题，标明承接、延期或取消及理由。
-3. 阶段结束：在原计划记录实际实现、验收证据、遗留项、限制和下一阶段注意事项；未验收项不能标完成。长期决定同步 spec，状态同步索引。
-4. 下一阶段：依据交接和当前任务确定范围，不因阶段完成自动扩张工作。旧方案需要改变时，说明证据、影响与被替代决定，同步 Spec/计划；重大转向与参与者反馈追加到 History。已有明确授权不重复询问。
-
-这些指引使上下文有固定读取路径，不保证模型不会遗漏。交接条目的明确去向和实际验收证据是复核依据。
+合并前指南/旧手册、阶段计划和审查原件均有档案去向；六类未关闭事项仍保留，验收阈值和真人要求不变。121份Markdown、500条本地链接已核对，无新增断链；49份历史Markdown叙述保留，399份Skill/测试/工具及实证文件字节未变；docs根目录Markdown由31份收敛为9份；本次没有运行生物学回归或声称新增实验验证，精确提交CI另行核对。Reader Demo三条旧产物链接是保留稿的既存缺口，不算本次新增断链。

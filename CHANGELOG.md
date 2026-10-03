@@ -10,7 +10,7 @@
 
 ## 2026-09-22/23 engineering audit, incorporated into 1.0.2
 
-Historical local remediation on the development branch; VERSION was 1.0.1 during that cycle. Its evidence and limits remain in the [final engineering report](docs/final-remediation-report.md). The current delivery repair packages those changes with the fixes above.
+Historical local remediation on the development branch; VERSION was 1.0.1 during that cycle. Its evidence and limits remain in the [final engineering report](docs/archive/reviews/final-remediation-report.md). The current delivery repair packages those changes with the fixes above.
 
 - Preserve annotated records across task handlers, recompute constraints from actual sources, and reject incomplete or contradictory delivery receipts.
 - Correct double-digest execution, primer search boundaries, MSA/Sanger results, rejected state updates and file-conversion failures.

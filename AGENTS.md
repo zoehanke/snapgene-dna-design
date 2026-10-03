@@ -6,12 +6,15 @@ Project/Git root contains development instructions, specs, docs, tests, benchmar
 
 ## Read before work
 
+Use [docs/README.md](docs/README.md) as the developer document router. Read only the branch relevant to the current task; completed plans and old manuals under `docs/archive/` are historical evidence, not startup prerequisites or current instructions.
+
 - For skill behavior, DNA operations, architecture, CLI, tests or releases, read [specs/core-skill.md](specs/core-skill.md).
 - For biosafety, biosecurity, ethics or safety-feature research/development, read [specs/safety-module.md](specs/safety-module.md). Also read the core spec when changing the design workflow or shared code.
 - For skill-facing instructions or examples, also read [SKILL.md](snapgene-dna-design/SKILL.md) and the relevant signature in [references/recipes.md](snapgene-dna-design/references/recipes.md).
 - For external sequence services, read [references/privacy-and-consent.md](snapgene-dna-design/references/privacy-and-consent.md); for biological recommendations, read [references/source-policy.md](snapgene-dna-design/references/source-policy.md).
 
-- Before creating, resuming or closing a development plan, read [docs/development-plans/README.md](docs/development-plans/README.md), the relevant spec and current plan, including the predecessor handoff. Record unresolved-item dispositions and follow the current authorized scope; a roadmap does not itself authorize later phases.
+- Before creating, resuming or closing a plan, read [current handoff](docs/development-plans/README.md), the relevant spec and active plan if one exists. The handoff carries unresolved items from closed plans; inspect only the predecessor evidence needed for this task. Record dispositions. A roadmap does not authorize later phases.
+- For module/data/API questions read [architecture](docs/architecture.md); for setup/debugging read [developer guide](docs/developer-guide.md); for tests, reproducibility or packaging read [testing](docs/testing.md). Report UI work also reads [reader design](docs/trace-report/design.md); the blank template is optional authoring reference.
 - For onboarding or changes to product direction, architecture or long-term rules, read [docs/history.md](docs/history.md). It explains decisions; it does not override current specs or expand the task.
 - For benchmarks or task-success claims, read [docs/question-bank/scoring-v0.1.md](docs/question-bank/scoring-v0.1.md). Developers may inspect regression cases; never inspect independently managed heldout materials, answers, products or case-level feedback.
 
@@ -29,7 +32,7 @@ Project/Git root contains development instructions, specs, docs, tests, benchmar
 - A new chat/shared work directory is not isolation. Freeze code/package/rubric before formal evaluation, retain contaminated and repeated runs, and report unverified items explicitly; no heldout evidence means no claim of general success-rate improvement.
 - Report performed checks, failures, skips and limits accurately. Documentation-only changes need content/link checks, not a biological regression run. Historical test counts are not current validation.
 - After requested development, commit and push validated changes to the user-designated development branch. Check CI for that exact commit; never merge or push to `main` without explicit authorization.
-- Update the relevant spec when a product boundary or development rule changes; append consequential decisions and participant feedback to `docs/history.md`. Keep specs current and compact, history explanatory, and implementation/test details in code, references or phase plans. Superseded decisions remain in history.
+- Keep one owner per topic: specs for product contracts, architecture for modules/data/interfaces, developer guide for operations, testing for verification methods, plan index for active scope/unresolved handoffs, history for reasons. Update that owner rather than creating another latest guide. Archive completed plans; preserve their evidence and unfinished-item disposition. Contract/rule changes update the relevant spec; consequential decisions and feedback append to history.
 
 ## 开发与修复原则
 

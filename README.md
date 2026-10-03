@@ -8,7 +8,7 @@
 | AI执行DNA任务 | [SKILL.md](snapgene-dna-design/SKILL.md) |
 | AI开发与修复 | [AGENTS.md](AGENTS.md) |
 | 产品契约 | [Core spec](specs/core-skill.md)、[Evidence Trace spec](specs/safety-module.md) |
-| 开发方法与当前工作 | [开发指南](docs/developer-guide.md)、[计划索引](docs/development-plans/README.md) |
+| 开发文档与当前工作 | [统一入口](docs/README.md)、[当前交接](docs/development-plans/README.md) |
 | 项目为何演变到现在 | [History](docs/history.md)、[Changelog](CHANGELOG.md) |
 
 `snapgene-dna-design/`是Skill根；`docs/`、`specs/`、`tests/`、`benchmarks/`和`tools/`是开发资料。打包只取Skill目录，不把开发资料、题库、评分工具或历史解题记录交给执行AI。

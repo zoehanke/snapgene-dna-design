@@ -10,7 +10,7 @@
 | Primer3/primer3-py | GPL-2.0-or-later | 用户环境安装；通过外部进程调用，不把它重新标MIT |
 | SnapGene集合及派生真实fixtures | SnapGene条款 | 不进redistributable；哈希检查只识别已知集合 |
 | tests/data/pBP-eGFP.gb | Polizzi实验室/EcoFlex/Addgene来源 | 外部来源许可待核实，不进redistributable |
-| docs/development-plans/assets参考图 | 用户提供设计参考 | 发布权属待确认，不进redistributable |
+| docs/archive/plans/assets参考图 | 用户提供设计参考 | 发布权属待确认，不进redistributable |
 | 本轮合成反例/性能数据 | 自行生成 | 保留脚本、种子和范围，无湿实验声明 |
 
 AI 参与了代码、审查、测试设计和文档草拟；不冒充人类专家独立背书。正式 Attributions Form 需队员核实贡献、外部帮助及AI使用情况。iGEM页面是否公开表单属于团队提交动作，不由本仓库完成。
