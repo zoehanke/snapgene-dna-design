@@ -1,6 +1,6 @@
 # Core skill
 
-Updated: 2026-10-03. This spec defines the current DNA product contract. Developer documents have a [single router](../docs/README.md); closed plans are historical references, while unresolved handoffs stay in the plan index. [History](../docs/history.md) explains its evolution; [development plans](../docs/development-plans/README.md) own implementation scope, validation and handoff. [Safety spec](safety-module.md) owns Evidence Trace; [SKILL.md](../snapgene-dna-design/SKILL.md) and [Recipe reference](../snapgene-dna-design/references/recipes.md) own usage and signatures.
+Updated: 2026-10-04. This spec defines the current DNA product contract. Developer documents have a [single router](../docs/README.md); closed plans are historical references, while unresolved handoffs stay in the plan index. [History](../docs/history.md) explains its evolution; [development plans](../docs/development-plans/README.md) own implementation scope, validation and handoff. [Safety spec](safety-module.md) owns Evidence Trace; [SKILL.md](../snapgene-dna-design/SKILL.md) and [Recipe reference](../snapgene-dna-design/references/recipes.md) own usage and signatures.
 
 ## Goal and current functionality
 
@@ -42,6 +42,12 @@ Lead the answer with the material conclusion, whether new design is needed and t
 - Bind checks to their actual object and scope: donor structure, exported file, integrated-locus model and cell phenotype are different conclusions. Investigate inherited annotation failures against source and product; neither blanket rejection nor unsupported exemption is acceptable.
 - Sequence/file checks establish their stated computational scope, not wet-lab performance, whole-genome specificity or safety. File hashes bind versions, not biological correctness.
 - Preserve external-service consent, provenance and distribution/license requirements. Local tools do not imply that the host never transmits data.
+
+## Unified contract direction
+
+The [unified molecule contract plan](../docs/development-plans/unified-molecule-contract.md) records the 2026-10-04 agreed direction; only documentation is currently authorized and runtime migration is not yet implemented. Shared molecule semantics and complete transformation responsibility must govern public DNA-tool composition. Internal tool-to-tool format guessing is to be eliminated; external formats retain explicit boundary conversion. Keep host route selection free and operation-specific parameters meaningful.
+
+A schema-valid object is not a correct molecular transformation. Verify real records through consecutive tools and saved-file read-back, preserving the input version, annotations, topology, ends and preparation scope. Use actual performance evidence; do not trade away correctness or material information for speed. Target models/interfaces are owned by [architecture](../docs/architecture.md#统一分子契约目标架构), while the plan owns migration/acceptance. Existing interfaces, thresholds and release status remain current until validated implementation replaces them; recording this direction does not claim the identified defects are repaired.
 
 ## Evidence Trace integration
 
