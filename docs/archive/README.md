@@ -15,3 +15,5 @@
 常用追溯：[v1.0.4通用审查](plans/general-capability-audit-v1.0.4.md)、[v1.0.3宿主交接](plans/workflow-host-readiness-v1.0.3.md)、[v0.3.2实用性修复](plans/workflow-phase-3-usability-repair-v0.3.2.md)、[2026-09-22最终报告](reviews/final-remediation-report.md)、[三层设计](plans/safety-phase-3-three-layer-design-v0.3.1.md)、[人工解释](plans/safety-phase-3-three-layer-review-v0.3.1.md)。
 
 早期原件：[重构清单](RECONSTRUCTION-CHECKLIST-20260903.md)、[开发manifest](DEVELOPMENT-MANIFEST-v0.9.1-dev2.json)、[旧升级记录](upgrade-log.md)。历史叙述不为当前方案重写，移动时只修正引用；具体修改历史仍由Git保留。
+
+2026-10-05：[统一分子契约v2.0.0实施验收](plans/unified-molecule-contract-v2.0.0.md)，包含T01至T09、旧预期调整理由、性能、包验证和六环境代码CI；未关闭外部验证由当前交接继续管理。

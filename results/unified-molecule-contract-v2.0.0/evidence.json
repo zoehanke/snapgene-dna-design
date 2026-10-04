@@ -1020,5 +1020,12 @@
     ],
     "median_seconds": 14.758173700014595,
     "baseline_comparison": "Not applicable to the formerly failing search; no speedup claim"
+  },
+  "validated_code_commit": "9eb9a5071c066b14848057f6efcf0116e8a00e34",
+  "ci": {
+    "url": "https://github.com/zoehanke/snapgene-dna-design/actions/runs/37221939401",
+    "head_sha": "9eb9a5071c066b14848057f6efcf0116e8a00e34",
+    "status": "success",
+    "matrix": "Ubuntu/Windows, Python3.10/3.11/3.12"
   }
 }
