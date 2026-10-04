@@ -45,7 +45,7 @@ def inspect_single_file(file_path: str | pathlib.Path, enzymes: list[str] | None
 
     target_enzymes = enzymes or COMMON_MCS_ENZYMES
 
-    restr_res = find_restriction_sites(rec, enzymes=target_enzymes)
+    restr_res = find_restriction_sites(rec, enzymes=target_enzymes).analysis
     unique_cutters = restr_res.get("unique_cutters", [])
     unique_cutter_details = []
     enzymes_map = restr_res.get("enzymes", {})

@@ -48,15 +48,15 @@ class WorkflowDeliveryTests(unittest.TestCase):
         insert_left = insert.index("TCATGA") + len(BspHI.site) + BspHI.fst3
         insert_right = insert.index("CTCGAG") + len(XhoI.site) + XhoI.fst3
         expected = sequence[:left] + str(Seq(insert[insert_left:insert_right]).reverse_complement()) + sequence[right:]
-        self.assertEqual(result["insert_orientation"], "reverse")
-        self.assertEqual(result["product_sequence"], expected)
+        self.assertEqual(result.analysis['insert_orientation'], "reverse")
+        self.assertEqual(str(result.only_product().seq), expected)
         self.assertEqual(BspHI.search(Seq(expected), linear=False), [])
         self.assertEqual(NcoI.search(Seq(expected), linear=False), [])
         nonpal_vector = SeqRecord(Seq(sequence.replace("CCATGG", "GAATC")),
                                   annotations={"molecule_type": "DNA", "topology": "circular"})
         nonpal_insert = "CGCGATTCATGGCTGCTTAACTCGAGCGC"
         matched = simulate_digest_ligation(nonpal_vector, nonpal_insert, ["HinfI", "XhoI"], orientation="reverse")
-        self.assertEqual(matched["insert_orientation"], "reverse")
+        self.assertEqual(matched.analysis['insert_orientation'], "reverse")
         with self.assertRaisesRegex(ValueError, "Sticky ends"):
             simulate_digest_ligation(nonpal_vector, nonpal_insert.replace("GATTC", "GAATC"),
                                       ["HinfI", "XhoI"], orientation="reverse")
@@ -70,7 +70,7 @@ class WorkflowDeliveryTests(unittest.TestCase):
                                                      "binding_interval_0based": [6, 0]}])
         with tempfile.TemporaryDirectory() as tmp:
             files = export_plasmid(annotated, tmp)
-            observed = read_native_dna_record(files["dna_file"])
+            observed = read_native_dna_record(files.analysis["dna_file"])
             primer = next(f for f in observed.features if f.type == "primer_bind")
             self.assertEqual(str(primer.extract(observed.seq)), "TATA")
             self.assertEqual(primer.qualifiers["primer_sequence"], ["GGCTATA"])
@@ -170,12 +170,12 @@ class WorkflowDeliveryTests(unittest.TestCase):
             {"step_id": "PCR", "tool": "simulate_pcr", "params": {
                 "template": sequence, "f_primer": forward, "r_primer": reverse}},
             {"step_id": "tm", "tool": "calc_primer_tm", "params": {
-                "primer_seq": "$PCR.primers.0.sequence"}},
+                "primer_seq": "$PCR.analysis.primers.0.sequence"}},
         ]
         product, records, _ = run_pipeline_steps(steps, {}, output_step="PCR")
-        self.assertEqual(product, sequence[30:190])
-        self.assertEqual(records[1]["details"]["length"], len(forward))
-        self.assertEqual(records[0]["details"]["template"]["sequence"], sequence)
+        self.assertEqual(str(product.seq), sequence[30:190])
+        self.assertEqual(records[1]["details"]["analysis"]["length"], len(forward))
+        self.assertEqual(records[0]["details"]["analysis"]["template"]["sequence"], sequence)
 
     def test_pipeline_rejects_side_effect_before_writing(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -202,11 +202,11 @@ class WorkflowDeliveryTests(unittest.TestCase):
         source, scaffold = self.pml_template()
         guide = "ACGTCAGTCAGTCTAGTCGA"
         result = prepare_pml104_guide(source, guide)
-        self.assertEqual(len(result["product_sequence"]), len(source) + 18)
-        self.assertTrue(result["product_sequence"].startswith(scaffold + "TTTTTT"))
-        self.assertTrue(result["product_sequence"].endswith(guide))
-        self.assertEqual(result["preparation"][0]["product"]["topology"], "linear")
-        self.assertEqual(result["topology"], "circular")
+        self.assertEqual(len(str(result.only_product().seq)), len(source) + 18)
+        self.assertTrue(str(result.only_product().seq).startswith(scaffold + "TTTTTT"))
+        self.assertTrue(str(result.only_product().seq).endswith(guide))
+        self.assertEqual(result.analysis["preparation"][0]["product"].topology, "linear")
+        self.assertEqual(result.analysis["topology"], "circular")
 
     def test_pml104_rejects_changed_scaffold_not_only_missing_prefix(self):
         source, _ = self.pml_template()
@@ -222,10 +222,10 @@ class WorkflowDeliveryTests(unittest.TestCase):
         source, _ = self.pml_template()
         result = prepare_pml104_guide(source, "ACGTCAGTCAGTCTAGTCGA")
         with tempfile.TemporaryDirectory() as tmp:
-            files = write_preparation_artifacts(result["preparation"], tmp)
+            files = write_preparation_artifacts(result.analysis["preparation"], tmp)
             item = files["steps"][0]
             raw = SgffReader.from_file(item["annotated_source"]["dna_file"])
-            self.assertEqual([p.sequence for p in raw.primers], [p["sequence"] for p in result["primers"]])
+            self.assertEqual([p.sequence for p in raw.primers], [p["sequence"] for p in result.analysis["primers"]])
             saved = SeqIO.read(item["annotated_source"]["gb_file"], "genbank")
             self.assertEqual(saved.seq, source.seq)
             self.assertEqual(saved.annotations["topology"], "circular")

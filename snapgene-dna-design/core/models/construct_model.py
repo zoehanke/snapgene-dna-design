@@ -25,6 +25,9 @@ def _part(start0, end0, original):
         kwargs["ref"] = original.ref
     if getattr(original, "ref_db", None) is not None:
         kwargs["ref_db"] = original.ref_db
+    if (start0-int(original.start)) == (end0-int(original.end)):
+        shift = start0-int(original.start)
+        start0,end0 = original.start+shift,original.end+shift
     return FeatureLocation(start0, end0, **kwargs)
 
 
@@ -52,6 +55,7 @@ def feature_to_dict(feature, sequence_length=None):
     part_dicts = []
     fuzzy_parts = []
     for part in loc_parts:
+        from core.models.molecule import position_data
         pstrand = 0 if part.strand is None else int(part.strand)
         part_dicts.append({
             "start0": int(part.start),
@@ -59,6 +63,10 @@ def feature_to_dict(feature, sequence_length=None):
             "start": int(part.start) + 1,
             "end": int(part.end),
             "strand": pstrand,
+            "start_position": position_data(part.start),
+            "end_position": position_data(part.end),
+            "ref": part.ref,
+            "ref_db": part.ref_db,
         })
         if (not isinstance(part.start, ExactPosition) or
                 not isinstance(part.end, ExactPosition)):
@@ -88,6 +96,7 @@ def feature_to_dict(feature, sequence_length=None):
         "strand": strand,
         "start": int(loc.start) + 1,
         "end": int(loc.end),
+        "interval_0based": [int(loc.start),int(loc.end)],
         "qualifiers": qualifiers,
         "location": {
             "coordinate_system": COORDINATE_SYSTEM,
@@ -159,13 +168,10 @@ class ConstructModel:
         qualifiers["note"] = note_values
         updated.qualifiers = qualifiers
 
-    def _clear_letter_annotations(self, reason):
-        if self.record.letter_annotations:
-            self.record.letter_annotations = {}
-            self.warnings.append(
-                "per-letter annotations removed after %s because inserted/deleted "
-                "bases have no defined annotation values" % reason
-            )
+    def _take_letter_annotations(self):
+        values=copy.deepcopy(dict(self.record.letter_annotations))
+        self.record.letter_annotations={}
+        return values
 
     def insert(self, pos0, sequence):
         if not (0 <= pos0 <= self.length):
@@ -188,9 +194,12 @@ class ConstructModel:
                 self._mark_cds_disrupted(original, updated, "insertion")
 
         self._replace_parts(transform, annotate)
-        self._clear_letter_annotations("insertion")
+        letters=self._take_letter_annotations()
         old = str(self.record.seq)
         self.record.seq = Seq(old[:pos0] + text + old[pos0:])
+        for key,values in letters.items():
+            self.record.letter_annotations[key]=list(values[:pos0])+[None]*delta+list(values[pos0:])
+        if letters:self.warnings.append('Inserted bases have unknown per-letter metadata; retained source positions are mapped')
         return self
 
     def delete(self, start0, end0):
@@ -217,9 +226,11 @@ class ConstructModel:
                 self._mark_cds_disrupted(original, updated, "deletion")
 
         self._replace_parts(transform, annotate)
-        self._clear_letter_annotations("deletion")
+        letters=self._take_letter_annotations()
         old = str(self.record.seq)
         self.record.seq = Seq(old[:start0] + old[end0:])
+        for key,values in letters.items():
+            self.record.letter_annotations[key]=values[:start0]+values[end0:]
         return self
 
     def replace(self, start0, end0, sequence):
@@ -242,6 +253,10 @@ class ConstructModel:
         }
         if changed_positions:
             self._refresh_changed_cds_translations(changed_positions)
+            for key,values in list(self.record.letter_annotations.items()):
+                mapped=list(values)
+                for position in changed_positions:mapped[position]=None
+                self.record.letter_annotations[key]=mapped
         return self
 
     def _refresh_changed_cds_translations(self, changed_positions):

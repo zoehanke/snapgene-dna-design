@@ -11,7 +11,7 @@ from Bio.SeqRecord import SeqRecord
 
 from core.errors import PlanningError, TaskValidationError
 from core.evidence_chain import validate_goal_components
-from core.handlers.base import TaskHandler, record_slice, replace_record, product_features
+from core.handlers.base import planned_molecule, TaskHandler, record_slice, replace_record, product_features
 from core.io.input_resolution import resolve_sequence_record
 from core.models.construct_model import ConstructModel
 
@@ -204,6 +204,7 @@ class RestrictionLigationHandler(TaskHandler):
             "product_topology": "circular",
             "product_sequence": product_seq,
             "product_features": product_features(product_rec, product_seq),
+            "product_molecule": planned_molecule(product_rec, task).to_dict(),
             "product_sequence_sha256": hashlib.sha256(product_seq.encode("utf-8")).hexdigest().upper(),
             "expected_components": expected_components,
             "forbidden_components": list(task.get("product", {}).get("forbidden_components", [])),

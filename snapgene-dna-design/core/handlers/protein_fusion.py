@@ -9,7 +9,7 @@ from Bio.SeqRecord import SeqRecord
 
 from core.errors import PlanningError, TaskValidationError
 from core.evidence_chain import validate_goal_components
-from core.handlers.base import TaskHandler, record_slice, product_features
+from core.handlers.base import planned_molecule, TaskHandler, record_slice, product_features
 from core.io.input_resolution import resolve_sequence_record
 from core.interval import extract_interval
 
@@ -225,6 +225,7 @@ class ProteinFusionHandler(TaskHandler):
             "product_topology": "linear",
             "product_sequence": product,
             "product_features": product_features(product_record, product),
+            "product_molecule": planned_molecule(product_record, task).to_dict(),
             "product_sequence_sha256": hashlib.sha256(product.encode("utf-8")).hexdigest().upper(),
             "expected_components": expected_components,
             "forbidden_components": list(task.get("product", {}).get("forbidden_components", [])),

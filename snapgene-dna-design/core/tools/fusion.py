@@ -5,8 +5,14 @@ Fuses two protein coding sequences with optional linkers, stripping premature
 stop codons and maintaining reading frames.
 """
 from __future__ import annotations
+from typing import Any
 
+import copy
 from Bio.Seq import Seq
+from Bio.SeqFeature import FeatureLocation, SeqFeature
+from Bio.SeqRecord import SeqRecord
+from core.models.molecule import MoleculeInput, as_molecule, derived_molecule
+from core.tools.result import ToolResult, check_result
 
 from core.tools.sequence_ops import check_reading_frame
 
@@ -15,12 +21,12 @@ STOP_CODONS = {"TAA", "TAG", "TGA"}
 
 
 def fuse_in_frame(
-    partner5_seq: str,
-    partner3_seq: str,
-    linker_seq: str = "",
+    partner5_seq: MoleculeInput,
+    partner3_seq: MoleculeInput,
+    linker_seq: MoleculeInput = "",
     strip_p5_stop: bool = True,
     add_terminal_stop: bool = True,
-) -> dict:
+) -> ToolResult:
     """Fuse two protein coding sequences in frame with optional linker.
 
     Args:
@@ -34,9 +40,8 @@ def fuse_in_frame(
         dict with fusion_sequence, fusion_length, translation, in_frame status,
         and stop codon report.
     """
-    p5 = str(partner5_seq).strip().upper()
-    p3 = str(partner3_seq).strip().upper()
-    linker = str(linker_seq).strip().upper()
+    sources = [as_molecule(value) for value in (partner5_seq, partner3_seq, linker_seq)]
+    p5, p3, linker = [str(record.seq).upper() for record in sources]
 
     p5_stop_stripped = False
     if strip_p5_stop and len(p5) >= 3 and p5[-3:] in STOP_CODONS:
@@ -58,10 +63,22 @@ def fuse_in_frame(
         p3 += "TAA"
 
     fusion_dna = p5 + linker + p3
-    rf_audit = check_reading_frame(fusion_dna)
+    rf_audit = check_reading_frame(fusion_dna).analysis
 
-    return {
-        "fusion_sequence": fusion_dna,
+    from core.tools.sequence_ops import slice_record_interval
+    record = SeqRecord(Seq(fusion_dna), id='fusion', annotations={'molecule_type': 'DNA', 'topology': 'linear'})
+    offset = 0
+    for original, sequence in ((sources[0], p5), (sources[2], linker), (sources[1], p3)):
+        retained = slice_record_interval(original, 0, min(len(sequence), len(original)))
+        for feature in retained.features:
+            record.features.append(feature._shift(offset))
+        offset += len(sequence)
+    if rf_audit['valid']:
+        record.features.append(SeqFeature(FeatureLocation(0, len(record), strand=1), type='CDS',
+                qualifiers={'label': ['fusion_CDS'], 'translation': [rf_audit['translation'].rstrip('*')]}))
+    product = derived_molecule(record, sources, operation='fuse_in_frame')
+    return ToolResult(products=[product], checks=[check_result('reading_frame', subject=product,
+            status='PASSED' if rf_audit['valid'] else 'FAILED', scope='complete_CDS', details=rf_audit)], analysis={
         "fusion_length": len(fusion_dna),
         "partner5_length": len(p5),
         "partner5_stop_stripped": p5_stop_stripped,
@@ -72,7 +89,7 @@ def fuse_in_frame(
         "premature_stop_positions": rf_audit["premature_stop_positions"],
         "terminal_stop": rf_audit["terminal_stop"],
         "translation": rf_audit["translation"],
-    }
+    })
 
 
 STANDARD_ELEMENTS: dict[str, dict[str, Any]] = {
@@ -232,7 +249,7 @@ STANDARD_ELEMENTS: dict[str, dict[str, Any]] = {
 }
 
 
-def get_standard_element(name: str) -> dict[str, Any]:
+def get_standard_element(name: str) -> ToolResult:
     """Retrieve nucleotide sequence, amino acid translation, and color of a standard biological part.
 
     Args:
@@ -274,7 +291,12 @@ def get_standard_element(name: str) -> dict[str, Any]:
 
     key = alias_map.get(clean_name, clean_name)
     if key in STANDARD_ELEMENTS:
-        return dict(STANDARD_ELEMENTS[key])
+        data = dict(STANDARD_ELEMENTS[key])
+        record = SeqRecord(Seq(data.pop('dna')), id=data['name'], annotations={'molecule_type':'DNA','topology':'linear'})
+        record.features = [SeqFeature(FeatureLocation(0,len(record),strand=1),type='misc_feature',qualifiers={'label':[data['name']]})]
+        product = derived_molecule(record, operation='get_standard_element')
+        data['scope'] = 'reference_sequence_component'
+        return ToolResult(products=[product],analysis=data)
 
     available = list(STANDARD_ELEMENTS.keys())
     raise ValueError(f"Unknown standard element '{name}'. Available elements: {available}")

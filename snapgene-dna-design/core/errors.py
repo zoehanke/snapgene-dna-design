@@ -59,3 +59,8 @@ class ValidationError(CoreError):
 class GateRejected(CoreError):
     """The authoritative gate refused to emit a formal product."""
     status = "blocked"
+
+
+class ToolExecutionError(CoreError, ValueError):
+    """Uniform public-tool failure; retains ValueError compatibility for callers."""
+    status = "failed"

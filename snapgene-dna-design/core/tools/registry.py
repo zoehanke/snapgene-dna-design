@@ -13,17 +13,50 @@ from typing import Any, Callable, Literal
 from Bio.SeqRecord import SeqRecord
 
 
+MOLECULE_INPUT_SCHEMA = {
+    'anyOf': [{'type': 'string'}, {'type': 'object', 'required': ['sequence'],
+        'properties': {'sequence': {'type': 'string'},
+                       'topology': {'enum': ['linear', 'circular', None]}}}],
+}
+
+
 def _schema_value(value):
-    """Check the sequence-shaped JSON view while passing annotated records intact."""
+    from core.models.molecule import ProteinSequence
+    if isinstance(value,ProteinSequence):
+        raise ValueError('Protein analysis cannot be used as DNA input')
+    from Bio.Seq import Seq
+    if isinstance(value, Seq):
+        return str(value)
     if isinstance(value, SeqRecord):
-        return str(value.seq)
+        return {'sequence': str(value.seq), 'topology': value.annotations.get('topology')}
     if isinstance(value, dict):
         return {key: _schema_value(item) for key, item in value.items()}
-    if isinstance(value, list):
+    if isinstance(value, (list, tuple)):
         return [_schema_value(item) for item in value]
-    return value
+    from pathlib import Path
+    return str(value) if isinstance(value, Path) else value
 
-ToolCategory = Literal["compute", "inspect", "write", "external", "network"]
+
+def _parameter_schema(annotation):
+    import types
+    from typing import get_args, get_origin
+    from Bio.Seq import Seq
+    from pathlib import Path
+    origin, args = get_origin(annotation), get_args(annotation)
+    if annotation in (SeqRecord, Seq) or any(a in (SeqRecord, Seq) for a in args):
+        return MOLECULE_INPUT_SCHEMA.copy()
+    if origin in (list, tuple):
+        return {'type': 'array', 'items': _parameter_schema(args[0]) if args else {}}
+    if origin in (dict,) or annotation is dict:
+        return {'type': 'object'}
+    if origin in (types.UnionType, __import__('typing').Union):
+        alternatives = [_parameter_schema(a) for a in args]
+        return {'anyOf': alternatives} if all(a for a in alternatives) else {}
+    return {str: {'type': 'string'}, int: {'type': 'integer'}, float: {'type': 'number'},
+            bool: {'type': 'boolean'}, type(None): {'type': 'null'}, Path: {'type': 'string'}}.get(annotation, {})
+
+
+ToolCategory = Literal['compute', 'inspect', 'write', 'external', 'network']
 
 
 @dataclass
@@ -33,50 +66,79 @@ class ToolSpec:
     category: ToolCategory
     description: str
     parameters_schema: dict[str, Any]
-    result_type: str = "any"
-    sequence_output_key: str | None = None
     param_aliases: dict[str, str] = field(default_factory=dict)
 
-    def to_definition(self) -> dict[str, Any]:
-        """Format as JSON Schema tool declaration for LLM function calling."""
-        return {
-            "name": self.name,
-            "description": f"[{self.category.upper()}] {self.description}",
-            "category": self.category,
-            "parameters": self.parameters_schema,
-        }
+    def __post_init__(self):
+        import copy
+        import jsonschema
+        from typing import get_type_hints
+        self._signature = inspect.signature(self.callable)
+        self._function = self.callable
+        hints = get_type_hints(self.callable)
+        schema = copy.deepcopy(self.parameters_schema)
+        declarations = schema.get('properties', {})
+        unknown = set(declarations) - set(self._signature.parameters)
+        if unknown:
+            raise ValueError(f'{self.name}: schema declares nonexistent parameters: {sorted(unknown)}')
+        properties, required = {}, []
+        for name, parameter in self._signature.parameters.items():
+            if parameter.kind in (parameter.VAR_POSITIONAL, parameter.VAR_KEYWORD):
+                continue
+            derived = _parameter_schema(hints.get(name))
+            declared = declarations.get(name, {})
+            merged = {**derived, **declared}
+            # Complete molecule inputs and arrays use their actual Python type,
+            # rather than an obsolete string-only declaration.
+            if 'anyOf' in derived or derived.get('type') == 'array':
+                for key in ('type', 'items', 'anyOf'):
+                    merged.pop(key, None)
+                merged.update(derived)
+            merged.pop('default', None)
+            if parameter.default is parameter.empty:
+                required.append(name)
+            else:
+                merged['default'] = parameter.default
+                if parameter.default is None and 'enum' in merged and None not in merged['enum']:
+                    merged['enum'] = [*merged['enum'],None]
+            properties[name] = merged
+        schema.update(type='object', properties=properties, required=required, additionalProperties=False)
+        self.parameters_schema = schema
+        jsonschema.Draft7Validator.check_schema(schema)
+        self._validator = jsonschema.Draft7Validator(schema)
 
-    def adapt_params(self, params: dict[str, Any]) -> dict[str, Any]:
-        """Apply parameter aliases to match the underlying callable signature."""
+    def to_definition(self):
+        return {'name': self.name, 'description': f'[{self.category.upper()}] {self.description}',
+                'category': self.category, 'parameters': self.parameters_schema,
+                'result': {'products': 'Molecule[]', 'analysis': 'object', 'checks': 'ScopedCheck[]'}}
+
+    def adapt_params(self, params):
         adapted = {}
-        for k, v in params.items():
-            target_key = self.param_aliases.get(k, k)
-            adapted[target_key] = v
+        for key, value in params.items():
+            canonical = self.param_aliases.get(key, key)
+            if canonical in adapted:
+                raise ValueError(f'Duplicate canonical argument: {canonical}')
+            adapted[canonical] = value
         return adapted
 
-    def execute(self, **kwargs) -> Any:
-        """Invoke the tool with validated and adapted parameters using inspect.signature().bind()."""
-        import jsonschema
-        adapted = self.adapt_params(kwargs)
-        jsonschema.validate(instance=_schema_value(adapted), schema=self.parameters_schema)
-        sig = inspect.signature(self.callable)
-        bound = sig.bind(**adapted)
-        bound.apply_defaults()
-        return self.callable(*bound.args, **bound.kwargs)
-
-    def extract_sequence(self, result: Any) -> str:
-        """Extract an explicitly declared DNA sequence from a tool result."""
-        if self.result_type == "protein":
-            return ""
-        if isinstance(result, SeqRecord):
-            return str(result.seq).upper()
-        if isinstance(result, str):
-            return result if self.result_type == "string" else ""
-        if isinstance(result, dict) and self.sequence_output_key:
-            sequence = result.get(self.sequence_output_key)
-            if isinstance(sequence, str):
-                return sequence
-        return ""
+    def execute(self, **kwargs):
+        from core.errors import CoreError, ToolExecutionError
+        from core.tools.result import ToolResult
+        try:
+            adapted = self.adapt_params(kwargs)
+            self._validator.validate(_schema_value(adapted))
+            bound = self._signature.bind(**adapted)
+            bound.apply_defaults()
+            result = self._function(*bound.args, **bound.kwargs)
+            if not isinstance(result, ToolResult):
+                raise TypeError(f'{self.name} returned a non-contract result')
+            return result
+        except CoreError:
+            raise
+        except Exception as exc:
+            message = str(exc)
+            prefix = message.split(':', 1)[0]
+            code = getattr(exc,'error_code',None) or (prefix if prefix.startswith('QC_') else 'TOOL_EXECUTION_FAILED')
+            raise ToolExecutionError(code, message, details={'tool': self.name, 'exception': type(exc).__name__}) from exc
 
 
 # Global Registry Map
@@ -93,6 +155,27 @@ def register_tool(spec: ToolSpec) -> None:
     if spec.name in TOOL_REGISTRY:
         raise DuplicateToolRegistration(f"Tool '{spec.name}' is already registered in TOOL_REGISTRY.")
     TOOL_REGISTRY[spec.name] = spec
+    # Direct Python and registered calls use this same cached declaration.
+    # This validates/errors only; it never transforms or reconstructs DNA.
+    import functools
+    import sys
+    original = spec._function
+    @functools.wraps(original)
+    def public(*args, **kwargs):
+        try:
+            bound = spec._signature.bind(*args, **spec.adapt_params(kwargs))
+        except TypeError as exc:
+            from core.errors import ToolExecutionError
+            raise ToolExecutionError('TOOL_ARGUMENT_INVALID', str(exc), details={'tool': spec.name}) from exc
+        return spec.execute(**bound.arguments)
+    spec.callable = public
+    module = sys.modules.get(original.__module__)
+    if module is not None and getattr(module, original.__name__, None) is original:
+        for alias,value in list(vars(module).items()):
+            if value is original:setattr(module,alias,public)
+    package = sys.modules.get('core.tools')
+    if package is not None and getattr(package, original.__name__, None) is original:
+        setattr(package, original.__name__, public)
 
 
 def get_tool(name: str) -> ToolSpec | None:
@@ -119,6 +202,7 @@ def init_default_registry() -> None:
         simulate_pcr,
     )
     from core.tools.assembly import (
+        ligate_fragments,
         simulate_digest_ligation,
         simulate_golden_gate,
         simulate_overlap_assembly,
@@ -155,6 +239,7 @@ def init_default_registry() -> None:
         find_restriction_sites,
     )
     from core.tools.sequence_ops import (
+        rotate_sequence,
         check_reading_frame,
         extract_subsequence,
         mutate_sequence,
@@ -169,6 +254,12 @@ def init_default_registry() -> None:
     )
 
     tools = [
+        ToolSpec('rotate_sequence',rotate_sequence,'compute',
+                 'Rotate the origin of a circular Molecule, retaining sequence, annotations and input version.',
+                 {'properties':{'origin_0based':{'minimum':0}}}),
+        ToolSpec('ligate_fragments',ligate_fragments,'compute',
+                 'Join prepared linear double-stranded Molecules with explicit compatible physical ends; no re-digestion.',
+                 {'properties':{}}),
         ToolSpec(
             name="inspect_dna",
             callable=inspect_dna,
@@ -182,7 +273,7 @@ def init_default_registry() -> None:
                 "required": ["file_path_or_record"],
             },
             param_aliases={"file_path": "file_path_or_record", "file": "file_path_or_record", "record": "file_path_or_record"},
-            result_type="dict",
+
         ),
         ToolSpec(
             name="summarize_backbone",
@@ -196,7 +287,7 @@ def init_default_registry() -> None:
                 },
                 "required": ["file_path_or_record"],
             },
-            result_type="dict",
+
         ),
         ToolSpec(
             name="get_feature",
@@ -219,8 +310,7 @@ def init_default_registry() -> None:
                 "name": "name_or_type",
                 "feature_name": "name_or_type",
             },
-            sequence_output_key="sequence",
-            result_type="dict",
+
         ),
         ToolSpec(
             name="find_open_reading_frames",
@@ -237,7 +327,7 @@ def init_default_registry() -> None:
                 "required": ["file_path_or_seq"],
             },
             param_aliases={"seq": "file_path_or_seq", "dna_seq": "file_path_or_seq", "min_len_aa": "min_length_aa"},
-            result_type="list",
+
         ),
         ToolSpec(
             name="find_restriction_sites",
@@ -253,7 +343,7 @@ def init_default_registry() -> None:
                 },
                 "required": ["file_path_or_seq"],
             },
-            result_type="dict",
+
         ),
         ToolSpec(
             name="digest_sequence",
@@ -269,7 +359,7 @@ def init_default_registry() -> None:
                 },
                 "required": ["seq", "enzyme"],
             },
-            result_type="dict",
+
         ),
         ToolSpec(
             name="digest_type_iis",
@@ -284,8 +374,7 @@ def init_default_registry() -> None:
                 },
                 "required": ["fragment_seq"],
             },
-            sequence_output_key="insert_core",
-            result_type="dict",
+
         ),
         ToolSpec(
             name="fill_or_chew_overhang",
@@ -303,8 +392,7 @@ def init_default_registry() -> None:
                 },
                 "required": ["seq"],
             },
-            sequence_output_key="sequence",
-            result_type="dict",
+
         ),
         ToolSpec(
             name="check_overhang_compatibility",
@@ -321,7 +409,7 @@ def init_default_registry() -> None:
                 },
                 "required": ["overhang1", "overhang2"],
             },
-            result_type="dict",
+
         ),
         ToolSpec(
             name="extract_subsequence",
@@ -340,9 +428,9 @@ def init_default_registry() -> None:
                 },
                 "required": ["file_path_or_record", "start", "end"],
             },
-            sequence_output_key="sequence",
+
             param_aliases={"source": "file_path_or_record"},
-            result_type="dict",
+
         ),
         ToolSpec(
             name="check_reading_frame",
@@ -359,7 +447,7 @@ def init_default_registry() -> None:
                 "required": ["dna_seq"],
             },
             param_aliases={"seq": "dna_seq", "seq_or_record": "dna_seq", "table_id": "transl_table"},
-            result_type="dict",
+
         ),
         ToolSpec(
             name="mutate_sequence",
@@ -374,9 +462,9 @@ def init_default_registry() -> None:
                 },
                 "required": ["dna_seq", "mutations"],
             },
-            sequence_output_key="sequence",
+
             param_aliases={"seq": "dna_seq"},
-            result_type="dict",
+
         ),
         ToolSpec(
             name="strip_terminal_codons",
@@ -392,9 +480,9 @@ def init_default_registry() -> None:
                 },
                 "required": ["cds_seq"],
             },
-            sequence_output_key="sequence",
+
             param_aliases={"seq": "cds_seq", "dna_seq": "cds_seq"},
-            result_type="dict",
+
         ),
         ToolSpec(
             name="calc_primer_tm",
@@ -410,7 +498,7 @@ def init_default_registry() -> None:
                 },
                 "required": ["primer_seq"],
             },
-            result_type="dict",
+
         ),
         ToolSpec(
             name="check_primer_dimers",
@@ -425,7 +513,7 @@ def init_default_registry() -> None:
                 },
                 "required": ["primer1"],
             },
-            result_type="dict",
+
         ),
         ToolSpec(
             name="design_overhang_primers",
@@ -450,7 +538,7 @@ def init_default_registry() -> None:
                 "required": ["template_record_or_seq", "start", "end"],
             },
             param_aliases={"template": "template_record_or_seq"},
-            result_type="dict",
+
         ),
         ToolSpec(
             name="anneal_oligos",
@@ -465,8 +553,7 @@ def init_default_registry() -> None:
                 },
                 "required": ["top_oligo", "bottom_oligo"],
             },
-            sequence_output_key="duplex_core",
-            result_type="dict",
+
         ),
         ToolSpec(
             name="prepare_pcr_fragment",
@@ -486,8 +573,8 @@ def init_default_registry() -> None:
                 },
                 "required": ["template", "start", "end"],
             },
-            result_type="dict",
-            sequence_output_key="sequence",
+
+
         ),
         ToolSpec(
             name="simulate_pcr",
@@ -509,9 +596,9 @@ def init_default_registry() -> None:
                 },
                 "required": ["template_path_or_seq", "f_primer", "r_primer"],
             },
-            sequence_output_key="amplicon",
+
             param_aliases={"template": "template_path_or_seq"},
-            result_type="dict",
+
         ),
         ToolSpec(
             name="simulate_overlap_assembly",
@@ -527,8 +614,7 @@ def init_default_registry() -> None:
                 },
                 "required": ["fragments"],
             },
-            sequence_output_key="product_sequence",
-            result_type="dict",
+
         ),
         ToolSpec(
             name="simulate_golden_gate",
@@ -544,8 +630,7 @@ def init_default_registry() -> None:
                 },
                 "required": ["fragments"],
             },
-            sequence_output_key="product_sequence",
-            result_type="dict",
+
         ),
         ToolSpec(
             name="simulate_digest_ligation",
@@ -563,9 +648,9 @@ def init_default_registry() -> None:
                 },
                 "required": ["vector_source", "insert_source", "vector_enzymes"],
             },
-            sequence_output_key="product_sequence",
+
             param_aliases={"vector": "vector_source", "insert": "insert_source"},
-            result_type="dict",
+
         ),
         ToolSpec(
             name="fuse_in_frame",
@@ -583,9 +668,9 @@ def init_default_registry() -> None:
                 },
                 "required": ["partner5_seq", "partner3_seq"],
             },
-            sequence_output_key="fusion_sequence",
+
             param_aliases={"partner5": "partner5_seq", "partner3": "partner3_seq", "linker": "linker_seq"},
-            result_type="dict",
+
         ),
         ToolSpec(
             name="get_standard_element",
@@ -599,8 +684,7 @@ def init_default_registry() -> None:
                 },
                 "required": ["name"],
             },
-            sequence_output_key="dna",
-            result_type="dict",
+
         ),
         ToolSpec(
             name="design_crispr_grna",
@@ -618,7 +702,7 @@ def init_default_registry() -> None:
                 "required": ["target_seq_or_file"],
             },
             param_aliases={"target": "target_seq_or_file"},
-            result_type="dict",
+
         ),
         ToolSpec(
             name="prepare_grna_oligos",
@@ -633,7 +717,7 @@ def init_default_registry() -> None:
                 },
                 "required": ["spacer_seq"],
             },
-            result_type="dict",
+
         ),
         ToolSpec(
             name="prepare_pml104_guide",
@@ -646,8 +730,7 @@ def init_default_registry() -> None:
                                "spacer_seq": {"type": "string"}},
                 "required": ["vector_record_or_seq", "spacer_seq"],
             },
-            sequence_output_key="product_sequence",
-            result_type="dict",
+
         ),
         ToolSpec(
             name="design_hdr_donor",
@@ -673,9 +756,9 @@ def init_default_registry() -> None:
                 },
                 "required": ["target_seq_or_file", "cut_position_0based", "edit_dna"],
             },
-            sequence_output_key="donor_sequence",
+
             param_aliases={"target": "target_seq_or_file", "cut_position": "cut_position_0based"},
-            result_type="dict",
+
         ),
         ToolSpec(
             name="extract_homology_arms",
@@ -696,7 +779,7 @@ def init_default_registry() -> None:
                 "required": ["target_seq_or_file", "cut_position_0based"],
             },
             param_aliases={"target": "target_seq_or_file", "cut_position": "cut_position_0based"},
-            result_type="dict",
+
         ),
         ToolSpec(
             name="annotate_feature",
@@ -723,7 +806,7 @@ def init_default_registry() -> None:
                 "start_0based": "start",
                 "end_0based": "end",
             },
-            result_type="object",
+
         ),
         ToolSpec(
             name="migrate_features_after_assembly",
@@ -740,7 +823,7 @@ def init_default_registry() -> None:
                 "required": ["fragments", "total_length"],
             },
             param_aliases={"fragments_features": "fragments", "product_length": "total_length"},
-            result_type="list",
+
         ),
         ToolSpec(
             name="reverse_complement",
@@ -754,7 +837,7 @@ def init_default_registry() -> None:
                 },
                 "required": ["seq"],
             },
-            result_type="string",
+
         ),
         ToolSpec(
             name="translate_dna",
@@ -771,7 +854,7 @@ def init_default_registry() -> None:
                 "required": ["seq"],
             },
             param_aliases={"seq_or_record": "seq", "dna_seq": "seq", "table_id": "table"},
-            result_type="protein",
+
         ),
         ToolSpec(
             name="get_codon_synonyms",
@@ -786,7 +869,7 @@ def init_default_registry() -> None:
                 },
                 "required": ["codon"],
             },
-            result_type="list",
+
         ),
         ToolSpec(
             name="silent_mutation_remove_site",
@@ -802,9 +885,9 @@ def init_default_registry() -> None:
                 },
                 "required": ["cds_seq", "enzyme_name"],
             },
-            sequence_output_key="mutated_seq",
+
             param_aliases={"enzyme": "enzyme_name"},
-            result_type="dict",
+
         ),
         ToolSpec(
             name="export_snapgene",
@@ -821,7 +904,7 @@ def init_default_registry() -> None:
                 },
                 "required": ["record_or_seq", "out_dir"],
             },
-            result_type="dict",
+
         ),
         ToolSpec(
             name="open_in_snapgene",
@@ -835,7 +918,7 @@ def init_default_registry() -> None:
                 },
                 "required": ["file_path"],
             },
-            result_type="dict",
+
         ),
         ToolSpec(
             name="query_lab_experience",
@@ -850,7 +933,7 @@ def init_default_registry() -> None:
                     "max_results": {"type": "integer", "default": 5},
                 },
             },
-            result_type="list",
+
         ),
         ToolSpec(
             name="get_experience_categories",
@@ -858,7 +941,7 @@ def init_default_registry() -> None:
             category="compute",
             description="List categories in experience rules store.",
             parameters_schema={"type": "object", "properties": {}},
-            result_type="list",
+
         ),
         ToolSpec(
             name="get_experience_rule_by_id",
@@ -870,7 +953,7 @@ def init_default_registry() -> None:
                 "properties": {"rule_id": {"type": "string"}},
                 "required": ["rule_id"],
             },
-            result_type="dict",
+
         ),
         ToolSpec(
             name="list_all_experience_rules",
@@ -878,7 +961,7 @@ def init_default_registry() -> None:
             category="compute",
             description="List all available wet-lab experience rules.",
             parameters_schema={"type": "object", "properties": {}},
-            result_type="list",
+
         ),
     ]
 

@@ -62,7 +62,7 @@ class AtomicToolsTests(unittest.TestCase):
         rec = _make_record("ATGATGGCTGCTGCTTAA", "pTest", "circular", features=(feat,))
         path = self._write_gb(rec, "pTest.gb")
 
-        res = inspect_dna(path)
+        res = inspect_dna(path).analysis
         self.assertEqual(res["sequence_length"], 18)
         self.assertEqual(res["topology"], "circular")
         self.assertEqual(res["feature_count"], 1)
@@ -73,17 +73,17 @@ class AtomicToolsTests(unittest.TestCase):
 
     def test_get_and_annotate_feature(self):
         rec = _make_record("ATGCATGCATGC", "rec", "circular")
-        annotate_feature(rec, "GFP", "CDS", 0, 6, strand=1)
+        rec = annotate_feature(rec, "GFP", "CDS", 0, 6, strand=1).only_product()
         path = self._write_gb(rec, "with_feat.gb")
 
         extracted = get_feature(path, "GFP")
         self.assertIsNotNone(extracted)
-        self.assertEqual(extracted["name"], "GFP")
-        self.assertEqual(extracted["sequence"], "ATGCAT")
+        self.assertEqual(extracted.analysis["matches"][0]['name'], "GFP")
+        self.assertEqual(str(extracted.only_product().seq), "ATGCAT")
 
     def test_find_restriction_sites(self):
         seq = "AAAAAGAATTCCCCCGGTCTCAGTGAGACCGGGGG"
-        res = find_restriction_sites(seq, enzymes=["EcoRI", "BsaI", "BamHI"])
+        res = find_restriction_sites(seq, enzymes=["EcoRI", "BsaI", "BamHI"]).analysis
         self.assertEqual(res["enzymes"]["EcoRI"]["cut_count"], 1)
         self.assertTrue(res["enzymes"]["BsaI"]["is_type_iis"])
         self.assertEqual(res["enzymes"]["BamHI"]["cut_count"], 0)
@@ -94,15 +94,15 @@ class AtomicToolsTests(unittest.TestCase):
         rec = _make_record("ATGCATGCATGC", "test", "circular")
         path = self._write_gb(rec, "test.gb")
         fwd = extract_subsequence(path, 0, 4, strand=1)
-        self.assertEqual(fwd["sequence"], "ATGC")
+        self.assertEqual(str(fwd.only_product().seq), "ATGC")
         rev = extract_subsequence(path, 0, 4, strand=-1)
-        self.assertEqual(rev["sequence"], "GCAT")
+        self.assertEqual(str(rev.only_product().seq), "GCAT")
 
     def test_reverse_complement_and_translate(self):
-        self.assertEqual(reverse_complement("ATGC"), "GCAT")
+        self.assertEqual(str(reverse_complement("ATGC").only_product().seq), "GCAT")
         # ATG GCT GCT TAA -> MAA*
-        self.assertEqual(translate_dna("ATGGCTGCTTAA", frame=1), "MAA*")
-        self.assertEqual(translate_dna("AATGGCTGCTTAA", frame=2), "MAA*")
+        self.assertEqual(translate_dna("ATGGCTGCTTAA", frame=1).analysis['translation'], "MAA*")
+        self.assertEqual(translate_dna("AATGGCTGCTTAA", frame=2).analysis['translation'], "MAA*")
 
     def test_silent_mutation_remove_site(self):
         # EcoRI site: GAATTC in frame 0 (GAA TTC -> Glu Phe)
@@ -110,9 +110,9 @@ class AtomicToolsTests(unittest.TestCase):
         # Glu is GAA or GAG. If GAA -> GAG, the sequence becomes GAGTTC (no EcoRI, still Glu-Phe!)
         cds = "ATGGTTGAATTCAAGTAA"
         res = silent_mutation_remove_site(cds, "EcoRI", frame_offset=0)
-        self.assertTrue(res["site_removed"])
-        self.assertTrue(res["identical_translation"])
-        self.assertNotIn("GAATTC", res["mutated_seq"])
+        self.assertTrue(res.analysis['site_removed'])
+        self.assertTrue(res.analysis['identical_translation'])
+        self.assertNotIn("GAATTC", str(res.only_product().seq))
 
     def test_fuse_in_frame(self):
         # Partner5: ATG GCT TAA (strips TAA)
@@ -120,23 +120,23 @@ class AtomicToolsTests(unittest.TestCase):
         # 6xHis tag: CAT CAT CAT CAT CAT CAT
         his_tag = "CATCATCATCATCATCAT"
         res = fuse_in_frame(p5, his_tag, linker_seq="GGA", add_terminal_stop=True)
-        self.assertTrue(res["is_in_frame"])
-        self.assertFalse(res["has_premature_stop"])
-        self.assertTrue(res["terminal_stop"])
+        self.assertTrue(res.analysis['is_in_frame'])
+        self.assertFalse(res.analysis['has_premature_stop'])
+        self.assertTrue(res.analysis['terminal_stop'])
         # Translation should be: M A G H H H H H H *
-        self.assertEqual(res["translation"], "MAGHHHHHH*")
+        self.assertEqual(res.analysis['translation'], "MAGHHHHHH*")
 
     def test_check_reading_frame(self):
-        in_frame = check_reading_frame("ATGGCTGCTTAA")
+        in_frame = check_reading_frame("ATGGCTGCTTAA").analysis
         self.assertTrue(in_frame["is_multiple_of_three"])
         self.assertFalse(in_frame["has_premature_stop"])
         self.assertTrue(in_frame["terminal_stop"])
         self.assertEqual(in_frame["translation"], "MAA*")
 
-        shift = check_reading_frame("ATGGCTGCTTAAG")
+        shift = check_reading_frame("ATGGCTGCTTAAG").analysis
         self.assertFalse(shift["is_multiple_of_three"])
 
-        premature = check_reading_frame("ATGTAAGCTTAA")
+        premature = check_reading_frame("ATGTAAGCTTAA").analysis
         self.assertTrue(premature["has_premature_stop"])
         self.assertEqual(premature["premature_stop_positions"], [3])
 
@@ -147,7 +147,7 @@ class AtomicToolsTests(unittest.TestCase):
         r_primer = "GCGGCCGC" + str(Seq(template[-20:]).reverse_complement())
 
         res = simulate_pcr(template, f_primer, r_primer)
-        amplicon = res["amplicon"]
+        amplicon = str(res.only_product().seq)
         self.assertTrue(amplicon.startswith("GAATTC"))
         self.assertTrue(amplicon.endswith("GCGGCCGC"))
         self.assertIn(template[20:40], amplicon)
@@ -158,13 +158,13 @@ class AtomicToolsTests(unittest.TestCase):
         f3 = "GGGGGCCCAAAAATTTTT" + "G" * 40 + "A" * 20
 
         res = simulate_overlap_assembly([f1, f2, f3], min_overlap=15, circular=True)
-        self.assertEqual(res["fragment_count"], 3)
-        self.assertEqual(res["product_topology"], "circular")
-        self.assertEqual(len(res["junctions"]), 3)
+        self.assertEqual(res.analysis['fragment_count'], 3)
+        self.assertEqual(res.analysis['product_topology'], "circular")
+        self.assertEqual(len(res.analysis['junctions']), 3)
 
     def test_export_snapgene(self):
         rec = _make_record("ATGCATGCATGC" * 10, "myConstruct", "circular")
-        res = export_snapgene(rec, self.tmp, filename_base="myConstruct")
+        res = export_snapgene(rec, self.tmp, filename_base="myConstruct").analysis
         self.assertTrue(pathlib.Path(res["gb_file"]).exists())
         self.assertTrue(pathlib.Path(res["dna_file"]).exists())
         self.assertGreater(pathlib.Path(res["dna_file"]).stat().st_size, 0)
@@ -199,10 +199,10 @@ class AtomicToolsTests(unittest.TestCase):
         p = self._write_gb(rec, "pUC19_mock.gb")
 
         summary = summarize_backbone(p)
-        self.assertEqual(len(summary["origins_of_replication"]), 1)
-        self.assertEqual(summary["origins_of_replication"][0]["name"], "pUC_ori")
-        self.assertEqual(len(summary["selection_markers"]), 1)
-        self.assertIn("Ampicillin", summary["selection_markers"][0]["marker_type"])
+        self.assertEqual(len(summary.analysis["origins_of_replication"]), 1)
+        self.assertEqual(summary.analysis["origins_of_replication"][0]["name"], "pUC_ori")
+        self.assertEqual(len(summary.analysis["selection_markers"]), 1)
+        self.assertIn("Ampicillin", summary.analysis["selection_markers"][0]["marker_type"])
 
     def test_get_feature_aliases_and_return_all(self):
         f1 = SeqFeature(FeatureLocation(0, 30, strand=1), type="CDS", qualifiers={"gene": ["bla"]})
@@ -211,13 +211,15 @@ class AtomicToolsTests(unittest.TestCase):
         p = self._write_gb(rec, "pAmp.gb")
 
         # Alias lookup for 'amp' should find 'bla'
-        found = get_feature(p, "amp")
+        with self.assertRaisesRegex(ValueError,'ambiguous'):
+            get_feature(p,"amp")
+        found = get_feature(p, "bla")
         self.assertIsNotNone(found)
-        self.assertEqual(found["name"], "bla")
+        self.assertEqual(found.analysis["matches"][0]['name'], "bla")
 
         # return_all=True should return both
         all_found = get_feature(p, "amp", return_all=True)
-        self.assertEqual(len(all_found), 2)
+        self.assertEqual(len(all_found.products), 2)
 
     def test_migrate_features_after_assembly(self):
         from core.tools import migrate_features_after_assembly
@@ -235,7 +237,7 @@ class AtomicToolsTests(unittest.TestCase):
                 "features": [{"name": "GFP", "type": "CDS", "interval_0based": [20, 180], "strand": 1}],
             },
         ]
-        migrated = migrate_features_after_assembly(frags, total_length=300, circular=True)
+        migrated = migrate_features_after_assembly(frags, total_length=300, circular=True).analysis['features']
         self.assertEqual(len(migrated), 2)
         # promoter stays at [10, 40]
         self.assertEqual(migrated[0]["interval_0based"], [10, 40])
@@ -246,7 +248,7 @@ class AtomicToolsTests(unittest.TestCase):
         # Sequence containing XbaI (TCTAGA) followed by TC to form Dam methylation motif GATC:
         # TCTAGATC: XbaI site overlapping Dam GATC!
         seq = "AAAAAAAAAATCTAGATCAAAAAAAAAA"
-        res = find_restriction_sites(seq, enzymes=["XbaI"], topology="linear")
+        res = find_restriction_sites(seq, enzymes=["XbaI"], topology="linear").analysis
         xba_cuts = res["enzymes"]["XbaI"]["cuts"]
         self.assertEqual(len(xba_cuts), 1)
         self.assertTrue(len(xba_cuts[0]["methylation_warnings"]) > 0)
@@ -256,21 +258,21 @@ class AtomicToolsTests(unittest.TestCase):
         from core.tools import check_overhang_compatibility
         # EcoRI 5' overhang: AATT. Opposite strand 5' overhang must be AATT as well!
         res = check_overhang_compatibility("AATT", "AATT", type1="5prime", type2="5prime")
-        self.assertTrue(res["compatible"])
+        self.assertTrue(res.analysis["compatible"])
 
         # Mismatched overhangs
         mismatch = check_overhang_compatibility("AATT", "GGCC", type1="5prime", type2="5prime")
-        self.assertFalse(mismatch["compatible"])
+        self.assertFalse(mismatch.analysis["compatible"])
 
         # Blunt ends
         blunt = check_overhang_compatibility("", "", type1="blunt", type2="blunt")
-        self.assertTrue(blunt["compatible"])
+        self.assertTrue(blunt.analysis["compatible"])
 
     def test_calc_primer_tm_and_design_overhang(self):
         from core.tools import calc_primer_tm, design_overhang_primers
         tm_res = calc_primer_tm("ATGCGATCGATCGATCGATC")
-        self.assertGreater(tm_res["tm"], 45.0)
-        self.assertEqual(tm_res["length"], 20)
+        self.assertGreater(tm_res.analysis["tm"], 45.0)
+        self.assertEqual(tm_res.analysis["length"], 20)
 
         # Design primers with 20 bp Gibson homology arms
         rng = random.Random(20260908)
@@ -283,22 +285,22 @@ class AtomicToolsTests(unittest.TestCase):
             rev_5prime_overhang="AAGCTTGATCGATC",
             target_tm=58.0,
         )
-        self.assertTrue(pair["forward_primer"]["full_sequence"].startswith("GGATCCGATCGATC"))
-        self.assertTrue(pair["reverse_primer"]["full_sequence"].startswith("AAGCTTGATCGATC"))
-        self.assertLessEqual(pair["binding_core_delta_tm"], 5.0)
+        self.assertTrue(pair.analysis['forward_primer']["full_sequence"].startswith("GGATCCGATCGATC"))
+        self.assertTrue(pair.analysis['reverse_primer']["full_sequence"].startswith("AAGCTTGATCGATC"))
+        self.assertLessEqual(pair.analysis['binding_core_delta_tm'], 5.0)
 
     def test_get_standard_element(self):
         from core.tools import get_standard_element
         his = get_standard_element("6xHis")
-        self.assertEqual(his["aa"], "HHHHHH")
-        self.assertEqual(his["category"], "tag")
+        self.assertEqual(his.analysis['aa'], "HHHHHH")
+        self.assertEqual(his.analysis['category'], "tag")
 
         g4s = get_standard_element("(G4S)3")
-        self.assertEqual(g4s["aa"], "GGGGSGGGGSGGGGS")
-        self.assertEqual(len(g4s["dna"]) % 3, 0)
+        self.assertEqual(g4s.analysis['aa'], "GGGGSGGGGSGGGGS")
+        self.assertEqual(len(str(g4s.only_product().seq)) % 3, 0)
 
         tev = get_standard_element("TEV")
-        self.assertEqual(tev["aa"], "ENLYFQG")
+        self.assertEqual(tev.analysis['aa'], "ENLYFQG")
 
     def test_simulate_golden_gate(self):
         from core.tools import simulate_golden_gate
@@ -308,18 +310,18 @@ class AtomicToolsTests(unittest.TestCase):
         f2 = "GGTCTC" + "A" + "ATGA" + "C" * 6 + "TGCA" + "A" + "GAGACC"
 
         res = simulate_golden_gate([f1, f2], enzyme="BsaI", circular=True)
-        self.assertEqual(res["product_topology"], "circular")
-        self.assertEqual(res["fragment_count"], 2)
-        self.assertTrue(all(j["compatible"] for j in res["junctions"]))
+        self.assertEqual(res.analysis['product_topology'], "circular")
+        self.assertEqual(res.analysis['fragment_count'], 2)
+        self.assertTrue(all(j["compatible"] for j in res.analysis['junctions']))
         # No BsaI recognition sites left in the assembled product!
-        self.assertNotIn("GGTCTC", res["product_sequence"])
-        self.assertNotIn("GAGACC", res["product_sequence"])
+        self.assertNotIn("GGTCTC", str(res.only_product().seq))
+        self.assertNotIn("GAGACC", str(res.only_product().seq))
 
     def test_crispr_grna_and_oligos(self):
         from core.tools import design_crispr_grna, prepare_grna_oligos
         # Target with SpCas9 site (20 nt spacer + TGG)
         target = "A" * 30 + "GCTGATCGATCGATCGATCA" + "TGG" + "C" * 30
-        guides = design_crispr_grna(target, nuclease="SpCas9")
+        guides = design_crispr_grna(target, nuclease="SpCas9").analysis["candidates"]
         self.assertGreater(len(guides), 0)
         g0 = guides[0]
         self.assertEqual(g0["pam"], "TGG")
@@ -328,8 +330,8 @@ class AtomicToolsTests(unittest.TestCase):
 
         # Prepare oligos for pX458 (BbsI)
         oligos = prepare_grna_oligos(g0["spacer"], vector_type="BbsI")
-        self.assertTrue(oligos["forward_oligo"]["sequence"].startswith("CACC"))
-        self.assertTrue(oligos["reverse_oligo"]["sequence"].startswith("AAAC"))
+        self.assertTrue(oligos.analysis["forward_oligo"]["sequence"].startswith("CACC"))
+        self.assertTrue(oligos.analysis["reverse_oligo"]["sequence"].startswith("AAAC"))
 
     def test_crispr_hdr_donor_design(self):
         from core.tools import design_hdr_donor
@@ -344,27 +346,27 @@ class AtomicToolsTests(unittest.TestCase):
             grna_seq="A" * 20,
             grna_strand=1,
         )
-        self.assertEqual(res["donor_type"], "ssODN")
-        self.assertIn("GAATTC", res["donor_sequence"])
-        self.assertEqual(len(res["left_homology_arm"]), 40)
-        self.assertEqual(len(res["right_homology_arm"]), 40)
+        self.assertEqual(res.analysis['donor_type'], "ssODN")
+        self.assertIn("GAATTC", str(res.only_product().seq))
+        self.assertEqual(len(res.analysis['left_homology_arm']), 40)
+        self.assertEqual(len(res.analysis['right_homology_arm']), 40)
 
     def test_strip_terminal_codons(self):
         from core.tools import strip_terminal_codons
         cds = "ATGGCCAAATAA"
         # Strip both start and stop
         res = strip_terminal_codons(cds, strip_start=True, strip_stop=True)
-        self.assertEqual(res["sequence"], "GCCAAA")
-        self.assertTrue(res["start_stripped"])
-        self.assertTrue(res["stop_stripped"])
+        self.assertEqual(str(res.only_product().seq), "GCCAAA")
+        self.assertTrue(res.analysis['start_stripped'])
+        self.assertTrue(res.analysis['stop_stripped'])
 
     def test_get_codon_synonyms(self):
         from core.tools import get_codon_synonyms
         res = get_codon_synonyms("CTG")
-        self.assertEqual(res["amino_acid"], "L")
-        self.assertIn("CTA", res["synonymous_codons"])
-        self.assertIn("TTG", res["synonymous_codons"])
-        self.assertEqual(res["synonym_count"], 5)
+        self.assertEqual(res.analysis["amino_acid"], "L")
+        self.assertIn("CTA", res.analysis["synonymous_codons"])
+        self.assertIn("TTG", res.analysis["synonymous_codons"])
+        self.assertEqual(res.analysis["synonym_count"], 5)
 
     def test_check_primer_dimers(self):
         from core.tools import check_primer_dimers
@@ -372,8 +374,8 @@ class AtomicToolsTests(unittest.TestCase):
         fwd = "ATGCATGCATGCGGCC"
         rev = "TTTTCCCCAAAAGGCC"
         res = check_primer_dimers(fwd, rev)
-        self.assertTrue(res["high_dimer_risk"])
-        self.assertGreaterEqual(res["max_3prime_complementarity"], 4)
+        self.assertTrue(res.analysis["high_dimer_risk"])
+        self.assertGreaterEqual(res.analysis["max_3prime_complementarity"], 4)
 
     def test_anneal_oligos(self):
         from core.tools import anneal_oligos
@@ -386,9 +388,9 @@ class AtomicToolsTests(unittest.TestCase):
         top = "CACC" + core
         bot = "AAAC" + core_rc
         res = anneal_oligos(top, bot)
-        self.assertEqual(res["duplex_core_sequence"], core)
-        self.assertEqual(res["left_overhang"]["sequence"], "CACC")
-        self.assertEqual(res["right_overhang"]["sequence"], "AAAC")
+        self.assertEqual(res.analysis["duplex_core_sequence"], core)
+        self.assertEqual(res.only_product().left_end.overhang_sequence, "CACC")
+        self.assertEqual(res.only_product().right_end.overhang_sequence, "AAAC")
 
     def test_digest_sequence(self):
         from core.tools import digest_sequence
@@ -396,32 +398,36 @@ class AtomicToolsTests(unittest.TestCase):
         # EcoRI (GAATTC) cuts at 7 (after G)
         # BamHI (GGATCC) cuts at 18 (after G)
         res = digest_sequence(seq, "EcoRI", circular=False)
-        self.assertEqual(res["cut_count"], 1)
-        self.assertEqual(res["fragment_count"], 2)
-        self.assertEqual(res["fragments"][0]["right_overhang"], "AATT")
+        self.assertEqual(res.analysis["cut_count"], 1)
+        self.assertEqual(res.analysis["fragment_count"], 2)
+        self.assertEqual(res.products[0].right_end.overhang_sequence, "AATT")
 
     def test_digest_type_iis(self):
         from core.tools import digest_type_iis
         # BsaI cuts outside recognition
         f = "GGTCTC" + "A" + "TGCA" + "AAAAAA" + "ATGA" + "A" + "GAGACC"
         res = digest_type_iis(f, enzyme="BsaI")
-        self.assertEqual(res["left_overhang"], "TGCA")
-        self.assertEqual(res["right_overhang"], "ATGA")
-        self.assertNotIn("GGTCTC", res["insert_core"])
+        self.assertEqual(res.analysis['left_overhang'], "TGCA")
+        self.assertEqual(res.analysis['right_overhang'], "ATGA")
+        self.assertNotIn("GGTCTC", str(res.only_product().seq))
 
     def test_fill_or_chew_overhang(self):
         from core.tools import fill_or_chew_overhang
         # Fill in 5' AATT overhang
-        res = fill_or_chew_overhang("CCCC", left_overhang="AATT", overhang_type="5prime", action="fill_in")
-        self.assertEqual(res["end_type"], "blunt")
-        self.assertTrue(res["blunted_sequence"].startswith("AATT"))
+        # Retain the old ambiguous core-only input: a missing top-strand
+        # extension cannot be inferred. Correct complete top substrate below.
+        with self.assertRaises(ValueError):
+            fill_or_chew_overhang("CCCC", left_overhang="AATT", overhang_type="5prime", action="fill_in")
+        res = fill_or_chew_overhang("AATTCCCC", left_overhang="AATT", right_overhang="", overhang_type="5prime", action="fill_in")
+        self.assertEqual(res.analysis['end_type'], "blunt")
+        self.assertTrue(str(res.only_product().seq).startswith("AATT"))
 
     def test_extract_homology_arms(self):
         from core.tools import extract_homology_arms
         seq = "A" * 60 + "C" * 60
         res = extract_homology_arms(seq, cut_position_0based=60, left_arm_length=30, right_arm_length=30)
-        self.assertEqual(res["left_homology_arm"], "A" * 30)
-        self.assertEqual(res["right_homology_arm"], "C" * 30)
+        self.assertEqual(res.analysis["left_homology_arm"], "A" * 30)
+        self.assertEqual(res.analysis["right_homology_arm"], "C" * 30)
 
 
 if __name__ == "__main__":

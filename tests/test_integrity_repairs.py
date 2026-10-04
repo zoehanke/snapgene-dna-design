@@ -29,8 +29,8 @@ class IntegrityRepairTests(unittest.TestCase):
             self.assertEqual(sanger['distance_upstream_of_junction_bp'], 350-sanger['interval_0based'][1])
             self.assertTrue(50 <= sanger['distance_upstream_of_junction_bp'] <= 100)
             pcr = details['colony_pcr_simulation']
-            start,end = pcr['template_interval_0based']
-            self.assertEqual(pcr['amplicon'], seq[start:end])
+            start,end = pcr.analysis['template_interval_0based']
+            self.assertEqual(str(pcr.only_product().seq), seq[start:end])
             native = Path(tmp)/'candidate/recipe_cloning_verification.dna'
             with native.open('rb') as handle:
                 reread = SeqIO.read(handle,'snapgene')

@@ -1,6 +1,6 @@
 # Recipe parameter reference
 
-This file mirrors the callable signatures in `core/recipes/`. The CLI accepts JSON values, so use strings or existing sequence-file paths there. Direct Python calls may also pass `SeqRecord` objects and the input resolver accepts serialized records where the implementation allows them. Recipe functions return a `RecipeResult` with sequence, topology, features, primers, checks, warnings, protocol steps, citations, and recipe-specific `details`; the CLI serializes that result.
+This file mirrors `core/recipes/` signatures; query `scripts/describe_tools.py` for the executable definition. CLI inputs accept DNA/file strings or complete molecule wire values. Python also accepts SeqRecord/Molecule. RecipeResult carries complete `products`, `analysis`, scoped `checks`, primers, warnings, protocol/citations and details. Sequence/topology/features in legacy reports are computed projections, not independent DNA outputs. Preparation rows carry actual template/product Molecules; serialize only at the report/file boundary.
 
 ## Common preparation rule
 

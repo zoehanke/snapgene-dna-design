@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import pathlib
 import copy
+import re
+from Bio.Seq import Seq
 from typing import Any
 
 from Bio.SeqFeature import CompoundLocation, FeatureLocation, SeqFeature
@@ -15,10 +17,12 @@ from Bio.SeqRecord import SeqRecord
 
 from core.tools.inspection import _load_record
 from core.models.construct_model import feature_to_dict
+from core.models.molecule import MoleculeInput, as_molecule, derived_molecule
+from core.tools.result import ToolResult
 
 
 FEATURE_ALIASES: dict[str, list[str]] = {
-    "amp": ["amp", "ampr", "bla", "ampicillin", "beta-lactamase"],
+    "amp": ["amp", "ampr", "bla", "ampicillin", "ampicillin_res", "ampicillin resistance", "beta-lactamase"],
     "kan": ["kan", "kanr", "aph", "kanamycin", "neomycin", "neo"],
     "cm": ["cm", "cmr", "cat", "chloramphenicol"],
     "tet": ["tet", "tetr", "tetracycline"],
@@ -46,77 +50,93 @@ def canonical_location_parts(location):
     return (operator if len(parts) > 1 else "", tuple(parts))
 
 
-def get_feature(
-    file_path_or_record: str | pathlib.Path | SeqRecord,
-    name_or_type: str,
-    return_all: bool = False,
-) -> dict[str, Any] | list[dict[str, Any]] | None:
-    """Find and extract specific feature(s) by label/gene/product name, feature type, or alias.
-
-    Args:
-        file_path_or_record: Input sequence file or SeqRecord
-        name_or_type: Name, type, or alias (e.g. "AmpR", "CDS", "ori")
-        return_all: If True, returns a list of all matching features. If False, returns the first match or None.
-
-    Returns:
-        dict or list[dict] with name, type, interval_0based, strand, sequence, qualifiers.
-    """
-    rec = _load_record(file_path_or_record)
-    query_lower = str(name_or_type).strip().lower()
-
-    # Expand query terms using alias dictionary
-    search_terms = {query_lower}
-    for key, aliases in FEATURE_ALIASES.items():
-        if query_lower == key or query_lower in aliases:
-            search_terms.update(aliases)
-
-    matches = []
-    for f in getattr(rec, "features", []):
-        if f.type == "source":
+def get_feature(file_path_or_record: MoleculeInput, name_or_type: str,
+                return_all: bool = False) -> ToolResult:
+    """Select feature identities, never arbitrary substrings or annotation order."""
+    source = as_molecule(file_path_or_record)
+    query = str(name_or_type).strip().casefold()
+    if not query:
+        raise ValueError('Feature query must be nonempty')
+    terms = {query}
+    for canonical, aliases in FEATURE_ALIASES.items():
+        if query == canonical or query in aliases:
+            terms.update(aliases)
+    # Controlled resistance labels are aliases, not substrings of protein names.
+    if terms & {'kan', 'neo'}:
+        terms.update({'neor', 'kanr'})
+    candidates = []
+    for index, feature in enumerate(source.features):
+        if feature.type == 'source':
             continue
-
-        names = []
-        for q in ("label", "gene", "product", "note", "locus_tag"):
-            vals = f.qualifiers.get(q)
-            if vals and isinstance(vals, list):
-                names.extend(str(v) for v in vals)
-            elif vals:
-                names.append(str(vals))
-
-        type_match = (f.type.lower() in search_terms)
-        name_match = any(any(st in n.lower() for st in search_terms) for n in names)
-
-        if name_match or type_match:
-            s0 = int(f.location.start)
-            e0 = int(f.location.end)
-            strand = int(f.location.strand or 1)
-            seq = str(f.extract(rec.seq))
-            matched_name = names[0] if names else f.type
-            extracted_feature = copy.deepcopy(f)
-            extracted_feature.location = FeatureLocation(0, len(seq), strand=1)
-
-            feat_dict = {
-                "name": matched_name,
-                "type": f.type,
-                "interval_0based": [s0, e0],
-                "strand": strand,
-                "length": len(seq),
-                "sequence": seq.upper(),
-                "qualifiers": {k: v for k, v in f.qualifiers.items()},
-                "features": [feature_to_dict(extracted_feature, len(seq))],
-                "topology": "linear",
-            }
-            if not return_all:
-                return feat_dict
-            matches.append(feat_dict)
-
-    if return_all:
-        return matches
-    return None
+        values = []
+        for key in ('label', 'gene', 'locus_tag', 'product'):
+            item = feature.qualifiers.get(key, [])
+            values.extend(str(v) for v in (item if isinstance(item, list) else [item]))
+        if feature.id and feature.id != '<unknown id>':
+            values.append(str(feature.id))
+        folded = [v.strip().casefold() for v in values]
+        tokens = {t.strip() for v in folded for t in re.split(r'[/;|+,]', v)}
+        exact = query in folded
+        alias = bool(terms & (set(folded) | tokens))
+        type_match = feature.type.casefold() == query
+        if exact or alias or type_match:
+            candidates.append((0 if exact else 1 if alias else 2, index, feature, values))
+    if not return_all and candidates:
+        best_rank = min(c[0] for c in candidates)
+        candidates = [c for c in candidates if c[0] == best_rank]
+    if not return_all and len(candidates) != 1:
+        reason = 'not found' if not candidates else 'ambiguous'
+        raise ValueError(f'Feature selection {reason}: {name_or_type!r}; {len(candidates)} candidates; use return_all and explicit selection')
+    products, matches = [], []
+    from core.tools.sequence_ops import _clip_feature_to_interval
+    for _, selected_index, selected, values in candidates:
+        sequence = selected.extract(source.seq)
+        record = SeqRecord(sequence, id=source.id, name=source.name,
+                           description=source.description,
+                           dbxrefs=list(source.dbxrefs),
+                           annotations=copy.deepcopy(source.annotations))
+        record.annotations['topology'] = 'linear'
+        own_feature = copy.deepcopy(selected)
+        own_parts=[]
+        own_offset=0
+        for part in selected.location.parts:
+            length=len(part)
+            local=FeatureLocation(part.start+(-int(part.start)),part.end+(-int(part.start)),strand=part.strand)
+            if part.strand == -1:local=local._flip(length)
+            own_parts.append(FeatureLocation(local.start+own_offset,local.end+own_offset,strand=1))
+            own_offset+=length
+        own_feature.location = own_parts[0] if len(own_parts)==1 else CompoundLocation(own_parts,operator=getattr(selected.location,'operator','join'))
+        record.features = [own_feature]
+        for key,values in source.letter_annotations.items():
+            gathered=[]
+            for part in selected.location.parts:
+                piece=list(values[int(part.start):int(part.end)])
+                gathered.extend(piece[::-1] if part.strand == -1 else piece)
+            record.letter_annotations[key]=gathered
+        mapping, offset = [], 0
+        for part in selected.location.parts:
+            start, end = int(part.start), int(part.end)
+            mapping.append({'start0': start, 'end0': end, 'strand': part.strand})
+            for index, feature in enumerate(source.features):
+                if index == selected_index:
+                    continue
+                clipped = _clip_feature_to_interval(feature, start, end)
+                if clipped is not None:
+                    if part.strand == -1:
+                        clipped = clipped._flip(end - start)
+                    record.features.append(clipped._shift(offset))
+            offset += end - start
+        products.append(derived_molecule(record, [source], operation='get_feature',
+                        strandedness=source.strandedness, mappings=[{'parts': mapping}]))
+        matches.append({'name': values[0] if values else selected.type, 'type': selected.type,
+                        'feature_index': selected_index, 'interval_0based': [int(selected.location.start), int(selected.location.end)],
+                        'source_parts': mapping, 'strand': selected.location.strand,
+                        'length': len(sequence), 'qualifiers': copy.deepcopy(selected.qualifiers)})
+    return ToolResult(products=products, analysis={'matches': matches, 'match_count': len(matches)})
 
 
 def annotate_feature(
-    record: SeqRecord | str | pathlib.Path,
+    record: MoleculeInput,
     name: str,
     feature_type: str = "misc_feature",
     start: int = 0,
@@ -124,11 +144,12 @@ def annotate_feature(
     strand: int = 1,
     color: str = "",
     qualifiers: dict[str, Any] | None = None,
-) -> SeqRecord:
+) -> ToolResult:
     """Add a new annotated feature to a SeqRecord with optional color."""
-    if not isinstance(record, SeqRecord):
-        from core.io.input_resolution import resolve_sequence_record
-        record = resolve_sequence_record(record)
+    source = as_molecule(record)
+    if not 0 <= start < end <= len(source):
+        raise ValueError('Feature interval must satisfy 0 <= start < end <= molecule length')
+    record = copy.deepcopy(source)
 
     q: dict[str, list[str]] = {"label": [name], "gene": [name]}
     if color:
@@ -144,14 +165,16 @@ def annotate_feature(
     loc = FeatureLocation(start, end, strand=strand)
     feat = SeqFeature(loc, type=feature_type, qualifiers=q)
     record.features.append(feat)
-    return record
+    product = derived_molecule(record, [source], operation="annotate_feature",
+                               strandedness=source.strandedness, left_end=source.left_end, right_end=source.right_end)
+    return ToolResult(products=[product])
 
 
 def migrate_features_after_assembly(
     fragments: list[dict[str, Any]],
     total_length: int,
     circular: bool = True,
-) -> list[dict[str, Any]]:
+) -> ToolResult:
     """Recalculate and migrate feature coordinates after multi-fragment assembly.
 
     Args:
@@ -179,24 +202,29 @@ def migrate_features_after_assembly(
         for feature in record.features:
             parts = []
             for part in feature.location.parts:
+                shift = frag_offset
                 start = frag_offset + int(part.start)
-                end = start + len(part)
+                end = frag_offset + int(part.end)
+                if part.ref is not None:
+                    parts.append(copy.deepcopy(part))
+                    continue
                 if circular and total_length > 0:
+                    shift -= (start // total_length) * total_length
                     start %= total_length
                     end = start + len(part)
                     if len(part) > total_length:
                         raise ValueError("Feature exceeds assembled molecule length")
                     if end > total_length:
-                        split = [FeatureLocation(start, total_length, strand=part.strand), FeatureLocation(0, end - total_length, strand=part.strand)]
+                        split = [FeatureLocation(part.start + shift, total_length, strand=part.strand), FeatureLocation(0, part.end + shift-total_length, strand=part.strand)]
                         parts.extend(reversed(split) if part.strand == -1 else split)
                         continue
                 if not 0 <= start <= end <= total_length:
                     raise ValueError("Feature falls outside assembled molecule")
-                parts.append(FeatureLocation(start, end, strand=part.strand))
+                parts.append(FeatureLocation(part.start + shift, part.end + shift, strand=part.strand))
             feature.location = parts[0] if len(parts) == 1 else CompoundLocation(parts, operator=getattr(feature.location, "operator", "join"))
             new_feat = feature_to_dict(feature, total_length)
             new_feat["interval_0based"] = [int(feature.location.start), int(feature.location.end)]
             if new_feat not in migrated:
                 migrated.append(new_feat)
 
-    return migrated
+    return ToolResult(analysis={'features': migrated})

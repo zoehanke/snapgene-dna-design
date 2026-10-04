@@ -1,5 +1,6 @@
 """Reaction annotations must describe the material actually retained by cuts."""
 
+from core.models.construct_model import feature_to_dict
 from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import pathlib
 import tempfile
@@ -49,8 +50,8 @@ class RestrictionAnnotationBoundaryTests(unittest.TestCase):
                 with path.open("w", encoding="utf-8") as stream:
                     SeqIO.write(record, stream, "genbank")
             result = simulate_digest_ligation(paths[0], paths[1], ["EcoRI", "HindIII"])
-        record = resolve_sequence_record({"sequence": result["product_sequence"],
-            "features": result["features"], "topology": "circular"})
+        record = resolve_sequence_record({"sequence": str(result.only_product().seq),
+            "features": [feature_to_dict(f, len(result.only_product())) for f in result.only_product().features], "topology": "circular"})
         feature = next(f for f in record.features if f.qualifiers.get("label") == ["source coding region"])
         start = sequence.index("GAATTC") + 1
         end = sequence.index("AAGCTT") + 1

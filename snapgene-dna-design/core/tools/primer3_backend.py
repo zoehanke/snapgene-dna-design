@@ -19,16 +19,19 @@ import sys
 
 class Primer3CoreError(RuntimeError):
     """Raised when primer3_core cannot complete or returns invalid output."""
+    def __init__(self,message,error_code='BACKEND_EXECUTION_FAILED'):
+        super().__init__(message)
+        self.error_code=error_code
 
 
 def check_complete_oligo_pair(forward, reverse=None, core_path=None, annealing_temperature=None):
     """Measure complete oligos; omit reverse for an individual sequencing primer."""
     core_path = core_path or discover_primer3_core()
     if not core_path:
-        raise Primer3CoreError("Full-oligo structural QC requires primer3_core")
+        raise Primer3CoreError("Full-oligo structural QC requires primer3_core",'BACKEND_UNAVAILABLE')
     lengths = [len(forward)] + ([len(reverse)] if reverse is not None else [])
     if max(lengths) > 60:
-        raise Primer3CoreError("Primer3 cannot measure complete oligos above 60 nt; structural QC remains incomplete")
+        raise Primer3CoreError("Primer3 cannot measure complete oligos above 60 nt; structural QC remains incomplete",'BACKEND_LIMIT_UNSUPPORTED')
     # A common partition satisfies the engine's core + overhang size limit.
     # Only structural metrics are used here; binding-core Tm is measured by
     # the design call on the real template, not on this bookkeeping partition.

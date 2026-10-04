@@ -120,6 +120,7 @@ def compute_validation_sha256(val_dict: dict) -> str:
         "goal_valid": val_dict.get("goal_valid"),
         "overall": val_dict.get("overall"),
         "artifact_hashes": val_dict.get("artifact_hashes", {}),
+        "scope_results": val_dict.get('scope_results', {}),
     }
     return hashlib.sha256(canonical_json(semantic).encode("utf-8")).hexdigest().upper()
 
@@ -133,8 +134,8 @@ def _validate_artifact(execution: dict, plan: dict) -> tuple[bool, SeqIO.SeqReco
         return False, None, ["Product files missing on disk"]
 
     try:
-        with gb_path.open(encoding="utf-8") as handle:
-            gb_rec = SeqIO.read(handle, "genbank")
+        from core.models.molecule import as_molecule
+        gb_rec = as_molecule(gb_path)
         from core.tools.snapgene_io import normalize_primer_qualifiers
         gb_rec = normalize_primer_qualifiers(gb_rec)
         with fa_path.open(encoding="utf-8") as handle:
@@ -179,8 +180,8 @@ def _validate_annotation_retention(task, handler, product_record):
     """Rebuild annotations from task sources, not caller-supplied plan features."""
     from core.io.input_resolution import resolve_sequence_record
     expected_plan = handler.plan(task)
-    expected_record = resolve_sequence_record({"sequence": expected_plan["product_sequence"],
-        "features": expected_plan["product_features"], "topology": expected_plan["product_topology"]})
+    from core.models.molecule import as_molecule
+    expected_record = as_molecule(expected_plan['product_molecule'])
 
     def signature(feature):
         identity = {key: feature.qualifiers[key] for key in (
@@ -194,6 +195,15 @@ def _validate_annotation_retention(task, handler, product_record):
     actual = Counter(signature(f) for f in product_record.features)
     if expected - actual:
         return ["ANNOTATION_RETENTION_FAILED: product lost or changed source-derived feature geometry, identity or coding metadata"], expected_plan
+    from core.models.molecule import Molecule
+    if isinstance(product_record,Molecule):
+        for name in ('strandedness','source_refs'):
+            if getattr(product_record,name) != getattr(expected_record,name):
+                return [f'MOLECULAR_RETENTION_FAILED: {name} differs from actual input-derived material'], expected_plan
+        def ends(material):
+            return [end.to_dict() if end else None for end in (material.left_end,material.right_end)]
+        if ends(product_record) != ends(expected_record):
+            return ['MOLECULAR_RETENTION_FAILED: exposed ends differ from input-derived material'], expected_plan
     return [], expected_plan
 
 
@@ -250,6 +260,23 @@ def validate(task: dict, plan: dict, execution: dict) -> dict:
             goal_ok = False
             goal_errors.append(f"Goal validation failed: {exc}")
 
+    scope_results = {}
+    from core.models.molecule import as_molecule
+    from core.tools.result import check_result
+    if prod_rec is not None:
+        material = as_molecule(prod_rec)
+        for scope, passed in (('sequence_model',comp_ok),('file',art_ok),('user_goal',goal_ok)):
+            scope_results[scope] = check_result(scope,subject=material,
+                status='PASSED' if passed else 'FAILED',scope=scope)
+        preparation = (source_plan or {}).get('preparation_check', {})
+        scope_results['preparation_model'] = check_result('preparation_model',subject=material,
+            status=preparation.get('status','INCOMPLETE'),scope='preparation_model',
+            details=preparation.get('details',{'reason':'No actual reaction chain was checked; sequence editing is not preparation'}))
+    required = task.get('validation_requirements', ['sequence_model','file','user_goal'])
+    for scope in required:
+        if scope_results.get(scope,{}).get('status') != 'PASSED':
+            goal_ok = False
+            goal_errors.append(f'VALIDATION_SCOPE_UNSATISFIED: required {scope} was not established')
     all_errors = art_errors + comp_errors + goal_errors
 
     # Derive overall status
@@ -282,6 +309,7 @@ def validate(task: dict, plan: dict, execution: dict) -> dict:
         "errors": all_errors,
         "evidence_traces": evidence_traces,
         "artifact_hashes": execution.get("artifact_hashes", {}),
+        "scope_results": scope_results,
     }
 
     val_res["validation_sha256"] = compute_validation_sha256(val_res)

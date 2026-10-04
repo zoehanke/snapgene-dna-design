@@ -314,7 +314,7 @@ def main():
             "features": part.get("features", []),
         }
         for part in parts
-    ], len(final), circular=True)
+    ], len(final), circular=True).analysis['features']
 
     result = {
         "experimental": True,

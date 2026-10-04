@@ -1,5 +1,6 @@
 """Regression for inherited primers after real PCR extraction and export."""
 
+from core.models.construct_model import feature_to_dict
 from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import tempfile
 import unittest
@@ -41,7 +42,7 @@ class PreparationPrimerLocations(unittest.TestCase):
                                 record.annotations.update(molecule_type='DNA', topology='circular')
                                 expected = str(Seq(expected).reverse_complement())
                             files = export_plasmid(record, temp)
-                            for out in (SeqIO.read(files['gb_file'], 'genbank'), read_native_dna_record(files['dna_file'])):
+                            for out in (SeqIO.read(files.analysis['gb_file'], 'genbank'), read_native_dna_record(files.analysis['dna_file'])):
                                 self.assertEqual(str(out.seq), expected)
                                 self.assertEqual(out.annotations['topology'], 'circular')
                                 self.assertEqual(str(out.features[0].extract(out.seq)), core)
@@ -67,7 +68,7 @@ class PreparationPrimerLocations(unittest.TestCase):
                                 export_plasmid(record, temp)
                             continue
                         files = export_plasmid(record, temp)
-                        for out in (SeqIO.read(files['gb_file'], 'genbank'), read_native_dna_record(files['dna_file'])):
+                        for out in (SeqIO.read(files.analysis['gb_file'], 'genbank'), read_native_dna_record(files.analysis['dna_file'])):
                             self.assertEqual(str(out.features[0].extract(out.seq)), core)
 
     def test_linear_extraction_preserves_sites_only_when_physically_contiguous(self):
@@ -107,7 +108,7 @@ class PreparationPrimerLocations(unittest.TestCase):
                                     product = product.reverse_complement()
                                     product.annotations.update(molecule_type='DNA', topology='linear')
                                 files = export_plasmid(product, temp)
-                                for out in (SeqIO.read(files['gb_file'], 'genbank'), read_native_dna_record(files['dna_file'])):
+                                for out in (SeqIO.read(files.analysis['gb_file'], 'genbank'), read_native_dna_record(files.analysis['dna_file'])):
                                     self.assertEqual(str(out.seq), expected_seq)
                                     features = [f for f in out.features if f.qualifiers.get('label') == ['retained-site']]
                                     self.assertEqual(len(features), bool(expected_positions))
@@ -140,8 +141,8 @@ class PreparationPrimerLocations(unittest.TestCase):
         rec = annotate_record_primers(rec, definitions)
         pcr = simulate_pcr(rec, 'TTAGGA'+seq[100:122], str(Seq(seq[378:400]).reverse_complement()),
                            forward_binding_core_length=22, reverse_binding_core_length=22)
-        row = dict(id='pcr', template=pcr['template'], primers=pcr['primers'],
-                   product=dict(sequence=pcr['amplicon'], features=pcr['features'], topology='linear'))
+        row = dict(id='pcr', template=pcr.analysis['template'], primers=pcr.analysis['primers'],
+                   product=dict(sequence=str(pcr.only_product().seq), features=[feature_to_dict(f, len(pcr.only_product())) for f in pcr.only_product().features], topology='linear'))
         with tempfile.TemporaryDirectory() as temp:
             result = write_preparation_artifacts([row], temp)
             files = result['steps'][0]['product']
@@ -161,7 +162,7 @@ class PreparationPrimerLocations(unittest.TestCase):
               binding_sequence='A'*20, binding_interval_0based=[20,40], strand='+')])
         rec.seq = Seq('C'*100)
         with tempfile.TemporaryDirectory() as temp, self.assertRaisesRegex(ValueError, 'does not match'):
-            export_plasmid(rec, temp)
+            export_plasmid(rec, temp,topology='linear')
 
     def test_circular_origin_and_reverse_complement(self):
         rec = SeqRecord(Seq('ACGTACGTTAGC' * 10), id='circle',
@@ -173,7 +174,7 @@ class PreparationPrimerLocations(unittest.TestCase):
         fragment.annotations.update(molecule_type='DNA', topology='linear')
         with tempfile.TemporaryDirectory() as temp:
             files = export_plasmid(fragment, temp)
-            restored = read_native_dna_record(files['dna_file'])
+            restored = read_native_dna_record(files.analysis['dna_file'])
             primer = next(f for f in restored.features if f.type == 'primer_bind')
             self.assertEqual(primer.location.strand, -1)
             self.assertEqual(str(primer.extract(restored.seq)), core)

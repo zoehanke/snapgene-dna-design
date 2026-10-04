@@ -107,12 +107,23 @@ class AssemblyExecutorTests(unittest.TestCase):
              "_pcr_product": {"amplicon": overlap + str(b.seq),
                               "amplicon_length": len(overlap) + len(b.seq)}},
         ]
+        # Retain the old injected dictionaries: they are not evidence of PCR.
+        with self.assertRaisesRegex(ValueError,'actual molecular products'):
+            execute_assembly(fragments,'gibson','linear',junctions=[{'sequence':overlap,'length':len(overlap)}])
+        from core.tools.result import ToolResult
+        from core.models.molecule import as_molecule
+        for fragment in fragments:
+            old=fragment['_pcr_product']
+            # Declared synthetic substrates for this assembly-only unit test.
+            # No PCR preparation or task success is asserted by this fixture.
+            fragment['_pcr_product']=ToolResult(products=[as_molecule({'sequence':old['amplicon'],'topology':'linear'})],
+                analysis={'amplicon_length':old['amplicon_length']})
         result = execute_assembly(
             fragments, "gibson", "linear",
             junctions=[{"sequence": overlap, "length": len(overlap)}])
         self.assertEqual(result["status"], "validated")
         self.assertEqual(result["sequence"], "AAAA" + overlap + "GGGG")
-        self.assertEqual(result["executor"], "scripts.simulate_cloning.gibson")
+        self.assertEqual(result["executor"], "core.tools.assembly.simulate_overlap_assembly")
 
     def test_short_overlap_is_blocked_before_execution(self):
         with self.assertRaises(Exception) as ctx:

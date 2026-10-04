@@ -18,6 +18,8 @@
     "provenance"
   ],
   "properties": {
+    "validation_requirements": {"type":"array", "uniqueItems":true,
+      "items":{"enum":["sequence_model","preparation_model","file","user_goal"]}},
     "expected_components": {"$ref": "#/definitions/component_requirements"},
     "forbidden_components": {"$ref": "#/definitions/component_requirements"},
     "schema_version": {

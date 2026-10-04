@@ -43,6 +43,10 @@ sys.path.insert(0, "scripts")
 
 ## 能力边界与许可
 
+v2原子工具统一返回`products / analysis / checks`。Python用`result.only_product()`取得单个完整分子，用`result.products[index]`明确选择多个产物，用`result.analysis`读取计算结果。Pipeline用`$step`、`$step.products.0`和`$step.analysis.field`。旧字符串/dict接口及旧计划需迁移；参数查询仍用`scripts/describe_tools.py`。
+
+检查分别报告序列模型、制备模型、文件及用户目标。要求制备时在任务中加入`validation_requirements`的`preparation_model`；只有序列编辑不能算已建立制备链。`.gb/.dna`保留Skill所需分子元数据，FASTA只保存序列。Native补充字段不等于桌面软件原生支持，正式交付仍检查实际native投影。
+
 多轮设计使用上一轮真实产物；源注释冲突必须说明，不以删注释或改变目标制造通过。GenBank/native文件的序列、拓扑、特征和引物应对应；实验表现、全基因组特异性和科学结论另需相应证据。
 
 当前验证包含开发回归，没有隔离陌生评测成功率提高结论。源代码许可见[LICENSE](LICENSE)，第三方素材与模型见[THIRD_PARTY_NOTICE](THIRD_PARTY_NOTICE.md)。本目录是运行使用入口，开发规则在项目根。

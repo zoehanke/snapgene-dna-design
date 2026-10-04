@@ -7,7 +7,7 @@ import hashlib
 from Bio.SeqRecord import SeqRecord
 
 from core.errors import PlanningError, TaskValidationError
-from core.handlers.base import TaskHandler, product_features
+from core.handlers.base import planned_molecule, TaskHandler, product_features
 from core.io.input_resolution import resolve_sequence_record
 from core.models.construct_model import ConstructModel
 
@@ -93,6 +93,7 @@ class PointMutationHandler(TaskHandler):
             "product_topology": tmpl_source.get("topology", "circular"),
             "product_sequence": mutated_seq,
             "product_features": product_features(product_record, mutated_seq),
+            "product_molecule": planned_molecule(product_record, task).to_dict(),
             "product_sequence_sha256": hashlib.sha256(mutated_seq.encode("utf-8")).hexdigest().upper(),
             "expected_components": [],
             "forbidden_components": list(task.get("product", {}).get("forbidden_components", [])),

@@ -16,9 +16,9 @@ class FinalPrimerDesignTests(unittest.TestCase):
         from core.tools.sequence_ops import check_reading_frame
         seq = 'ATGCGTACGTAGCTAGCTAGC'
         record = SeqRecord(Seq(seq), id='source')
-        self.assertEqual(calc_primer_tm(record), calc_primer_tm(seq))
-        self.assertEqual(check_primer_dimers(record, record), check_primer_dimers(seq, seq))
-        self.assertTrue(check_reading_frame(SeqRecord(Seq('ATGGCTTAA')))['valid'])
+        self.assertEqual(calc_primer_tm(record).analysis, calc_primer_tm(seq).analysis)
+        self.assertEqual(check_primer_dimers(record, record).analysis, check_primer_dimers(seq, seq).analysis)
+        self.assertTrue(check_reading_frame(SeqRecord(Seq('ATGGCTTAA'))).analysis['valid'])
         with self.assertRaises(ValueError):
             calc_primer_tm('ATGNNNTAA')
 
@@ -42,26 +42,26 @@ class FinalPrimerDesignTests(unittest.TestCase):
         left = 'CATGTCATGA'+'TG'+'CAT'*5+'CAC'+'GAAAACCTGTATTTTCAGGGC'
         right = 'CCGCTCGAG'
         result = prepare_pcr_fragment(original, 3, 720, left, right)
-        self.assertEqual(len(result['preparation']), 2)
+        self.assertEqual(len(result.analysis['preparation']), 2)
         known_template = str(original.seq)
-        for step in result['preparation']:
-            self.assertEqual(step['template']['sequence'], known_template)
+        for step in result.analysis['preparation']:
+            self.assertEqual(str(step['template'].seq), known_template)
             f, r = step['primers']
             fc, rc = f['binding_sequence'], str(Seq(r['binding_sequence']).reverse_complement())
-            search = known_template*2 if step['template']['topology']=='circular' else known_template
+            search = known_template*2 if step['template'].topology=='circular' else known_template
             f_hits = [i for i in range(len(known_template)) if search[i:i+len(fc)]==fc]
             r_hits = [i for i in range(len(known_template)) if search[i:i+len(rc)]==rc]
             self.assertEqual(len(f_hits),1)
             self.assertEqual(len(r_hits),1)
             predicted = f['sequence'][:-len(fc)] + search[f_hits[0]:r_hits[0]+len(rc)] + str(Seq(r['sequence'][:-len(rc)]).reverse_complement())
-            self.assertEqual(step['product']['sequence'], predicted)
+            self.assertEqual(str(step['product'].seq), predicted)
             known_template = predicted
             self.assertTrue(all(len(p['sequence'])<=60 for p in (f,r)))
             qc = step['primer_design']['primer3_metrics']['selected_pair_quality']['complete_oligo_structure']
             self.assertTrue(qc['passed'])
             self.assertTrue(all(v < qc['annealing_temperature_C']-5 for metrics in qc['metrics'].values() for v in metrics.values()))
         expected = left + str(original.seq[3:720]) + str(Seq(right).reverse_complement())
-        self.assertEqual(result['pcr']['amplicon'],expected)
+        self.assertEqual(str(result.only_product().seq),expected)
 
     def test_same_template_without_the_bad_tail_has_a_valid_complete_pair(self):
         from core.tools import get_tool
@@ -70,8 +70,8 @@ class FinalPrimerDesignTests(unittest.TestCase):
         result = get_tool('design_overhang_primers').execute(
             template_record_or_seq=sequence, start=100, end=700,
             circular=False, topology='linear')
-        self.assertTrue(result['primer3_metrics']['selected_pair_quality']['acceptable'])
-        self.assertTrue(result['primer3_metrics']['selected_pair_quality']['complete_oligo_structure']['passed'])
+        self.assertTrue(result.analysis['primer3_metrics']['selected_pair_quality']['acceptable'])
+        self.assertTrue(result.analysis['primer3_metrics']['selected_pair_quality']['complete_oligo_structure']['passed'])
 
     def test_binding_only_retry_does_not_certify_strong_full_primer_hairpin(self):
         rng = random.Random(75)
@@ -90,9 +90,9 @@ class FinalPrimerDesignTests(unittest.TestCase):
 
         result = check_primer_dimers("GAGCAACAGAAA", "TGCGGTGTTGCT")
 
-        self.assertEqual(result["max_continuous_complementarity"], 7)
+        self.assertEqual(result.analysis["max_continuous_complementarity"], 7)
         self.assertTrue(any("Internal complementarity (7 bp)" in warning
-                            for warning in result["warnings"]))
+                            for warning in result.analysis["warnings"]))
 
 
 if __name__ == '__main__':

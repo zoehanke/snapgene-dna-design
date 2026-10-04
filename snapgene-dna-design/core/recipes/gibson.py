@@ -28,6 +28,8 @@ from core.tools.assembly import (
     _feature_dicts_for_arc,
     simulate_overlap_assembly,
 )
+from core.models.molecule import Molecule, derived_molecule
+from core.tools.result import ToolResult
 from core.io.input_resolution import resolve_sequence_input, resolve_sequence_record
 from core.tools.feature_ops import migrate_features_after_assembly
 
@@ -62,7 +64,7 @@ def _prepare_gibson_fragments(specs, records, targets, overlap, circular):
         return cache[key]
 
     default = [candidate(index, 0, 0) for index in range(count)]
-    if all(route is not None and len(route["preparation"]) == 1 for route in default):
+    if all(route is not None and len(route.analysis["preparation"]) == 1 for route in default):
         return default, [0] * count
     best = None
     for initial in ((0, 1) if circular else (0,)):
@@ -74,7 +76,7 @@ def _prepare_gibson_fragments(specs, records, targets, overlap, circular):
                     route = candidate(index, incoming, outgoing)
                     if route is None:
                         continue
-                    next_cost = (cost[0]+len(route["preparation"]), cost[1]+sum(len(p["sequence"]) for p in route["primers"]))
+                    next_cost = (cost[0]+len(route.analysis["preparation"]), cost[1]+sum(len(p["sequence"]) for p in route.analysis["primers"]))
                     current = following_states.get(outgoing)
                     if current is None or next_cost < current[0]:
                         following_states[outgoing] = (next_cost, routes+[route], layout+[outgoing])
@@ -115,15 +117,8 @@ def _preparation_template(source: Any, record: SeqRecord) -> Any:
     """Keep original input identity while making in-memory records serializable."""
     if isinstance(source, (str, pathlib.Path)):
         return str(source)
-    if isinstance(source, dict):
-        return dict(source)
-    from core.models.construct_model import feature_to_dict
-    return {
-        "id": record.id,
-        "sequence": str(record.seq).upper(),
-        "topology": record.annotations.get("topology", "linear"),
-        "features": [feature_to_dict(feature, len(record)) for feature in record.features],
-    }
+    from core.models.molecule import as_molecule
+    return as_molecule(record)
 
 
 def _primer_delivery(name: str, primer: dict[str, Any], strand: int) -> dict[str, Any]:
@@ -150,19 +145,9 @@ def _primer_delivery(name: str, primer: dict[str, Any], strand: int) -> dict[str
     }
 
 
-def _pcr_product_record(pcr: dict[str, Any]) -> dict[str, Any]:
-    return {
-        "sequence": pcr.get("amplicon", ""),
-        "length": pcr.get("amplicon_length", len(pcr.get("amplicon", ""))),
-        "sha256": pcr.get("amplicon_sha256"),
-        "features": pcr.get("features", []),
-        "topology": pcr.get("topology", "linear"),
-        "template_interval_0based": pcr.get("template_interval_0based"),
-        "forward_binding": pcr.get("forward_binding"),
-        "reverse_binding": pcr.get("reverse_binding"),
-        "template": pcr.get("template"),
-        "primers": pcr.get("primers", []),
-    }
+def _pcr_product_record(pcr):
+    """The actual annotated PCR product, not a reconstruction from report fields."""
+    return pcr.only_product()
 
 
 def _restore_unique_source_features(
@@ -402,13 +387,13 @@ def recipe_gibson_assembly(
         prepared_fragments, homology_layout = _prepare_gibson_fragments(
             normalized_specs, source_records, target_sequences, ol, circular_product)
         for prepared in prepared_fragments:
-            pcr_records.append(resolve_sequence_record(prepared["pcr"]))
-            for row in prepared["preparation"]:
+            pcr_records.append(prepared.only_product())
+            for row in prepared.analysis["preparation"]:
                 designed = row["primer_design"]
                 forward, reverse = row["primers"]
                 forward.update(_primer_delivery(row["id"]+"_forward", designed["forward_primer"], 1))
                 reverse.update(_primer_delivery(row["id"]+"_reverse", designed["reverse_primer"], -1))
-                dimer_reports.append(check_primer_dimers(forward["sequence"], reverse["sequence"]))
+                dimer_reports.append(check_primer_dimers(forward["sequence"], reverse["sequence"]).analysis)
                 primer_pairs.append({"id": row["id"], "forward": forward, "reverse": reverse,
                                      "binding_core_delta_tm": designed["binding_core_delta_tm"]})
                 preparation.append(row)
@@ -422,24 +407,27 @@ def recipe_gibson_assembly(
             # Preserve the established display origin independently of which
             # oligo carries homology. Rotate the actual molecule and features.
             from core.models.construct_model import ConstructModel, feature_to_dict
-            product = assembly_res["product_sequence"]
+            product = str(assembly_res.only_product().seq)
             target = target_sequences[0]
             starts = [i for i in range(len(product)) if (product+product).startswith(target, i)]
             if len(starts) == 1:
                 default_tail = 0 if target_sequences[-1][-ol:] == target[:ol] else ol
                 rotation = (starts[0]-default_tail) % len(product)
                 if rotation:
-                    rotated = ConstructModel(resolve_sequence_record(assembly_res)).rotate(rotation).to_record()
-                    assembly_res["product_sequence"] = str(rotated.seq)
-                    assembly_res["features"] = [feature_to_dict(f,len(rotated)) for f in rotated.features]
-                    assembly_res["product_sha256"] = hashlib.sha256(str(rotated.seq).encode('ascii')).hexdigest().upper()
-                assembly_res["origin_rotation_bp"] = rotation
-        assembly_res["features"] = _restore_unique_source_features(
-            assembly_res["product_sequence"],
-            assembly_res.get("features", []),
+                    parent = assembly_res.only_product()
+                    rotated = ConstructModel(parent).rotate(rotation).to_record()
+                    assembly_res.products = [derived_molecule(rotated, [parent], operation='rotate', strandedness=parent.strandedness)]
+                assembly_res.analysis["origin_rotation_bp"] = rotation
+        restored_features = _restore_unique_source_features(
+            str(assembly_res.only_product().seq),
+            [feature_to_dict(f, len(assembly_res.only_product())) for f in assembly_res.only_product().features],
             source_records,
             circular=circular_product,
         )
+        parent = assembly_res.only_product()
+        annotated = copy.deepcopy(parent)
+        annotated.features = resolve_sequence_record({'sequence': str(parent.seq), 'features': restored_features}).features
+        assembly_res.products = [derived_molecule(annotated, [parent], operation='restore_unique_source_features', strandedness=parent.strandedness)]
         all_primer_deltas = [pair["binding_core_delta_tm"] for pair in primer_pairs]
         quality_checks = {
             "standard_overlap_length_bp": ol,
@@ -448,7 +436,7 @@ def recipe_gibson_assembly(
             "binding_core_delta_tm_max": max(all_primer_deltas) if all_primer_deltas else 0.0,
             "delta_tm_within_standard_2C": all(delta <= 2.0 for delta in all_primer_deltas),
             "primer_dimer_safe": not any(d["high_dimer_risk"] for d in dimer_reports),
-            "assembled_successfully": bool(assembly_res.get("product_sequence")),
+            "assembled_successfully": bool(str(assembly_res.only_product().seq)),
         }
         flat_primers = [primer for pair in primer_pairs for primer in (pair["forward"], pair["reverse"])]
         protocol_steps = [
@@ -461,9 +449,9 @@ def recipe_gibson_assembly(
             recipe_name="recipe_gibson_assembly",
             result_kind="construct",
             completeness="complete_construct",
-            product_sequence=assembly_res["product_sequence"],
-            product_topology=assembly_res["product_topology"],
-            features=assembly_res["features"],
+
+        products=assembly_res.products,
+
             primers=flat_primers,
             quality_checks=quality_checks,
             warnings=warnings,
@@ -471,12 +459,12 @@ def recipe_gibson_assembly(
             citations=AUTHORITATIVE_SOURCES,
             details={
                 "recipe": "recipe_gibson_assembly",
-                "product_length": assembly_res["product_length"],
+                "product_length": assembly_res.analysis['product_length'],
                 "primers": primer_pairs,
                 "preparation": preparation,
                 "homology_tail_placement": ["reverse" if side else "forward" for side in homology_layout],
                 "fragments": normalized_specs,
-                "junctions": assembly_res.get("junctions", []),
+                "junctions": assembly_res.analysis.get("junctions", []),
                 "quality_checks": quality_checks,
                 "authoritative_sources": AUTHORITATIVE_SOURCES,
             },
@@ -508,20 +496,20 @@ def recipe_gibson_assembly(
                 "short-target Gibson is unsupported. Provide a longer target interval or use an explicit PCR design."
             ) from exc
         raise
-    fwd = designed["forward_primer"]["full_sequence"]
-    rev = designed["reverse_primer"]["full_sequence"]
-    dimer_check = check_primer_dimers(fwd, rev)
+    fwd = designed.analysis['forward_primer']["full_sequence"]
+    rev = designed.analysis['reverse_primer']["full_sequence"]
+    dimer_check = check_primer_dimers(fwd, rev).analysis
     pcr_res = simulate_pcr(
         template_path_or_seq=insert_record,
         f_primer=fwd,
         r_primer=rev,
         topology=insert_record.annotations.get("topology", "linear"),
-        forward_binding_core_length=designed["forward_primer"].get("binding_core_length"),
-        reverse_binding_core_length=designed["reverse_primer"].get("binding_core_length"),
-        forward_binding_start_0based=designed["forward_primer"].get("binding", {}).get("template_start_0based"),
-        reverse_binding_start_0based=designed["reverse_primer"].get("binding", {}).get("template_start_0based"),
+        forward_binding_core_length=designed.analysis['forward_primer'].get("binding_core_length"),
+        reverse_binding_core_length=designed.analysis['reverse_primer'].get("binding_core_length"),
+        forward_binding_start_0based=designed.analysis['forward_primer'].get("binding", {}).get("template_start_0based"),
+        reverse_binding_start_0based=designed.analysis['reverse_primer'].get("binding", {}).get("template_start_0based"),
     )
-    pcr_record = resolve_sequence_record(pcr_res)
+    pcr_record = pcr_res.only_product()
     assembly_res = simulate_overlap_assembly(
         fragments=[vector_record, pcr_record],
         min_overlap=max(12, ol - 5),
@@ -531,23 +519,23 @@ def recipe_gibson_assembly(
         "Legacy API supplied a pre-linearized vector; its preparation is not represented as PCR. "
         "Use fragments=[{template,start,end}, ...] for a complete all-fragment preparation chain."
     ]
-    if len(pcr_res["amplicon"]) < 200:
-        warnings.append(f"Insert amplicon is short ({len(pcr_res['amplicon'])} bp < 200 bp)")
+    if len(str(pcr_res.only_product().seq)) < 200:
+        warnings.append(f"Insert amplicon is short ({len(str(pcr_res.only_product().seq))} bp < 200 bp)")
     if dimer_check["high_dimer_risk"]:
         warnings.append(f"Primer 3' complementarity risk ({dimer_check['max_3prime_complementarity']} bp)")
     pair = {
         "id": "insert",
-        "forward": _primer_delivery("forward_primer", designed["forward_primer"], 1),
-        "reverse": _primer_delivery("reverse_primer", designed["reverse_primer"], -1),
-        "binding_core_delta_tm": designed["binding_core_delta_tm"],
+        "forward": _primer_delivery("forward_primer", designed.analysis['forward_primer'], 1),
+        "reverse": _primer_delivery("reverse_primer", designed.analysis['reverse_primer'], -1),
+        "binding_core_delta_tm": designed.analysis['binding_core_delta_tm'],
         "dimer_analysis": dimer_check,
     }
     quality_checks = {
         "standard_overlap_length_bp": ol,
-        "binding_core_delta_tm": designed["binding_core_delta_tm"],
-        "delta_tm_within_standard_2C": designed["binding_core_delta_tm"] <= 2.0,
+        "binding_core_delta_tm": designed.analysis['binding_core_delta_tm'],
+        "delta_tm_within_standard_2C": designed.analysis['binding_core_delta_tm'] <= 2.0,
         "primer_dimer_safe": not dimer_check["high_dimer_risk"],
-        "assembled_successfully": bool(assembly_res.get("product_sequence")),
+        "assembled_successfully": bool(str(assembly_res.only_product().seq)),
         "all_fragments_pcr_prepared": False,
         "preparation_complete": False,
     }
@@ -565,9 +553,9 @@ def recipe_gibson_assembly(
         recipe_name="recipe_gibson_assembly",
         result_kind="construct",
         completeness="complete_construct",
-        product_sequence=assembly_res["product_sequence"],
-        product_topology=assembly_res["product_topology"],
-        features=assembly_res["features"],
+
+        products=assembly_res.products,
+
         primers=[pair["forward"], pair["reverse"]],
         quality_checks=quality_checks,
         warnings=warnings,
@@ -580,10 +568,10 @@ def recipe_gibson_assembly(
         citations=AUTHORITATIVE_SOURCES,
         details={
             "recipe": "recipe_gibson_assembly",
-            "product_length": assembly_res["product_length"],
+            "product_length": assembly_res.analysis['product_length'],
             "primers": {
-                "forward": designed["forward_primer"],
-                "reverse": designed["reverse_primer"],
+                "forward": designed.analysis['forward_primer'],
+                "reverse": designed.analysis['reverse_primer'],
                 "dimer_analysis": dimer_check,
             },
             "preparation": preparation,
@@ -601,8 +589,8 @@ def recipe_gibson_assembly(
                     for feature in vector_record.features
                 ],
             }],
-            "insert_amplicon_length": len(pcr_res["amplicon"]),
-            "junctions": assembly_res.get("junctions", []),
+            "insert_amplicon_length": len(str(pcr_res.only_product().seq)),
+            "junctions": assembly_res.analysis.get("junctions", []),
             "quality_checks": quality_checks,
             "authoritative_sources": AUTHORITATIVE_SOURCES,
         },

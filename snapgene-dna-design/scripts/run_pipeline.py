@@ -50,15 +50,15 @@ def _infer_pipeline_topology(
     output_step: str | None,
 ) -> str:
     """Infer topology from the selected in-memory sequence output."""
-    from core.handlers.composite_pipeline import _output_topology, run_pipeline_steps
+    from core.handlers.composite_pipeline import run_pipeline_steps
 
     selected = output_step or steps[-1].get("step_id")
-    _, _, environment = run_pipeline_steps(
+    product, _, environment = run_pipeline_steps(
         steps,
         _pipeline_source_map(source_files),
         output_step=selected,
     )
-    topology = _output_topology(environment.get(selected))
+    topology = product.topology
     if topology is None:
         # Plain string outputs carry no topology metadata. Sequence-only tools
         # use linear as their safe default; explicit CLI metadata can still
@@ -219,6 +219,7 @@ def _run(args, out):
             expected_components=metadata.get("expected_components", []),
             forbidden_components=metadata.get("forbidden_components", []),
             output_step=args.output_step or metadata.get("output_step"),
+            validation_requirements=metadata.get('validation_requirements'),
         )
         result["requested_topology"] = requested_topology
         result["actual_topology"] = result.get("actual_topology", result.get("product_topology"))

@@ -34,7 +34,8 @@ def _read_record_from_file(p: pathlib.Path) -> SeqRecord:
     elif suffix in (".gb", ".gbk", ".genbank"):
         try:
             with p.open(encoding="utf-8") as handle:
-                return normalize_primer_qualifiers(SeqIO.read(handle, "genbank"))
+                from core.io.molecule_codec import restore_file_metadata
+                return restore_file_metadata(normalize_primer_qualifiers(SeqIO.read(handle, "genbank")))
         except Exception as exc:
             raise ValueError(f"Failed to parse GenBank file '{p}': {exc}") from exc
     else:
@@ -78,30 +79,38 @@ def resolve_sequence_input(
 
     if isinstance(value, dict):
         # Existing tool/Recipe results use sequence plus serialized features.
-        sequence = value.get("sequence", value.get("product_sequence", value.get("amplicon")))
+        sequence = value.get("sequence")
         if not isinstance(sequence, str):
             raise ValueError("Sequence result must contain a sequence string")
-        annotations = dict(value.get("annotations") or {})
+        from core.models.molecule import restore_metadata, position_from_data
+        annotations = restore_metadata(value.get("annotations") or {})
         annotations.setdefault("molecule_type", "DNA")
-        annotations["topology"] = value.get("product_topology", value.get(
-            "topology", annotations.get("topology", default_topology)))
+        annotations["topology"] = value.get("topology", annotations.get("topology", default_topology))
         identifier = str(value.get("id") or record_id)
         rec = SeqRecord(Seq(sequence.upper()), id=identifier,
                         name=str(value.get("name") or identifier),
                         description=str(value.get("description") or ""),
                         annotations=annotations)
+        rec.dbxrefs = list(value.get('dbxrefs', []))
+        rec.letter_annotations = dict(value.get('letter_annotations', {}))
         for feature in value.get("features", []):
             location = feature.get("location") or {}
             parts = location.get("parts")
             if parts:
-                locations = [FeatureLocation(p["start0"], p["end0"], strand=p.get("strand") or None) for p in parts]
+                locations = [FeatureLocation(
+                    position_from_data(p['start_position']) if 'start_position' in p else p['start0'],
+                    position_from_data(p['end_position']) if 'end_position' in p else p['end0'],
+                    strand=p.get('strand'), ref=p.get('ref'), ref_db=p.get('ref_db')) for p in parts]
                 loc = locations[0] if len(locations) == 1 else CompoundLocation(locations, operator=location.get("operator") or "join")
             else:
                 start, end = feature.get("interval_0based", [feature.get("start", 0), feature.get("end", 0)])
                 loc = FeatureLocation(start, end, strand=feature.get("strand", 1))
-            qualifiers = {k: list(v) if isinstance(v, list) else [str(v)] for k, v in feature.get("qualifiers", {}).items()}
-            qualifiers.setdefault("label", [feature.get("name", "feature")])
-            rec.features.append(SeqFeature(loc, type=feature.get("type", "misc_feature"), qualifiers=qualifiers))
+            import copy
+            qualifiers = copy.deepcopy(feature.get('qualifiers', {}))
+            if 'record_version' not in value:
+                qualifiers.setdefault('label', [feature.get('name', 'feature')])
+            rec.features.append(SeqFeature(loc, type=feature.get('type', 'misc_feature'),
+                                          id=feature.get('id', '<unknown id>'), qualifiers=qualifiers))
         return rec, str(rec.seq)
 
     if isinstance(value, pathlib.Path):

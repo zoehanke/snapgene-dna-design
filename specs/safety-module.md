@@ -26,6 +26,8 @@ Full data retention does not require copying full records into each derived sect
 
 Observe actual route equivalents of task/plan/execute/validate/finalize at application boundaries. Trace changes no DNA, execution parameters, Core validation or authoritative files. Runtime results alone generate Validation and Artifact facts; preserve failures and original errors. Normal Trace errors continue DNA work with TRACE_INCOMPLETE; explicit strict policy may stop at the boundary without rolling back files. The [Core spec](core-skill.md) owns biological delivery.
 
+v2 Core observation includes complete molecular products, direct input-version references and scoped program checks. Serialize actual ToolResult/Molecule values at capture boundaries; never infer a material from an analysis string or promote a reaction/model check into experimental validation. Trace level changes remain observational. Canonical material/file bytes and validation meanings must match Off/Observed/Full for the same workflow.
+
 | Level | Contract |
 |---|---|
 | Off | No new trace or organization events; existing records remain readable. |

@@ -6,6 +6,7 @@ human-reviewed wet-lab experience rules (rules/preloaded_experience_rules.json)
 to assist LLM agents and researchers with practical benchwork tips.
 """
 from __future__ import annotations
+from core.tools.result import ToolResult
 
 import json
 import pathlib
@@ -34,7 +35,7 @@ def _load_all_rules() -> list[dict[str, Any]]:
     return _RULES_CACHE
 
 
-def get_experience_categories() -> list[str]:
+def get_experience_categories() -> ToolResult:
     """Return all distinct wet-lab experience categories available in the repository."""
     rules = _load_all_rules()
     categories = set()
@@ -42,20 +43,20 @@ def get_experience_categories() -> list[str]:
         cat = r.get("source", {}).get("category")
         if cat:
             categories.add(cat)
-    return sorted(list(categories))
+    return ToolResult(analysis={'categories': sorted(list(categories))})
 
 
-def get_experience_rule_by_id(rule_id: str) -> dict[str, Any] | None:
+def get_experience_rule_by_id(rule_id: str) -> ToolResult:
     """Retrieve a specific experience rule by its exact canonical rule ID."""
     rules = _load_all_rules()
     target = rule_id.strip().lower()
     for r in rules:
         if r.get("id", "").lower() == target:
-            return _format_rule_output(r)
-    return None
+            return ToolResult(analysis={'rule': _format_rule_output(r)})
+    return ToolResult(analysis={'rule': None})
 
 
-def list_all_experience_rules(category: str = "") -> list[dict[str, Any]]:
+def list_all_experience_rules(category: str = "") -> ToolResult:
     """List all available active wet-lab experience rules, optionally filtered by category."""
     rules = _load_all_rules()
     cat_filter = category.strip().lower()
@@ -66,14 +67,14 @@ def list_all_experience_rules(category: str = "") -> list[dict[str, Any]]:
             if cat_filter not in r_cat:
                 continue
         results.append(_format_rule_output(r))
-    return results
+    return ToolResult(analysis={'rules': results})
 
 
 def query_lab_experience(
     query: str = "",
     category: str = "",
     max_results: int = 5,
-) -> dict[str, Any]:
+) -> ToolResult:
     """Query human-reviewed wet-lab experience rules by keyword or category.
 
     Args:
@@ -130,12 +131,12 @@ def query_lab_experience(
         for s, r in scored_rules[:max_results]
     ]
 
-    return {
+    return ToolResult(analysis={
         "query": query,
         "category_filter": category,
         "total_matched": len(scored_rules),
         "results": top_matches,
-    }
+    })
 
 
 def _format_rule_output(rule: dict[str, Any], score: int | None = None) -> dict[str, Any]:

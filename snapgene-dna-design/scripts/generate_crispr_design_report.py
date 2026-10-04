@@ -393,7 +393,8 @@ def _write_design_files(record, out_dir, stem):
     fa_path = out_dir / ("%s.fa" % stem)
     dna_path = out_dir / ("%s.dna" % stem)
     with open(gb_path, "w", encoding="utf-8") as handle:
-        SeqIO.write(_snapgene_annotated(record), handle, "genbank")
+        from core.io.molecule_codec import genbank_record
+        SeqIO.write(genbank_record(_snapgene_annotated(record)), handle, "genbank")
     with open(fa_path, "w", encoding="utf-8") as handle:
         SeqIO.write(record, handle, "fasta")
     write_native_dna(record, dna_path)

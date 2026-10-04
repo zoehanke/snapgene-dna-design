@@ -27,7 +27,7 @@ ROOT = SKILL_ROOT
 class FinalPipelineRecordTests(unittest.TestCase):
     def test_raw_path_cannot_be_reverse_complemented_as_dna(self):
         from core.tools.translation import reverse_complement, translate_dna
-        with self.assertRaisesRegex(ValueError, "requires DNA bases"):
+        with self.assertRaisesRegex(ValueError, "could not be resolved"):
             reverse_complement("C:/data/source.gb")
         with self.assertRaisesRegex(ValueError, "frame must"):
             translate_dna("ATGAAATAA", frame=0)
@@ -63,9 +63,9 @@ class FinalPipelineRecordTests(unittest.TestCase):
                 {"src": str(source_path)},
             )
 
-        self.assertEqual(product, "TTATTTAGCCAT")
+        self.assertEqual(str(product.seq), "TTATTTAGCCAT")
         self.assertEqual(records[0]["output_length"], 12)
-        result = env["reverse_source"]
+        result = env["reverse_source"].only_product()
         self.assertIsInstance(result, SeqRecord)
         self.assertEqual(result.annotations["topology"], "linear")
         self.assertEqual(len(result.features), 1)
@@ -90,10 +90,10 @@ class FinalPipelineRecordTests(unittest.TestCase):
         ]
 
         product, records, env = run_pipeline_steps(steps, {}, output_step="dna")
-        self.assertEqual(product, "TTTCAT")
-        self.assertEqual(env["protein"], "FH")
-        self.assertEqual(records[1]["output_length"], 0)
-        self.assertEqual(records[1]["details"], "FH")
+        self.assertEqual(str(product.seq), "TTTCAT")
+        self.assertEqual(env["protein"].analysis['translation'], "FH")
+        self.assertIsNone(records[1]["output_length"])
+        self.assertEqual(records[1]["details"]['analysis']['translation'], {'data_type':'protein_sequence','value':'FH'})
 
         field_steps = [
             {
@@ -109,13 +109,13 @@ class FinalPipelineRecordTests(unittest.TestCase):
             {
                 "step_id": "rc_field",
                 "tool": "reverse_complement",
-                "params": {"seq": "$tm.sequence"},
+                "params": {"seq": "$tm.analysis.sequence"},
             },
         ]
         selected, _, field_env = run_pipeline_steps(field_steps, {}, output_step="dna")
-        self.assertEqual(selected, "TTTCAT")
-        self.assertEqual(field_env["tm"]["sequence"], "TTTCAT")
-        self.assertEqual(field_env["rc_field"], "ATGAAA")
+        self.assertEqual(str(selected.seq), "TTTCAT")
+        self.assertEqual(field_env["tm"].analysis["sequence"], "TTTCAT")
+        self.assertEqual(str(field_env["rc_field"].only_product().seq), "ATGAAA")
 
         with self.assertRaises(PlanningError) as caught:
             CompositePipelineHandler().plan(
@@ -124,7 +124,7 @@ class FinalPipelineRecordTests(unittest.TestCase):
                     "product": {"topology": "linear"},
                 }
             )
-        self.assertEqual(caught.exception.error_code, "NO_PRODUCT_SEQUENCE")
+        self.assertEqual(caught.exception.error_code, "ANALYSIS_OUTPUT_REFERENCE")
 
         with self.assertRaises(PlanningError) as caught:
             run_pipeline_steps(

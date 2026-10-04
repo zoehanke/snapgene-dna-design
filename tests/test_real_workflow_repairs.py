@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """Small regressions for real-template PCR and mutagenesis preparation."""
 
+from core.models.construct_model import feature_to_dict
 from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import unittest
 import random
@@ -22,11 +23,11 @@ class RealWorkflowRepairTests(unittest.TestCase):
         forward = "TTTT" + template[5:22]
         reverse = "GGGG" + str(Seq(template[40:57]).reverse_complement())
         result = simulate_pcr(template, forward, reverse)
-        self.assertEqual(result["forward_binding"]["strand"], 1)
-        self.assertEqual(result["template_interval_0based"], [5, 57])
-        self.assertEqual(result["primers"][0]["sequence"], forward)
-        self.assertEqual(result["primers"][1]["strand"], -1)
-        self.assertEqual(result["template"]["sequence"], template)
+        self.assertEqual(result.analysis['forward_binding']["strand"], 1)
+        self.assertEqual(result.analysis['template_interval_0based'], [5, 57])
+        self.assertEqual(result.analysis['primers'][0]["sequence"], forward)
+        self.assertEqual(result.analysis['primers'][1]["strand"], -1)
+        self.assertEqual(result.analysis['template']["sequence"], template)
 
     def test_ambiguous_products_require_explicit_positions(self):
         template = "A" * 20 + "GATTACA" * 4 + "C" * 20
@@ -63,9 +64,9 @@ class RealWorkflowRepairTests(unittest.TestCase):
             forward_binding_start_0based=70,
             reverse_binding_start_0based=10,
         )
-        self.assertTrue(result["wraps_origin"])
-        self.assertEqual(result["template_topology"], "circular")
-        self.assertTrue(any(feature["name"] == "feature" for feature in result["features"]))
+        self.assertTrue(result.analysis['wraps_origin'])
+        self.assertEqual(result.analysis['template_topology'], "circular")
+        self.assertTrue(any(feature["name"] == "feature" for feature in [feature_to_dict(f, len(result.only_product())) for f in result.only_product().features]))
 
     def test_quikchange_counts_only_actual_substitution_mismatch(self):
         template = "A" * 30 + "TAT" + "C" * 40
@@ -101,8 +102,8 @@ class RealWorkflowRepairTests(unittest.TestCase):
         self.assertFalse(any("QuikChange" in item or "THERMOCYCLING" in item
                              for item in reminders + [step["action"] for step in protocol]))
         primers = result["details"]["primers"]
-        self.assertEqual(primers[0]["qc_tm"], calc_primer_tm(primers[0]["binding_core"])["tm"])
-        self.assertEqual(primers[1]["qc_tm"], calc_primer_tm(primers[1]["binding_core"])["tm"])
+        self.assertEqual(primers[0]["qc_tm"], calc_primer_tm(primers[0]["binding_core"]).analysis["tm"])
+        self.assertEqual(primers[1]["qc_tm"], calc_primer_tm(primers[1]["binding_core"]).analysis["tm"])
 
     def test_declared_golden_gate_pcr_cannot_fall_back_to_native_fragment(self):
         fragments = [
@@ -131,15 +132,15 @@ class RealWorkflowRepairTests(unittest.TestCase):
             rev_5prime_overhang="TCAGGATCCGATACCTGACCTGAGTCA",
             prefer_primer3=False,
         )
-        fwd = result["forward_primer"]["full_sequence"]
-        rev = result["reverse_primer"]["full_sequence"]
-        dimer = check_primer_dimers(fwd, rev)
+        fwd = result.analysis['forward_primer']["full_sequence"]
+        rev = result.analysis['reverse_primer']["full_sequence"]
+        dimer = check_primer_dimers(fwd, rev).analysis
         self.assertLess(dimer["max_3prime_complementarity"], 4)
-        self.assertTrue(result["forward_primer"]["unique_binding"])
-        self.assertTrue(result["reverse_primer"]["unique_binding"])
-        self.assertGreaterEqual(result["forward_primer"]["binding_core_tm"], 52.0)
-        self.assertGreaterEqual(result["reverse_primer"]["binding_core_tm"], 52.0)
-        self.assertIn("selected_pair_quality", result["primer3_metrics"])
+        self.assertTrue(result.analysis['forward_primer']["unique_binding"])
+        self.assertTrue(result.analysis['reverse_primer']["unique_binding"])
+        self.assertGreaterEqual(result.analysis['forward_primer']["binding_core_tm"], 52.0)
+        self.assertGreaterEqual(result.analysis['reverse_primer']["binding_core_tm"], 52.0)
+        self.assertIn("selected_pair_quality", result.analysis['primer3_metrics'])
 
     def test_repeated_binding_sites_fail_closed_without_unique_pair(self):
         with self.assertRaisesRegex(ValueError, "No unique complete primer pair"):

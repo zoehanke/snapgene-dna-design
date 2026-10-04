@@ -110,7 +110,7 @@ def write_preparation_artifacts(preparation: list[dict], out_dir: str | pathlib.
         actual = simulate_pcr(template, sequence(fwd), sequence(rev),
                               forward_binding_core_length=core_length(fwd),
                               reverse_binding_core_length=core_length(rev))
-        if actual["amplicon"] != str(product.seq).upper():
+        if str(actual.only_product().seq) != str(product.seq).upper():
             raise ValueError(f"PREPARATION_PRODUCT_MISMATCH: '{item.get('id')}' does not match actual template and primers")
     for index, item in enumerate(preparation, 1):
         product = resolve_sequence_record(item["product"])
@@ -120,14 +120,14 @@ def write_preparation_artifacts(preparation: list[dict], out_dir: str | pathlib.
             raise ValueError(f"Preparation '{item.get('id', index)}' has no actual primers")
         prefix = f"preparation_{index:02d}"
         fragment = export_plasmid(product, out / "intermediates", prefix,
-                                  product.annotations.get("topology", "linear"))
+                                  product.annotations.get("topology", "linear")).analysis
         source_copy = annotate_record_primers(template, primers)
         if str(item.get("method", "PCR")).strip().lower() == "quikchange":
             for feature in source_copy.features[-len(primers):]:
                 feature.qualifiers.setdefault("note", []).append(
                     "QuikChange: location marks the exact 3-prime wild-type anchor; remaining primer sequence includes a 5-prime matching flank and intended internal mutation, not solely an unpaired overhang.")
         source_files = export_plasmid(source_copy, out / "annotated_sources", prefix + "_source",
-                                      template.annotations.get("topology", "linear"))
+                                      template.annotations.get("topology", "linear")).analysis
         # When the input is Native, preserve its non-modeled packets as well.
         original = item["template"]
         if isinstance(original, (str, pathlib.Path)) and pathlib.Path(original).suffix.lower() == ".dna":
@@ -196,7 +196,9 @@ def run_recipe_cli(
     # 2. Biological Guardrails Check with contextual parameters
     prod_seq = res.product_sequence or res.get("product_dna_sequence") or ""
     topo = res.product_topology or "linear"
-    product_record = resolve_sequence_record({"sequence": prod_seq, "topology": topo, "features": res.features})
+    product_record = res.product_record
+    if product_record is None and prod_seq:
+        raise ValueError('Recipe did not supply its complete molecular product')
     if res.result_kind == "verification" and res.primers:
         from core.tools.snapgene_io import annotate_record_primers
         product_record = annotate_record_primers(product_record, res.primers)
@@ -248,16 +250,16 @@ def run_recipe_cli(
             filename_base=canonical_name,
             topology=topo,
         )
-        candidate_files.append(export_res["gb_file"])
-        candidate_files.append(export_res["dna_file"])
+        candidate_files.append(export_res.analysis["gb_file"])
+        candidate_files.append(export_res.analysis["dna_file"])
 
     preparation_files = observe("preparation", write_preparation_artifacts, res.details.get("preparation", []), out_path)
     if res.details.get("edited_target_record"):
         edited = resolve_sequence_record(res.details["edited_target_record"])
         edited_files = export_plasmid(edited, candidate_dir, "expected_edited_target",
                                      edited.annotations.get("topology", "linear"))
-        candidate_files.extend([edited_files["gb_file"], edited_files["dna_file"]])
-        preparation_files["expected_edited_target"] = edited_files
+        candidate_files.extend([edited_files.analysis["gb_file"], edited_files.analysis["dna_file"]])
+        preparation_files["expected_edited_target"] = edited_files.analysis
     oligos = [(name, res.details.get(name)) for name in ("top_oligo", "bottom_oligo")]
     if any(sequence for _, sequence in oligos):
         oligo_path = out_path / "donor_oligo_order_table.tsv"

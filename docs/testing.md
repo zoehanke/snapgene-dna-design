@@ -63,6 +63,8 @@ python -X utf8 -B tools/check_redistributable.py output/packages/snapgene-dna-de
 
 ## 最近已核查的工程证据
 
+统一分子契约v2的代码回归、冻结性能预算和仓库外包实测见[实施计划](development-plans/unified-molecule-contract.md)。旧版无法正确完成的记录链不做虚假速度比较；四组共同可用CPU操作用相同解释器、输入和三次重复比较，另记录真实Primer3子进程及完整CLI成本。不同验证范围、源码/包、原生投影与补充回读分别核查，不把合成回归当陌生任务成功率。
+
 2026-10-03布局提交`d5cfa09`：本机Python3.12的980项中972通过、8跳过，独立包公开CLI及Trace三档回归通过，[六环境CI通过](https://github.com/zoehanke/snapgene-dna-design/actions/runs/37114726717)。这是此前代码的工程基线，不是本次文档整理新跑的结果。
 
 旧937项、54/54覆盖和性能测量属于2026-09-22周期，原结果在[工程摘要](../results/engineering-audit-20260922/)及[档案](archive/README.md)。更晚修复不能直接继承旧覆盖成绩；旧完整后端结果也不能证明当前环境已启用所有后端。当前未关闭验证见[交接](development-plans/README.md)。

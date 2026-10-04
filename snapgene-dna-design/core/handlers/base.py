@@ -15,12 +15,24 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 import hashlib
 import pathlib
+import copy
 from typing import TYPE_CHECKING
 
 from Bio import SeqIO
 from core.models.construct_model import ConstructModel, feature_to_dict
 from core.tools.sequence_ops import slice_record_interval
 from core.io.input_resolution import resolve_sequence_record
+from core.models.molecule import as_molecule, derived_molecule
+
+
+def planned_molecule(record, task):
+    """Bind a handler's actual transformed record to its actual input versions."""
+    sources = [as_molecule(s.get('_resolved_path') or s.get('path') or s.get('filepath'))
+               for s in task.get('sources', [])]
+    record.annotations.setdefault('topology', task.get('product', {}).get('topology'))
+    return derived_molecule(record, sources, operation=task['task_kind'],
+                            strandedness=getattr(record, 'strandedness', None),
+                            left_end=getattr(record,'left_end',None), right_end=getattr(record,'right_end',None))
 
 
 def record_slice(record, start, end, strand=1):
@@ -38,7 +50,7 @@ def record_slice(record, start, end, strand=1):
 
 def insert_record(record, boundary, inserted):
     result = ConstructModel(record).insert(boundary, str(inserted.seq)).to_record()
-    result.features.extend(f._shift(boundary) for f in inserted.features)
+    result.features.extend(copy.deepcopy(f)._shift(boundary) for f in inserted.features)
     return result
 
 
@@ -77,7 +89,7 @@ def overlap_record(records, sequence, overlap, circular):
                           "features": [feature_to_dict(f, len(record)) for f in record.features]})
         offset += len(record)-overlap
     return resolve_sequence_record({"sequence": sequence, "topology": "circular" if circular else "linear",
-        "features": migrate_features_after_assembly(fragments, len(sequence), circular=circular)})
+        "features": migrate_features_after_assembly(fragments, len(sequence), circular=circular).analysis['features']})
 
 if TYPE_CHECKING:
     from Bio.SeqRecord import SeqRecord
@@ -114,11 +126,10 @@ class TaskHandler(ABC):
         if "product_features" not in plan:
             raise PlanningError("PLAN_REGENERATION_REQUIRED", "Regenerate this legacy plan to bind source-derived annotations")
         out_dir.mkdir(parents=True, exist_ok=True)
-        record = resolve_sequence_record({"sequence": plan["product_sequence"],
-            "topology": plan["product_topology"], "features": plan["product_features"]})
-        record.id = task["task_id"]
-        record.name = "construct"
-        files = export_plasmid(record, out_dir, "construct", topology=plan["product_topology"])
+        if 'product_molecule' not in plan:
+            raise PlanningError('PLAN_REGENERATION_REQUIRED', 'Regenerate plan for the complete molecular contract')
+        record = as_molecule(plan['product_molecule'])
+        files = export_plasmid(record, out_dir, "construct", topology=plan["product_topology"]).analysis
         gb_path, fa_path = pathlib.Path(files["gb_file"]), out_dir / "construct.fasta"
         dna_path = pathlib.Path(files["dna_file"])
         with fa_path.open("w", encoding="utf-8") as handle:

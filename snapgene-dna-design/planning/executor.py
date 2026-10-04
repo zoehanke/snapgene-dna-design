@@ -10,10 +10,20 @@ All coordinates in this module are 0-based, half-open.  The returned feature
 specifications are JSON-safe and are consumed by ``scripts/plan_assembly.py``.
 """
 import copy
+from core.tools.result import ToolResult
 
 from Bio.Seq import Seq
 from Bio.SeqFeature import CompoundLocation, FeatureLocation, SeqFeature
 from Bio.SeqRecord import SeqRecord
+
+
+def _prepared_source(item):
+    from core.tools.sequence_ops import extract_subsequence
+    from core.models.molecule import as_molecule
+    source=item['_source_record']
+    start,end=item['source_interval']
+    if start==0 and end==len(source) and int(item.get('_extraction_strand') or 1)==1:return as_molecule(source)
+    return extract_subsequence(source,start,end,strand=int(item.get('_extraction_strand') or 1)).only_product()
 
 
 class ExecutionError(ValueError):
@@ -195,7 +205,7 @@ def _overlap_source_specs(fragment, product_offset, raw_length):
 
 
 def _gibson_product(fragments, topology_value, junctions, method_name="gibson"):
-    from scripts.simulate_cloning import gibson
+    from core.tools.assembly import simulate_overlap_assembly
 
     if len(fragments) < 2:
         raise ExecutionError("ASSEMBLY_REQUIRES_TWO_FRAGMENTS",
@@ -225,14 +235,16 @@ def _gibson_product(fragments, topology_value, junctions, method_name="gibson"):
     for index, item in enumerate(fragments):
         pcr_required = bool(item.get("_pcr_required", True))
         pcr = item.get("_pcr_product") or item.get("pcr_product")
-        if pcr_required and (not pcr or not pcr.get("amplicon")):
+        if pcr is not None and not isinstance(pcr,ToolResult):
+            raise ExecutionError('PREPARATION_RESULT_CONTRACT','Use actual molecular products, not a declared amplicon string')
+        if pcr_required and (pcr is None or not pcr.products):
             raise ExecutionError(
                 "PCR_PRODUCT_REQUIRED",
                 "assembly fragment %r has no simulated product from its selected primers"
                 % item.get("name", index),
                 {"fragment": item.get("name", index)},
             )
-        raw = str(pcr["amplicon"] if pcr_required else item["sequence"]).upper()
+        raw = str(str(pcr.only_product().seq) if pcr_required else item["sequence"]).upper()
         if pcr_required:
             pcr_products.append(pcr)
         raw_offsets.append(cursor)
@@ -240,11 +252,14 @@ def _gibson_product(fragments, topology_value, junctions, method_name="gibson"):
         # The complete 5' tails are already present in the selected-primer
         # PCR product. Feeding the ideal source fragment here would discard
         # the delivered primer sequences.
-        records.append(_record(item["name"], raw, "linear"))
+        records.append(pcr.only_product() if pcr_required else _prepared_source(item))
 
     try:
-        product, _fragments, contributions, warnings = gibson(
-            records, overlap=overlap, circular=circular)
+        actual = simulate_overlap_assembly(records, min_overlap=overlap, circular=circular,
+                                          fragment_labels=[item['name'] for item in fragments])
+        product = actual.only_product()
+        contributions = actual.analysis['junctions']
+        warnings = []
     except Exception as error:  # AssemblyError is intentionally normalized.
         code = getattr(error, "code", "ASSEMBLY_EXECUTION_FAILED")
         raise ExecutionError(code, str(error), getattr(error, "details", {}))
@@ -255,8 +270,9 @@ def _gibson_product(fragments, topology_value, junctions, method_name="gibson"):
     if circular and len(product.seq) == len(expected) and str(product.seq).upper() != expected:
         offset = (str(product.seq).upper()*2).find(expected)
         if 0 <= offset < len(product):
-            product = product[offset:] + product[:offset]
-            product.annotations["topology"] = "circular"
+            from core.models.construct_model import ConstructModel
+            from core.models.molecule import derived_molecule
+            product = derived_molecule(ConstructModel(product).rotate(offset).to_record(),[product],operation='rotate',strandedness=product.strandedness)
     # The selected overlap is already present at the end of the preceding
     # source fragment.  The downstream PCR product receives a synthetic left
     # tail, which the simulator removes.  Therefore each raw source fragment
@@ -268,24 +284,12 @@ def _gibson_product(fragments, topology_value, junctions, method_name="gibson"):
             {"expected_length": len(expected), "actual_length": len(product.seq)},
         )
 
-    feature_specs = []
-    cursor = 0
-    for index, item in enumerate(fragments):
-        raw_length = len(str(item["sequence"]))
-        contribution_length = raw_length
-        raw_start_in_product = cursor
-        feature_specs.append(_misc_spec(
-            item["name"], raw_start_in_product,
-            raw_start_in_product + raw_length, item["role"],
-            item["source_path"]))
-        feature_specs.extend(_overlap_source_specs(
-            item, raw_start_in_product, raw_length))
-        cursor += contribution_length
-
+    feature_specs = [_feature_spec(f) for f in product.features]
     return {
         "sequence": str(product.seq).upper(),
+        "product_molecule": product.to_dict(),
         "feature_specs": feature_specs,
-        "executor": "scripts.simulate_cloning.gibson",
+        "executor": "core.tools.assembly.simulate_overlap_assembly",
         "status": "validated",
         "method": method_name,
         "overlap_length": overlap,
@@ -293,13 +297,13 @@ def _gibson_product(fragments, topology_value, junctions, method_name="gibson"):
         "pcr_products": [
             {
                 "amplicon_length": int(
-                    pcr.get("amplicon_length", len(pcr.get("amplicon", "")))
+                    pcr.analysis.get("amplicon_length", len(pcr.only_product()))
                 ),
-                "template": pcr.get("template"),
-                "primers": pcr.get("primers", []),
-                "template_interval_0based": pcr.get("template_interval_0based"),
-                "forward_binding": pcr.get("forward_binding"),
-                "reverse_binding": pcr.get("reverse_binding"),
+                "template": pcr.analysis.get("template"),
+                "primers": pcr.analysis.get("primers", []),
+                "template_interval_0based": pcr.analysis.get("template_interval_0based"),
+                "forward_binding": pcr.analysis.get("forward_binding"),
+                "reverse_binding": pcr.analysis.get("reverse_binding"),
             }
             for pcr in pcr_products
         ],
@@ -309,121 +313,25 @@ def _gibson_product(fragments, topology_value, junctions, method_name="gibson"):
 
 
 def _golden_gate_product(fragments, topology_value, enzymes):
-    if not enzymes:
-        raise ExecutionError("GOLDEN_GATE_ENZYME_REQUIRED",
-                             "Golden Gate execution requires a Type IIS enzyme")
-
-    records = []
-    for index, item in enumerate(fragments):
-        pcr_required = bool(item.get("_pcr_required", True))
-        pcr = item.get("_pcr_product") or item.get("pcr_product")
-        if pcr_required and (not pcr or not pcr.get("amplicon")):
-            raise ExecutionError(
-                "PCR_PRODUCT_REQUIRED",
-                "Golden Gate fragment %r has no simulated product from its selected primers"
-                % item.get("name", index),
-                {"fragment": item.get("name", index)},
-            )
-        topo = "circular" if index == 0 else "linear"
-        sequence = pcr["amplicon"] if pcr_required else item["sequence"]
-        records.append(_record(item["name"], sequence, topo))
-    from scripts.golden_gate import assemble
-    from scripts.sg_common import get_enzyme
+    from core.tools.assembly import simulate_golden_gate
+    if not enzymes or len(enzymes)!=1:
+        raise ExecutionError('GOLDEN_GATE_ENZYME_REQUIRED','One Type IIS enzyme is required')
+    records=[]
+    for item in fragments:
+        pcr=item.get('_pcr_product')
+        if item.get('_pcr_required',True) and pcr is None:
+            raise ExecutionError('PCR_PRODUCT_REQUIRED','Actual PCR material is required')
+        records.append(pcr.only_product() if pcr is not None else _prepared_source(item))
     try:
-        final, junctions, parts, notes, _models = assemble(
-            records, [item["name"] for item in fragments],
-            get_enzyme(enzymes[0]) if isinstance(enzymes[0], str) else enzymes[0],
-            vector_idx=0, reverse=(), vector_topology="circular")
-    except Exception as error:
-        code = getattr(error, "code", "GOLDEN_GATE_EXECUTION_FAILED")
-        raise ExecutionError(code, str(error), getattr(error, "details", {}))
-
-    # The low-level Golden Gate implementation returns cut fragments, not a
-    # planner interval.  Part-level annotations are honest and exact; source
-    # features are only migrated when their simple interval is fully contained
-    # in the excised fragment.  A clipped/compound feature is blocked rather
-    # than silently flattened.
-    feature_specs = []
-    cursor = 0
-    for part in parts:
-        length = int(part["fragment_length"])
-        source_index = int(part["part_index"])
-        item = fragments[source_index]
-        feature_specs.append(_misc_spec(
-            item["name"], cursor, cursor + length, item["role"],
-            item["source_path"]))
-        source = item.get("_source_record")
-        if source is not None:
-            source_interval = item.get("source_interval", [0, len(source.seq)])
-            if ((item.get("_source_feature") is not None or
-                 source_interval != [0, len(source.seq)]) and
-                    source.features):
-                raise ExecutionError(
-                    "FEATURE_MAPPING_INTERVAL_GOLDEN_GATE",
-                    "Golden Gate feature migration for a clipped/selected source interval "
-                    "requires an explicit local-coordinate mapping",
-                    {"part": item["name"],
-                     "source_interval": source_interval},
-                )
-            start0 = int(part["top_cut_start0"])
-            end0 = int(part["top_cut_end0"])
-            wraps = bool(part.get("wraps_origin"))
-            if wraps:
-                # Mapping a wrapped cut arc requires an origin-aware split;
-                # refuse only when an annotation actually intersects it.
-                n = len(source.seq)
-                def _arc_intersects(part_start, part_end):
-                    """Whether a source interval intersects the selected wrap arc."""
-                    return ((part_start < n and part_end > start0) or
-                            (part_start < end0 and part_end > 0))
-                for feature in source.features:
-                    if feature.location is None:
-                        continue
-                    fparts = _parts(feature.location)
-                    intersects = any(
-                        _arc_intersects(int(part.start), int(part.end))
-                        for part in fparts
-                    )
-                    if intersects:
-                        raise ExecutionError(
-                            "FEATURE_MAPPING_WRAPPED_GOLDEN_GATE",
-                            "wrapped Golden Gate part contains an annotation that needs explicit origin mapping",
-                            {"part": item["name"], "feature": feature.id or feature.type},
-                        )
-            else:
-                for feature in source.features:
-                    if feature.location is None:
-                        continue
-                    fparts = _parts(feature.location)
-                    if all(start0 <= int(p.start) and int(p.end) <= end0
-                           for p in fparts):
-                        if part.get("reversed"):
-                            feature_specs.append(_feature_spec_reversed(
-                                feature, start0, end0, cursor))
-                        else:
-                            feature_specs.append(_feature_spec(
-                                feature, cursor - start0))
-                    elif any(int(p.start) < end0 and int(p.end) > start0
-                             for p in fparts):
-                        raise ExecutionError(
-                            "FEATURE_MAPPING_PARTIAL_GOLDEN_GATE",
-                            "Golden Gate cut clips a source feature; refusing to flatten it",
-                            {"part": item["name"], "feature": feature.id or feature.type},
-                        )
-        cursor += length
-
-    product = _record("golden_gate_product", final, "circular")
-    return {
-        "sequence": str(final).upper(),
-        "feature_specs": feature_specs,
-        "executor": "scripts.golden_gate.assemble",
-        "status": "validated",
-        "method": "golden_gate",
-        "junctions": junctions,
-        "parts": parts,
-        "notes": notes,
-        "circular": True,
-    }
+        result=simulate_golden_gate(records,enzyme=enzymes[0],circular=topology_value=='circular')
+    except Exception as exc:
+        raise ExecutionError(getattr(exc,'error_code','GOLDEN_GATE_EXECUTION_FAILED'),str(exc)) from exc
+    product=result.only_product()
+    return {'sequence':str(product.seq),'product_molecule':product.to_dict(),
+            'feature_specs':[_feature_spec(f) for f in product.features],
+            'executor':'core.tools.assembly.simulate_golden_gate','status':'validated',
+            'method':'golden_gate','junctions':result.analysis['junctions'],
+            'parts':result.analysis['fragments'],'notes':[],'circular':product.topology=='circular'}
 
 
 def _digest_ligate_product(fragments, topology_value, enzymes):
@@ -442,7 +350,7 @@ def _digest_ligate_product(fragments, topology_value, enzymes):
     for fragment in fragments:
         pcr = fragment.get("_pcr_product")
         if pcr is not None:
-            record = resolve_sequence_record(pcr)
+            record = pcr.only_product()
         else:
             source = fragment.get("_source_record")
             if source is None:
@@ -457,21 +365,22 @@ def _digest_ligate_product(fragments, topology_value, enzymes):
                     record = record.reverse_complement(annotations=True)
             if str(record.seq).upper() != fragment["sequence"].upper():
                 raise ExecutionError("DIGEST_FRAGMENT_RECORD_MISMATCH", "Selected fragment is not a contiguous physical digestion substrate")
-        record.id = fragment["name"]
+        # Product identity belongs to the producing operation, not this consumer.
         records.append(record)
     try:
         result = simulate_digest_ligation(records[0], records[1], list(enzymes), orientation="forward")
     except Exception as error:
         code = getattr(error, "code", "DIGEST_LIGATE_EXECUTION_FAILED")
         raise ExecutionError(code, str(error), getattr(error, "details", {}))
-    product = resolve_sequence_record(result)
+    product = result.only_product()
     return {
         "sequence": str(product.seq).upper(),
+        "product_molecule": product.to_dict(),
         "feature_specs": [_feature_spec(feature) for feature in product.features],
         "executor": "core.tools.assembly.simulate_digest_ligation",
         "status": "validated",
         "method": "digest-ligate",
-        "junctions": result["junctions"],
+        "junctions": result.analysis['junctions'],
         "circular": True,
     }
 

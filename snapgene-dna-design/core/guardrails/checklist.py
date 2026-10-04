@@ -277,7 +277,7 @@ def scan_methylation_blockade(
         }
 
     seq_str = str(record_or_seq.seq if isinstance(record_or_seq, SeqRecord) else record_or_seq).upper()
-    res = find_restriction_sites(seq_str, enzymes=cloning_enzymes)
+    res = find_restriction_sites(seq_str, enzymes=cloning_enzymes).analysis
 
     blocked = []
     for enz_name, details in res.get("enzymes", {}).items():
@@ -480,12 +480,12 @@ def quick_biological_sanity_check(
                 "valid": audit["valid"],
             })
     elif is_cds:
-        rf_result = check_reading_frame(seq_str, start_offset=cds_start_offset)
+        rf_result = check_reading_frame(seq_str, start_offset=cds_start_offset).analysis
 
     # 2. Restriction Enzyme Conflicts (BIO-03)
     enzyme_conflicts = []
     if cloning_enzymes:
-        res_sites = find_restriction_sites(record_or_seq, enzymes=cloning_enzymes, topology=rec_top)
+        res_sites = find_restriction_sites(record_or_seq, enzymes=cloning_enzymes, topology=rec_top).analysis
         for enz_name, details in res_sites.get("enzymes", {}).items():
             if details["cut_count"] > 0:
                 enzyme_conflicts.append({
@@ -516,12 +516,12 @@ def quick_biological_sanity_check(
             if primer_method.lower() == "quikchange" and str(Seq(forward).reverse_complement()).upper() == reverse.upper():
                 # The intended complementary heteroduplex is the SDM mechanism.
                 # Unintended self-dimers still receive the ordinary check.
-                checks = [check_primer_dimers(forward, forward), check_primer_dimers(reverse, reverse)]
+                checks = [check_primer_dimers(forward, forward).analysis, check_primer_dimers(reverse, reverse).analysis]
                 pair_check = dict(max(checks, key=lambda c: c["max_3prime_complementarity"]))
                 pair_check["expected_quikchange_heteroduplex"] = True
                 pair_check["self_dimer_checks"] = checks
             else:
-                pair_check = check_primer_dimers(forward, reverse)
+                pair_check = check_primer_dimers(forward, reverse).analysis
             pair_checks.append(pair_check)
         p_check = max(pair_checks, key=lambda c: c["max_3prime_complementarity"])
         primer_dimer_res = {

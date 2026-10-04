@@ -22,7 +22,9 @@ from Bio.Seq import Seq
 from Bio.Data.CodonTable import TranslationError
 from Bio.SeqRecord import SeqRecord
 
+from core.io.input_resolution import resolve_sequence_record
 from core.recipes.contract import RecipeResult
+from core.models.molecule import as_molecule, derived_molecule
 from core.tools.amplification import calc_primer_tm
 from core.tools.inspection import _load_record
 from core.tools.sequence_ops import mutate_sequence
@@ -280,7 +282,7 @@ def recipe_site_directed_mutagenesis(
             ),
         }
         qc_tm = calc_quikchange_tm(fwd_primer, mismatch_count)
-        santalucia_tm = calc_primer_tm(fwd_primer)["tm"]
+        santalucia_tm = calc_primer_tm(fwd_primer).analysis["tm"]
         primer_rows = [
             _primer_row(
                 "forward_mutagenic_primer", fwd_primer, fwd_primer,
@@ -310,7 +312,7 @@ def recipe_site_directed_mutagenesis(
             finish = (begin+len(core)) % n if circular else begin+len(core)
             primer["binding_sequence"] = core
             primer["binding_interval_0based"] = [begin, finish or n]
-            primer["binding_core_tm"] = calc_primer_tm(core)["tm"]
+            primer["binding_core_tm"] = calc_primer_tm(core).analysis["tm"]
         product_method = "quikchange_mutagenic_extension"
     else:
         # Inverse PCR uses full-plasmid amplification followed by circulariza-
@@ -341,7 +343,7 @@ def recipe_site_directed_mutagenesis(
             forward_binding_start_0based=fwd_position,
             reverse_binding_start_0based=rev_position,
         )
-        linear_intermediate = str(pcr_res["amplicon"]).upper()
+        linear_intermediate = str(str(pcr_res.only_product().seq)).upper()
         original_zero = (len(alt) + (n - end)) % len(linear_intermediate)
         cyclized = linear_intermediate[original_zero:] + linear_intermediate[:original_zero]
         if cyclized != mutated_product:
@@ -361,8 +363,8 @@ def recipe_site_directed_mutagenesis(
                 "rotation of the linear amplicon at the original origin"
             ),
         }
-        fwd_tm = calc_primer_tm(right_core)["tm"]
-        rev_tm = calc_primer_tm(rev_primer)["tm"]
+        fwd_tm = calc_primer_tm(right_core).analysis["tm"]
+        rev_tm = calc_primer_tm(rev_primer).analysis["tm"]
         primer_rows = [
             _primer_row(
                 "inverse_pcr_forward", fwd_primer, right_core,
@@ -446,9 +448,9 @@ def recipe_site_directed_mutagenesis(
             "sequence": linear_intermediate,
             "topology": "linear",
             "length": len(linear_intermediate),
-            "features": pcr_evidence["pcr_intermediate"].get("features", []),
+            "features": pcr_evidence["pcr_intermediate"].only_product().to_dict()['features'],
             "method": "inverse_pcr_pcr_intermediate",
-            "template_interval_0based": pcr_evidence["pcr_intermediate"].get(
+            "template_interval_0based": pcr_evidence["pcr_intermediate"].analysis.get(
                 "template_interval_0based"
             ),
             "evidence": pcr_evidence,
@@ -475,13 +477,12 @@ def recipe_site_directed_mutagenesis(
             {"step": 3, "action": "Treat the reaction to remove parental circular template with DpnI according to the validated enzyme protocol."},
             {"step": 4, "action": "Purify the linear product and recircularize it with compatible end-phosphorylation and ligation/cyclization chemistry, such as KLD, according to the manufacturer's protocol."},
         ]
+    material = derived_molecule(resolve_sequence_record(circular_product_dict),[as_molecule(rec)],operation="recipe_site_directed_mutagenesis",strandedness="double")
     return RecipeResult(
         recipe_name="recipe_site_directed_mutagenesis",
         result_kind="construct",
         completeness="complete_construct",
-        product_sequence=mutated_product,
-        product_topology="circular",
-        features=circular_product_dict["features"],
+        products=[material],
         primers=primer_rows,
         quality_checks=quality_checks,
         warnings=warnings,

@@ -22,17 +22,56 @@ from core.models.assembly_model import (
     check_sticky_junctions,
     overhang_end,
 )
+from core.models.molecule import MoleculeInput, as_molecule, derived_molecule
+from core.tools.result import ToolResult, reaction_checks
 from core.models.construct_model import ConstructModel, feature_to_dict
 from core.tools.feature_ops import migrate_features_after_assembly
 from core.tools.inspection import _load_record
 from core.tools.restriction import get_enzyme, restriction_hits
 
 
+def ligate_fragments(fragments: list[MoleculeInput], circular: bool = False) -> ToolResult:
+    """Join already prepared duplexes; reference top strands concatenate once."""
+    from core.models.assembly_model import compatible_sticky
+    from core.models.assembly_model import FragmentEnd
+    materials = [as_molecule(f) for f in fragments]
+    if not materials:
+        raise ValueError('Ligation requires at least one prepared fragment')
+    for material in materials:
+        if material.topology != 'linear' or material.strandedness != 'double':
+            raise ValueError('Ligation requires explicitly linear, double-stranded substrates')
+        if material.left_end is None or material.right_end is None:
+            raise ValueError('Ligation requires known physical end geometry')
+    junctions = []
+    for i in range(len(materials) if circular else len(materials)-1):
+        a,b = materials[i],materials[(i+1)%len(materials)]
+        if not compatible_sticky(a.right_end,b.left_end):
+            raise ValueError(f'Incompatible physical ends at junction {i+1}')
+        junctions.append({'from':i,'to':(i+1)%len(materials),'kind':a.right_end.kind})
+    record = SeqRecord(Seq(''.join(str(m.seq) for m in materials)),id='ligation',
+                       annotations={'molecule_type':'DNA','topology':'circular' if circular else 'linear'})
+    offset=0
+    for material in materials:
+        record.features.extend(copy.deepcopy(f)._shift(offset) for f in material.features)
+        offset+=len(material)
+    left,right = (None,None) if circular else (copy.deepcopy(materials[0].left_end),copy.deepcopy(materials[-1].right_end))
+    if right is not None:right.cut_boundary=len(record)
+    product=derived_molecule(record,materials,operation='ligate_fragments',strandedness='double',left_end=left,right_end=right)
+    return ToolResult(products=[product],analysis={'junctions':junctions},checks=reaction_checks([product],'physical_end_ligation'))
+
+
+def _assembly_material(sequence, features, sources, topology, operation, strandedness='double'):
+    from core.io.input_resolution import resolve_sequence_record
+    record = resolve_sequence_record({'sequence':sequence,'features':features,'topology':topology,'id':'assembly'})
+    return derived_molecule(record,sources,operation=operation,strandedness=strandedness)
+
+
 def simulate_overlap_assembly(
-    fragments: list[str | dict[str, Any]],
+    fragments: list[MoleculeInput],
     min_overlap: int = 15,
     circular: bool = True,
-) -> dict[str, Any]:
+    fragment_labels: list[str] | None = None,
+) -> ToolResult:
     """Simulate homologous overlap assembly (Gibson / In-Fusion).
 
     Args:
@@ -43,7 +82,9 @@ def simulate_overlap_assembly(
     Returns:
         dict containing assembled product sequence, length, junctions, and topology.
     """
-    records = [_load_record(f) for f in fragments]
+    records = [as_molecule(f,default_topology="linear") for f in fragments]
+    if fragment_labels is not None and len(fragment_labels) != len(records):
+        raise ValueError('Each fragment label must correspond to one actual input')
     circular_inputs = [
         index + 1
         for index, record in enumerate(records)
@@ -115,15 +156,24 @@ def simulate_overlap_assembly(
         if i < len(junctions):
             offset += len(record) - junctions[i]["overlap_length"]
 
-    return {
-        "product_sequence": product,
+    mapped_features = migrate_features_after_assembly(feature_fragments, len(product), circular=circular).analysis['features']
+    material = _assembly_material(product,mapped_features,records,'circular' if circular else 'linear','simulate_overlap_assembly')
+    if fragment_labels is not None:
+        offset=0
+        for i,record in enumerate(records):
+            # Label unique contributions, not duplicated junction homology.
+            contributed=len(record)-(junctions[i]['overlap_length'] if i<len(junctions) else 0)
+            if contributed>0:
+                material.features.append(SeqFeature(FeatureLocation(offset,offset+contributed,strand=1),type='misc_feature',
+                    qualifiers={'label':[fragment_labels[i]],'note':['assembly contribution from '+record.molecule_id]}))
+            offset+=contributed
+    return ToolResult(products=[material],checks=reaction_checks([material],material.operation),analysis={
         "product_length": len(product),
         "product_sha256": hashlib.sha256(product.encode("utf-8")).hexdigest().upper(),
         "product_topology": "circular" if circular else "linear",
-        "features": migrate_features_after_assembly(feature_fragments, len(product), circular=circular),
         "fragment_count": n_frags,
         "junctions": junctions,
-    }
+    })
 
 
 def _arc(seq: str, start0: int, end0: int) -> str:
@@ -179,22 +229,9 @@ def _feature_dicts_for_arc(record: SeqRecord, start0: int, end0: int, *,
 
 def _shift_feature_dict(feature: dict[str, Any], offset: int, total_length: int) -> dict[str, Any]:
     """Shift a serialized feature while preserving lossless location parts."""
-    shifted = copy.deepcopy(feature)
-    location = shifted.get("location", {})
-    parts = location.get("parts") or []
-    for part in parts:
-        part["start0"] = int(part["start0"]) + offset
-        part["end0"] = int(part["end0"]) + offset
-        part["start"] = int(part["start0"]) + 1
-        part["end"] = int(part["end0"])
-    if parts:
-        shifted["start"] = min(int(p["start"]) for p in parts)
-        shifted["end"] = max(int(p["end"]) for p in parts)
-        shifted["interval_0based"] = [
-            min(int(p["start0"]) for p in parts),
-            max(int(p["end0"]) for p in parts),
-        ]
-    return shifted
+    from core.io.input_resolution import resolve_sequence_record
+    record=resolve_sequence_record({'sequence':'N'*total_length,'features':[feature]})
+    return feature_to_dict(record.features[0]._shift(offset),total_length)
 
 
 def _type_iis_overhang(seq: str, hit: dict[str, Any]) -> tuple[str, str]:
@@ -249,17 +286,17 @@ def type_iis_fragment(
             reason += "; internal Type IIS site(s) require explicit redesign"
         return {"ok": False, "reason": reason, "hit_count": len(all_hits)}
 
-    # Real restriction_hits supplies strand.  Test doubles and old callers did
-    # not, so infer the conventional forward-left/reverse-right orientation
-    # only when metadata is absent.
+    # Supplied hit observations must agree with the actual source scan.
     ordered = sorted(all_hits, key=lambda h: int(h.get("recognition_start0", h.get("start", 1) - 1)))
-    if hits is not None and not any(int(h.get("strand", 0)) == -1 for h in ordered):
-        # Legacy CLI test doubles predate strand-aware restriction hits.  The
-        # adapter supplies an explicit hit list, so infer its conventional
-        # inward pair without weakening the real scan above.
-        ordered[0]["strand"], ordered[1]["strand"] = 1, -1
-    for index, hit in enumerate(ordered):
-        hit.setdefault("strand", 1 if index == 0 else -1)
+    if hits is not None:
+        actual_hits=restriction_hits(seq,enzyme,circular=circular)
+        for hit in ordered:
+            matches=[actual for actual in actual_hits
+                     if actual['top_cut_boundary_0based']==hit['top_cut_boundary_0based']
+                     and actual['bottom_cut_boundary_0based']==hit['bottom_cut_boundary_0based']]
+            if len(matches)!=1 or hit.get('strand',matches[0]['strand']) != matches[0]['strand']:
+                return {'ok':False,'reason':'supplied Type IIS hit contradicts actual source geometry','hit_count':len(all_hits)}
+        ordered=[copy.deepcopy(h) for h in actual_hits if h.get('cuts_within_sequence',True)]
 
     candidates: list[dict[str, Any]] = []
     wrap_candidates = 0
@@ -470,7 +507,7 @@ def digest_ligate(
     from core.tools.sequence_ops import extract_subsequence
     start = insert_frag.left_end.source_cut_boundary
     end = insert_frag.right_end.source_cut_boundary
-    insert_record = _load_record(extract_subsequence(insert_rec, start, end, topology=insert_rec.annotations.get("topology", "linear")))
+    insert_record = extract_subsequence(insert_rec, start, end, topology=insert_rec.annotations.get("topology", "linear")).only_product()
     product.features.extend(f._shift(vector_cut0) for f in insert_record.features)
     product.features.append(SeqFeature(
         FeatureLocation(vector_cut0, vector_cut0 + len(ins_seq), strand=1),
@@ -591,7 +628,7 @@ def simulate_digest_ligation(
     vector_enzymes: list[str],
     insert_enzymes: list[str] | None = None,
     orientation: str = "auto",
-) -> dict[str, Any]:
+) -> ToolResult:
     """Simulate restriction-enzyme digestion and sticky-end ligation.
 
     Supports single-enzyme or double-enzyme directional cloning.
@@ -611,15 +648,14 @@ def simulate_digest_ligation(
             single_insert = ins_rec.reverse_complement(id=True, name=True, description=True, annotations=True)
         prod_rec, frags, junctions = digest_ligate(vec_rec, single_insert, enz[0])
         prod_seq = str(prod_rec.seq).upper()
-        return {
-            "product_sequence": prod_seq,
+        material = derived_molecule(prod_rec,[as_molecule(vec_rec),as_molecule(ins_rec)],operation='simulate_digest_ligation',strandedness='double')
+        return ToolResult(products=[material],checks=reaction_checks([material],'single_enzyme_ligation'),analysis={
             "product_length": len(prod_seq),
             "product_sha256": hashlib.sha256(prod_seq.encode("utf-8")).hexdigest().upper(),
             "product_topology": "circular",
-            "features": [feature_to_dict(f, len(prod_rec)) for f in prod_rec.features],
             "enzymes": enz,
             "junctions": junctions,
-        }
+        })
 
     # Two-enzyme directional cloning.  Enzyme order is meaningful: enzyme5
     # defines the left side of the insert and enzyme3 the right side.  Do not
@@ -828,8 +864,9 @@ def simulate_digest_ligation(
     ))
     prod_seq = str(prod_rec.seq).upper()
 
-    return {
-        "product_sequence": prod_seq,
+    material = derived_molecule(prod_rec,[as_molecule(vector_source),as_molecule(insert_source)],
+                                operation='simulate_digest_ligation',strandedness='double')
+    return ToolResult(products=[material],checks=reaction_checks([material],material.operation),analysis={
         "product_length": len(prod_seq),
         "product_sha256": hashlib.sha256(prod_seq.encode("utf-8")).hexdigest().upper(),
         "product_topology": "circular",
@@ -847,119 +884,31 @@ def simulate_digest_ligation(
         "junctions": junctions,
         "insert_sequence_after_orientation": product_insert_sequence,
         "insert_feature_offset": insert_offset,
-    }
+    })
 
 
-def simulate_golden_gate(
-    fragments: list[str | dict[str, Any] | pathlib.Path | SeqRecord],
-    enzyme: str = "BsaI",
-    circular: bool = True,
-) -> dict[str, Any]:
-    """Simulate Type IIS Golden Gate one-pot multi-fragment assembly.
-
-    Digests each fragment with the specified Type IIS enzyme (e.g. BsaI, BsmBI, Esp3I),
-    liberating inserts between inward-facing recognition sites with 4-bp sticky overhangs,
-    verifies junction complementarity, and ligates fragments.
-    """
-    enz = get_enzyme(enzyme)
-    if len(fragments) < 2:
-        raise ValueError("Golden Gate assembly requires at least 2 fragments")
-
-    digested_frags: list[dict[str, Any]] = []
-    assembly_fragments: list[AssemblyFragment] = []
-    for idx, source in enumerate(fragments):
-        from core.io.input_resolution import resolve_sequence_input
-
-        rec, seq = resolve_sequence_input(source, record_id=f"frag_{idx + 1}")
-        fid = (source.get("id") if isinstance(source, dict) else rec.id) or f"frag_{idx + 1}"
-        # In a circular product the first part is the destination recipient in
-        # the legacy API.  Raw strings have no topology annotation, so retain
-        # that established convention while respecting explicit record data.
-        explicit_topology = rec.annotations.get("topology")
-        part_topology = explicit_topology or ("circular" if circular and idx == 0 else "linear")
-        info = type_iis_fragment(rec, enz, topology_override=part_topology)
-        if not info.get("ok"):
-            raise ValueError(f"Fragment {fid}: {info.get('reason', 'Type IIS excision failed')}")
-        info["id"] = fid
-        info["original_length"] = len(seq)
-        info["left_cut"] = info["top_cut_start0"]
-        info["right_cut"] = info["top_cut_end0"]
-        info["source_topology"] = part_topology
-        # Backward-compatible key, now representing the actual cut product.
-        info["insert_core"] = info["fragment"]
-        digested_frags.append(info)
-
-        right_storage = (
-            str(Seq(info["right_overhang"]).reverse_complement())
-            if info["right_overhang"] else ""
-        )
-        assembly_fragments.append(AssemblyFragment(
-            fid,
-            info["fragment"],
-            topology="linear",
-            left_end=overhang_end(info["left_kind"], info["left_overhang"], 0),
-            right_end=overhang_end(info["right_kind"], right_storage, len(info["fragment"])),
-            source=rec.id,
-        ))
-
-    num = len(digested_frags)
-    junctions = check_sticky_junctions(assembly_fragments, circular=circular)
-    for index, junction in enumerate(junctions):
-        current = digested_frags[index]
-        following = digested_frags[(index + 1) % num]
-        compatible = junction["compatibility"] == "ok"
-        junction.update({
-            "junction_index": index,
-            "from_fragment": current["id"],
-            "to_fragment": following["id"],
-            "from_overhang": current["right_overhang"],
-            "to_overhang": following["left_overhang"],
-            "compatible": compatible,
-            "overhang_sequence": current["right_overhang"],
-        })
-        if not compatible:
-            raise ValueError(
-                f"Golden Gate overhang mismatch between {current['id']} ({current['right_overhang']}) "
-                f"and {following['id']} ({following['left_overhang']})"
-            )
-
-    # Each physical fragment contains both terminal overhangs.  A junction is
-    # represented once by keeping the upstream right motif and trimming the
-    # downstream left motif.  Circular closure removes the final motif that is
-    # already present at the product origin.
-    product = digested_frags[0]["fragment"]
-    feature_fragments = [{
-        "offset_in_product": 0,
-        "length": len(digested_frags[0]["fragment"]),
-        "features": digested_frags[0].get("features", []),
-    }]
-    for index in range(1, num):
-        current = digested_frags[index]
-        left_len = len(current["left_overhang"])
-        offset = len(product) - left_len
-        feature_fragments.append({
-            "offset_in_product": offset,
-            "length": len(current["fragment"]),
-            "features": current.get("features", []),
-        })
-        product += current["fragment"][left_len:]
-    if circular:
-        final_right_len = len(digested_frags[-1]["right_overhang"])
-        if final_right_len:
-            product = product[:-final_right_len]
-
-    return {
-        "product_sequence": product,
-        "product_length": len(product),
-        "product_sha256": hashlib.sha256(product.encode("utf-8")).hexdigest().upper(),
-        "product_topology": "circular" if circular else "linear",
-        "enzyme": enzyme,
-        "features": migrate_features_after_assembly(feature_fragments, len(product), circular=circular),
-        "fragment_count": num,
-        "junctions": junctions,
-        "fragments": digested_frags,
-        "recognition_sites_remaining": [
-            h for h in restriction_hits(product, enz, circular=circular)
-            if h.get("cuts_within_sequence", True)
-        ],
-    }
+def simulate_golden_gate(fragments: list[MoleculeInput], enzyme: str = 'BsaI', circular: bool = True) -> ToolResult:
+    """Digest actual substrates, then ligate actual top-strand cut products."""
+    from core.tools.restriction import digest_type_iis
+    if len(fragments)<2:raise ValueError('Golden Gate requires at least two actual substrates')
+    digests=[digest_type_iis(as_molecule(f),enzyme=enzyme) for f in fragments]
+    cut_products=[d.only_product() for d in digests]
+    ligation=ligate_fragments(cut_products,circular=circular)
+    material=ligation.only_product()
+    junctions=[]
+    for j in ligation.analysis['junctions']:
+        i=j['from'];following=j['to']
+        junctions.append({**j,'between':[i,following],'compatibility':'ok','compatible':True,
+            'from_overhang':str(Seq(cut_products[i].right_end.overhang_sequence).reverse_complement()),
+            'to_overhang':cut_products[following].left_end.overhang_sequence,
+            'overhang_sequence':cut_products[following].left_end.overhang_sequence})
+    return ToolResult(products=[material],checks=[c for d in digests for c in d.checks]+ligation.checks,
+        analysis={'product_length':len(material),'product_sha256':material.sequence_sha256,
+            'product_topology':material.topology,'enzyme':enzyme,'fragment_count':len(fragments),
+            'junctions':junctions,'fragments':[{'id':str(i),'fragment':str(p.seq),
+                'fragment_length':len(p),'left_overhang':p.left_end.overhang_sequence,
+                'right_overhang':str(Seq(p.right_end.overhang_sequence).reverse_complement()),
+                'left_kind':p.left_end.kind,'right_kind':p.right_end.kind}
+                for i,p in enumerate(cut_products)],
+            'reaction_products':cut_products,
+            'recognition_sites_remaining':restriction_hits(str(material.seq),get_enzyme(enzyme),circular=circular)})

@@ -7,7 +7,9 @@ functional components/fragments, PCR primers, and QC verification designs.
 """
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field, fields
+from core.models.molecule import Molecule
+from core.models.construct_model import feature_to_dict
 from typing import Any, Literal
 
 ResultKind = Literal["construct", "component", "primers", "verification", "protocol"]
@@ -19,15 +21,39 @@ class RecipeResult:
     recipe_name: str
     result_kind: ResultKind
     completeness: CompletenessKind
-    product_sequence: str = ""
-    product_topology: Literal["circular", "linear"] = "circular"
-    features: list[dict[str, Any]] = field(default_factory=list)
+    products: list[Molecule] = field(default_factory=list)
+    analysis: dict[str, Any] = field(default_factory=dict)
+    checks: list[dict[str, Any]] = field(default_factory=list)
+    subject: Molecule | None = None
     primers: list[dict[str, Any]] = field(default_factory=list)
     quality_checks: dict[str, Any] = field(default_factory=dict)
     warnings: list[str] = field(default_factory=list)
     protocol_steps: list[dict[str, Any]] = field(default_factory=list)
     citations: list[dict[str, Any]] = field(default_factory=list)
     details: dict[str, Any] = field(default_factory=dict)
+
+    @property
+    def product_record(self):
+        if self.result_kind == 'verification':
+            return self.subject
+        if len(self.products) > 1:
+            raise ValueError('Recipe has multiple products; select one explicitly')
+        return self.products[0] if self.products else None
+
+    @property
+    def product_sequence(self):
+        record = self.product_record
+        return str(record.seq) if record is not None else ''
+
+    @property
+    def product_topology(self):
+        record = self.product_record
+        return record.topology if record is not None else None
+
+    @property
+    def features(self):
+        record = self.product_record
+        return [feature_to_dict(f,len(record)) for f in record.features] if record is not None else []
 
     @property
     def quality_checks_table(self) -> list[dict[str, Any]]:
@@ -40,11 +66,13 @@ class RecipeResult:
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary, merging top-level fields and recipe-specific details."""
-        d = asdict(self)
-        # Recipe-specific detail must never change a contract field's type.
-        # Retain the nested detail and expose non-contract extras for older callers.
-        det = d["details"]
-        return {**det, **d}
+        from core.tools.result import to_wire
+        d = {definition.name: to_wire(getattr(self,definition.name)) for definition in fields(self)}
+        # Retained external Recipe report fields are projections of the one material,
+        # never independent stored DNA or a second computation contract.
+        d.update(product_sequence=self.product_sequence, product_topology=self.product_topology,
+                 features=self.features)
+        return {**d['details'], **d}
 
     def __getitem__(self, key: str) -> Any:
         if hasattr(self, key):

@@ -143,11 +143,14 @@ def _read_one(path, fmt):
         return read_native_dna_record(path)
     try:
         with open(path, "r", encoding="utf-8-sig") as handle:
-            return normalize_primer_qualifiers(SeqIO.read(handle, fmt))
+            record=normalize_primer_qualifiers(SeqIO.read(handle, fmt))
     except UnicodeDecodeError:
         # Legacy INSDC files are sometimes stored as a single-byte encoding.
         with open(path, "r", encoding="latin-1") as handle:
-            return normalize_primer_qualifiers(SeqIO.read(handle, fmt))
+            record=normalize_primer_qualifiers(SeqIO.read(handle, fmt))
+    from core.models.molecule import as_molecule
+    from core.io.molecule_codec import restore_file_metadata
+    return as_molecule(restore_file_metadata(record))
 
 
 def load_seq(source):
@@ -172,22 +175,7 @@ def load_seq(source):
         ext = os.path.splitext(path)[1].lower()
         # Native SnapGene binary
         if ext == ".dna":
-            try:
-                rec = _read_one(path, "snapgene")
-                return rec, "snapgene"
-            except Exception:
-                # fallback: snapgene_reader -> SeqRecord.  The reader itself
-                # opens ``filepath`` without closing it, so pass an explicit
-                # file object owned by this context manager.
-                try:
-                    from snapgene_reader import snapgene_file_to_seqrecord
-                    with open(path, "rb") as handle:
-                        rec = snapgene_file_to_seqrecord(fileobject=handle)
-                    return enrich_native_primer_features(rec, path), "snapgene"
-                except Exception as e:
-                    raise ValueError(
-                        "Cannot parse SnapGene file %s: %s" % (path, e)
-                    )
+            return _read_one(path, "snapgene"), "snapgene"
         if ext in (".gb", ".genbank"):
             return _read_one(path, "genbank"), "genbank"
         if ext in (".fa", ".fasta", ".fna", ".fsa"):

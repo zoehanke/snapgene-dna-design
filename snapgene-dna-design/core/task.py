@@ -64,21 +64,8 @@ def read_record(path):
     Native SnapGene .dna is parsed with Biopython's snapgene format and
     falls back to snapgene_reader when the optional dependency is absent.
     """
-    from Bio import SeqIO
-    path = str(path)
-    lower = path.lower()
-    if lower.endswith((".gb", ".gbk", ".genbank")):
-        return SeqIO.read(path, "genbank")
-    if lower.endswith(".dna"):
-        try:
-            return SeqIO.read(path, "snapgene")
-        except Exception:
-            try:
-                from snapgene_reader import snapgene_file_to_seqrecord
-                return snapgene_file_to_seqrecord(path)
-            except Exception:
-                raise
-    return SeqIO.read(path, "fasta")
+    from core.models.molecule import as_molecule
+    return as_molecule(path)
 
 
 def _read_topology(path):

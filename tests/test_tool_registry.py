@@ -50,9 +50,9 @@ class ToolRegistryTests(unittest.TestCase):
 
     def test_registry_size_and_schema_definitions(self):
         """Verify registry contains the current tools with no duplicate definitions."""
-        self.assertEqual(len(TOOL_REGISTRY), 41)
+        self.assertEqual(len(TOOL_REGISTRY), 43)
         defs = list_tool_definitions()
-        self.assertEqual(len(defs), 41)
+        self.assertEqual(len(defs), 43)
         self.assertIn("prepare_pcr_fragment", TOOL_REGISTRY)
         names = [d["name"] for d in defs]
         self.assertIn("prepare_pml104_guide", TOOL_REGISTRY)
@@ -114,11 +114,12 @@ class ToolRegistryTests(unittest.TestCase):
         spec = get_tool("calc_primer_tm")
         self.assertIsNotNone(spec)
         res = spec.execute(primer_seq="ATGCGATCGATCGATCGATC")
-        self.assertIn("tm", res)
-        self.assertGreater(res["tm"], 40.0)
+        self.assertIn("tm", res.analysis)
+        self.assertGreater(res.analysis["tm"], 40.0)
 
         # Unknown arguments must NOT be silently dropped; inspect.signature.bind must raise TypeError
-        with self.assertRaises(TypeError):
+        from core.errors import ToolExecutionError
+        with self.assertRaises(ToolExecutionError):
             spec.execute(primer_seq="ATGCGATCGATCGATCGATC", unknown_unexpected_arg=999)
 
     def test_get_feature_tool_contract(self):
@@ -126,15 +127,16 @@ class ToolRegistryTests(unittest.TestCase):
         tool = get_tool("get_feature")
         self.assertIsNotNone(tool)
         # Execute on a test file
-        res = tool.execute(file_path_or_record=str(self.src1), name_or_type="misc_feature")
-        self.assertIsNone(res)  # plasmidA has no annotated misc_feature, returns None
+        with self.assertRaisesRegex(ValueError,'not found'):
+            tool.execute(file_path_or_record=str(self.src1), name_or_type="misc_feature")
+        self.assertEqual(tool.execute(file_path_or_record=str(self.src1),name_or_type='misc_feature',return_all=True).products,[])
 
     def test_strip_terminal_codons_tool_contract(self):
         """Verify strip_terminal_codons works with schema."""
         tool = get_tool("strip_terminal_codons")
         self.assertIsNotNone(tool)
         res = tool.execute(cds_seq="ATGAAATGA", strip_start=True, strip_stop=True)
-        self.assertEqual(res["sequence"], "AAA")
+        self.assertEqual(str(res.only_product().seq), "AAA")
 
     def test_dynamic_pipeline_dispatch(self):
         """Verify CompositePipelineHandler executes tools dynamically via TOOL_REGISTRY."""
@@ -173,8 +175,8 @@ class ToolRegistryTests(unittest.TestCase):
         self.assertEqual(len(step_records), 4)
         self.assertIn("get_tag", env)
         self.assertIn("fuse_tag", env)
-        self.assertTrue(final_seq.startswith("ATGGCTAGCATGACTGGTGGACAGCAAATGGGT"))
-        self.assertTrue(final_seq.endswith("CATCATCATCATCATCATTAA"))
+        self.assertTrue(str(final_seq.seq).startswith("ATGGCTAGCATGACTGGTGGACAGCAAATGGGT"))
+        self.assertTrue(str(final_seq.seq).endswith("CATCATCATCATCATCATTAA"))
 
 
 if __name__ == "__main__":

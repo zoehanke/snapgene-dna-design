@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """Red-to-green tests for shared complete-CDS validation and extraction."""
 from __future__ import annotations
+from core.models.construct_model import feature_to_dict
 
 from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 
@@ -53,9 +54,9 @@ class CDSRegionSemanticsTests(unittest.TestCase):
     def test_direct_sequence_offset_is_a_region_start_not_codon_start_qualifier(self):
         from core.tools.sequence_ops import check_reading_frame
         result = check_reading_frame('GCCACCATGGCTTAA', start_offset=6)
-        self.assertTrue(result['valid'])
-        self.assertEqual(result['translation'], 'MA*')
-        self.assertEqual(result['length_bp'],9)
+        self.assertTrue(result.analysis['valid'])
+        self.assertEqual(result.analysis['translation'], 'MA*')
+        self.assertEqual(result.analysis['length_bp'],9)
 
     def test_middle_cds_slice_does_not_claim_the_original_full_translation(self):
         original = _record('ATGGCTAAACTTGGGTTTTAA', {'label':['gene'], 'translation':['MAKLGF']})
@@ -286,9 +287,9 @@ class FinalCdsValidationTests(unittest.TestCase):
             topology="circular",
             strand=1,
         )
-        self.assertEqual(result["length"], 20)
-        self.assertEqual(len(result["features"]), 1)
-        feature = result["features"][0]
+        self.assertEqual(result.analysis['length'], 20)
+        self.assertEqual(len([feature_to_dict(f, len(result.only_product())) for f in result.only_product().features]), 1)
+        feature = [feature_to_dict(f, len(result.only_product())) for f in result.only_product().features][0]
         self.assertEqual(feature["type"], "CDS")
         self.assertEqual(
             [
@@ -317,7 +318,7 @@ class FinalCdsValidationTests(unittest.TestCase):
             positive, 95, 10, topology="circular", strand=1
         )
         self.assertEqual(
-            positive_result["features"][0]["qualifiers"]["codon_start"],
+            [feature_to_dict(f, len(positive_result.only_product())) for f in positive_result.only_product().features][0]["qualifiers"]["codon_start"],
             ["2"],
         )
 

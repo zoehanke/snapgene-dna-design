@@ -17,6 +17,8 @@ python -X utf8 -B snapgene-dna-design/scripts/check_env.py --json
 
 ## 一次修改怎样完成
 
+v2开发使用`Molecule`与`ToolResult`，从公共工具接收完整产物，分析读取`.analysis`。参数查询使用`describe_tools.py`，不要查找旧`sequence_output_key`或把工具结果交给字符串/记录猜测器。旧Python调用及Pipeline字段引用需迁移；文件和报告边界才做wire转换。数据定义由[架构](architecture.md#统一分子契约目标架构)维护。
+
 1. 确定用户要求和当前授权范围，保留无关工作区修改。
 2. 读实际入口、相关调用方及测试；保留原输入、错误产物和命令，证明原行为为何错误。
 3. 提炼通用修复，在独立有效/无效输入上建立预期；不得调用待测实现生成正确答案。

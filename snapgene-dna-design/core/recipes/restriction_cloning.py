@@ -19,6 +19,7 @@ from typing import Any
 from Bio.Seq import Seq
 from Bio.SeqFeature import FeatureLocation, SeqFeature
 
+from core.models.molecule import derived_molecule
 from core.recipes.contract import RecipeResult
 from core.tools.amplification import prepare_pcr_fragment
 from core.tools.assembly import simulate_digest_ligation
@@ -165,15 +166,15 @@ def recipe_restriction_cloning(
 
     prepared = prepare_pcr_fragment(insert_record, insert_start, insert_end,
                                     fwd_tail, rev_tail, name="insert")
-    primers = prepared["design"]
+    primers = prepared.analysis["design"]
     fwd_p = primers["forward_primer"]["full_sequence"]
     rev_p = primers["reverse_primer"]["full_sequence"]
-    pcr_res = prepared["pcr"]
-    amplicon = pcr_res["amplicon"]
+    pcr_res = prepared.analysis["pcr"]
+    amplicon = str(pcr_res.only_product().seq)
 
     # 4. Check for Dam/Dcm methylation overlap on vector and insert
     vector_record, _vector_sequence = resolve_sequence_input(vector_source)
-    re_check_vector = find_restriction_sites(vector_record, enzymes=[enzyme5, enzyme3])
+    re_check_vector = find_restriction_sites(vector_record, enzymes=[enzyme5, enzyme3]).analysis
     warnings = []
     if not is_directional:
         warnings.append(
@@ -199,7 +200,7 @@ def recipe_restriction_cloning(
     # 5. Call Tier 1 atomic tool: simulate directional digestion and ligation
     ligation_res = simulate_digest_ligation(
         vector_source=vector_source,
-        insert_source=resolve_sequence_record(pcr_res),
+        insert_source=pcr_res.only_product(),
         vector_enzymes=[enzyme5, enzyme3],
         insert_enzymes=[insert_enzyme5, insert_enzyme3],
         orientation=orientation,
@@ -208,11 +209,11 @@ def recipe_restriction_cloning(
     # Project the original vector initiation site through the actual duplex
     # cuts. A compatible enzyme can destroy the recognition motif; searching
     # the final insert for that motif or for a convenient ATG is incorrect.
-    product_features = list(ligation_res.get("features", []))
-    product_sequence = str(ligation_res["product_sequence"]).upper()
-    product_orientation = ligation_res["insert_orientation"]
-    insert_offset = ligation_res["insert_feature_offset"]
-    retained_start, retained_end = ligation_res["insert_retained_interval_0based"]
+    product_features = list([feature_to_dict(f, len(ligation_res.only_product())) for f in ligation_res.only_product().features])
+    product_sequence = str(str(ligation_res.only_product().seq)).upper()
+    product_orientation = ligation_res.analysis['insert_orientation']
+    insert_offset = ligation_res.analysis['insert_feature_offset']
+    retained_start, retained_end = ligation_res.analysis['insert_retained_interval_0based']
     expression_boundary_applicable = is_coding and enzyme5 in ("NcoI", "NdeI")
     expression_info = {"product_expression_sequence_found": None,
                        "applicable": expression_boundary_applicable}
@@ -283,7 +284,10 @@ def recipe_restriction_cloning(
             position = expression_translation.find(peptide)
             if position >= 0 and prefix_start <= position * 3 and position * 3 + len(peptide) * 3 <= prefix_end:
                 add_expression_feature(label, feature_type, position * 3, len(peptide) * 3)
-    ligation_res["features"] = product_features
+    import copy
+    annotated = copy.deepcopy(ligation_res.only_product())
+    annotated.features = resolve_sequence_record({'sequence':product_sequence,'features':product_features}).features
+    material = derived_molecule(annotated,[ligation_res.only_product()],operation='expression_boundary_annotation',strandedness='double')
 
     # Standard Sambrook wet-lab SOP reminders
     sop_reminders = [
@@ -300,9 +304,9 @@ def recipe_restriction_cloning(
         "protective_bases_added": {"5prime": prot5, "3prime": prot3},
         "binding_core_delta_tm": primers["binding_core_delta_tm"],
         "delta_tm_within_standard_2C": primers["binding_core_delta_tm"] <= 2.0,
-        "assembled_successfully": bool(ligation_res.get("product_sequence")),
-        "insert_orientation": ligation_res.get("insert_orientation"),
-        "vector_replacement_interval_0based": ligation_res.get("vector_replacement_interval_0based"),
+        "assembled_successfully": bool(str(ligation_res.only_product().seq)),
+        "insert_orientation": ligation_res.analysis.get("insert_orientation"),
+        "vector_replacement_interval_0based": ligation_res.analysis.get("vector_replacement_interval_0based"),
         "expression_boundary_compatible": expression_compatible,
         "expression_boundary": {
             "enzyme5": enzyme5,
@@ -324,8 +328,8 @@ def recipe_restriction_cloning(
         },
     }
 
-    primers_list = prepared["primers"]
-    preparation = prepared["preparation"]
+    primers_list = prepared.analysis["primers"]
+    preparation = prepared.analysis["preparation"]
 
     protocol_steps = [
         {"step": 1, "action": f"Prepare the insert through {len(preparation)} PCR step(s), in the listed order; each intermediate is the next template."},
@@ -339,9 +343,9 @@ def recipe_restriction_cloning(
         recipe_name="recipe_restriction_cloning",
         result_kind="construct",
         completeness="complete_construct",
-        product_sequence=ligation_res["product_sequence"],
-        product_topology=ligation_res["product_topology"],
-        features=ligation_res["features"],
+
+        products=[material],
+
         primers=primers_list,
         quality_checks=quality_checks,
         warnings=warnings,
@@ -349,7 +353,7 @@ def recipe_restriction_cloning(
         citations=AUTHORITATIVE_SOURCES,
         details={
             "recipe": "recipe_restriction_cloning",
-            "product_length": ligation_res["product_length"],
+            "product_length": ligation_res.analysis['product_length'],
             "primers": {
                 "forward": primers["forward_primer"],
                 "reverse": primers["reverse_primer"],
@@ -360,8 +364,8 @@ def recipe_restriction_cloning(
             "insert_suffix": insert_suffix,
             "insert_enzymes": [insert_enzyme5, insert_enzyme3],
             "expression_boundary": quality_checks["expression_boundary"],
-            "orientation": ligation_res.get("insert_orientation"),
-            "vector_replacement_interval_0based": ligation_res.get("vector_replacement_interval_0based"),
+            "orientation": ligation_res.analysis.get("insert_orientation"),
+            "vector_replacement_interval_0based": ligation_res.analysis.get("vector_replacement_interval_0based"),
             "sop_reminders": sop_reminders,
             "quality_checks": quality_checks,
             "authoritative_sources": AUTHORITATIVE_SOURCES,

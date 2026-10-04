@@ -197,8 +197,11 @@ class ConstructModelTests(unittest.TestCase):
         rec.letter_annotations["phred_quality"] = [30] * 8
         model = ConstructModel(rec)
         out = model.insert(2, "T").to_record()
-        self.assertEqual(out.letter_annotations, {})
-        self.assertIn("per-letter annotations removed", model.warnings[0])
+        # Old expectation cleared all values. Only the new base is unknown;
+        # the original eight measured positions remain individually traceable.
+        self.assertEqual(out.letter_annotations['phred_quality'],[30,30,None,30,30,30,30,30,30])
+        self.assertEqual(rec.letter_annotations['phred_quality'],[30]*8)
+        self.assertIn("unknown per-letter metadata", model.warnings[0])
 
     def test_set_topology_and_to_dict(self):
         rec = record("AAAACCCC")

@@ -62,14 +62,14 @@ class HDRRepairTests(unittest.TestCase):
             donor_type="dsDNA",
         )
 
-        self.assertEqual(result["total_length"], 90)
-        self.assertEqual(result["left_arm_length"], 43)
-        self.assertEqual(result["right_arm_length"], 44)
-        self.assertEqual(result["donor_edit_interval_0based"], [43, 46])
-        self.assertEqual(result["donor_sequence"][43:46], "TCC")
-        self.assertEqual(result["guide"]["edited_pam_sequence"], "TCG")
-        self.assertEqual(result["mutations_applied"][0]["alt_codon"], "CTC")
-        self.assertNotEqual(result["guide"]["edited_pam_sequence"], "TAG")
+        self.assertEqual(result.analysis['total_length'], 90)
+        self.assertEqual(result.analysis['left_arm_length'], 43)
+        self.assertEqual(result.analysis['right_arm_length'], 44)
+        self.assertEqual(result.analysis['donor_edit_interval_0based'], [43, 46])
+        self.assertEqual(str(result.only_product().seq)[43:46], "TCC")
+        self.assertEqual(result.analysis['guide']["edited_pam_sequence"], "TCG")
+        self.assertEqual(result.analysis['mutations_applied'][0]["alt_codon"], "CTC")
+        self.assertNotEqual(result.analysis['guide']["edited_pam_sequence"], "TAG")
 
     def test_replacement_is_computed_once_from_original_negative_target(self):
         record = _negative_strand_target()
@@ -86,15 +86,15 @@ class HDRRepairTests(unittest.TestCase):
             donor_type="dsDNA",
         )
 
-        self.assertEqual(result["edit_mode"], "replace")
-        self.assertEqual(len(result["edited_target_sequence"]), len(record))
-        self.assertEqual(result["total_length"], 90)
-        self.assertEqual(result["left_arm_length"], 42)
-        self.assertEqual(result["right_arm_length"], 42)
-        self.assertEqual(result["guide"]["pam_sequence"], "TGG")
-        self.assertEqual(result["guide"]["edited_pam_sequence"], "TCG")
-        self.assertTrue(result["pam_silenced_in_donor"])
-        self.assertEqual(result["donor_sequence"].count("CGAGCC"), 1)
+        self.assertEqual(result.analysis['edit_mode'], "replace")
+        self.assertEqual(len(result.analysis['edited_target_sequence']), len(record))
+        self.assertEqual(result.analysis['total_length'], 90)
+        self.assertEqual(result.analysis['left_arm_length'], 42)
+        self.assertEqual(result.analysis['right_arm_length'], 42)
+        self.assertEqual(result.analysis['guide']["pam_sequence"], "TGG")
+        self.assertEqual(result.analysis['guide']["edited_pam_sequence"], "TCG")
+        self.assertTrue(result.analysis['pam_silenced_in_donor'])
+        self.assertEqual(str(result.only_product().seq).count("CGAGCC"), 1)
 
     def test_wrong_guide_and_cut_are_rejected(self):
         record = _negative_strand_target()
@@ -145,9 +145,9 @@ class HDRRepairTests(unittest.TestCase):
             left_arm_length=10,
             right_arm_length=10,
         )
-        self.assertEqual(result["edit_mode"], "insert")
-        self.assertEqual(result["donor_sequence"], "A" * 10 + "ATG" + "C" * 10)
-        self.assertEqual(result["donor_sequence"].count("ATG"), 1)
+        self.assertEqual(result.analysis['edit_mode'], "insert")
+        self.assertEqual(str(result.only_product().seq), "A" * 10 + "ATG" + "C" * 10)
+        self.assertEqual(str(result.only_product().seq).count("ATG"), 1)
 
 
 if __name__ == "__main__":

@@ -14,12 +14,14 @@ LITERATURE SOURCES & PROTOCOL REFERENCES:
 from __future__ import annotations
 
 import pathlib
+import heapq
 from typing import Any
 
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
 from core.recipes.contract import RecipeResult
+from core.models.molecule import as_molecule, derived_molecule
 from core.tools.amplification import calc_primer_tm, check_primer_dimers, simulate_pcr, _find_primer_binding
 from core.models.construct_model import feature_to_dict
 from core.tools.inspection import _load_record
@@ -48,7 +50,7 @@ AUTHORITATIVE_SOURCES = [
 ]
 
 
-def _optimize_verification_primer(
+def _verification_candidates(
     seq: str,
     target_pos: int,
     strand: int = 1,
@@ -63,7 +65,7 @@ def _optimize_verification_primer(
     """Thermodynamically search and optimize a verification primer around target_pos."""
     n = len(seq)
     if n < min_len:
-        return None
+        return []
 
     if circular:
         offsets = range(-search_window, search_window + 1)
@@ -92,7 +94,7 @@ def _optimize_verification_primer(
             p = chunk if strand == 1 else str(Seq(chunk).reverse_complement())
             if len(_find_primer_binding(seq, p, circular=circular, binding_core_length=l)) != 1:
                 continue
-            info = calc_primer_tm(p)
+            info = calc_primer_tm(p).analysis
             tm = info["tm"]
             gc = info["gc_percent"]
             if not 52 <= tm <= 72:
@@ -116,15 +118,52 @@ def _optimize_verification_primer(
                 "score": score,
             })
 
-    if not candidates:
-        return None
-    candidates.sort(key=lambda x: x["score"])
-    for candidate in candidates:
-        structure = check_complete_oligo_pair(candidate["sequence"])
-        if structure["passed"]:
-            candidate["complete_oligo_structure"] = structure
-            return candidate
+    candidates.sort(key=lambda candidate: candidate['score'])
+    return candidates
+
+
+def _optimize_verification_primer(*args, **kwargs):
+    for candidate in _verification_candidates(*args, **kwargs):
+        structure = check_complete_oligo_pair(candidate['sequence'])
+        if structure['passed']:
+            return {**candidate, 'complete_oligo_structure': structure}
     return None
+
+
+def _search_verification_pair(forward, reverse, max_pair_checks=None):
+    """Exhaust the declared candidate combinations in objective order, lazily."""
+    if max_pair_checks is not None and max_pair_checks < 1:
+        raise ValueError('max_pair_checks must be positive or None')
+    singles = {}
+    def individually_valid(candidate):
+        sequence = candidate['sequence']
+        if sequence not in singles:
+            singles[sequence] = check_complete_oligo_pair(sequence)
+        return singles[sequence]['passed']
+    if not forward or not reverse:
+        raise ValueError('QC_NO_SOLUTION: no individually valid unique primers in the declared regions')
+    queue = [(p['score'] + reverse[0]['score'], i, 0) for i, p in enumerate(forward)]
+    heapq.heapify(queue)
+    checked = 0
+    while queue:
+        _, i, j = heapq.heappop(queue)
+        if not individually_valid(forward[i]):
+            continue
+        if j + 1 < len(reverse):
+            heapq.heappush(queue, (forward[i]['score'] + reverse[j+1]['score'], i, j+1))
+        left, right = forward[i], reverse[j]
+        if abs(left['tm'] - right['tm']) > 3 or not individually_valid(right):
+            continue
+        if max_pair_checks is not None and checked >= max_pair_checks:
+            raise ValueError('QC_SEARCH_INCOMPLETE: declared pair-check budget exhausted; not proof of no solution')
+        checked += 1
+        pair = check_complete_oligo_pair(left['sequence'], right['sequence'])
+        dimers = check_primer_dimers(left['sequence'], right['sequence']).analysis
+        if pair['passed'] and not dimers['high_dimer_risk']:
+            return left, right, {'status': 'PASSED', 'pair_checks': checked,
+                  'forward_candidates': len(forward), 'reverse_candidates': len(reverse),
+                  'complete_oligo_structure': pair, 'dimer_analysis': dimers}
+    raise ValueError('QC_NO_SOLUTION: all applicable pairs in the declared search regions failed unchanged constraints')
 
 
 def recipe_cloning_verification(
@@ -132,6 +171,7 @@ def recipe_cloning_verification(
     insert_start_0based: int,
     insert_end_0based: int,
     diagnostic_enzymes: list[str] | None = None,
+    max_pair_checks: int | None = None,
 ) -> RecipeResult:
     """Design local junction PCR, Sanger primers and diagnostic digests.
 
@@ -198,7 +238,7 @@ def recipe_cloning_verification(
     insert_interval = (ins_s, ins_s + ins_len)
 
     # 2. Thermodynamically optimize primers
-    fwd_primer_res = _optimize_verification_primer(
+    forward_candidates = _verification_candidates(
         seq=seq,
         target_pos=fwd_anchor,
         strand=1,
@@ -206,7 +246,7 @@ def recipe_cloning_verification(
         circular=is_circ,
         allowed_interval=backbone_interval,
     )
-    rev_primer_res = _optimize_verification_primer(
+    reverse_candidates = _verification_candidates(
         seq=seq,
         target_pos=rev_anchor,
         strand=-1,
@@ -229,15 +269,8 @@ def recipe_cloning_verification(
             allowed_interval=insert_interval, junction=ins_s,
         )
 
-    if not fwd_primer_res or not rev_primer_res:
-        raise ValueError("No unique primer pair found within the backbone and insert junction search regions; repeat ambiguity or insufficient flanks")
-    if abs(fwd_primer_res["tm"] - rev_primer_res["tm"]) > 3 and 52 <= rev_primer_res["tm"] <= 72:
-        matched_forward = _optimize_verification_primer(
-            seq, fwd_anchor, strand=1, target_tm=rev_primer_res["tm"],
-            circular=is_circ, allowed_interval=backbone_interval,
-        )
-        if matched_forward:
-            fwd_primer_res = matched_forward
+    fwd_primer_res, rev_primer_res, pair_search = _search_verification_pair(
+            forward_candidates, reverse_candidates, max_pair_checks)
 
     fwd_primer_seq = fwd_primer_res["sequence"]
     fwd_tm = fwd_primer_res["tm"]
@@ -249,8 +282,8 @@ def recipe_cloning_verification(
     pcr = simulate_pcr(rec, fwd_primer_seq, rev_primer_seq, topology=topo,
                        forward_binding_core_length=len(fwd_primer_seq),
                        reverse_binding_core_length=len(rev_primer_seq))
-    amplicon_size = pcr["amplicon_length"]
-    f_start = pcr["template_interval_0based"][0]
+    amplicon_size = pcr.analysis["amplicon_length"]
+    f_start = pcr.analysis["template_interval_0based"][0]
     junction_offset = (ins_s - f_start) % n if is_circ else ins_s - f_start
     crosses_junction = len(fwd_primer_seq) <= junction_offset <= amplicon_size - len(rev_primer_seq)
     sanger_dist = None
@@ -260,7 +293,7 @@ def recipe_cloning_verification(
     if sanger_primer_res is None:
         warnings.append("No unique Sanger primer facing the junction at 50-100 bp distance; provide more flanking sequence or an alternative sequencing strategy.")
 
-    colony_dimers = check_primer_dimers(fwd_primer_seq, rev_primer_seq)
+    colony_dimers = check_primer_dimers(fwd_primer_seq, rev_primer_seq).analysis
     colony_structure = check_complete_oligo_pair(fwd_primer_seq, rev_primer_seq)
     if not colony_structure["passed"]:
         raise ValueError("QC_PRIMER_STRUCTURE: selected colony-PCR pair fails complete-oligo structural QC; choose alternative assay boundaries")
@@ -271,9 +304,9 @@ def recipe_cloning_verification(
 
     for enz_name in enzymes_to_test:
         e_info = digest_sequence(seq, enz_name, circular=is_circ)
-        cut_cnt = e_info.get("cut_count", 0)
+        cut_cnt = e_info.analysis.get("cut_count", 0)
         if cut_cnt >= 1:
-            bands = sorted((fragment["length"] for fragment in e_info["fragments"]), reverse=True)
+            bands = sorted((len(fragment) for fragment in e_info.products), reverse=True)
 
             resolvable = True
             for i in range(len(bands) - 1):
@@ -289,6 +322,7 @@ def recipe_cloning_verification(
             })
 
     quality_checks = {
+        "pair_search": pair_search,
         "sanger_distance_from_junction_bp": sanger_dist,
         "sanger_primer_avoids_dye_blob_zone": (sanger_dist is not None and 50 <= sanger_dist <= 100),
         "colony_pcr_crosses_junction": crosses_junction,
@@ -361,13 +395,18 @@ def recipe_cloning_verification(
         {"step": 4, "action": "Perform Sanger sequencing using primer anchored upstream of junction to confirm mutation/junction fidelity."},
     ]
 
+    oligo_products = [derived_molecule(SeqRecord(Seq(p["sequence"]),id=p["name"],annotations={"molecule_type":"DNA","topology":"linear"}),[as_molecule(rec)],operation="verification_primer_design",strandedness="single") for p in primers_list]
     return RecipeResult(
         recipe_name="recipe_cloning_verification",
         result_kind="verification",
         completeness="qc_only",
-        product_sequence=str(rec.seq),
-        product_topology=topo,
-        features=[feature_to_dict(f, n) for f in rec.features],
+        products=oligo_products,
+        subject=as_molecule(rec),
+        checks=[__import__('core.tools.result', fromlist=['check_result']).check_result(
+            'junction_pcr_design', subject=as_molecule(rec), status='PASSED', scope='verification_design',
+            conditions={'insert_interval_0based': [ins_s, ins_e], 'tm_range_C': [52,72], 'max_tm_delta_C':3},
+            details={'expected_amplicon_size_bp': amplicon_size, 'pair_search':pair_search,
+                     'parental_specificity': 'NOT_CHECKED', 'wet_lab': 'NOT_CHECKED'})],
         primers=primers_list,
         quality_checks=quality_checks,
         warnings=warnings,

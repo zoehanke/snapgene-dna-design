@@ -215,7 +215,7 @@ def run_benchmark_2(evaluator: BenchmarkEvaluator):
     assert prod.endswith("TAA"), "Product must terminate with TAA stop codon"
 
     # Translate check
-    prot = translate_dna(prod)
+    prot = translate_dna(prod).analysis['translation']
     assert prot.endswith("GGGSGGGGSGGSGHHHHHH*") or "HHHHHH*" in prot, f"Expected His tag in protein: {prot}"
     assert prot.count("*") == 1, "Must contain exactly one stop codon at the C-terminus"
 
@@ -283,7 +283,7 @@ def run_benchmark_4(evaluator: BenchmarkEvaluator):
     assert len(legacy_primers["forward"]["overhang_5prime"]) == 22
     assert len(legacy_primers["reverse"]["overhang_5prime"]) == 22
     assert res.details["preparation"][0]["method"] == "PCR"
-    assert insert_seq in res.details["preparation"][0]["product"]["sequence"]
+    assert insert_seq in str(res.details["preparation"][0]["product"].seq)
 
     evaluator.record_score(
         4, "Gibson Assembly (Vector + Insert Overlaps)",
@@ -399,7 +399,7 @@ def run_benchmark_7(evaluator: BenchmarkEvaluator):
         target_is_cds=True,
     )
 
-    donor = res["donor_sequence"]
+    donor = str(res.products[0].seq)
     qc = res["quality_checks"]
     assert qc["pam_recleavage_prevented"], "Synonymous PAM mutation must be introduced"
     assert "CCCGGG" in donor, "Desired edit must be present in donor"
@@ -441,7 +441,7 @@ def run_benchmark_8(evaluator: BenchmarkEvaluator):
     # Verify cumulative changes
     assert final_seq[15:18] == "ACC", "Point mutation must be preserved"
     assert final_seq.endswith("TAA"), "Stop codon must be preserved"
-    assert "HHHHHH*" in translate_dna(final_seq), "His tag must be preserved in-frame"
+    assert "HHHHHH*" in translate_dna(final_seq).analysis['translation'], "His tag must be preserved in-frame"
     assert len(final_seq) == len(tagged_seq), "Length consistency"
 
     evaluator.record_score(
@@ -455,26 +455,26 @@ def run_benchmark_9(evaluator: BenchmarkEvaluator):
     """Task 9: Non-Standard Pipeline: Custom assembly directly using atomic tools."""
     # 1. Atomic tool: digest_sequence
     vec_seq = "GAATTC" + "A" * 600 + "GGATCC" + "C" * 600
-    digest_res = digest_sequence(vec_seq, "EcoRI")
-    assert digest_res["fragment_count"] >= 1
+    digest_res = digest_sequence(vec_seq, "EcoRI",circular=False)
+    assert digest_res.analysis["fragment_count"] >= 1
 
     # 2. Atomic tool: simulate_pcr
     template = "GAATTC" + "CGTACGTACG" * 20 + "GGATCC"
     fwd = "GAATTCCGTACGTACG"
     rev = "GGATCCCGTACGTACG"
     pcr_res = simulate_pcr(template, fwd, rev)
-    assert pcr_res["amplicon_length"] > 0, "PCR simulation must produce product"
+    assert pcr_res.analysis["amplicon_length"] > 0, "PCR simulation must produce product"
 
     # 3. Atomic tool: simulate_overlap_assembly
     frag_a = "ATGCATGC" * 10 + "CGATCGATCGATCGAT"  # 16 bp overlap at 3'
     frag_b = "CGATCGATCGATCGAT" + "TACGTACG" * 10  # 16 bp overlap at 5'
     assembly_res = simulate_overlap_assembly([frag_a, frag_b], circular=False, min_overlap=15)
-    assert assembly_res["product_length"] > 0, "Overlap assembly must succeed"
+    assert assembly_res.analysis["product_length"] > 0, "Overlap assembly must succeed"
 
     # 4. Atomic tool: check_reading_frame
     cds_test = "ATG" + "AAACCC" * 10 + "TAA"
     frame_res = check_reading_frame(cds_test)
-    assert frame_res["is_multiple_of_three"] and not frame_res["has_premature_stop"]
+    assert frame_res.analysis["is_multiple_of_three"] and not frame_res.analysis["has_premature_stop"]
 
     evaluator.record_score(
         9, "Non-Standard Pipeline (Atomic Tool Orchestration)",

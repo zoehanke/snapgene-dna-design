@@ -221,7 +221,7 @@ def main(argv=None):
     if args.mode == "default":
         core_modules = [name for name in core_modules
                         if name not in REAL_BACKEND_ONLY_MODULES]
-    out_dir = pathlib.Path(args.out_dir)
+    out_dir = pathlib.Path(args.out_dir).resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
 
     with tempfile.TemporaryDirectory(prefix="covgate-") as td:

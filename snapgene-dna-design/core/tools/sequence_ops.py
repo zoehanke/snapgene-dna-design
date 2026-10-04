@@ -21,6 +21,8 @@ from Bio.SeqRecord import SeqRecord
 from core.interval import extract_interval
 from core.tools.inspection import _load_record
 from core.models.construct_model import ConstructModel, feature_to_dict
+from core.models.molecule import MoleculeInput, ProteinSequence, as_molecule, derived_molecule
+from core.tools.result import ToolResult, check_result
 
 
 def cds_partial_evidence(feature) -> list[str]:
@@ -346,8 +348,8 @@ def _clip_feature_to_interval(feature, start0: int, end0: int, *, linearized_cir
         if getattr(part, "ref_db", None) is not None:
             kwargs["ref_db"] = part.ref_db
         clipped_parts.append(FeatureLocation(
-            overlap_start - start0,
-            overlap_end - start0,
+            part.start + (-start0) if overlap_start == part_start else overlap_start - start0,
+            part.end + (-start0) if overlap_end == part_end else overlap_end - start0,
             **kwargs,
         ))
     if not clipped_parts:
@@ -469,22 +471,38 @@ def slice_record_interval(
             feature, source_start, source_start + length, linearized_circular=circular
         )) is not None
     ]
+    fragment.annotations = copy.deepcopy(record.annotations)
+    fragment.dbxrefs = list(record.dbxrefs)
+    fragment.id, fragment.name, fragment.description = record.id, record.name, record.description
     fragment.annotations["topology"] = "linear"
     return fragment
 
 
+def rotate_sequence(dna_seq: MoleculeInput, origin_0based: int) -> ToolResult:
+    """Change the display origin of a declared circle, preserving physical DNA."""
+    source=as_molecule(dna_seq)
+    if source.topology != 'circular':
+        raise ValueError('Origin rotation requires an explicitly circular molecule')
+    record=ConstructModel(source).rotate(origin_0based).to_record()
+    product=derived_molecule(record,[source],operation='rotate_sequence',strandedness=source.strandedness,
+                             mappings=[{'origin_0based':origin_0based,'length':len(source)}])
+    return ToolResult(products=[product],analysis={'origin_0based':origin_0based})
+
+
 def extract_subsequence(
-    file_path_or_record: str | pathlib.Path | SeqRecord,
+    file_path_or_record: MoleculeInput,
     start: int,
     end: int,
     strand: int = 1,
-    topology: str = "linear",
+    topology: str | None = None,
     wraps_origin: bool = True,
     whole_record_approved: bool = True,
-) -> dict[str, Any]:
+) -> ToolResult:
     """Extract sub-sequence with rigorous topology, circular-wrap and strand handling."""
-    rec = _load_record(file_path_or_record)
-    topo = topology or rec.annotations.get("topology", "linear")
+    rec = as_molecule(file_path_or_record)
+    if topology is not None and rec.topology is not None and topology != rec.topology:
+        raise ValueError('Declared extraction topology contradicts the material')
+    topo = topology or rec.topology or "linear"
 
     extracted = extract_interval(
         record=rec,
@@ -498,7 +516,7 @@ def extract_subsequence(
 
     seq_upper = extracted.upper()
     if start == end:
-        fragment = rec[:]
+        fragment = slice_record_interval(rec, 0, len(rec), circular=(topo == 'circular'))
     else:
         fragment = slice_record_interval(
             rec,
@@ -507,25 +525,27 @@ def extract_subsequence(
             circular=(topo == "circular"),
         )
     if strand == -1:
-        fragment = fragment.reverse_complement()
-    return {
-        "sequence": seq_upper,
+        fragment = fragment.reverse_complement(id=True, name=True, description=True, annotations=True, dbxrefs=True)
+    fragment.annotations['topology'] = 'linear'
+    product = derived_molecule(fragment, [rec], operation='extract_subsequence', strandedness=rec.strandedness,
+                               mappings=[{'start0': start, 'end0': end, 'strand': strand, 'wraps_origin': wraps_origin}])
+    return ToolResult(products=[product], analysis={
         "length": len(seq_upper),
         "sha256": hashlib.sha256(seq_upper.encode("utf-8")).hexdigest().upper(),
         "interval_0based": [start, end],
         "strand": strand,
         "topology": "linear",
-        "features": [feature_to_dict(f, len(fragment)) for f in fragment.features],
-    }
+    })
 
 
 def check_reading_frame(
-    dna_seq: str,
+    dna_seq: MoleculeInput,
     start_offset: int = 0,
     transl_table: int = 1,
-) -> dict[str, Any]:
+) -> ToolResult:
     """Check a direct CDS sequence using the shared strict CDS contract."""
-    sequence = str(dna_seq.seq if isinstance(dna_seq, SeqRecord) else dna_seq).upper()
+    source = as_molecule(dna_seq)
+    sequence = str(source.seq).upper()
     start_offset = int(start_offset)
     if not 0 <= start_offset <= len(sequence):
         raise ValueError("start_offset must lie within the supplied DNA")
@@ -538,7 +558,7 @@ def check_reading_frame(
         },
     )
     audit = validate_cds_feature(feature, sequence)
-    return {
+    data = {
         "length_bp": len(sequence) - int(start_offset),
         "start_offset": start_offset,
         "is_multiple_of_three": audit["is_multiple_of_three"],
@@ -555,11 +575,15 @@ def check_reading_frame(
         "warnings": audit["warnings"],
     }
 
+    return ToolResult(analysis=data, checks=[check_result('reading_frame', subject=source,
+               status='PASSED' if audit['valid'] else 'FAILED', scope='CDS_interval',
+               conditions={'start_offset': start_offset, 'transl_table': transl_table}, details=audit)])
+
 
 def mutate_sequence(
-    dna_seq: str,
+    dna_seq: MoleculeInput,
     mutations: list[dict[str, Any]],
-) -> dict[str, Any]:
+) -> ToolResult:
     """Apply point mutations, insertions, or deletions with reference verification.
 
     Args:
@@ -572,7 +596,7 @@ def mutate_sequence(
     Returns:
         dict with mutated sequence, updated length, and log of applied mutations.
     """
-    record = _load_record(dna_seq)
+    record = as_molecule(dna_seq)
     model = ConstructModel(record)
     seq_list = list(str(record.seq).upper())
     applied = []
@@ -613,22 +637,36 @@ def mutate_sequence(
         })
 
     mutated_str = "".join(seq_list)
-    return {
-        "original_length": len(record),
+    left, right = copy.deepcopy(record.left_end), copy.deepcopy(record.right_end)
+    for end, side in ((left, 'left'), (right, 'right')):
+        if end is None:
+            continue
+        width = len(end.overhang_sequence)
+        affected = any(m['position_0based'] < width if side == 'left' else
+                       m['position_0based'] >= len(record)-width for m in applied)
+        if width and affected:
+            if side == 'left': left = None
+            else: right = None
+        else:
+            end.cut_boundary = 0 if side == 'left' else len(mutated_str)
+    product = derived_molecule(model.to_record(), [record], operation='mutate_sequence',
+                               strandedness=record.strandedness,
+                               left_end=left, right_end=right,
+                               mappings=[{'mutations': list(reversed(applied))}])
+    return ToolResult(products=[product], analysis={
         "mutated_length": len(mutated_str),
-        "sequence": mutated_str,
         "topology": record.annotations.get("topology", "linear"),
-        "features": [feature_to_dict(f, len(mutated_str)) for f in model.to_record().features],
         "mutations_count": len(applied),
         "applied_mutations": list(reversed(applied)),
-    }
+        'warnings':list(model.warnings),
+    })
 
 
 def strip_terminal_codons(
-    cds_seq: str,
+    cds_seq: MoleculeInput,
     strip_start: bool = False,
     strip_stop: bool = False,
-) -> dict[str, Any]:
+) -> ToolResult:
     """Strip terminal start (ATG) or stop (TAA/TAG/TGA) codons from a coding sequence.
 
     Args:
@@ -639,7 +677,8 @@ def strip_terminal_codons(
     Returns:
         dict with modified sequence, original/new length, and stripped flags.
     """
-    seq = str(cds_seq).strip().upper()
+    source = as_molecule(cds_seq)
+    seq = str(source.seq).upper()
     n = len(seq)
     start_stripped = False
     stop_stripped = False
@@ -653,10 +692,15 @@ def strip_terminal_codons(
         seq = seq[:-3]
         stop_stripped = True
 
-    return {
-        "sequence": seq,
+    start = 3 if start_stripped else 0
+    record = slice_record_interval(source, start, len(seq))
+    product = derived_molecule(record, [source], operation='strip_terminal_codons',
+                               strandedness=source.strandedness,
+                               mappings=[{'start0': start, 'length': len(seq), 'strand': 1}])
+    return ToolResult(products=[product], analysis={
         "original_length": n,
         "new_length": len(seq),
         "start_stripped": start_stripped,
         "stop_stripped": stop_stripped,
-    }
+        'scope': 'sequence_model',
+    })

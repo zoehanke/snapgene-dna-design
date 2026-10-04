@@ -70,7 +70,7 @@ class HostWorkflowContractTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             source = pathlib.Path(temp) / 'source.gb'
             SeqIO.write(record, source, 'genbank')
-            for result in (summarize_backbone(source), inspect_single_file(source)):
+            for result in (summarize_backbone(source).analysis, inspect_single_file(source)):
                 names = {item['name'] for item in result['selection_markers']}
                 self.assertEqual(names, {'NeoR/KanR', 'hphNT1'})
 
@@ -108,7 +108,7 @@ class HostWorkflowContractTests(unittest.TestCase):
         from scripts.describe_tools import describe
         info=describe('simulate_pcr')
         self.assertEqual(info['parameter_aliases']['template'],'template_path_or_seq')
-        self.assertEqual(info['sequence_output_key'],'amplicon')
+        self.assertEqual(info['result']['products'],'Molecule[]')
         self.assertIn('f_primer',info['parameters']['required'])
         self.assertIn('fragments',describe('recipe_gibson_assembly')['signature'])
 
@@ -140,9 +140,9 @@ class HostWorkflowContractTests(unittest.TestCase):
         result=design_hdr_donor(record,21,'GTT',grna_seq=prefix[4:24],
                                 edit_start_0based=9,edit_end_0based=12,
                                 require_pam_disruption=True)
-        self.assertTrue(result['pam_silenced_in_donor'])
+        self.assertTrue(result.analysis['pam_silenced_in_donor'])
         before=str(record.seq.translate())
-        after=str(Seq(result['edited_target_sequence']).translate())
+        after=str(Seq(result.analysis['edited_target_sequence']).translate())
         self.assertEqual([(i+1,a,b) for i,(a,b) in enumerate(zip(before,after)) if a!=b],[(4,'A','V')])
 
     def test_verification_search_rejects_a_strong_hairpin_candidate(self):

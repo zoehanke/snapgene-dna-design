@@ -4,13 +4,13 @@
 
 ## 当前授权与已结束工作
 
-当前授权是编写[统一分子契约与连续工作流改造计划](unified-molecule-contract.md)，范围为7项契约/工程改造和2项算法修复的开发方案。目标架构已记录，T01至T09实现未开始，目标发布版本待定。本次文档授权不自动启动运行代码改造。
+2026-10-04负责人已明确授权实施[统一分子契约与连续工作流改造](unified-molecule-contract.md)的T01至T09全部代码。v2.0.0代码、本机覆盖及独立包验收已完成；当前收尾为提交、推送与精确提交CI。
 
 此前开发文档收敛、布局迁移和v1.0.4通用修复已结束，原证据和未关闭事项保留。
 
 | 记录 | 当前分类 |
 |---|---|
-| [统一分子契约](unified-molecule-contract.md) | 当前开发方案；仅文档已形成，实施与性能验收待执行 |
+| [统一分子契约](unified-molecule-contract.md) | 本机验收完成；T01至T09结果、性能、包和限制见r3，远端CI收尾中 |
 | [目录迁移](../archive/plans/workspace-layout-v1.0.4.md) | 已结束；`d5cfa09`独立包及六环境CI通过 |
 | [通用能力审查](../archive/plans/general-capability-audit-v1.0.4.md) | 已结束的修复/回归；未完成原九题独立验收，不是保留评测 |
 | [原宿主修复](../archive/plans/workflow-host-readiness-v1.0.3.md) | 已结束的实现；下面承接未验收项 |

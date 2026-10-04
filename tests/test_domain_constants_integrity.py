@@ -24,9 +24,9 @@ class DomainConstantsIntegrityTests(unittest.TestCase):
             expected=scaffold+'TTTTTT'+middle+reverse_site+spacer
             with self.subTest(length=length):
                 result=prepare_pml104_guide(record,spacer)
-                self.assertEqual(result['product_sequence'],expected)
+                self.assertEqual(str(result.only_product().seq),expected)
                 record.id='pML104'
-                self.assertEqual(prepare_pml104_guide(record,spacer)['product_sequence'],expected)
+                self.assertEqual(str(prepare_pml104_guide(record,spacer).only_product().seq),expected)
                 wrong=oriented[:45]+('A' if oriented[45]!='A' else 'C')+oriented[46:]
                 record.seq=Seq(wrong).reverse_complement()
                 with self.assertRaises(ValueError):

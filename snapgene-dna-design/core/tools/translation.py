@@ -5,50 +5,52 @@ Provides reverse complementation, 6-frame translation, and synonymous (silent)
 mutagenesis to silence internal restriction enzyme sites without altering protein sequence.
 """
 from __future__ import annotations
+from typing import Any
 
 from Bio.Data import CodonTable
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
+from core.models.molecule import MoleculeInput, ProteinSequence, as_molecule, derived_molecule
+from core.tools.result import ToolResult
 from core.tools.restriction import get_enzyme, restriction_hits
 
 
-def reverse_complement(seq: str | SeqRecord) -> str | SeqRecord:
-    """Compute the reverse complement of a DNA nucleotide string."""
-    from core.io.input_resolution import DNA_ALPHABET
-    bases = str(seq.seq).upper() if isinstance(seq, SeqRecord) else "".join(str(seq).split()).upper()
-    if any(base not in DNA_ALPHABET for base in bases):
-        raise ValueError("reverse_complement requires DNA bases; load a file as a source record first")
-    if isinstance(seq, SeqRecord):
-        return seq.reverse_complement(id=True, name=True, description=True, annotations=True)
-    return str(Seq(bases).reverse_complement())
+def reverse_complement(seq: MoleculeInput) -> ToolResult:
+    source = as_molecule(seq)
+    record = source.reverse_complement(id=True, name=True, description=True, annotations=True, dbxrefs=True)
+    import copy
+    record.features=copy.deepcopy(record.features)
+    record.annotations=copy.deepcopy(record.annotations)
+    record.letter_annotations=copy.deepcopy(dict(record.letter_annotations))
+    left, right = copy.deepcopy(source.right_end), copy.deepcopy(source.left_end)
+    if left is not None:
+        left.cut_boundary = 0
+    if right is not None:
+        right.cut_boundary = len(source)
+    product = derived_molecule(record, [source], operation='reverse_complement',
+                   strandedness=source.strandedness, left_end=left, right_end=right,
+                   mappings=[{'strand': -1, 'length': len(source)}])
+    return ToolResult(products=[product])
 
 
-def translate_dna(seq: str | SeqRecord, frame: int = 1, table: int = 1) -> str:
-    """Translate DNA sequence into amino acid peptide in specified reading frame (1, 2, 3, -1, -2, -3)."""
+def translate_dna(seq: MoleculeInput, frame: int = 1, table: int = 1) -> ToolResult:
     if frame not in (1, 2, 3, -1, -2, -3):
-        raise ValueError("frame must be one of 1, 2, 3, -1, -2, -3")
-    s = str(seq.seq).upper() if isinstance(seq, SeqRecord) else "".join(str(seq).split()).upper()
-    if frame < 0:
-        s = str(Seq(s).reverse_complement())
-        shift = abs(frame) - 1
-    else:
-        shift = frame - 1
-
-    sub = s[shift:]
-    rem = len(sub) % 3
-    if rem > 0:
-        sub = sub[:-rem]
-
-    return str(Seq(sub).translate(table=table))
+        raise ValueError('frame must be one of 1, 2, 3, -1, -2, -3')
+    source = as_molecule(seq)
+    sequence = source.seq.reverse_complement() if frame < 0 else source.seq
+    sequence = sequence[abs(frame)-1:]
+    sequence = sequence[:len(sequence) - len(sequence) % 3]
+    return ToolResult(analysis={'translation': ProteinSequence(str(sequence.translate(table=table))),
+                               'frame': frame, 'table': table, 'source_version': source.record_version})
 
 
 def silent_mutation_remove_site(
-    cds_seq: str,
+    cds_seq: MoleculeInput,
     enzyme_name: str,
     frame_offset: int = 0,
     table: int = 1,
-) -> dict:
+) -> ToolResult:
     """Mutate internal restriction sites silently without altering translated amino acid sequence.
 
     Args:
@@ -60,22 +62,22 @@ def silent_mutation_remove_site(
     Returns:
         dict with mutated_seq, original_aa, mutated_aa, mutations_applied, and site_removed.
     """
-    s = list(str(cds_seq).strip().upper())
+    source = as_molecule(cds_seq)
+    s = list(str(source.seq))
     n = len(s)
     enz = get_enzyme(enzyme_name)
 
     # Initial translation
-    orig_aa = translate_dna("".join(s), frame=frame_offset + 1, table=table)
+    orig_aa = translate_dna("".join(s), frame=frame_offset + 1, table=table).analysis["translation"]
 
     current_hits = restriction_hits(Seq("".join(s)), enz, circular=False)
     if not current_hits:
-        return {
-            "mutated_seq": "".join(s),
+        return ToolResult(products=[source], analysis={
             "site_removed": True,
             "mutations_applied": [],
             "message": f"No {enzyme_name} sites found in sequence",
             "identical_translation": True,
-        }
+        })
 
     mutations_applied = []
     forward_table = CodonTable.unambiguous_dna_by_id[table].forward_table
@@ -138,19 +140,22 @@ def silent_mutation_remove_site(
             break
 
     mutated_str = "".join(s)
-    new_aa = translate_dna(mutated_str, frame=frame_offset + 1, table=table)
+    new_aa = translate_dna(mutated_str, frame=frame_offset + 1, table=table).analysis["translation"]
     final_hits = restriction_hits(Seq(mutated_str), enz, circular=False)
 
-    return {
-        "mutated_seq": mutated_str,
+    from core.models.construct_model import ConstructModel
+    changes = [(index, base) for index, base in enumerate(mutated_str) if base != str(source.seq)[index]]
+    record = ConstructModel(source).mutate(changes).to_record()
+    product = derived_molecule(record,[source],operation='silent_mutation_remove_site',strandedness=source.strandedness)
+    return ToolResult(products=[product],analysis={
         "site_removed": len(final_hits) == 0,
         "mutations_applied": mutations_applied,
         "remaining_cut_count": len(final_hits),
         "identical_translation": (orig_aa == new_aa),
-    }
+    })
 
 
-def get_codon_synonyms(codon: str, table: int = 1) -> dict[str, Any]:
+def get_codon_synonyms(codon: str, table: int = 1) -> ToolResult:
     """Return all synonymous codons that translate to the same amino acid under specified genetic code.
 
     Args:
@@ -177,10 +182,10 @@ def get_codon_synonyms(codon: str, table: int = 1) -> dict[str, Any]:
             raise ValueError(f"Unrecognized codon '{codon}' in translation table {table}")
         synonyms = [cod for cod, trans_aa in forward_table.items() if trans_aa == aa and cod != c]
 
-    return {
+    return ToolResult(analysis={
         "original_codon": c,
         "amino_acid": aa,
         "synonymous_codons": sorted(synonyms),
         "synonym_count": len(synonyms),
         "is_stop_codon": (aa == "*"),
-    }
+    })

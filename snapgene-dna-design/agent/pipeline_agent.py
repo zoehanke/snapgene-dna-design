@@ -30,7 +30,7 @@ def inspect_workspace_files(file_paths: list[str | pathlib.Path]) -> dict[str, A
         path_obj = pathlib.Path(p)
         if path_obj.exists():
             try:
-                results[str(path_obj)] = inspect_dna(path_obj)
+                results[str(path_obj)] = inspect_dna(path_obj).analysis
             except Exception as exc:
                 results[str(path_obj)] = {"error": str(exc)}
     return results
@@ -96,6 +96,7 @@ def execute_agent_pipeline(
     expected_components: list | None = None,
     forbidden_components: list | None = None,
     output_step: str | None = None,
+    validation_requirements: list[str] | None = None,
 ) -> dict[str, Any]:
     """Execute an agent-formulated composite pipeline deterministically and deliver SnapGene construct."""
     out_path = pathlib.Path(out_dir)
@@ -148,6 +149,8 @@ def execute_agent_pipeline(
         "assumptions": [],
         "provenance": [],
     }
+    if validation_requirements is not None:
+        task['validation_requirements'] = validation_requirements
 
     # 1. Validate
     vtask = observe("task", validate_construction_task, task)
@@ -166,7 +169,8 @@ def execute_agent_pipeline(
     preparation = []
     source_paths = {s["source_id"]: s["path"] for s in sources}
     for step in p.get("steps", []):
-        details = step.get("details", {})
+        outcome = step.get("details", {})
+        details = outcome.get("analysis", {})
         if not isinstance(details, dict):
             continue
         if details.get("preparation"):
@@ -175,7 +179,7 @@ def execute_agent_pipeline(
             raw = step.get("params", {}).get("template_path_or_seq", step.get("params", {}).get("template"))
             template = source_paths.get(raw.lstrip("$"), details["template"]) if isinstance(raw, str) else details["template"]
             preparation.append({"id": step["step_id"], "method": "PCR", "template": template,
-                                "primers": details["primers"], "product": details})
+                                "primers": details["primers"], "product": outcome["products"][0]})
     # The same application-level writer serves both entry points. A failure
     # producing source primer maps occurs before authoritative promotion.
     from scripts.run_recipe import write_preparation_artifacts

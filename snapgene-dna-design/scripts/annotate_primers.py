@@ -120,7 +120,9 @@ def _get_gb_primer_name(feat: SeqFeature) -> str:
 
 def _read_genbank_utf8(path: str | pathlib.Path) -> SeqRecord:
     with open(str(path), "r", encoding="utf-8-sig") as handle:
-        return SeqIO.read(handle, "genbank")
+        from core.models.molecule import as_molecule
+        from core.io.molecule_codec import restore_file_metadata
+        return as_molecule(restore_file_metadata(SeqIO.read(handle, "genbank")))
 
 
 def _gb_add_primer(record: SeqRecord, definition: dict[str, Any]) -> tuple[SeqRecord, dict[str, Any]]:
@@ -245,6 +247,9 @@ def annotate_primers_dna(
     from sgffp import SgffReader, SgffWriter
 
     sg = SgffReader.from_file(str(source_path))
+    from core.io.molecule_codec import MARKER, metadata_text
+    from core.tools.snapgene_io import read_native_dna_record, _read_native_data
+    original_material=read_native_dna_record(source_path) if MARKER in str(sg.notes.description) else None
     seq_str = str(sg.sequence.data.value).upper()
     hash_before = hashlib.sha256(seq_str.encode("ascii")).hexdigest()
 
@@ -301,6 +306,18 @@ def annotate_primers_dna(
 
     # Write output
     SgffWriter.to_file(sg, str(out_path))
+
+    if original_material is not None:
+        import copy
+        from core.models.molecule import derived_molecule
+        actual,_=_read_native_data(out_path)
+        updated=copy.deepcopy(original_material)
+        updated.features=[f for f in updated.features if f.type not in ('primer','primer_bind')]
+        updated.features.extend(copy.deepcopy(f) for f in actual.features if f.type in ('primer','primer_bind'))
+        updated=derived_molecule(updated,[original_material],operation='primer_annotation_'+op,
+            strandedness=original_material.strandedness,left_end=original_material.left_end,right_end=original_material.right_end)
+        sg.notes.description=metadata_text(updated,actual,native=True)
+        SgffWriter.to_file(sg,str(out_path))
 
     # Re-read output and enforce sequence invariance
     check_obj = SgffReader.from_file(str(out_path))
@@ -407,7 +424,8 @@ def annotate_primers_gb(
 
     # Write output
     with open(str(out_path), "w", encoding="utf-8") as fh:
-        SeqIO.write(record, fh, "genbank")
+        from core.io.molecule_codec import genbank_record
+        SeqIO.write(genbank_record(record), fh, "genbank")
 
     # Re-read output and enforce sequence invariance
     check_rec = _read_genbank_utf8(out_path)

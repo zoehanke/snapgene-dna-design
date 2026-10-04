@@ -17,6 +17,7 @@ from core.tools.amplification import (
     simulate_pcr,
 )
 from core.tools.assembly import (
+    ligate_fragments,
     simulate_digest_ligation,
     simulate_golden_gate,
     simulate_overlap_assembly,
@@ -57,6 +58,7 @@ from core.tools.restriction import (
     find_restriction_sites,
 )
 from core.tools.sequence_ops import (
+    rotate_sequence,
     check_reading_frame,
     extract_subsequence,
     mutate_sequence,
@@ -71,6 +73,8 @@ from core.tools.translation import (
 )
 
 __all__ = [
+    'rotate_sequence',
+    'ligate_fragments',
     "inspect_dna",
     "summarize_backbone",
     "find_open_reading_frames",

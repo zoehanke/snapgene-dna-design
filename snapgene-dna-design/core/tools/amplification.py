@@ -5,6 +5,9 @@ Simulates PCR with exact or 5'-overhang primers, finds primer binding sites,
 and calculates amplicon sequences.
 """
 from __future__ import annotations
+from core.tools.result import ToolResult, check_result, reaction_checks
+from core.models.molecule import MoleculeInput, as_molecule, derived_molecule
+from core.models.assembly_model import FragmentEnd
 
 import copy
 import hashlib
@@ -134,16 +137,16 @@ def _template_record_dict(rec):
 
 
 def simulate_pcr(
-    template_path_or_seq: str | pathlib.Path | SeqRecord,
-    f_primer: str,
-    r_primer: str,
+    template_path_or_seq: MoleculeInput,
+    f_primer: MoleculeInput,
+    r_primer: MoleculeInput,
     topology: str | None = None,
     forward_binding_core_length: int | None = None,
     reverse_binding_core_length: int | None = None,
     forward_binding_start_0based: int | None = None,
     reverse_binding_start_0based: int | None = None,
     min_binding_len: int = 15,
-) -> dict[str, Any]:
+) -> ToolResult:
     """Simulate PCR amplification with forward and reverse primers (including 5' tails).
 
     Returns:
@@ -151,14 +154,17 @@ def simulate_pcr(
         and appended 5' tail extensions.
     """
     from core.io.input_resolution import resolve_sequence_input
-    rec, t_seq = resolve_sequence_input(template_path_or_seq, default_topology=topology or "linear")
-    topo = topology or rec.annotations.get("topology", "linear")
+    rec = as_molecule(template_path_or_seq, default_topology=topology or "linear")
+    t_seq = str(rec.seq).upper()
+    if topology is not None and rec.topology is not None and topology != rec.topology:
+        raise ValueError('PCR topology contradicts the supplied material')
+    topo = topology or rec.topology or "linear"
 
     is_circular = (topo.lower() == "circular")
     n = len(t_seq)
 
-    fwd_clean = str(f_primer).strip().upper()
-    rev_clean = str(r_primer).strip().upper()
+    fwd_clean = str(as_molecule(f_primer).seq).upper()
+    rev_clean = str(as_molecule(r_primer).seq).upper()
 
     # Selectors are optional.  When supplied, they make a boundary auditable
     # instead of relying on a shortest-product heuristic in a repeated template.
@@ -302,12 +308,26 @@ def simulate_pcr(
             "tail_5prime": r_hit["tail_5prime"],
         },
     ]
-    return {
-        "amplicon": amplicon_str,
+    product_record = SeqRecord(Seq(amplicon_str), id=rec.id,name=rec.name,description=rec.description,
+            annotations=copy.deepcopy(rec.annotations),dbxrefs=list(rec.dbxrefs))
+    product_record.annotations.update(molecule_type='DNA',topology='linear')
+    for key,values in core_record.letter_annotations.items():
+        product_record.letter_annotations[key]=[None]*offset+list(values)+[None]*len(best['r_hit']['tail_5prime'])
+    if core_record.letter_annotations:
+        product_record.annotations['letter_annotation_scope']='Mapped source metadata; new synthetic bases are unknown; not measurements on this product'
+    product_record.features = [f._shift(offset) for f in core_record.features]
+    product = derived_molecule(product_record, [rec], operation='simulate_pcr', strandedness='double',
+                left_end=FragmentEnd('blunt', cut_boundary=0), right_end=FragmentEnd('blunt', cut_boundary=len(amplicon_str)),
+                mappings=[{'template_interval_unwrapped_0based': best['template_interval_unwrapped_0based'],
+                           'forward_tail_length': offset, 'reverse_tail_length': len(best['r_hit']['tail_5prime'])}])
+    return ToolResult(products=[product], checks=[check_result('primer_amplification', subject=product,
+             status='PASSED', scope='preparation_model', conditions={'reaction':'PCR','min_binding_len': min_binding_len,
+                  'template_topology_used':topo,'source_topology':rec.topology},
+             details={'template_version': rec.record_version, 'complete_product_count': len(candidates),
+                      'inputs':list(product.source_refs),'wet_lab':'NOT_CHECKED'})], analysis={
         "amplicon_length": len(amplicon_str),
         "template_core_length": best["template_core_length"],
         "amplicon_sha256": hashlib.sha256(amplicon_str.encode("utf-8")).hexdigest().upper(),
-        "features": [feature_to_dict(f._shift(offset), len(amplicon_str)) for f in core_record.features],
         "template_interval_0based": best["template_interval_0based"],
         "template_interval_unwrapped_0based": best["template_interval_unwrapped_0based"],
         "wraps_origin": best["wraps_origin"],
@@ -320,16 +340,16 @@ def simulate_pcr(
         "template_topology": "circular" if is_circular else "linear",
         "template_id": rec.id or rec.name,
         "topology": "linear",
-    }
+    })
 
 
 def calc_primer_tm(
-    primer_seq: str,
+    primer_seq: MoleculeInput,
     salt_conc_mM: float = 50.0,
     primer_conc_nM: float = 200.0,
     mg_conc_mM: float = 0.0,
     dntp_conc_mM: float = 0.0,
-) -> dict[str, Any]:
+) -> ToolResult:
     """Calculate melting temperature (Tm), GC%, length, and 3' GC clamp of a primer.
 
     Uses SantaLucia (1998) unified nearest-neighbor thermodynamic calculation with salt correction.
@@ -342,7 +362,7 @@ def calc_primer_tm(
     seq = str(primer_seq.seq).upper() if isinstance(primer_seq, SeqRecord) else "".join(str(primer_seq).split()).upper()
     n = len(seq)
     if n == 0:
-        return {
+        return ToolResult(analysis={
             "sequence": "",
             "length": 0,
             "tm": 0.0,
@@ -351,7 +371,7 @@ def calc_primer_tm(
             "gc_in_3prime_5bp": 0,
             "thermodynamic_model": "None",
             "warnings": ["Sequence is empty"],
-        }
+        })
     if any(base not in "ACGT" for base in seq):
         raise ValueError("Primer Tm requires an explicit A/C/G/T sequence")
 
@@ -382,7 +402,7 @@ def calc_primer_tm(
     elif tail_gc > 3:
         warnings.append(f"High GC in 3' end ({tail_gc}/5 bases), risk of mispriming")
 
-    return {
+    return ToolResult(analysis={
         "sequence": seq,
         "length": n,
         "tm": tm_round,
@@ -391,11 +411,11 @@ def calc_primer_tm(
         "gc_in_3prime_5bp": tail_gc,
         "thermodynamic_model": model,
         "warnings": warnings,
-    }
+    })
 
 
 def design_overhang_primers(
-    template_record_or_seq: str | pathlib.Path | SeqRecord,
+    template_record_or_seq: MoleculeInput,
     start: int,
     end: int,
     fwd_5prime_overhang: str = "",
@@ -406,13 +426,14 @@ def design_overhang_primers(
     prefer_primer3: bool = True,
     circular: bool | None = None,
     topology: str | None = None,
-) -> dict[str, Any]:
+) -> ToolResult:
     """Design a forward and reverse primer pair for a template interval with optional 5' overhangs.
 
     Finds the optimal length binding core closest to target_tm, then attaches 5' overhangs.
     """
     from core.io.input_resolution import resolve_sequence_input
-    rec, t_seq = resolve_sequence_input(template_record_or_seq)
+    rec = as_molecule(template_record_or_seq,default_topology="linear")
+    t_seq = str(rec.seq)
     n = len(t_seq)
     if topology is not None:
         if topology not in ("linear", "circular"):
@@ -491,12 +512,12 @@ def design_overhang_primers(
     def _assess_pair(fwd, rev, fwd_tail, rev_tail):
         f_core = str(fwd.get("binding") or "").upper()
         r_core = str(rev.get("binding") or "").upper()
-        f_tm = float(fwd.get("tm") or calc_primer_tm(f_core)["tm"])
-        r_tm = float(rev.get("tm") or calc_primer_tm(r_core)["tm"])
+        f_tm = float(fwd.get("tm") or calc_primer_tm(f_core).analysis["tm"])
+        r_tm = float(rev.get("tm") or calc_primer_tm(r_core).analysis["tm"])
         dimer = check_primer_dimers(
             fwd_tail.upper() + f_core,
             rev_tail.upper() + r_core,
-        )
+        ).analysis
         f_unique = _binding_match_count(f_core, 1) == 1
         r_unique = _binding_match_count(r_core, -1) == 1
         tm_out = int(not (52.0 <= f_tm <= 72.0)) + int(
@@ -630,7 +651,7 @@ def design_overhang_primers(
             if target_length < l:
                 break
             core_seq = interval_seq[:l]
-            tm_info = calc_primer_tm(core_seq, primer_conc_nM=50.0, mg_conc_mM=1.5, dntp_conc_mM=0.6)
+            tm_info = calc_primer_tm(core_seq, primer_conc_nM=50.0, mg_conc_mM=1.5, dntp_conc_mM=0.6).analysis
             diff = abs(tm_info["tm"] - target_tm)
             fwd_options.append((core_seq, tm_info["tm"], diff))
 
@@ -642,7 +663,7 @@ def design_overhang_primers(
                 break
             top_rev_segment = interval_seq[target_length - l:target_length]
             rev_core_seq = str(Seq(top_rev_segment).reverse_complement())
-            tm_info = calc_primer_tm(rev_core_seq, primer_conc_nM=50.0, mg_conc_mM=1.5, dntp_conc_mM=0.6)
+            tm_info = calc_primer_tm(rev_core_seq, primer_conc_nM=50.0, mg_conc_mM=1.5, dntp_conc_mM=0.6).analysis
             diff = abs(tm_info["tm"] - target_tm)
             rev_options.append((rev_core_seq, tm_info["tm"], diff))
 
@@ -750,7 +771,7 @@ def design_overhang_primers(
     fwd_binding = _binding_metadata(fwd_candidate, 1, best_fwd_core)
     rev_binding = _binding_metadata(rev_candidate, -1, best_rev_core)
 
-    return {
+    data = {
         "target_interval_0based": [start, end],
         "target_interval_length": target_length,
         "target_interval_wraps_origin": wraps_origin,
@@ -788,11 +809,19 @@ def design_overhang_primers(
         "primer3_metrics": primer3_metrics,
     }
 
+    oligos = []
+    for side in ('forward_primer','reverse_primer'):
+        primer = data[side]
+        record = SeqRecord(Seq(primer['full_sequence']),id=side,annotations={'molecule_type':'DNA','topology':'linear'})
+        oligos.append(derived_molecule(record,[rec],operation='design_overhang_primers',strandedness='single',
+                    mappings=[primer['binding']]))
+    return ToolResult(products=oligos,analysis=data)
 
-def prepare_pcr_fragment(template, start, end, fwd_tail="", rev_tail="", name="fragment", target_tm=60.0):
+
+def prepare_pcr_fragment(template: MoleculeInput, start: int, end: int, fwd_tail: str = "", rev_tail: str = "", name: str = "fragment", target_tm: float = 60.0) -> ToolResult:
     """Prepare exact tailed DNA, splitting long additions into actual PCR steps."""
     from core.io.input_resolution import resolve_sequence_record
-    current = resolve_sequence_record(template)
+    current = as_molecule(template,default_topology="linear")
     original = str(current.seq).upper()
     circular = current.annotations.get("topology", "linear") == "circular"
     core = original[start:end] if end > start else (original[start:] + original[:end] if circular else "")
@@ -802,20 +831,19 @@ def prepare_pcr_fragment(template, start, end, fwd_tail="", rev_tail="", name="f
         design = design_overhang_primers(record, begin, finish,
             fwd_5prime_overhang=left, rev_5prime_overhang=right,
             target_tm=target_tm, min_core_len=15, max_core_len=40)
-        f, r = design["forward_primer"], design["reverse_primer"]
+        f, r = design.analysis['forward_primer'], design.analysis['reverse_primer']
         pcr = simulate_pcr(record, f["full_sequence"], r["full_sequence"],
             forward_binding_core_length=f["binding_core_length"],
             reverse_binding_core_length=r["binding_core_length"])
-        for primer, side, info in zip(pcr["primers"], ("F", "R"), (f, r)):
+        for primer, side, info in zip(pcr.analysis['primers'], ("F", "R"), (f, r)):
             primer["name"] = step_name + "_" + side
             primer["tm"] = info["binding_core_tm"]
             primer["binding_core_tm"] = info["binding_core_tm"]
-        row = {"id": step_name, "method": "PCR", "template": pcr["template"],
-               "primers": pcr["primers"],
-               "product": {"sequence": pcr["amplicon"], "features": pcr["features"], "topology": "linear",
-                           "length": pcr["amplicon_length"]},
-               "primer_design": design,
-               "annealing_temperature_hint_C": design["primer3_metrics"]["selected_pair_quality"]["complete_oligo_structure"]["annealing_temperature_C"]}
+        row = {"id": step_name, "method": "PCR", "template": as_molecule(record),
+               "primers": pcr.analysis['primers'],
+               "product": pcr.only_product(),
+               "primer_design": design.analysis,
+               "annealing_temperature_hint_C": design.analysis['primer3_metrics']["selected_pair_quality"]["complete_oligo_structure"]["annealing_temperature_C"]}
         return pcr, design, row
 
     try:
@@ -833,7 +861,7 @@ def prepare_pcr_fragment(template, start, end, fwd_tail="", rev_tail="", name="f
         minimum_stages = math.ceil(longest / 30)
         maximum_stages = math.ceil(longest / 20)
         for stage_count in range(minimum_stages, maximum_stages + 1):
-            current = resolve_sequence_record(template)
+            current = as_molecule(template,default_topology="linear")
             left, right = fwd_tail.upper(), rev_tail.upper()
             preparations = []
             begin, finish = start, end
@@ -849,8 +877,7 @@ def prepare_pcr_fragment(template, start, end, fwd_tail="", rev_tail="", name="f
                     preparations.append(row)
                     left = left[:-left_len] if left_len else ""
                     right = right[:-right_len] if right_len else ""
-                    current = resolve_sequence_record(pcr)
-                    current.id = current.name = step_name + "_product"
+                    current = pcr.only_product()
                     begin, finish = 0, len(current)
                 break
             except ValueError as stage_error:
@@ -858,17 +885,17 @@ def prepare_pcr_fragment(template, start, end, fwd_tail="", rev_tail="", name="f
                     raise
         if not preparations:
             raise ValueError("No PCR preparation could be generated")
-    if pcr["amplicon"] != expected:
+    if str(pcr.only_product().seq) != expected:
         raise ValueError("PCR_PREPARATION_MISMATCH: actual successive PCR does not match requested interval and additions")
-    return {"sequence": pcr["amplicon"], "features": pcr["features"], "topology": "linear",
-            "pcr": pcr, "design": design, "preparation": preparations,
-            "primers": [primer for row in preparations for primer in row["primers"]]}
+    return ToolResult(products=pcr.products, checks=pcr.checks, analysis={
+            'pcr':pcr, 'design':design.analysis, 'preparation':preparations,
+            'primers':[primer for row in preparations for primer in row['primers']]})
 
 
 def check_primer_dimers(
-    primer1: str,
-    primer2: str | None = None,
-) -> dict[str, Any]:
+    primer1: MoleculeInput,
+    primer2: MoleculeInput | None = None,
+) -> ToolResult:
     """Check for primer-dimer (heterodimer) or self-dimer (homodimer) base-pairing.
 
     Scans for complementary alignments between the two primers, specifically flagging
@@ -924,7 +951,7 @@ def check_primer_dimers(
     if max_continuous_match >= 7:
         warnings.append(f"Internal complementarity ({max_continuous_match} bp): possible competitive annealing")
 
-    return {
+    return ToolResult(analysis={
         "analysis_type": "homodimer" if is_self else "heterodimer",
         "primer1_length": n1,
         "primer2_length": n2,
@@ -932,85 +959,54 @@ def check_primer_dimers(
         "max_3prime_complementarity": max_3prime_match,
         "high_dimer_risk": (max_3prime_match >= 4),
         "warnings": warnings,
-    }
+    })
 
 
-def anneal_oligos(
-    top_oligo: str,
-    bottom_oligo: str,
-) -> dict[str, Any]:
-    """Simulate in-vitro annealing of two single-stranded oligos into a double-stranded duplex with sticky overhangs.
-
-    Used for CRISPR sgRNA/shRNA vector cloning, adapter generation, and linker cassette assembly.
-    """
-    top = str(top_oligo).strip().upper()
-    bot = str(bottom_oligo).strip().upper()
-
-    # The bottom oligo is written 5' to 3'. Its reverse complement pairs with the top oligo (5' to 3').
-    bot_rc = str(Seq(bot).reverse_complement())
-
-    # Find where bot_rc aligns inside top or vice versa
-    # Case 1: bot_rc is inside top (e.g. top has 5' and/or 3' overhangs)
-    # Case 2: top is inside bot_rc (e.g. bottom has 5' and/or 3' overhangs)
-    # Standard heuristic: find maximal overlap
-    best_overlap = 0
-    best_offset = 0  # offset of bot_rc relative to top
-
-    n_top = len(top)
-    n_bot = len(bot_rc)
-
-    for offset in range(-n_bot + 1, n_top):
-        overlap = 0
-        mismatch = 0
-        for i in range(n_top):
-            j = i - offset
-            if 0 <= j < n_bot:
-                if top[i] == bot_rc[j]:
-                    overlap += 1
-                else:
-                    mismatch += 1
-        if mismatch == 0 and overlap > best_overlap:
-            best_overlap = overlap
-            best_offset = offset
-
-    if best_overlap == 0:
-        raise ValueError("The two oligos share no complementary duplex region!")
-
-    # Calculate overhangs
-    # If offset > 0: top extends to the left of bot_rc -> 5' overhang on top strand!
-    # If offset < 0: bot_rc extends to the left of top -> bottom strand 5' overhang! (since bot 5' is at the right of bot_rc)
-    left_top_overhang = top[:max(0, best_offset)]
-    right_top_overhang = top[best_offset + n_bot:] if (best_offset + n_bot < n_top) else ""
-
-    # Bot strand 5' overhang is at the 3' end of bot (left of bot_rc)
-    left_bot_overhang = bot_rc[:max(0, -best_offset)]
-    right_bot_overhang = bot_rc[n_top - best_offset:] if (n_top - best_offset < n_bot) else ""
-
-    # Format into standard biological representation:
-    # 5' overhang on left:
-    left_5prime_ov = left_top_overhang if left_top_overhang else str(Seq(left_bot_overhang).reverse_complement())
-    left_type = "5prime_top" if left_top_overhang else ("5prime_bottom" if left_bot_overhang else "blunt")
-
-    # 5' overhang on right:
-    # Bottom strand 5' end is right of bot_rc (reverse complement to get bottom strand 5' to 3' sequence)
-    right_5prime_ov = str(Seq(right_bot_overhang).reverse_complement()) if right_bot_overhang else right_top_overhang
-    right_type = "5prime_bottom" if right_bot_overhang else ("5prime_top" if right_top_overhang else "blunt")
-
-    duplex_seq = top[max(0, best_offset) : min(n_top, best_offset + n_bot)]
-
-    return {
-        "top_oligo": top,
-        "bottom_oligo": bot,
-        "duplex_core_sequence": duplex_seq,
-        "duplex_core_length": len(duplex_seq),
-        "left_overhang": {
-            "sequence": left_5prime_ov,
-            "length": len(left_5prime_ov),
-            "geometry": left_type,
-        },
-        "right_overhang": {
-            "sequence": right_5prime_ov,
-            "length": len(right_5prime_ov),
-            "geometry": right_type,
-        },
-    }
+def anneal_oligos(top_oligo: MoleculeInput, bottom_oligo: MoleculeInput) -> ToolResult:
+    """Anneal single strands, retaining the full reference-top strand and real ends."""
+    top, bottom = as_molecule(top_oligo), as_molecule(bottom_oligo)
+    if top.strandedness == 'double' or bottom.strandedness == 'double':
+        raise ValueError('Annealing requires single-stranded oligos, not dsDNA products')
+    a, b = str(top.seq), str(bottom.seq.reverse_complement())
+    alignments = []
+    for offset in range(-len(b)+1, len(a)):
+        start, end = max(0, offset), min(len(a), offset+len(b))
+        if a[start:end] == b[start-offset:end-offset]:
+            alignments.append((end-start, offset))
+    if not alignments:
+        raise ValueError('The two oligos share no complementary duplex region')
+    length = max(n for n, _ in alignments)
+    best = [offset for n, offset in alignments if n == length]
+    if len(best) != 1:
+        raise ValueError('Annealing alignment is ambiguous; no unique duplex placement')
+    offset = best[0]
+    left_top, left_bottom = a[:max(offset,0)], b[:max(-offset,0)]
+    right_top = a[max(0,offset+len(b)):]
+    right_bottom = b[max(0,len(a)-offset):]
+    def terminus(top_extension, bottom_extension, boundary, side):
+        if not top_extension and not bottom_extension:
+            return FragmentEnd('blunt', cut_boundary=boundary)
+        if top_extension:
+            kind = "5'-overhang" if side == 'left' else "3'-overhang"
+            extension = top_extension
+        else:
+            kind = "3'-overhang" if side == 'left' else "5'-overhang"
+            extension = str(Seq(bottom_extension).reverse_complement())
+        return FragmentEnd(kind, extension, cut_boundary=boundary)
+    record = SeqRecord(top.seq, id=top.id, annotations={'molecule_type':'DNA', 'topology':'linear'})
+    import copy
+    record.features = copy.deepcopy(top.features)
+    from core.tools.sequence_ops import _clip_feature_to_interval
+    reversed_bottom = bottom.reverse_complement(annotations=True)
+    lo, hi = max(0,-offset), min(len(b),len(a)-offset)
+    for feature in reversed_bottom.features:
+        mapped = _clip_feature_to_interval(feature, lo, hi)
+        if mapped is not None:
+            record.features.append(mapped._shift(max(0,offset)))
+    product = derived_molecule(record, [top,bottom], operation='anneal_oligos', strandedness='double',
+                left_end=terminus(left_top,left_bottom,0,'left'),
+                right_end=terminus(right_top,right_bottom,len(a),'right'),
+                mappings=[{'strand':1,'offset':0},{'strand':-1,'offset':offset}])
+    return ToolResult(products=[product], checks=reaction_checks([product],'oligo_annealing'), analysis={'duplex_core_length':length,
+           'duplex_core_sequence':a[max(0,offset):min(len(a),offset+len(b))],
+           'bottom_reverse_complement_offset':offset})

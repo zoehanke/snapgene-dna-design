@@ -410,7 +410,9 @@ class GoldenGateGapTests(unittest.TestCase):
         with mock.patch("golden_gate.restriction_hits", return_value=fake_hits):
             info = golden_gate.part_fragment(rec, sg_common.get_enzyme("BsaI"))
         self.assertFalse(info["ok"])
-        self.assertIn("wrap-around", info["reason"])
+        # Retain supplied coordinates: both were fabricated forward hits on a
+        # source without the required flanking sites. Source conflict precedes geometry.
+        self.assertIn("contradicts actual source geometry", info["reason"])
 
     def test_part_fragment_fragment_shorter_than_overhang(self):
         rec = record("AAAACCCCGGGGTTTT", "r")
@@ -423,7 +425,9 @@ class GoldenGateGapTests(unittest.TestCase):
         with mock.patch("golden_gate.restriction_hits", return_value=fake_hits):
             info = golden_gate.part_fragment(rec, sg_common.get_enzyme("BsaI"))
         self.assertFalse(info["ok"])
-        self.assertIn("not longer than its overhang", info["reason"])
+        # Same original invalid observations are retained; never change their
+        # strand to manufacture an inward pair solely for this test.
+        self.assertIn("contradicts actual source geometry", info["reason"])
 
     def test_overhang_length_mismatch_guard(self):
         vector = record("GGTCTC" + "A" * 40 + "GAGACC", "v", circular=True)

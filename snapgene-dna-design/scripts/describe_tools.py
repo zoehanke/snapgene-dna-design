@@ -31,7 +31,7 @@ def describe(name: str | None = None) -> dict:
     entrypoint = ('scripts/run_pipeline.py' if spec.category in {'compute','inspect'}
                   else 'direct callable; use the corresponding file/external CLI, not a Pipeline step')
     return {**spec.to_definition(), 'signature': str(inspect.signature(spec.callable)),
-            'parameter_aliases': spec.param_aliases, 'sequence_output_key': spec.sequence_output_key,
+            'parameter_aliases': spec.param_aliases,
             'entrypoint': entrypoint}
 
 

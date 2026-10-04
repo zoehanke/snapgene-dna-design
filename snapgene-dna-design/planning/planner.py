@@ -367,11 +367,11 @@ def _simulate_fragment_pcr(fragment, forward, reverse, fwd_tail="", rev_tail="")
         forward_binding_start_0based=f_pos,
         reverse_binding_start_0based=r_pos,
     )
-    result["source_interval_0based"] = [start, end]
-    result["source_template_id"] = template.id or template.name
-    result["template_orientation"] = "reverse-complement" if reversed_template else "forward"
+    result.analysis["source_interval_0based"] = [start, end]
+    result.analysis["source_template_id"] = template.id or template.name
+    result.analysis["template_orientation"] = "reverse-complement" if reversed_template else "forward"
     expected = fwd_tail + fragment["sequence"] + str(Seq(rev_tail).reverse_complement())
-    if result["amplicon"].upper() != expected.upper():
+    if str(result.only_product().seq).upper() != expected.upper():
         raise PlannerError(
             "PCR_BOUNDARY_MISMATCH: actual complete-oligo PCR does not reproduce the requested preparation sequence"
         )
@@ -380,7 +380,7 @@ def _simulate_fragment_pcr(fragment, forward, reverse, fwd_tail="", rev_tail="")
     source_fragment = _extract_template_record(template, start, len(fragment["sequence"]), topology_value.lower() == "circular")
     if str(source_fragment.seq).upper() != fragment["sequence"].upper():
         raise PlannerError("PCR_SOURCE_INTERVAL_MISMATCH: selected sequence is not a contiguous source interval")
-    result["features"] = [feature_to_dict(f._shift(len(fwd_tail)), len(result["amplicon"])) for f in source_fragment.features]
+    # Feature migration belongs to simulate_pcr; a planner cannot reattach source annotations.
     return result
 
 
@@ -398,11 +398,11 @@ def _anchored_primer_fallback(fragment, fwd_tail, rev_tail, primer3_core):
     result = design_overhang_primers(template, *interval,
         fwd_5prime_overhang=fwd_tail, rev_5prime_overhang=rev_tail,
         min_core_len=18, max_core_len=40)
-    result["search_bounds"] = {"minimum_core_length": 18, "maximum_core_length": 40,
+    result.analysis["search_bounds"] = {"minimum_core_length": 18, "maximum_core_length": 40,
                                "reason": "alternative to the default short-region candidate search"}
     candidates, validations = [], []
     for side in ("forward", "reverse"):
-        primer = result[side + "_primer"]
+        primer = result.analysis[side + "_primer"]
         relative = int(primer["binding"]["template_start_0based"]) - interval[0]
         if template.annotations.get("topology") == "circular":
             relative %= len(template)
@@ -414,7 +414,7 @@ def _anchored_primer_fallback(fragment, fwd_tail, rev_tail, primer3_core):
                             "source": "validated Core anchored pair and complete-oligo checks"})
     return {"forward_candidates": [candidates[0]], "reverse_candidates": [candidates[1]],
         "pairs": [{"forward_index": 0, "reverse_index": 0}],
-        "backend": result["engine"], "complete_oligo_validator": "primer3-core",
+        "backend": result.analysis['engine'], "complete_oligo_validator": "primer3-core",
         "validation": {"forward": [validations[0]], "reverse": [validations[1]]},
         "anchored_search": result}
 
@@ -705,22 +705,22 @@ def plan_assembly(source_paths, intent, primer3_core=None,
                 "selected_pair": {
                     "forward_index": pair["forward_index"],
                     "reverse_index": pair["reverse_index"],
-                    "product_size": pcr_product["amplicon_length"],
+                    "product_size": pcr_product.analysis["amplicon_length"],
                     "forward": selected_forward_validation,
                     "reverse": selected_reverse_validation,
                 },
                 "pcr_product": {
-                    "amplicon": pcr_product["amplicon"],
-                    "amplicon_length": pcr_product["amplicon_length"],
-                    "template": pcr_product.get("template"),
-                    "primers": pcr_product.get("primers", []),
-                    "template_interval_0based": pcr_product["template_interval_0based"],
-                    "template_core_length": pcr_product["template_core_length"],
-                    "forward_binding": pcr_product["forward_binding"],
-                    "reverse_binding": pcr_product["reverse_binding"],
-                    "features": pcr_product.get("features", []),
-                    "topology": pcr_product["topology"],
-                    "template_id": pcr_product.get("template_id"),
+                    "amplicon": str(pcr_product.only_product().seq),
+                    "amplicon_length": pcr_product.analysis["amplicon_length"],
+                    "template": pcr_product.analysis.get("template"),
+                    "primers": pcr_product.analysis.get("primers", []),
+                    "template_interval_0based": pcr_product.analysis["template_interval_0based"],
+                    "template_core_length": pcr_product.analysis["template_core_length"],
+                    "forward_binding": pcr_product.analysis["forward_binding"],
+                    "reverse_binding": pcr_product.analysis["reverse_binding"],
+                    "features": pcr_product.only_product().to_dict()["features"],
+                    "topology": pcr_product.only_product().topology,
+                    "template_id": pcr_product.analysis.get("template_id"),
                 },
                 "primer3_retry_note": design.get("primer3_retry_note"),
                 "boundary_offsets": design.get("boundary_offsets"),
@@ -893,6 +893,7 @@ def plan_assembly(source_paths, intent, primer3_core=None,
                 "no final construct is available because method execution failed"),
             "executor": execution.get("executor"),
             "feature_specs": execution.get("feature_specs", []),
+            'product_molecule':execution.get('product_molecule'),
         },
         "execution": execution,
         "numeric_evidence": {
@@ -928,7 +929,8 @@ def plan_assembly(source_paths, intent, primer3_core=None,
         },
         "operation_log": operation_log.snapshot(),
     }
-    return manual
+    from core.tools.result import to_wire
+    return to_wire(manual)
 
 
 def _method_reason(method, requested, fragments, enzymes, alternatives):

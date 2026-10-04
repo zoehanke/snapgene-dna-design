@@ -120,7 +120,8 @@ class FinalFeatureRestorationTests(unittest.TestCase):
 
         amp_r = [feature for feature in restored if feature["name"] == "AmpR"]
         self.assertEqual(len(amp_r), 1)
-        self.assertEqual(amp_r[0]["location"]["parts"], [
+        self.assertEqual([{key:value for key,value in part.items() if key in ('start0','end0','start','end','strand')}
+                          for part in amp_r[0]["location"]["parts"]], [
             {"start0": 19, "end0": 880, "start": 20, "end": 880, "strand": -1}
         ])
         self.assertEqual(

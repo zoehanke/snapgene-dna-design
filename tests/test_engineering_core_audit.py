@@ -29,7 +29,7 @@ class EngineeringCoreAudit(unittest.TestCase):
         record.features = list(features)
         path = self.root / (name+'.'+fmt)
         if fmt == 'dna':
-            path = Path(export_plasmid(record,self.root,name)['dna_file'])
+            path = Path(export_plasmid(record,self.root,name).analysis['dna_file'])
         else:
             with path.open('w',encoding='utf-8') as handle:
                 SeqIO.write(record,handle,'fasta' if fmt=='fasta' else 'genbank')
@@ -85,6 +85,16 @@ class EngineeringCoreAudit(unittest.TestCase):
         p['product_features']=[]
         p['plan_sha256']=compute_plan_sha256(p)
         e=execute(t,p,self.root/'tampered')
+        v=validate(t,p,e)
+        # The old projection no longer controls the product. Keep the old
+        # attack/input, then attack the actual canonical material separately.
+        self.assertTrue(v['artifact_valid'],v['errors'])
+        from core.models.molecule import as_molecule
+        material=as_molecule(p['product_molecule'])
+        material.features=[]
+        p['product_molecule']=material.to_dict()
+        p['plan_sha256']=compute_plan_sha256(p)
+        e=execute(t,p,self.root/'canonical-tampered')
         v=validate(t,p,e)
         self.assertFalse(v['artifact_valid'])
         self.assertIn('ANNOTATION_RETENTION_FAILED',v['error_codes'])

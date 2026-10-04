@@ -21,6 +21,8 @@ from core.guardrails.checklist import quick_biological_sanity_check
 from core.handlers.base import TaskHandler
 from core.io.input_resolution import resolve_sequence_record
 from core.models.construct_model import feature_to_dict
+from core.models.molecule import Molecule, as_molecule
+from core.tools.result import ToolResult
 from core.tools import (
     export_snapgene,
     get_tool,
@@ -28,181 +30,140 @@ from core.tools import (
 )
 
 
-def _resolve_param_val(
-    val: Any,
-    env: dict[str, Any],
-    sources_map: dict[str, Any],
-    results: dict | None = None,
-    analysis_steps: set[str] | None = None,
-) -> Any:
-    """Resolve step parameter value referencing source_id or previous step_id output."""
-    analysis_steps = analysis_steps or set()
+def _resolve_param_val(val, env, sources_map, results=None, analysis_steps=None):
+    """Resolve JSON references to typed products or explicitly named analysis."""
     if isinstance(val, str):
-        if val.startswith("$"):
-            var_name = val[1:]
-            if var_name in env:
-                if var_name in analysis_steps:
-                    raise PlanningError(
-                        "ANALYSIS_OUTPUT_REFERENCE",
-                        f"Analysis step '{var_name}' cannot be used as a DNA sequence; reference a result field instead",
-                    )
-                return copy.deepcopy(env[var_name])
-            if var_name in sources_map:
-                return copy.deepcopy(sources_map[var_name])
-            head, _, tail = var_name.partition(".")
-            if tail and (head in (results or {}) or head in env):
-                result = (results or {}).get(head, env.get(head))
-                try:
-                    for field in tail.split("."):
-                        result = result[int(field)] if isinstance(result, (list, tuple)) else result[field]
-                except (KeyError, IndexError, TypeError, ValueError) as exc:
-                    raise PlanningError("INVALID_STEP_REFERENCE", f"Cannot resolve '{val}'") from exc
-                return copy.deepcopy(result)
-            raise PlanningError("UNRESOLVED_STEP_REFERENCE", f"Unknown source or earlier step: '{val}'")
-        elif val in sources_map:
-            return copy.deepcopy(sources_map[val])
-    elif isinstance(val, list):
-        return [_resolve_param_val(item, env, sources_map, results, analysis_steps) for item in val]
-    elif isinstance(val, dict):
-        return {
-            k: _resolve_param_val(v, env, sources_map, results, analysis_steps)
-            for k, v in val.items()
-        }
+        if val in sources_map:
+            return sources_map[val]
+        if not val.startswith('$'):
+            return val
+        reference = val[1:]
+        if reference in sources_map:
+            return sources_map[reference]
+        head, _, tail = reference.partition('.')
+        if head not in env:
+            raise PlanningError('UNRESOLVED_STEP_REFERENCE', f'Unknown source or earlier step: {val}')
+        result = env[head]
+        if not tail:
+            if not result.products:
+                raise PlanningError('ANALYSIS_OUTPUT_REFERENCE', f'{head} has no molecular product; reference its analysis field')
+            try:
+                return result.only_product()
+            except ValueError as exc:
+                raise PlanningError('EXPLICIT_PRODUCT_REQUIRED', str(exc)) from exc
+        current = result
+        try:
+            for field in tail.split('.'):
+                if isinstance(current, ToolResult):
+                    if field not in ('products', 'analysis', 'checks'):
+                        raise KeyError(field)
+                    current = getattr(current, field)
+                elif isinstance(current, (list, tuple)):
+                    current = current[int(field)]
+                elif isinstance(current, Molecule):
+                    raise KeyError('Material internals are not scalar references; pass the product object')
+                else:
+                    current = current[field]
+        except (KeyError, IndexError, ValueError, TypeError) as exc:
+            raise PlanningError('INVALID_STEP_REFERENCE', f'Cannot resolve {val}') from exc
+        return current
+    if isinstance(val, list):
+        return [_resolve_param_val(v, env, sources_map) for v in val]
+    if isinstance(val, dict):
+        return {k: _resolve_param_val(v, env, sources_map) for k, v in val.items()}
     return val
 
 
-def _resolve_source_records(sources_map: dict[str, Any]) -> dict[str, SeqRecord]:
-    """Resolve every named source before dispatching a pipeline step.
-
-    A source reference carries the complete record, including topology and
-    annotations. Passing its path as a plain string lets sequence-only tools
-    interpret the path itself as DNA and bypasses annotation preservation.
-    """
-    resolved: dict[str, SeqRecord] = {}
-    for source_id, value in sources_map.items():
+def _resolve_source_records(sources_map):
+    resolved = {}
+    for key, value in sources_map.items():
         try:
-            resolved[source_id] = (
-                copy.deepcopy(value)
-                if isinstance(value, SeqRecord)
-                else resolve_sequence_record(value)
-            )
+            resolved[key] = as_molecule(value, default_topology='linear')
         except Exception as exc:
-            raise PlanningError(
-                "SOURCE_RESOLUTION_ERROR",
-                f"Source '{source_id}' could not be resolved to a sequence record: {exc}",
-            ) from exc
+            raise PlanningError('SOURCE_RESOLUTION_ERROR', f'Source {key} is invalid: {exc}') from exc
     return resolved
 
 
-def _extract_dna_output(tool_spec, result: Any) -> str:
-    """Extract DNA only from tools declared as sequence-producing.
-
-    Pure analysis results remain available through ``results`` and dotted
-    references. They must not become the selected construct sequence merely
-    because a result happens to contain a field named ``sequence``.
-    """
-    if isinstance(result, SeqRecord):
-        return tool_spec.extract_sequence(result)
-    if getattr(tool_spec, "name", "") == "translate_dna":
-        return ""
-    if getattr(tool_spec, "result_type", None) == "protein":
-        return ""
-    if getattr(tool_spec, "result_type", None) in {"list", "object"}:
-        return ""
-    if isinstance(result, dict) and not getattr(tool_spec, "sequence_output_key", None):
-        return ""
-    return tool_spec.extract_sequence(result)
-
-
-def _output_topology(value: Any) -> str | None:
-    """Read topology emitted by a selected sequence-producing output."""
-    if isinstance(value, SeqRecord):
-        topology = value.annotations.get("topology")
-    elif isinstance(value, dict):
-        topology = value.get("product_topology") or value.get("topology")
-    else:
-        topology = None
-    topology = str(topology).lower() if topology else None
-    return topology if topology in {"linear", "circular"} else None
-
-
-def run_pipeline_steps(steps: list[dict], sources_map: dict[str, Any], output_step: str | None = None) -> tuple[str, list[dict], dict[str, Any]]:
-    """Execute pipeline steps sequentially in an in-memory environment."""
-    env: dict[str, Any] = {}
-    step_records: list[dict] = []
-    results: dict[str, Any] = {}
-    sequences: dict[str, str] = {}
-    analysis_steps: set[str] = set()
+def run_pipeline_steps(steps, sources_map, output_step=None):
+    """Carry one molecular contract without result-field guessing or recopying."""
     sources = _resolve_source_records(sources_map)
-
-    def has_annotations(value):
-        if isinstance(value, SeqRecord):
-            return bool(value.features)
-        if isinstance(value, dict):
-            return any(has_annotations(item) for item in value.values())
-        if isinstance(value, list):
-            return any(has_annotations(item) for item in value)
-        return False
-
+    env, rows = {}, []
     for step in steps:
-        step_id = step.get("step_id")
-        tool = step.get("tool")
-        raw_params = step.get("params", {})
-        if not step_id or step_id in env:
-            raise PlanningError("INVALID_STEP_ID", "Pipeline step ids must be nonempty and unique")
-        params = _resolve_param_val(raw_params, env, sources, results, analysis_steps)
-
-        tool_spec = get_tool(tool)
-        if not tool_spec:
-            raise PlanningError(
-                "UNSUPPORTED_PIPELINE_TOOL",
-                f"Atomic tool '{tool}' is not registered in TOOL_REGISTRY",
-            )
-        if tool_spec.category not in ("compute", "inspect"):
-            raise PlanningError("PIPELINE_SIDE_EFFECT", f"'{tool}' is not a computation step; export artifacts after execution")
-
+        step_id, tool_name = step.get('step_id'), step.get('tool')
+        if not step_id or step_id in env or step_id in sources:
+            raise PlanningError('INVALID_STEP_ID', 'Step ids must be nonempty, unique and distinct from sources')
+        specification = get_tool(tool_name)
+        if specification is None:
+            raise PlanningError('UNSUPPORTED_PIPELINE_TOOL', f'Unknown atomic tool: {tool_name}')
+        if specification.category not in ('compute', 'inspect'):
+            raise PlanningError('PIPELINE_SIDE_EFFECT', f'{tool_name} has side effects; use a file/output boundary')
+        params = _resolve_param_val(step.get('params', {}), env, sources)
         try:
-            res = tool_spec.execute(**params)
+            result = specification.execute(**params)
         except Exception as exc:
-            raise PlanningError(
-                "TOOL_EXECUTION_ERROR",
-                f"Tool '{tool}' failed during step '{step_id}': {exc}",
-            )
+            raise PlanningError('TOOL_EXECUTION_ERROR', f'{tool_name} failed in {step_id}: {exc}') from exc
+        if not isinstance(result, ToolResult):
+            raise PlanningError('INVALID_TOOL_RESULT', f'{tool_name} does not implement the molecular tool contract')
+        env[step_id] = result
+        rows.append({'step_id': step_id, 'tool': tool_name,
+                     'output_length': len(result.products[0]) if len(result.products) == 1 else None,
+                     'output_sha256': result.products[0].sequence_sha256 if len(result.products)==1 else None,
+                     'product_count': len(result.products), 'details': result.to_dict(),
+                     'params': copy.deepcopy(step.get('params', {}))})
+    chosen = output_step or (steps[-1]['step_id'] if steps else None)
+    if chosen is None:
+        raise PlanningError('EMPTY_PIPELINE', 'Pipeline has no selected product')
+    product = _resolve_param_val('$' + chosen.lstrip('$'), env, sources)
+    if not isinstance(product, Molecule):
+        raise PlanningError('NON_MOLECULAR_OUTPUT', 'The selected output must be a molecular product')
+    return product, rows, env
 
-        out_seq = _extract_dna_output(tool_spec, res)
-        if out_seq and has_annotations(params) and not (
-            isinstance(res, SeqRecord) or isinstance(res, dict) and "features" in res
-        ):
-            raise PlanningError("ANNOTATION_LOSS", f"Tool '{tool}' does not return mapped features for annotated inputs")
 
-        if isinstance(res, SeqRecord):
-            res = {
-                "sequence": out_seq,
-                "topology": res.annotations.get("topology", "linear"),
-                "features": [feature_to_dict(f, len(res)) for f in res.features],
-            }
-        if out_seq and isinstance(res, dict) and "features" in res:
-            env[step_id] = resolve_sequence_record({**res, "sequence": out_seq})
-        else:
-            env[step_id] = out_seq if out_seq else res
-        if not out_seq:
-            analysis_steps.add(step_id)
-        results[step_id] = res
-        sequences[step_id] = out_seq
-        step_records.append({
-            "step_id": step_id,
-            "tool": tool,
-            "output_length": len(out_seq),
-            "output_sha256": hashlib.sha256(out_seq.encode("utf-8")).hexdigest().upper(),
-            "details": res,
-            "params": copy.deepcopy(raw_params),
-        })
-
-    chosen = output_step or (steps[-1]["step_id"] if steps else None)
-    if chosen is not None and chosen not in sequences:
-        raise PlanningError("UNKNOWN_OUTPUT_STEP", f"Unknown output_step '{chosen}'")
-    final_seq = sequences.get(chosen, "")
-    return final_seq, step_records, env
+def _preparation_check(product, rows, sources):
+    """Follow actual product versions, not tool names or an expected final DNA."""
+    records, checked = {}, set()
+    roots = {as_molecule(source).record_version for source in sources.values()}
+    for row in rows:
+        details = row['details']
+        for material in details['products']:
+            records[material['record_version']] = material
+        for material in details['analysis'].get('reaction_products',[]):
+            records[material['record_version']]=material
+        checked.update(c['subject_version'] for c in details['checks']
+                       if c.get('scope')=='preparation_model' and c.get('status')=='PASSED')
+        for preparation in details['analysis'].get('preparation', []):
+            material = preparation['product']
+            records[material['record_version']] = material
+            # prepare_pcr_fragment owns and replay-checks these PCR products.
+            if material.get('operation') == 'simulate_pcr':
+                checked.add(material['record_version'])
+    gaps=[]
+    visited=set()
+    def visit(version):
+        if version in visited or version in roots:return
+        visited.add(version)
+        material=records.get(version)
+        if material is not None and version not in checked:
+            parents=[r['record_version'] for r in material['source_refs']]
+            if len(parents)==1 and parents[0] in records:
+                parent=records[parents[0]]
+                if all(material.get(k)==parent.get(k) for k in ('sequence','topology','strandedness','ends')):
+                    visit(parents[0])
+                    return
+        if material is None or version not in checked:
+            gaps.append(version)
+            return
+        for reference in material['source_refs']:
+            parent=reference['record_version']
+            # A literal template/oligo declared in the real reaction input is
+            # an input to that simulation, not proof of physical stock.
+            if parent in records:visit(parent)
+    visit(product.record_version)
+    if not visited:gaps.append('selected supplied material has no reaction check')
+    return {'status':'INCOMPLETE' if gaps else 'PASSED',
+            'details':{'unestablished_versions':gaps,'reaction_versions':sorted(visited),
+                       'scope':'computed reaction chain from declared inputs',
+                       'physical_stock':'NOT_CHECKED','wet_lab':'NOT_CHECKED'}}
 
 
 class CompositePipelineHandler(TaskHandler):
@@ -249,18 +210,22 @@ class CompositePipelineHandler(TaskHandler):
         steps = task["pipeline"]["steps"]
 
         output_step = task["pipeline"].get("output_step") or steps[-1]["step_id"]
-        final_seq, step_records, _env = run_pipeline_steps(steps, sources_map, output_step)
+        final_record, step_records, _env = run_pipeline_steps(steps, sources_map, output_step)
+        final_seq = str(final_record.seq)
         if not final_seq:
-            raise PlanningError("NO_PRODUCT_SEQUENCE", "Select a sequence-producing output_step before later analysis steps")
-        final_record = _env[output_step]
-        requested_topology = (task.get("product") or {}).get("topology")
-        actual_topology = _output_topology(final_record)
+            raise PlanningError('NO_PRODUCT_SEQUENCE', 'Selected molecular product is empty')
+        requested_topology = (task.get('product') or {}).get('topology')
+        selected_output_version = final_record.record_version
+        actual_topology = final_record.topology
         if actual_topology is None:
-            selected_record = next(
-                (row for row in step_records if row.get("step_id") == output_step),
-                {},
-            )
-            actual_topology = _output_topology(selected_record.get("details")) or "linear"
+            if not requested_topology:
+                raise PlanningError('UNKNOWN_PRODUCT_TOPOLOGY', 'Selected material has unknown topology; declare product topology')
+            final_record = copy.deepcopy(final_record)
+            final_record.annotations['topology'] = requested_topology
+            if requested_topology == 'circular':
+                if final_record.left_end is not None or final_record.right_end is not None:
+                    raise PlanningError('UNSIMULATED_CIRCULARIZATION','Exposed ends require an actual circularization reaction')
+            actual_topology = requested_topology
         if requested_topology and requested_topology != actual_topology:
             raise PlanningError(
                 "PRODUCT_TOPOLOGY_MISMATCH",
@@ -280,6 +245,8 @@ class CompositePipelineHandler(TaskHandler):
             "actual_topology": actual_topology,
             "requested_topology": requested_topology,
             "product_sequence": final_seq,
+            "product_molecule": final_record.to_dict(),
+            'selected_output_version': selected_output_version,
             "product_features": [feature_to_dict(f, len(final_record)) for f in final_record.features] if isinstance(final_record, SeqRecord) else [],
             "product_sequence_sha256": hashlib.sha256(final_seq.encode("utf-8")).hexdigest().upper(),
             "steps": step_records,
@@ -287,9 +254,12 @@ class CompositePipelineHandler(TaskHandler):
             "expected_components": task.get("expected_components", []),
             "forbidden_components": task.get("forbidden_components", []),
             "sources": task.get("sources", []),
+            'preparation_check': _preparation_check(final_record,step_records,sources_map),
         }
 
     def execute(self, task: dict, plan: dict, out_dir: pathlib.Path) -> dict:
+        if 'product_molecule' not in plan:
+            raise PlanningError('PLAN_REGENERATION_REQUIRED','Regenerate the legacy plan with the complete molecular product')
         inter = out_dir / "intermediate"
         inter.mkdir(parents=True, exist_ok=True)
 
@@ -298,12 +268,12 @@ class CompositePipelineHandler(TaskHandler):
         name = task.get("task_id", "construct")
 
         exported = export_snapgene(
-            record_or_seq=resolve_sequence_record({"sequence": prod_seq, "topology": topo, "features": plan.get("product_features", [])}),
+            record_or_seq=as_molecule(plan["product_molecule"]),
             out_dir=inter,
             filename_base=name,
             topology=topo,
             features=task.get("features"),
-        )
+        ).analysis
 
         gb_path = pathlib.Path(exported["gb_file"])
         fa_path = inter / f"{name}.fasta"
@@ -341,8 +311,8 @@ class CompositePipelineHandler(TaskHandler):
     def recompute(self, task: dict, plan: dict) -> str:
         sources_map = self._sources_map(task)
         steps = task.get("pipeline", {}).get("steps", [])
-        final_seq, _, _ = run_pipeline_steps(steps, sources_map, task.get("pipeline", {}).get("output_step"))
-        return final_seq.upper()
+        final_product, _, _ = run_pipeline_steps(steps, sources_map, task.get("pipeline", {}).get("output_step"))
+        return str(final_product.seq).upper()
 
     def validate_goal(
         self,
@@ -354,6 +324,14 @@ class CompositePipelineHandler(TaskHandler):
     ) -> tuple[bool, list[dict], list[str]]:
         errors = []
         traces = []
+        from core.models.molecule import as_molecule
+        target_version = as_molecule(plan.get('product_molecule',product_record)).record_version
+        for step in plan.get('steps', []):
+            for check in step.get('details', {}).get('checks', []):
+                if check.get('subject_version') in (target_version,plan.get('selected_output_version')):
+                    traces.append({'check':'scoped_program_check','result':check})
+                    if check.get('status') not in ('PASSED','NOT_APPLICABLE'):
+                        errors.append(f"PROGRAM_CHECK_FAILED: {check.get('name')} on the selected material")
         from core.runtime_validate import _validate_requested_components
         component_traces, component_errors = _validate_requested_components(task, product_record)
         traces.extend(component_traces)

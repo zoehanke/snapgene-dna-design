@@ -64,9 +64,12 @@ def simulate(template, fwd, rev, allow_mismatch=0, circular=False):
             return {"start": hit["template_start_0based"] + 1,
                     "end": hit["template_end_0based"],
                     "strand": strand, "mismatches": 0}
-        return {**result, "length": result["amplicon_length"],
-                "forward_bind": binding(result["forward_binding"], "+"),
-                "reverse_bind": binding(result["reverse_binding"], "-")}, []
+        return {**result.to_dict(), **result.analysis,
+                "amplicon": str(result.only_product().seq),
+                "features": result.only_product().to_dict()['features'],
+                "length": result.analysis['amplicon_length'],
+                "forward_bind": binding(result.analysis['forward_binding'], "+"),
+                "reverse_bind": binding(result.analysis['reverse_binding'], "-")}, []
     t = str(getattr(template, "seq", template))
     fwd_hits = find_binding(t, fwd, allow_mismatch, circular)
     rev_hits = find_binding(t, rev, allow_mismatch, circular)
@@ -227,7 +230,8 @@ def main():
         if output_path.suffix.lower() in {".gb", ".gbk", ".dna"}:
             from core.io.input_resolution import resolve_sequence_record
             from core.tools.snapgene_io import export_plasmid, annotate_record_primers
-            amp = resolve_sequence_record({**result, "sequence": result["amplicon"], "topology": "linear"})
+            from core.models.molecule import as_molecule
+            amp = as_molecule(result['products'][0])
             amp.id = amp.name = output_path.stem
             if result.get("primers"):
                 forward, reverse = result["primers"]
@@ -240,8 +244,8 @@ def main():
                 amp = annotate_record_primers(amp, mapped)
                 source = annotate_record_primers(rec, result["primers"])
                 out["annotated_source"] = export_plasmid(source, output_path.parent/"annotated_sources",
-                                                        output_path.stem+"_source", topology(rec))
-            files = export_plasmid(amp, output_path.parent, output_path.stem, "linear")
+                                                        output_path.stem+"_source", topology(rec)).analysis
+            files = export_plasmid(amp, output_path.parent, output_path.stem, "linear").analysis
             if output_path.suffix.lower()==".gbk":
                 pathlib.Path(files["gb_file"]).replace(output_path)
                 files["gb_file"] = str(output_path)

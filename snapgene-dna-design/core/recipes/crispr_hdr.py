@@ -11,6 +11,7 @@ LITERATURE SOURCES & PROTOCOL REFERENCES:
 3. Addgene CRISPR Guide & Vectors (pX330, pX458, pX459, lentiCRISPRv2 Protocols).
 """
 from __future__ import annotations
+from core.models.construct_model import feature_to_dict
 
 import pathlib
 from typing import Any
@@ -87,50 +88,50 @@ def recipe_crispr_hdr_donor(
         require_pam_disruption=require_pam_disruption,
     )
 
-    resolved_type = atomic["donor_type"]
+    resolved_type = atomic.analysis['donor_type']
     if resolved_type == "ssODN":
         standard_arm_ok = 35 <= arm_len <= 65
-    elif resolved_type == "dsDNA" and atomic["total_length"] <= 200:
+    elif resolved_type == "dsDNA" and atomic.analysis['total_length'] <= 200:
         standard_arm_ok = True
     else:
         standard_arm_ok = 450 <= arm_len <= 850
 
-    guide = atomic.get("guide") or {}
-    pam_recleavage_prevented = bool(atomic.get("pam_silenced_in_donor")) if grna_seq else None
+    guide = atomic.analysis.get("guide") or {}
+    pam_recleavage_prevented = bool(atomic.analysis.get("pam_silenced_in_donor")) if grna_seq else None
     quality_checks = {
         "standard_arm_length_conforming": standard_arm_ok,
         "pam_recleavage_prevented": pam_recleavage_prevented,
         "edit_distance_from_dsb_bp": (
             0
-            if atomic.get("donor_edit_interval_0based")
-            and atomic["donor_edit_interval_0based"][0]
-            <= atomic["donor_cut_position_0based"]
-            <= atomic["donor_edit_interval_0based"][1]
+            if atomic.analysis.get("donor_edit_interval_0based")
+            and atomic.analysis['donor_edit_interval_0based'][0]
+            <= atomic.analysis['donor_cut_position_0based']
+            <= atomic.analysis['donor_edit_interval_0based'][1]
             else min(
-                abs(atomic["donor_cut_position_0based"] - bound)
-                for bound in atomic.get("donor_edit_interval_0based", [atomic["donor_cut_position_0based"]])
+                abs(atomic.analysis['donor_cut_position_0based'] - bound)
+                for bound in atomic.analysis.get("donor_edit_interval_0based", [atomic.analysis["donor_cut_position_0based"]])
             )
         ),
         "ssodn_total_length_under_200nt": (
-            atomic["total_length"] <= 200 if resolved_type == "ssODN" else True
+            atomic.analysis['total_length'] <= 200 if resolved_type == "ssODN" else True
         ),
         "missense_mutation_avoided": not any(
             mutation.get("synonymous") is False
-            for mutation in atomic.get("mutations_applied", [])
+            for mutation in atomic.analysis.get("mutations_applied", [])
             if target_is_cds
         ),
         "guide_matches_original_target": bool(guide) if grna_seq else None,
         "replacement_length_preserved": (
-            atomic["edit_mode"] != "replace"
+            atomic.analysis['edit_mode'] != "replace"
             or (
-                atomic["replacement_length"] == atomic["edit_length"]
-                and len(atomic["edited_target_sequence"])
-                == len(atomic["original_target_sequence"])
+                atomic.analysis['replacement_length'] == atomic.analysis['edit_length']
+                and len(atomic.analysis['edited_target_sequence'])
+                == len(atomic.analysis['original_target_sequence'])
             )
         ),
     }
 
-    if resolved_type == "dsDNA" and atomic["total_length"] <= 200:
+    if resolved_type == "dsDNA" and atomic.analysis['total_length'] <= 200:
         protocol_steps = [
             {"step": 1, "action": "Order the complete top and bottom dsDNA donor oligos shown in the result."},
             {"step": 2, "action": "Mix equimolar oligos, heat-denature, and cool slowly to anneal the full donor duplex."},
@@ -152,11 +153,11 @@ def recipe_crispr_hdr_donor(
             {"step": 4, "action": "Verify the intended edit and PAM state by genomic PCR and sequencing."},
         ]
 
-    details = dict(atomic)
+    details = dict(atomic.analysis)
     details.update({
         "recipe": "recipe_crispr_hdr_donor",
-        "pam_silenced": atomic.get("pam_silenced_in_donor", False),
-        "pam_silencing_details": atomic.get("silencing_details", ""),
+        "pam_silenced": atomic.analysis.get("pam_silenced_in_donor", False),
+        "pam_silencing_details": atomic.analysis.get("silencing_details", ""),
         "quality_checks": quality_checks,
         "authoritative_sources": AUTHORITATIVE_SOURCES,
         "target_is_cds": target_is_cds,
@@ -166,12 +167,12 @@ def recipe_crispr_hdr_donor(
         recipe_name="recipe_crispr_hdr_donor",
         result_kind="component",
         completeness="component_only",
-        product_sequence=atomic["donor_sequence"],
-        product_topology="linear",
-        features=atomic["features"],
+
+        products=atomic.products,
+
         primers=[],
         quality_checks=quality_checks,
-        warnings=atomic.get("warnings", []),
+        warnings=atomic.analysis.get("warnings", []),
         protocol_steps=protocol_steps,
         citations=AUTHORITATIVE_SOURCES,
         details=details,

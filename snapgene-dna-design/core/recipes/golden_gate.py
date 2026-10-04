@@ -12,6 +12,7 @@ LITERATURE SOURCES & PROTOCOL REFERENCES:
    NEB Golden Gate Assembly Kit (BsaI-HFv2) Manual (NEB #E1601). Ipswich, MA.
 """
 from __future__ import annotations
+from core.models.construct_model import feature_to_dict
 
 from typing import Any
 
@@ -66,7 +67,7 @@ def recipe_golden_gate(
     # Potapov 2018 quality check: ensure overhangs are non-palindromic
     palindromic_overhangs = []
     from Bio.Seq import Seq
-    for j in res.get("junctions", []):
+    for j in res.analysis.get("junctions", []):
         ov = j.get("overhang_sequence") or j.get("from_overhang") or j.get("left_overhang", "")
         if ov and ov == str(Seq(ov).reverse_complement()):
             palindromic_overhangs.append(ov)
@@ -77,10 +78,10 @@ def recipe_golden_gate(
             f"Palindromic 4-bp overhangs detected ({palindromic_overhangs}): high risk of self-ligation or inverted insertion (Potapov et al. 2018)."
         )
 
-    remaining_sites = res.get("recognition_sites_remaining", [])
+    remaining_sites = res.analysis.get("recognition_sites_remaining", [])
     all_junctions_compatible = all(
         bool(j.get("compatible", j.get("compatibility") == "ok"))
-        for j in res.get("junctions", [])
+        for j in res.analysis.get("junctions", [])
     )
     quality_checks = {
         "fragment_count": len(fragments),
@@ -105,9 +106,9 @@ def recipe_golden_gate(
         recipe_name="recipe_golden_gate",
         result_kind="construct",
         completeness="complete_construct",
-        product_sequence=res["product_sequence"],
-        product_topology=res["product_topology"],
-        features=res["features"],
+
+        products=res.products,
+
         primers=[],
         quality_checks=quality_checks,
         warnings=warnings,
@@ -115,9 +116,9 @@ def recipe_golden_gate(
         citations=AUTHORITATIVE_SOURCES,
         details={
             "recipe": "recipe_golden_gate",
-            "product_length": res["product_length"],
-            "junctions": res.get("junctions", []),
-            "fragments": res.get("fragments", []),
+            "product_length": res.analysis['product_length'],
+            "junctions": res.analysis.get("junctions", []),
+            "fragments": res.analysis.get("fragments", []),
             "quality_checks": quality_checks,
             "authoritative_sources": AUTHORITATIVE_SOURCES,
         },

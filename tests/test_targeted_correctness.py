@@ -116,8 +116,8 @@ class TargetedCorrectnessTests(unittest.TestCase):
                 feature = SeqFeature(CompoundLocation(parts), type="CDS", qualifiers={"label": ["joined"]})
                 record.features = [feature]
                 result = get_feature(record, "joined")
-                self.assertEqual(result["sequence"], str(feature.extract(record.seq)))
-                self.assertEqual(result["length"], 12)
+                self.assertEqual(str(result.only_product().seq), str(feature.extract(record.seq)))
+                self.assertEqual(result.analysis["matches"][0]['length'], 12)
 
     def test_query_and_digest_share_real_end_geometry(self):
         cases = [("AAAGAATTCTTT", "EcoRI", False, "5prime", "AATT"),
@@ -128,22 +128,24 @@ class TargetedCorrectnessTests(unittest.TestCase):
                  ("AAATGCAAGAGACCTTT", "BsaI", False, "5prime", "TGCA")]
         for sequence, enzyme, circular, kind, motif in cases:
             with self.subTest(enzyme=enzyme, circular=circular):
-                query = find_restriction_sites(sequence, [enzyme], "circular" if circular else "linear")
+                query = find_restriction_sites(sequence, [enzyme], "circular" if circular else "linear").analysis
                 cut = query["enzymes"][enzyme]["cuts"][0]
                 self.assertEqual((cut["overhang_type"], cut["overhang_sequence"]), (kind, motif))
-                fragments = digest_sequence(sequence, enzyme, circular)["fragments"]
+                fragments = digest_sequence(sequence, enzyme, circular).products
                 cut_end = fragments[0]
-                self.assertEqual((cut_end["right_geometry"], cut_end["right_overhang"]), (kind, motif))
+                actual_kind = {'5prime':"5'-overhang",'3prime':"3'-overhang",'blunt':'blunt'}[kind]
+                self.assertEqual(cut_end.right_end.kind,actual_kind)
+                self.assertEqual(str(Seq(cut_end.right_end.overhang_sequence).reverse_complement()) if kind=='5prime' else cut_end.right_end.overhang_sequence,motif)
 
     def test_type_iis_site_outside_linear_fragment_is_not_a_digest_cut(self):
         sequence = "AAAGGTCTC"
-        query = find_restriction_sites(sequence, ["BsaI"])["enzymes"]["BsaI"]
+        query = find_restriction_sites(sequence, ["BsaI"]).analysis["enzymes"]["BsaI"]
         hit = query["cuts"][0]
         self.assertFalse(hit["cuts_within_sequence"])
         self.assertIsNone(hit["overhang_sequence"])
         self.assertEqual(query["cut_count"], 0)
         self.assertEqual(query["recognition_count"], 1)
-        self.assertEqual(digest_sequence(sequence, "BsaI")["cut_count"], 0)
+        self.assertEqual(digest_sequence(sequence, "BsaI",circular=False).analysis["cut_count"], 0)
 
     def test_candidate_gate_rejects_empty_or_incomplete_evidence(self):
         reports = [None, {}, {"all_applicable_pass": True},
@@ -204,7 +206,7 @@ class TargetedCorrectnessTests(unittest.TestCase):
                 FeatureLocation(3, 9, strand=-1)]), type="CDS", qualifiers={"label": ["synthetic_reverse_join"]})]
         record.features[0].qualifiers["note"] = ["骨架注释", "second value"]
         with tempfile.TemporaryDirectory() as directory:
-            paths = export_snapgene(record, directory)
+            paths = export_snapgene(record, directory).analysis
             observed = resolve_sequence_record(paths["dna_file"])
         self.assertEqual(str(observed.features[0].location), str(record.features[0].location))
         self.assertEqual(str(observed.features[0].extract(observed.seq)), str(record.features[0].extract(record.seq)))
@@ -231,7 +233,7 @@ class TargetedCorrectnessTests(unittest.TestCase):
         from core.tools.sequence_ops import extract_subsequence
         from scripts.run_recipe import run_recipe_cli
         vector = resolve_sequence_record(self.vector_path)
-        backbone = resolve_sequence_record(extract_subsequence(vector, 2744, 331, topology="circular"))
+        backbone = extract_subsequence(vector, 2744, 331, topology="circular").only_product()
         with tempfile.TemporaryDirectory() as directory:
             result = run_recipe_cli("gibson_assembly", {
                 "vector_linear_seq": backbone,

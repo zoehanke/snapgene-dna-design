@@ -72,14 +72,16 @@ def main():
     if fmt == "genbank":
         _ensure_annotations(record)
         with open(args.out, "w", encoding="utf-8") as fh:
-            SeqIO.write(record, fh, "genbank")
+            from core.io.molecule_codec import genbank_record
+            SeqIO.write(genbank_record(record), fh, "genbank")
     elif fmt == "fasta":
         with open(args.out, "w", encoding="utf-8") as fh:
             SeqIO.write(record, fh, "fasta")
     elif fmt == "snapgene-gb":
         record = _snapgene_annotated(record)
         with open(args.out, "w", encoding="utf-8") as fh:
-            SeqIO.write(record, fh, "genbank")
+            from core.io.molecule_codec import genbank_record
+            SeqIO.write(genbank_record(record), fh, "genbank")
     else:  # dna
         write_native_dna(record, args.out)
 

@@ -72,7 +72,11 @@ Once the relevant design result is established, read [Trace organization and han
 
 ## Composite pipeline references
 
-Pipeline parameters resolve recursively. Use `$source_id` for a named source, `$step_id` for the prior step output, `$step_id.field` for a result field, and `$step_id.field.0` or another numeric segment for a list index. A whole `$step_id` passes the sequence record when the step produced one, preserving sequence, topology, and features; use field references for scalar or list values. Set `output_step` in the pipeline or pass `--output-step` when later steps are analysis-only and a prior sequence-producing step is the deliverable.
+Atomic tools return `ToolResult`: `products` contains complete Molecules, `analysis` contains calculations, `checks` contains scoped program results. Python callers use `.only_product()` only for one product, `.products[index]` for an explicit choice, and `.analysis` for analysis. Keep the complete material, never `str(record)` or a reconstructed sequence-only surrogate.
+
+Pipeline references are `$source_id`, `$step_id` for exactly one product, `$step_id.products.0` for an explicit product, and `$step_id.analysis.field` or `$step_id.analysis.field.0` for analysis. Multiple products and analysis-only outputs cannot be selected implicitly. Set `output_step` when later steps only inspect the deliverable. Use `ligate_fragments` for already digested/annealed duplexes and `rotate_sequence` for a circular display-origin change.
+
+If preparation is required, submit `validation_requirements: ["sequence_model", "preparation_model", "file", "user_goal"]`. Otherwise inspect the reported preparation scope and state what was checked; sequence editing alone does not establish a preparation chain. A saved `.gb`/`.dna` can be the next actual material input. Edited files with stale molecular metadata require explicit re-import/rebinding, not reuse of an old result.
 
 The resolver accepts references inside nested dictionaries and lists. A reference must point to a source or an earlier step. The selected output step must produce a sequence.
 

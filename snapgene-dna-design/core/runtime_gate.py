@@ -264,8 +264,9 @@ def _promote_verified_candidate(
         with fa_dst.open(encoding="utf-8", errors="replace") as handle:
             rec_fa = SeqIO.read(handle, "fasta")
         try:
-            from core.tools.snapgene_io import read_native_dna_record
+            from core.tools.snapgene_io import read_native_dna_record, _read_native_data
             rec_dna = read_native_dna_record(dna_dst)
+            native_visible,_ = _read_native_data(dna_dst)
         except Exception as exc:
             raise GateRejected("GATE_DNA_READBACK_FAILED", f"Failed to read back generated .dna: {exc}")
 
@@ -288,7 +289,7 @@ def _promote_verified_candidate(
             )
 
         if (rec_gb.annotations.get("topology", "linear") != rec_dna.annotations.get("topology", "linear")
-                or feature_geometry(rec_gb) != feature_geometry(rec_dna)):
+                or feature_geometry(rec_gb) != feature_geometry(native_visible)):
             raise GateRejected(
                 "GATE_DNA_FEATURE_MISMATCH",
                 "Native export changed topology, feature intervals, strands or extracted feature sequences; keep the GenBank candidate for inspection",

@@ -18,6 +18,9 @@ import pathlib
 from typing import Any
 
 from core.recipes.contract import RecipeResult
+from core.models.molecule import as_molecule, derived_molecule
+from core.models.construct_model import feature_to_dict
+from core.tools.sequence_ops import slice_record_interval
 from core.tools.fusion import fuse_in_frame, get_standard_element
 from core.tools.inspection import _load_record
 from core.tools.sequence_ops import check_reading_frame, strip_terminal_codons
@@ -113,7 +116,7 @@ def recipe_protein_tagging(
     # 1. Resolve Tag DNA sequence
     try:
         tag_info = get_standard_element(tag_name_or_seq)
-        tag_dna = tag_info["dna"]
+        tag_dna = str(tag_info.only_product().seq)
     except ValueError:
         tag_dna = str(tag_name_or_seq).strip().upper()
 
@@ -123,7 +126,7 @@ def recipe_protein_tagging(
     else:
         try:
             linker_info = get_standard_element(linker_type)
-            linker_dna = linker_info["dna"]
+            linker_dna = str(linker_info.only_product().seq)
         except ValueError:
             linker_dna = str(linker_type).strip().upper()
 
@@ -149,9 +152,9 @@ def recipe_protein_tagging(
     if "c" in pos:
         # C-TERMINAL TAGGING SOP:
         # Target CDS must have its terminal stop codon stripped!
-        cds_stripped_res = strip_terminal_codons(target_cds, strip_start=False, strip_stop=True)
-        cds_core = cds_stripped_res["sequence"]
-        stop_stripped = cds_stripped_res["stop_stripped"]
+        cds_stripped_res = strip_terminal_codons(rec, strip_start=False, strip_stop=True)
+        cds_core = str(cds_stripped_res.only_product().seq)
+        stop_stripped = cds_stripped_res.analysis['stop_stripped']
         if not stop_stripped:
             warnings.append("No canonical stop codon (TAA/TAG/TGA) detected at 3' end of target CDS; proceeding with stripped sequence.")
 
@@ -175,12 +178,12 @@ def recipe_protein_tagging(
         # N-TERMINAL TAGGING SOP:
         # Order: [Kozak] + Tag + [Linker] + [Cleavage] + Target_CDS (with its own stop or terminal_stop)
         tag_stripped_res = strip_terminal_codons(tag_dna, strip_start=False, strip_stop=True)
-        tag_core = tag_stripped_res["sequence"]
+        tag_core = str(tag_stripped_res.only_product().seq)
         if not tag_core.startswith("ATG"):
             tag_core = "ATG" + tag_core
 
         # If target CDS has start codon ATG, we can keep it or strip it; standard SOP usually strips target ATG if directly preceded by protease/tag
-        cds_stripped_start = strip_terminal_codons(target_cds, strip_start=True, strip_stop=False)["sequence"]
+        cds_stripped_start = str(strip_terminal_codons(rec, strip_start=True, strip_stop=False).only_product().seq)
 
         components = [tag_core]
         if linker_dna:
@@ -197,7 +200,7 @@ def recipe_protein_tagging(
 
     # 4. In-frame translation verification
     trans_dna = product_dna[len(kozak_dna):]
-    aa_seq = translate_dna(trans_dna, frame=1)
+    aa_seq = translate_dna(trans_dna, frame=1).analysis['translation']
     internal_stops = aa_seq[:-1].count("*")
 
     quality_checks = {
@@ -226,18 +229,25 @@ def recipe_protein_tagging(
             "action": f"Incubate with {cleavage_meta.get('protease')} protease to cleave tag; residual scar: '{cleavage_meta.get('expected_residual_amino_acids')}'."
         })
 
+    from Bio.SeqFeature import SeqFeature, FeatureLocation
+    from Bio.Seq import Seq
+    from Bio.SeqRecord import SeqRecord
+    product_record = SeqRecord(Seq(product_dna),id='tagged_component',annotations={'molecule_type':'DNA','topology':'linear'})
+    if 'c' in pos:
+        retained = cds_stripped_res.only_product()
+        offset = len(kozak_dna)
+    else:
+        retained = strip_terminal_codons(rec,strip_start=True).only_product()
+        offset = len(kozak_dna)+len(tag_core)+len(linker_dna)+len(cleavage_dna)
+    product_record.features = [f._shift(offset) for f in retained.features]
+    product_record.features.append(SeqFeature(FeatureLocation(len(kozak_dna),len(product_dna),strand=1),type='CDS',
+                  qualifiers={'label':[f'Fusion_{tag_name_or_seq}'],'translation':[aa_seq.rstrip('*')]}))
+    material = derived_molecule(product_record,[as_molecule(rec)],operation='recipe_protein_tagging')
     return RecipeResult(
         recipe_name="recipe_protein_tagging",
         result_kind="component",
         completeness="component_only",
-        product_sequence=product_dna,
-        product_topology="linear",
-        features=[
-            {"name": f"Fusion_{tag_name_or_seq}", "type": "CDS",
-             "start": len(kozak_dna) + 1, "end": len(product_dna),
-             "interval_0based": [len(kozak_dna), len(product_dna)],
-             "strand": 1}
-        ],
+        products=[material],
         primers=[],
         quality_checks=quality_checks,
         warnings=warnings,

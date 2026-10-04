@@ -39,8 +39,8 @@ class FinalReactionInputTests(unittest.TestCase):
         left, right = self._overlap_fragments()
         result = simulate_overlap_assembly([left, right], min_overlap=15, circular=True)
 
-        self.assertEqual(result["product_topology"], "circular")
-        self.assertEqual(result["product_length"], 70)
+        self.assertEqual(result.analysis['product_topology'], "circular")
+        self.assertEqual(result.analysis['product_length'], 70)
 
     def test_digest_rejects_explicit_linear_vector(self):
         vector = SeqRecord(

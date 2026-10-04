@@ -5,6 +5,7 @@ Allows AI agents and deterministic pipelines to inspect sequence structure,
 topology, GC content, annotations, and open reading frames from any input file.
 """
 from __future__ import annotations
+from core.tools.result import ToolResult
 
 import hashlib
 import pathlib
@@ -26,7 +27,7 @@ def _load_record(file_path_or_record: str | pathlib.Path | SeqRecord) -> SeqReco
         raise FileNotFoundError(f"Sequence file not found or invalid sequence: {file_path_or_record}") from exc
 
 
-def inspect_dna(file_path_or_record: str | pathlib.Path | SeqRecord) -> dict[str, Any]:
+def inspect_dna(file_path_or_record: str | pathlib.Path | SeqRecord) -> ToolResult:
     """Inspect sequence file and return structured metadata and features.
 
     Returns:
@@ -88,7 +89,7 @@ def inspect_dna(file_path_or_record: str | pathlib.Path | SeqRecord) -> dict[str
             "qualifiers": {k: v for k, v in f.qualifiers.items() if k != "translation"},
         })
 
-    return {
+    return ToolResult(analysis={
         "name": getattr(rec, "name", "") or getattr(rec, "id", "") or "unnamed",
         "sequence_length": n,
         "topology": topo,
@@ -96,7 +97,7 @@ def inspect_dna(file_path_or_record: str | pathlib.Path | SeqRecord) -> dict[str
         "sequence_sha256": hashlib.sha256(seq_str.encode("utf-8")).hexdigest().upper(),
         "feature_count": len(features),
         "features": features,
-    }
+    })
 
 
 def annotated_selection_marker(name: str) -> str | None:
@@ -120,9 +121,9 @@ def annotated_selection_marker(name: str) -> str | None:
     return None
 
 
-def summarize_backbone(file_path_or_record: str | pathlib.Path | SeqRecord) -> dict[str, Any]:
+def summarize_backbone(file_path_or_record: str | pathlib.Path | SeqRecord) -> ToolResult:
     """Identify key vector backbone components: origins, resistance markers, promoters."""
-    ins = inspect_dna(file_path_or_record)
+    ins = inspect_dna(file_path_or_record).analysis
     origins = []
     resistances = []
     promoters = []
@@ -151,21 +152,21 @@ def summarize_backbone(file_path_or_record: str | pathlib.Path | SeqRecord) -> d
                     "interval_0based": f["interval_0based"], "strand": f["strand"],
                 })
 
-    return {
+    return ToolResult(analysis={
         "name": ins["name"],
         "topology": ins["topology"],
         "sequence_length": ins["sequence_length"],
         "origins_of_replication": origins,
         "selection_markers": resistances,
         "promoters": promoters,
-    }
+    })
 
 
 def find_open_reading_frames(
     file_path_or_seq: str | pathlib.Path | SeqRecord,
     min_length_aa: int = 30,
     transl_table: int = 1,
-) -> list[dict[str, Any]]:
+) -> ToolResult:
     """Scan all 6 reading frames for ATG-initiated ORFs with terminal stop codons."""
     rec, seq_str = resolve_sequence_input(file_path_or_seq)
 
@@ -197,4 +198,4 @@ def find_open_reading_frames(
                                     "translation": aa,
                                 })
                             break
-    return sorted(orfs, key=lambda x: x["length_aa"], reverse=True)
+    return ToolResult(analysis={'orfs': sorted(orfs, key=lambda x: x["length_aa"], reverse=True)})

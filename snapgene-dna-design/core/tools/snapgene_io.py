@@ -19,10 +19,12 @@ from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqFeature import CompoundLocation, ExactPosition, FeatureLocation, Reference, SeqFeature
 from Bio.SeqRecord import SeqRecord
+from core.models.molecule import MoleculeInput
+from core.tools.result import ToolResult
 
 
 def _strand_char(strand: int | None) -> str:
-    return "-" if strand == -1 else "+"
+    return "-" if strand == -1 else "+" if strand == 1 else "."
 
 
 def _strand_int(strand: int | str | None) -> int:
@@ -381,7 +383,9 @@ def annotate_record_primers(
     the actual binding core; the complete ordered oligo is stored separately in
     ``primer_sequence`` and is used by Native export.
     """
-    result = copy.deepcopy(record)
+    from core.models.molecule import as_molecule,derived_molecule
+    source=as_molecule(record)
+    result = copy.deepcopy(source)
     sequence_length = len(result.seq)
     topology = str(result.annotations.get("topology", "linear")).lower()
     for definition in primers:
@@ -401,7 +405,8 @@ def annotate_record_primers(
                 qualifiers=_primer_qualifiers(payload),
             )
         )
-    return result
+    return derived_molecule(result,[source],operation='annotate_record_primers',strandedness=source.strandedness,
+                            left_end=source.left_end,right_end=source.right_end)
 
 
 def _ensure_annotations(record: SeqRecord) -> SeqRecord:
@@ -444,6 +449,11 @@ def write_native_dna(record: SeqRecord, out_path: str | pathlib.Path) -> str | p
     )
     topo = record.annotations.get("topology", "linear")
     sg = SgffObject.new(str(record.seq), topology=topo)
+    from core.io.molecule_codec import metadata_text
+    encoded = metadata_text(record)
+    if encoded:
+        if record.strandedness is not None:
+            sg.sequence.strandedness = record.strandedness
     for f in record.features:
         if "primer" in f.type.lower():
             payload = _primer_payload_from_feature(record, f)
@@ -512,6 +522,12 @@ def write_native_dna(record: SeqRecord, out_path: str | pathlib.Path) -> str | p
         )
         sg.features.add(feature)
     SgffWriter.to_file(sg, out_path)
+    if encoded:
+        # Native formats cannot express every SeqRecord attribute. Bind the
+        # supplement to actual parsed native data before attaching it.
+        visible, _ = _read_native_data(out_path)
+        sg.notes.description = metadata_text(record, visible, native=True)
+        SgffWriter.to_file(sg,out_path)
     return out_path
 
 
@@ -675,7 +691,7 @@ def normalize_primer_qualifiers(record: SeqRecord) -> SeqRecord:
     return result
 
 
-def read_native_dna_record(source_path: str | pathlib.Path) -> SeqRecord:
+def _read_native_data(source_path):
     """Read a Native file and restore primer oligo/core metadata."""
     path = pathlib.Path(source_path)
     try:
@@ -686,7 +702,19 @@ def read_native_dna_record(source_path: str | pathlib.Path) -> SeqRecord:
 
         with path.open("rb") as handle:
             record = snapgene_file_to_seqrecord(fileobject=handle)
-    return normalize_primer_qualifiers(enrich_native_primer_features(record, path))
+    record = normalize_primer_qualifiers(enrich_native_primer_features(record, path))
+    record.annotations.setdefault('data_file_division','UNC')
+    from sgffp import SgffReader
+    source = SgffReader.from_file(str(path))
+    record.annotations.setdefault('strandedness', source.sequence.strandedness)
+    return record,source
+
+
+def read_native_dna_record(source_path: str | pathlib.Path) -> SeqRecord:
+    """Parse actual native fields, verify their version, then add unsupported metadata."""
+    from core.io.molecule_codec import restore_file_metadata
+    record,source = _read_native_data(source_path)
+    return restore_file_metadata(record, source.notes.description)
 
 def find_snapgene_executable() -> pathlib.Path | None:
     """Locate SnapGene desktop application across platforms."""
@@ -735,12 +763,12 @@ SNAPGENE_DEFAULT_COLORS: dict[str, str] = {
 
 
 def export_snapgene(
-    record_or_seq: SeqRecord | str,
+    record_or_seq: MoleculeInput,
     out_dir: str | pathlib.Path,
     filename_base: str = "construct",
-    topology: str = "circular",
+    topology: str | None = None,
     features: list[dict[str, Any]] | None = None,
-) -> dict[str, str]:
+) -> ToolResult:
     """Export sequence to both native SnapGene .dna and standard GenBank .gb formats.
 
     Args:
@@ -756,14 +784,14 @@ def export_snapgene(
     out_path = pathlib.Path(out_dir)
     out_path.mkdir(parents=True, exist_ok=True)
 
-    if isinstance(record_or_seq, SeqRecord):
-        rec = copy.deepcopy(record_or_seq)
-    else:
-        rec = SeqRecord(Seq(str(record_or_seq).upper()), id=filename_base, name=filename_base)
-        rec.annotations["molecule_type"] = "DNA"
-        rec.annotations["topology"] = topology
-
-    if "topology" not in rec.annotations:
+    from core.models.molecule import as_molecule
+    rec = copy.deepcopy(as_molecule(record_or_seq))
+    rec.annotations["molecule_type"] = "DNA"
+    if topology is not None and rec.topology is not None and topology != rec.topology:
+        raise ValueError('Export topology contradicts the molecular product')
+    if rec.topology is None:
+        if topology is None:
+            raise ValueError('Export requires explicit topology for unknown material')
         rec.annotations["topology"] = topology
 
     # Attach features if provided
@@ -784,24 +812,25 @@ def export_snapgene(
     for feature in sg_rec.features:
         if "primer" in feature.type.lower():
             feature.qualifiers.update(_primer_qualifiers(_primer_payload_from_feature(sg_rec, feature)))
+    from core.io.molecule_codec import genbank_record
     with open(gb_path, "w", encoding="utf-8") as fh:
-        SeqIO.write(sg_rec, fh, "genbank")
+        SeqIO.write(genbank_record(sg_rec), fh, "genbank")
 
     # 2. Write native SnapGene binary .dna file
     write_native_dna(sg_rec, str(dna_path))
 
-    return {
+    return ToolResult(analysis={
         "gb_file": str(gb_path),
         "dna_file": str(dna_path),
         "topology": rec.annotations.get("topology", "circular"),
         "sequence_length": len(rec.seq),
-    }
+    })
 
 
 export_plasmid = export_snapgene
 
 
-def open_in_snapgene(file_path: str | pathlib.Path) -> dict[str, Any]:
+def open_in_snapgene(file_path: str | pathlib.Path) -> ToolResult:
     """Launch the local SnapGene desktop application to display the construct.
 
     Args:
@@ -816,22 +845,19 @@ def open_in_snapgene(file_path: str | pathlib.Path) -> dict[str, Any]:
 
     exe = find_snapgene_executable()
     if exe is None or not exe.exists():
-        return {
+        return ToolResult(analysis={
             "success": False,
             "message": "SnapGene desktop executable not found on this system. Constructed files (.dna, .gb) remain available for manual opening.",
-        }
+            "status": "UNAVAILABLE",
+        })
 
     try:
         proc = subprocess.Popen([str(exe), str(p)])
-        return {
+        return ToolResult(analysis={
             "success": True,
             "pid": proc.pid,
             "opened_file": str(p),
             "executable": str(exe),
-        }
+        })
     except Exception as exc:
-        return {
-            "success": False,
-            "error": str(exc),
-            "opened_file": str(p),
-        }
+        raise RuntimeError(f"SnapGene launch failed for {p}: {exc}") from exc

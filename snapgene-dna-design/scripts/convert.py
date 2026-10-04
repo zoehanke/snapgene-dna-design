@@ -49,6 +49,13 @@ def convert_file(src, dst, out_format, allow_overwrite=False):
         else:
             if "molecule_type" not in rec.annotations:
                 rec.annotations["molecule_type"] = "DNA"
+            import copy
+            from core.io.molecule_codec import genbank_record
+            if out_format=='genbank':
+                rec=genbank_record(rec)
+            else:
+                rec=copy.deepcopy(rec)
+                if rec.annotations.get('topology') is None:rec.annotations.pop('topology',None)
             with candidate.open("w", encoding="utf-8") as fh:
                 WRITERS[out_format](rec, fh)
         if allow_overwrite:

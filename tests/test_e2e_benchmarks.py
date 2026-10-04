@@ -117,8 +117,8 @@ class TestE2EBenchmarks(unittest.TestCase):
         from core.tools.amplification import prepare_pcr_fragment
         tagged = prepare_pcr_fragment(gfp_template, 0, insert_end, "",
                                       str(Seq(tag_cassette).reverse_complement()))
-        self.assertEqual(tagged["pcr"]["amplicon"], tagged_insert_seq)
-        self.assertGreater(len(tagged["preparation"]),1)
+        self.assertEqual(str(tagged.only_product().seq), tagged_insert_seq)
+        self.assertGreater(len(tagged.analysis["preparation"]),1)
         fwd_tail = vector_backbone_seq[-22:]
         reverse_tail = str(Seq(tag_cassette+vector_backbone_seq[:22]).reverse_complement())
         with self.assertRaisesRegex(ValueError, "NO_VALID_PRIMER_PAIR"):
@@ -137,7 +137,7 @@ class TestE2EBenchmarks(unittest.TestCase):
         guides = design_crispr_grna(
             target_seq_or_file=target_genomic_locus,
             nuclease="SpCas9",
-        )
+        ).analysis["candidates"]
         self.assertGreaterEqual(len(guides), 1)
         chosen_guide = [g for g in guides if g["spacer"] == spacer][0]
         self.assertEqual(chosen_guide["spacer"], spacer)
@@ -148,8 +148,8 @@ class TestE2EBenchmarks(unittest.TestCase):
             spacer_seq=spacer,
             vector_type="BbsI",
         )
-        self.assertTrue(oligos["forward_oligo"]["sequence"].startswith("CACC"))
-        self.assertTrue(oligos["reverse_oligo"]["sequence"].startswith("AAAC"))
+        self.assertTrue(oligos.analysis["forward_oligo"]["sequence"].startswith("CACC"))
+        self.assertTrue(oligos.analysis["reverse_oligo"]["sequence"].startswith("AAAC"))
 
         # 4. Design CRISPR HDR donor template
         # Cut site is 3 bp upstream of PAM
@@ -164,7 +164,7 @@ class TestE2EBenchmarks(unittest.TestCase):
             grna_seq=spacer,
             custom_arm_length=50,
         )
-        donor_seq = hdr_recipe["donor_sequence"]
+        donor_seq = str(hdr_recipe.products[0].seq)
         self.assertIn(ha_payload, donor_seq)
         self.assertTrue(hdr_recipe["pam_silenced"])
 
@@ -224,7 +224,7 @@ class TestE2EBenchmarks(unittest.TestCase):
             out_dir=self.tmp_dir,
             filename_base="e2e_case_b_crispr_hdr",
             topology="linear",
-        )
+        ).analysis
         self.assertTrue(pathlib.Path(out_files["dna_file"]).exists())
 
     def test_case_c_desktop_snapgene_readiness(self):
@@ -236,12 +236,13 @@ class TestE2EBenchmarks(unittest.TestCase):
             out_dir=self.tmp_dir,
             filename_base="desktop_test",
             topology="circular",
-        )
+        ).analysis
         dna_file = out_files["dna_file"]
         self.assertTrue(pathlib.Path(dna_file).is_file())
 
         # 2. Verify open_in_snapgene capability without hanging
-        with self.assertRaises(FileNotFoundError):
+        from core.errors import ToolExecutionError
+        with self.assertRaises(ToolExecutionError):
             open_in_snapgene(self.tmp_dir / "does_not_exist.dna")
 
         # 3. Verify launcher wiring without starting the desktop GUI.  Official
@@ -251,7 +252,7 @@ class TestE2EBenchmarks(unittest.TestCase):
         with patch("core.tools.snapgene_io.find_snapgene_executable", return_value=fake_exe), \
                 patch("core.tools.snapgene_io.subprocess.Popen", return_value=Mock(pid=12345)) as popen:
             launch_res = open_in_snapgene(dna_file)
-        self.assertTrue(launch_res["success"])
+        self.assertTrue(launch_res.analysis["success"])
         popen.assert_called_once_with([str(fake_exe), str(pathlib.Path(dna_file).resolve())])
 
 

@@ -60,7 +60,7 @@ class FinalCircularReactionTests(unittest.TestCase):
             enzyme3="BamHI",
             orientation="auto",
         )
-        amplicon = result.details["preparation"][0]["product"]["sequence"]
+        amplicon = str(result.details["preparation"][0]["product"].seq)
         eco = restriction_hits(vector_sequence, get_enzyme("EcoRI"), circular=True)[0]
         bam = restriction_hits(vector_sequence, get_enzyme("BamHI"), circular=True)[0]
         i_eco = restriction_hits(amplicon, get_enzyme("EcoRI"), circular=False)[0]
@@ -104,8 +104,8 @@ class FinalCircularReactionTests(unittest.TestCase):
         )
         expected = vector_sequence[h5["top_cut_boundary_0based"] : h3["top_cut_boundary_0based"]] + reverse_insert
 
-        self.assertEqual(result["insert_orientation"], "reverse")
-        self.assertEqual(result["product_sequence"], expected)
+        self.assertEqual(result.analysis['insert_orientation'], "reverse")
+        self.assertEqual(str(result.only_product().seq), expected)
 
     def test_cross_origin_mutagenesis_deletion_returns_circular_product(self):
         sequence = "ACGT" * 25

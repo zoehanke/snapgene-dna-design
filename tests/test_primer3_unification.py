@@ -28,13 +28,13 @@ class TestPrimer3Unification(unittest.TestCase):
             target_tm=60.0,
             prefer_primer3=True,
         )
-        self.assertIn("primer3", res["engine"].lower())
-        self.assertIn("primer3_metrics", res)
-        self.assertIsNotNone(res["primer3_metrics"]["penalty"])
-        self.assertIsNotNone(res["primer3_metrics"]["heterodimer_tm"])
-        self.assertTrue(res["forward_primer"]["full_sequence"].startswith("GAATTC"))
-        self.assertTrue(res["reverse_primer"]["full_sequence"].startswith("GGATCC"))
-        self.assertLessEqual(res["binding_core_delta_tm"], 3.0)
+        self.assertIn("primer3", res.analysis['engine'].lower())
+        self.assertIn("primer3_metrics", res.analysis)
+        self.assertIsNotNone(res.analysis['primer3_metrics']["penalty"])
+        self.assertIsNotNone(res.analysis['primer3_metrics']["heterodimer_tm"])
+        self.assertTrue(res.analysis['forward_primer']["full_sequence"].startswith("GAATTC"))
+        self.assertTrue(res.analysis['reverse_primer']["full_sequence"].startswith("GGATCC"))
+        self.assertLessEqual(res.analysis['binding_core_delta_tm'], 3.0)
 
     def test_design_overhang_primers_biopython_core_with_full_structure_qc(self):
         seq = (
@@ -51,10 +51,10 @@ class TestPrimer3Unification(unittest.TestCase):
             target_tm=60.0,
             prefer_primer3=False,
         )
-        self.assertEqual(res["engine"], "Biopython NN core search + Primer3 structure")
-        self.assertTrue(res["forward_primer"]["full_sequence"].startswith("GAATTC"))
-        self.assertTrue(res["reverse_primer"]["full_sequence"].startswith("GGATCC"))
-        structure = res["primer3_metrics"]["selected_pair_quality"]["complete_oligo_structure"]
+        self.assertEqual(res.analysis['engine'], "Biopython NN core search + Primer3 structure")
+        self.assertTrue(res.analysis['forward_primer']["full_sequence"].startswith("GAATTC"))
+        self.assertTrue(res.analysis['reverse_primer']["full_sequence"].startswith("GGATCC"))
+        structure = res.analysis['primer3_metrics']["selected_pair_quality"]["complete_oligo_structure"]
         self.assertTrue(structure["passed"])
         self.assertEqual(structure["scope"], "complete oligos including all 5prime tails")
         self.assertEqual(structure["engine"], "Primer3 check_primers")

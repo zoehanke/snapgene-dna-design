@@ -164,8 +164,11 @@ def _write_construct_files(plan, stem):
             % (execution.get("status"), execution.get("reason")))
     sequence = final["sequence"]
     construct_name = plan.get("construct_name", "assembled")
-    record = SeqRecord(BioSeq(sequence), id=construct_name,
-                       name=construct_name)
+    from core.models.molecule import as_molecule
+    import copy
+    if not final.get('product_molecule'):
+        raise ValueError('Regenerate plan to retain the actual complete molecular product')
+    record = copy.deepcopy(as_molecule(final['product_molecule']))
     record.annotations["molecule_type"] = "DNA"
     record.annotations["topology"] = plan.get("topology", "circular")
     assembly = plan.get("assembly_strategy") or {}
@@ -201,7 +204,8 @@ def _write_construct_files(plan, stem):
         "%s | assembly_method=%s | validation=%s | executor=%s" %
         (construct_name, provenance["assembly_method"],
          provenance["validation_status"], provenance["executor"]))
-    feature_specs = final.get("feature_specs") or []
+    # Features are already maintained by the actual DNA producer.
+    feature_specs = []
     for spec in feature_specs:
         segments = []
         for part in spec.get("segments", []):
@@ -231,7 +235,7 @@ def _write_construct_files(plan, stem):
     temp_stem = temp_dir / stem.name
     try:
         with open(str(temp_stem) + ".gb", "w", encoding="utf-8") as handle:
-            SeqIO.write(record, handle, "genbank")
+            SeqIO.write(__import__("core.io.molecule_codec",fromlist=["genbank_record"]).genbank_record(record), handle, "genbank")
         with open(str(temp_stem) + ".fa", "w", encoding="utf-8") as handle:
             SeqIO.write(record, handle, "fasta")
         write_native_dna(record, str(temp_stem) + ".dna")

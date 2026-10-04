@@ -84,7 +84,7 @@ class TestDefectGovernance(unittest.TestCase):
             cds_frame_offset=0,
         )
         self.assertTrue(res["pam_silenced"], "PAM should be silenced")
-        self.assertTrue(res["donor_sequence"])
+        self.assertTrue(str(res.products[0].seq))
         # Verify synonymous mutation was applied to disable PAM without altering amino acid
         self.assertTrue(res["quality_checks"]["missense_mutation_avoided"], "Missense mutations must be avoided")
         self.assertGreater(len(res["mutations_applied"]), 0, "Mutations should be applied")
@@ -102,18 +102,18 @@ class TestDefectGovernance(unittest.TestCase):
         cds = "ATGGAATTCGCTGCTGAATTCTAA"
         # Both GAA TTC (Glu Phe) are in frame:
         # Codons: [ATG] [GAA] [TTC] [GCT] [GCT] [GAA] [TTC] [TAA]
-        orig_aa = translate_dna(cds, frame=1)
+        orig_aa = translate_dna(cds, frame=1).analysis['translation']
 
         enz = get_enzyme("EcoRI")
         hits_before = len(enz.search(Seq(cds)))
         self.assertEqual(hits_before, 2, "Test sequence must start with 2 EcoRI cuts")
 
         res = silent_mutation_remove_site(cds, "EcoRI", frame_offset=0, table=1)
-        self.assertTrue(res["site_removed"], "All EcoRI sites must be removed")
-        self.assertEqual(res["remaining_cut_count"], 0, "Remaining cut count must be 0")
-        self.assertTrue(res["identical_translation"], "Translation must remain strictly identical")
-        self.assertEqual(translate_dna(res["mutated_seq"], frame=1), orig_aa)
-        self.assertGreaterEqual(len(res["mutations_applied"]), 2, "Must have applied mutations for both sites")
+        self.assertTrue(res.analysis['site_removed'], "All EcoRI sites must be removed")
+        self.assertEqual(res.analysis['remaining_cut_count'], 0, "Remaining cut count must be 0")
+        self.assertTrue(res.analysis['identical_translation'], "Translation must remain strictly identical")
+        self.assertEqual(translate_dna(str(res.only_product().seq), frame=1).analysis['translation'], orig_aa)
+        self.assertGreaterEqual(len(res.analysis['mutations_applied']), 2, "Must have applied mutations for both sites")
 
     def test_directional_cloning_compatibility(self):
         """Verify directional cloning validation detects compatible ends as non-directional."""
@@ -151,12 +151,12 @@ class TestDefectGovernance(unittest.TestCase):
         seq_mito = "ATGTGAAGA"
 
         # Under table 1: TGA is a premature stop codon
-        res_t1 = check_reading_frame(seq_mito, start_offset=0, transl_table=1)
+        res_t1 = check_reading_frame(seq_mito, start_offset=0, transl_table=1).analysis
         self.assertTrue(res_t1["has_premature_stop"], "Table 1 must treat TGA as premature stop")
         self.assertIn(3, res_t1["premature_stop_positions"])
 
         # Under table 2: TGA translates to Trp, AGA is the terminal stop codon!
-        res_t2 = check_reading_frame(seq_mito, start_offset=0, transl_table=2)
+        res_t2 = check_reading_frame(seq_mito, start_offset=0, transl_table=2).analysis
         self.assertFalse(res_t2["has_premature_stop"], "Table 2 must NOT treat TGA as stop codon")
         self.assertTrue(res_t2["terminal_stop"], "Table 2 must recognize AGA as canonical terminal stop")
         self.assertEqual(res_t2["translation"], "MW*")
@@ -231,21 +231,25 @@ class TestDefectGovernance(unittest.TestCase):
         from core.tools.restriction import fill_or_chew_overhang
 
         # 1. 5' fill-in: 5' AATT overhang filled in
-        res_fill = fill_or_chew_overhang("CCCC", left_overhang="AATT", right_overhang="GGCC", overhang_type="5prime", action="fill_in")
-        self.assertEqual(res_fill["end_type"], "blunt")
-        self.assertEqual(res_fill["blunted_sequence"], "AATTCCCCGGCC")
+        with self.assertRaises(ValueError):
+            fill_or_chew_overhang("CCCC", left_overhang="AATT", right_overhang="GGCC", overhang_type="5prime", action="fill_in")
+        res_fill = fill_or_chew_overhang("AATTCCCC", left_overhang="AATT", right_overhang="GGCC", overhang_type="5prime", action="fill_in")
+        self.assertEqual(res_fill.analysis['end_type'], "blunt")
+        self.assertEqual(str(res_fill.only_product().seq), "AATTCCCCGGCC")
 
         # 2. 5' fill-in does not duplicate overhang if already present
+        # Complete top-strand sequence includes its left 5' extension. The
+        # right 5' extension belongs to the bottom strand and is synthesized.
         res_no_dup = fill_or_chew_overhang("AATTCCCCGGCC", left_overhang="AATT", right_overhang="GGCC", overhang_type="5prime", action="fill_in")
-        self.assertEqual(res_no_dup["blunted_sequence"], "AATTCCCCGGCC")
+        self.assertEqual(str(res_no_dup.only_product().seq), "AATTCCCCGGCCGGCC")
 
         # 3. 3' chew-back: removes 3' single-stranded tails
         res_chew = fill_or_chew_overhang("AATTCCCCGGCC", left_overhang="AATT", right_overhang="GGCC", overhang_type="3prime", action="chew_back")
-        self.assertEqual(res_chew["blunted_sequence"], "CCCC")
+        self.assertEqual(str(res_chew.only_product().seq), "AATTCCCC")
 
         # 4. Incompatible action (e.g. 5' chew-back with T4 pol) does not corrupt sequence
-        res_safe = fill_or_chew_overhang("CCCC", left_overhang="AATT", overhang_type="5prime", action="chew_back")
-        self.assertEqual(res_safe["blunted_sequence"], "CCCC")
+        with self.assertRaises(ValueError):
+            fill_or_chew_overhang("CCCC", left_overhang="AATT", overhang_type="5prime", action="chew_back")
 
     def test_golden_gate_and_overhang_compatibility(self):
         """Verify check_overhang_compatibility handles both Golden Gate top-strand motif and opposite strand annealing."""
@@ -253,15 +257,15 @@ class TestDefectGovernance(unittest.TestCase):
 
         # 1. Golden Gate Type IIS top-strand convention: matching 4-bp junctions (e.g. BsaI AATG and AATG)
         res_gg = check_overhang_compatibility("AATG", "AATG", type1="5prime", type2="5prime")
-        self.assertTrue(res_gg["compatible"], "Identical Golden Gate junction motifs must be compatible")
+        self.assertTrue(res_gg.analysis["compatible"], "Identical Golden Gate junction motifs must be compatible")
 
         # 2. Opposite strand physical extension convention: AATG and CATT (reverse complement)
         res_opp = check_overhang_compatibility("AATG", "CATT", type1="5prime", type2="5prime")
-        self.assertTrue(res_opp["compatible"], "Reverse complement single-stranded overhangs must be compatible")
+        self.assertTrue(res_opp.analysis["compatible"], "Reverse complement single-stranded overhangs must be compatible")
 
         # 3. Mismatched overhangs
         res_mismatch = check_overhang_compatibility("AATG", "GGCC", type1="5prime", type2="5prime")
-        self.assertFalse(res_mismatch["compatible"])
+        self.assertFalse(res_mismatch.analysis["compatible"])
 
     def test_extract_homology_arms_circular_wrap(self):
         """Verify extract_homology_arms wraps around origin on circular plasmids instead of truncating."""
@@ -271,10 +275,10 @@ class TestDefectGovernance(unittest.TestCase):
         plasmid_seq = "A" * 990 + "GGGGGGGGGG"  # last 10 bp are G
         # Cut at bp 5: left arm of length 30 must wrap around origin to take bases from end
         res = extract_homology_arms(plasmid_seq, cut_position_0based=5, left_arm_length=30, right_arm_length=30, circular=True)
-        self.assertEqual(res["left_arm_length"], 30, "Left arm must not be truncated on circular plasmid")
-        self.assertEqual(res["right_arm_length"], 30, "Right arm must not be truncated")
+        self.assertEqual(res.analysis["left_arm_length"], 30, "Left arm must not be truncated on circular plasmid")
+        self.assertEqual(res.analysis["right_arm_length"], 30, "Right arm must not be truncated")
         # Left arm spans bp 975..1000 + 0..5 (25 bp of end + 5 bp of start = 30 bp)
-        self.assertEqual(len(res["left_homology_arm"]), 30)
+        self.assertEqual(len(res.analysis["left_homology_arm"]), 30)
 
     def test_c_terminal_tag_cleavage_order(self):
         """Verify C-terminal tag with protease cleavage places cleavage site adjacent to CDS.

@@ -10,9 +10,12 @@ from Bio.SeqRecord import SeqRecord
 
 from core.errors import PlanningError, TaskValidationError
 from core.evidence_chain import check_backbone_contamination, validate_goal_components
-from core.handlers.base import TaskHandler, record_slice, product_features
+from core.handlers.base import planned_molecule, TaskHandler, record_slice, product_features
 from core.io.input_resolution import resolve_sequence_record
 from core.interval import extract_interval, validate_interval
+from core.tools.feature_ops import get_feature
+from core.models.molecule import as_molecule
+import copy
 
 if TYPE_CHECKING:
     pass
@@ -114,47 +117,19 @@ class ComponentAmplificationHandler(TaskHandler):
                 if labels:
                     feat_id = labels[0]
 
-            found = None
-            for f in record.features:
-                for q in ("label", "gene", "product", "locus_tag", "note"):
-                    val = f.qualifiers.get(q)
-                    if val and feat_id:
-                        if isinstance(val, list):
-                            if any(str(v).lower() == feat_id.lower() for v in val):
-                                found = f
-                                break
-                        elif str(val).lower() == feat_id.lower():
-                            found = f
-                            break
-                if found:
-                    break
-            if not found:
-                raise PlanningError("FEATURE_NOT_FOUND", "feature %r not found in template" % feat_id)
-
-            s0 = min(int(p.start) for p in found.location.parts)
-            e0 = max(int(p.end) for p in found.location.parts)
-            f_strand = found.location.strand or 1
-            if strand == -1 or f_strand == -1:
-                sel_strand = -1
-            else:
-                sel_strand = 1
-
-            extracted = extract_interval(record, s0, e0, topology=topology, strand=sel_strand, whole_record_approved=whole_record_approved)
-
-            feature_type = found.type
-            qualifiers = dict(found.qualifiers)
-
-            sel_dict = {
-                "kind": "feature",
-                "feature_id": feat_id,
-                "feature_name": feat_id,
-                "interval_0based": [s0, e0],
-                "strand": sel_strand,
-                "extracted_sequence": extracted,
-                "feature_type": feature_type,
-                "qualifiers": qualifiers,
-                "resolution_evidence": selection.get("resolution_evidence", []),
-            }
+            selected = get_feature(record, feat_id)
+            selected_record = selected.only_product()
+            match = selected.analysis['matches'][0]
+            s0,e0 = match['interval_0based']
+            if strand == -1 and match['strand'] != -1:
+                selected_record = selected_record.reverse_complement(id=True,name=True,description=True,annotations=True,dbxrefs=True)
+            extracted = str(selected_record.seq)
+            sel_dict = {'kind':'feature','feature_id':feat_id,'feature_name':feat_id,
+                        'interval_0based':[s0,e0], 'source_parts':match['source_parts'],
+                        'strand':-1 if strand == -1 else match['strand'],
+                        'extracted_sequence':extracted, 'feature_type':match['type'],
+                        'qualifiers':match['qualifiers'],
+                        'resolution_evidence':selection.get('resolution_evidence',[])}
 
         # Optional homology arms / tails
         op = task.get("operation", {})
@@ -163,8 +138,13 @@ class ComponentAmplificationHandler(TaskHandler):
         right_tail = arms.get("right_arm") or ""
 
         final_seq = left_tail.upper() + extracted.upper() + right_tail.upper()
-        selected_record = record_slice(record, s0, e0, sel_dict["strand"])
-        product_record = SeqRecord(Seq(left_tail.upper())) + selected_record + SeqRecord(Seq(right_tail.upper()))
+        if selection.get("kind") == "interval":
+            selected_record = record_slice(record, s0, e0, sel_dict["strand"])
+        product_record = SeqRecord(Seq(final_seq),id=selected_record.id,name=selected_record.name,
+            description=selected_record.description,annotations=copy.deepcopy(selected_record.annotations),
+            dbxrefs=list(selected_record.dbxrefs))
+        product_record.features = [f._shift(len(left_tail)) for f in selected_record.features]
+        product_record.annotations['topology']='linear'
 
         expected_components = []
         # Find features inside the extracted interval in template
@@ -174,7 +154,7 @@ class ComponentAmplificationHandler(TaskHandler):
             fs0 = min(int(p.start) for p in f.location.parts)
             fe0 = max(int(p.end) for p in f.location.parts)
             if fs0 >= s0 and fe0 <= e0:
-                fseq = extract_interval(record, fs0, fe0, topology=topology, strand=f.location.strand or 1, whole_record_approved=True)
+                fseq = str(f.extract(record.seq)).upper()
                 for q in ("label", "gene", "product"):
                     val = f.qualifiers.get(q)
                     if val and isinstance(val, list):
@@ -215,6 +195,7 @@ class ComponentAmplificationHandler(TaskHandler):
             "product_topology": "linear",
             "product_sequence": final_seq,
             "product_features": product_features(product_record, final_seq),
+            "product_molecule": planned_molecule(product_record, task).to_dict(),
             "product_sequence_sha256": hashlib.sha256(final_seq.encode("utf-8")).hexdigest().upper(),
             "expected_components": expected_components,
             "forbidden_components": list(task.get("product", {}).get("forbidden_components", [])),
@@ -264,27 +245,11 @@ class ComponentAmplificationHandler(TaskHandler):
                 labels = selection.get("feature", {}).get("labels") or []
                 if labels:
                     feat_id = labels[0]
-            found = None
-            for f in getattr(record, "features", []):
-                for q in ("label", "gene", "product", "locus_tag", "note"):
-                    val = f.qualifiers.get(q)
-                    if val and feat_id:
-                        if isinstance(val, list):
-                            if any(str(v).lower() == feat_id.lower() for v in val):
-                                found = f
-                                break
-                        elif str(val).lower() == feat_id.lower():
-                            found = f
-                            break
-                if found:
-                    break
-            if not found:
-                raise PlanningError("FEATURE_NOT_FOUND", "feature %r not found in template" % feat_id)
-            s0 = min(int(p.start) for p in found.location.parts)
-            e0 = max(int(p.end) for p in found.location.parts)
-            f_strand = found.location.strand or 1
-            sel_strand = -1 if (strand == -1 or f_strand == -1) else 1
-            extracted = extract_interval(record, s0, e0, topology=topology, strand=sel_strand, whole_record_approved=whole_record_approved)
+            result = get_feature(record, feat_id)
+            extracted_record = result.only_product()
+            if strand == -1 and result.analysis['matches'][0]['strand'] != -1:
+                extracted_record = extracted_record.reverse_complement()
+            extracted = str(extracted_record.seq)
 
         arms = task.get("operation", {}).get("homology_arms") or {}
         left_arm = str(arms.get("left_arm") or "").upper()

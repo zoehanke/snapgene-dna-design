@@ -175,23 +175,17 @@ class FinalPublicInterfaceTests(unittest.TestCase):
 
     def test_protein_and_analysis_results_are_not_pipeline_sequences(self):
         translate = get_tool("translate_dna")
-        self.assertEqual(translate.result_type, "protein")
         protein = translate.execute(seq="ATG")
-        self.assertEqual(protein, "M")
-        self.assertEqual(translate.extract_sequence(protein), "")
-        self.assertEqual(
-            translate.extract_sequence({"protein_sequence": "M", "sequence": "ATGC"}),
-            "",
-        )
-
-        analysis = get_tool("find_restriction_sites")
-        self.assertEqual(analysis.extract_sequence({"sequence": "ATGC"}), "")
-
-        sequence_tool = get_tool("extract_subsequence")
-        self.assertEqual(
-            sequence_tool.extract_sequence({"sequence": "ATGC"}),
-            "ATGC",
-        )
+        self.assertEqual(protein.analysis['translation'], "M")
+        self.assertEqual(protein.products, [])
+        with self.assertRaises(ValueError):
+            get_tool('mutate_sequence').execute(dna_seq=protein.analysis['translation'],mutations=[])
+        analysis = get_tool("find_restriction_sites").execute(file_path_or_seq='ATGC',enzymes=['EcoRI'])
+        self.assertEqual(analysis.products,[])
+        with self.assertRaises(ValueError):
+            analysis.only_product()
+        product=get_tool('extract_subsequence').execute(file_path_or_record='ATGC',start=0,end=4)
+        self.assertEqual(str(product.only_product().seq),'ATGC')
 
     def test_registered_schema_properties_map_to_callable_parameters(self):
         for name, spec in TOOL_REGISTRY.items():
@@ -222,13 +216,15 @@ class FinalPublicInterfaceTests(unittest.TestCase):
         self.assertIn("circular", properties)
         self.assertIn("topology", properties)
         circular_type = properties["circular"].get("type")
+        if circular_type is None:
+            circular_type=[part.get('type') for part in properties['circular']['anyOf']]
         self.assertIn(
             "boolean",
             circular_type if isinstance(circular_type, list) else [circular_type],
         )
         self.assertEqual(
             set(properties["topology"]["enum"]),
-            {"circular", "linear"},
+            {"circular", "linear",None},
         )
 
         sequence = (

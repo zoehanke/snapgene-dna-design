@@ -41,9 +41,13 @@ def compute_plan_sha256(plan: dict) -> str:
         "forbidden_components": plan.get("forbidden_components", []),
         "steps": plan.get("steps", []),
         "scope_note": plan.get("scope_note"),
+        "preparation_check": plan.get('preparation_check'),
+        'selected_output_version':plan.get('selected_output_version'),
     }
     if "product_features" in plan:
         semantic["product_features"] = plan["product_features"]
+    if 'product_molecule' in plan:
+        semantic['product_molecule'] = plan['product_molecule']
     return hashlib.sha256(canonical_json(semantic).encode("utf-8")).hexdigest().upper()
 
 

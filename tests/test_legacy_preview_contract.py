@@ -94,7 +94,7 @@ class LegacyPreviewContracts(unittest.TestCase):
         # Use the actual exporter, not a fake file merely named .dna.
         from core.tools.snapgene_io import export_snapgene
         exported=export_snapgene(record,self.root/'native','source')
-        source=Path(exported['gb_file'])
+        source=Path(exported.analysis['gb_file'])
         with source.with_suffix('.fa').open('w',encoding='utf-8') as f:SeqIO.write(record,f,'fasta')
         for force in (False,True):
             result=write_delivery(self.spec,self.session,self.root/str(force),source,force_dna=force)

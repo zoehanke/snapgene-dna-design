@@ -7,6 +7,8 @@ Provides deterministic, side-effect free tools for:
 3. Homology-Directed Repair (HDR) donor template design (ssODN or plasmid arms) with silent PAM mutation to prevent re-cleavage.
 """
 from __future__ import annotations
+from core.models.molecule import MoleculeInput, as_molecule, derived_molecule
+from core.tools.result import ToolResult
 
 import pathlib
 import re
@@ -25,7 +27,7 @@ def design_crispr_grna(
     start: int | None = None,
     end: int | None = None,
     circular: bool = False,
-) -> list[dict[str, Any]]:
+) -> ToolResult:
     """Scan DNA sequence for CRISPR sgRNA candidate target sites.
 
     Args:
@@ -115,7 +117,7 @@ def design_crispr_grna(
 
     # Sort candidates by objective quality score descending
     candidates.sort(key=lambda c: c["quality_score"], reverse=True)
-    return candidates
+    return ToolResult(analysis={'candidates': candidates})
 
 
 def _evaluate_grna_candidate(
@@ -172,7 +174,7 @@ def _evaluate_grna_candidate(
 def prepare_grna_oligos(
     spacer_seq: str,
     vector_type: str = "BbsI",
-) -> dict[str, Any]:
+) -> ToolResult:
     """Prepare top and bottom forward/reverse oligos with cloning overhangs for sgRNA vectors.
 
     For BbsI/BsmBI plasmids (e.g. pX458, pX459, lentiCRISPRv2):
@@ -203,7 +205,7 @@ def prepare_grna_oligos(
         overhang_5p = "CACC"
         overhang_3p = "AAAC"
 
-    return {
+    data = {
         "spacer": clean_spacer,
         "vector_type": vector_type,
         "u6_5prime_g_added": u6_needs_g,
@@ -219,11 +221,18 @@ def prepare_grna_oligos(
         },
     }
 
+    products = []
+    for key in ('forward_oligo','reverse_oligo'):
+        value = data[key]
+        record = SeqRecord(Seq(value['sequence']),id=key,annotations={'molecule_type':'DNA','topology':'linear'})
+        products.append(derived_molecule(record,operation='prepare_grna_oligos',strandedness='single'))
+    return ToolResult(products=products,analysis=data)
+
 
 def prepare_pml104_guide(
     vector_record_or_seq: str | pathlib.Path | SeqRecord,
     spacer_seq: str,
-) -> dict[str, Any]:
+) -> ToolResult:
     """Prepare a pML104 guide plasmid by template PCR and KLD circularization.
 
     The unmodified pML104 cloning cassette does not contain the complete sgRNA
@@ -248,12 +257,15 @@ def prepare_pml104_guide(
     forward = "GTTTTAGAGCTAGAAATAGCAAGTTAAAATAAGGC"
     reverse = str(Seq(spacer).reverse_complement()) + "GATCATTTATCTTTCACTGC"
     amplified = simulate_pcr(template, forward, reverse, topology="circular")
-    sequence = amplified["amplicon"]
+    sequence = str(amplified.only_product().seq)
     prefix = "GTTTTAGAGCTAGAAATAGCAAGTTAAAATAAGGC"
     scaffold = "GTTTTAGAGCTAGAAATAGCAAGTTAAAATAAGGCTAGTCCGTTATCAACTTGAAAAAGTGGCACCGAGTCGGTGGTGC"
     if not sequence.startswith(scaffold + "TTTTTT") or not sequence.endswith(spacer):
         raise ValueError("Template does not match the published pML104 PCR cassette layout")
-    product = resolve_sequence_record({**amplified, "sequence": sequence, "topology": "circular"})
+    import copy
+    product = copy.deepcopy(amplified.only_product())
+    product.annotations["topology"] = "circular"
+    product.left_end = product.right_end = None
     product.id = "pML104_guide"
     product.features.append(SeqFeature(FeatureLocation(len(sequence)-20, len(sequence), strand=1),
         type="misc_RNA", qualifiers={"label": ["guide spacer"], "note": [spacer]}))
@@ -264,8 +276,8 @@ def prepare_pml104_guide(
     primers = []
     n = len(source)
     for name, oligo, binding in (
-        ("pML104_scaffold_F", forward, amplified["forward_binding"]),
-        ("pML104_guide_R", reverse, amplified["reverse_binding"]),
+        ("pML104_scaffold_F", forward, amplified.analysis['forward_binding']),
+        ("pML104_guide_R", reverse, amplified.analysis['reverse_binding']),
     ):
         length = binding["binding_core_length"]
         start = (n - binding["template_end_0based"]) % n
@@ -275,16 +287,17 @@ def prepare_pml104_guide(
             "strand": -binding["strand"], "role": "pML104 inverse PCR"})
     template_data = {"sequence": str(source.seq), "topology": "circular",
                      "features": [feature_to_dict(f, n) for f in source.features], "id": source.id}
-    return {"product_sequence": sequence, "product_topology": "circular", "topology": "circular",
-        "product_length": len(sequence), "features": [feature_to_dict(f, len(product)) for f in product.features],
+    material = derived_molecule(product,[as_molecule(source)],operation="prepare_pml104_guide",strandedness="double")
+    return ToolResult(products=[material],analysis={"product_topology": "circular", "topology": "circular",
+        "product_length": len(sequence),
         "spacer": spacer, "scaffold_prefix": prefix, "scaffold_complete": True,
         "primers": primers,
         "preparation": [{"id": "pML104_inverse_PCR", "method": "inverse_pcr",
                          "template": template_data, "template_orientation": -1,
-                         "primers": primers, "product": amplified}],
+                         "primers": primers, "product": amplified.only_product()}],
         "circularization": {"method": "KLD", "sequence_change": "none",
                             "steps": ["high-fidelity blunt PCR", "kinase and ligase circularization", "DpnI parental-template removal"]},
-        "citation": "https://pmc.ncbi.nlm.nih.gov/articles/PMC5868978/"}
+        "citation": "https://pmc.ncbi.nlm.nih.gov/articles/PMC5868978/"})
 
 
 def _normalise_hdr_edit(
@@ -644,7 +657,7 @@ def _try_synonymous_pam_edit(
                 continue
             codon = oriented[codon_start:codon_start + 3]
             try:
-                synonyms = get_codon_synonyms(codon).get("synonymous_codons", [])
+                synonyms = get_codon_synonyms(codon).analysis.get("synonymous_codons", [])
             except ValueError:
                 continue
             base_in_codon = oriented_pos - codon_start
@@ -676,7 +689,7 @@ def _try_synonymous_pam_edit(
                     "position_0based": oriented_pos,
                     "ref_codon": codon,
                     "alt_codon": synonym,
-                    "amino_acid": get_codon_synonyms(codon)["amino_acid"],
+                    "amino_acid": get_codon_synonyms(codon).analysis["amino_acid"],
                     "synonymous": True,
                     "cds_strand": guide["strand"],
                     "cds_frame_offset": frame,
@@ -721,7 +734,7 @@ def _try_synonymous_pam_edit(
             continue
         codon = cds[codon_start:codon_start + 3]
         try:
-            synonyms = get_codon_synonyms(codon).get("synonymous_codons", [])
+            synonyms = get_codon_synonyms(codon).analysis.get("synonymous_codons", [])
         except ValueError:
             continue
         base_in_codon = cds_index - codon_start
@@ -769,7 +782,7 @@ def _try_synonymous_pam_edit(
                 "position_0based": genomic_pos,
                 "ref_codon": codon,
                 "alt_codon": changed_codon,
-                "amino_acid": get_codon_synonyms(codon)["amino_acid"],
+                "amino_acid": get_codon_synonyms(codon).analysis["amino_acid"],
                 "synonymous": True,
                 "cds_strand": feature.location.strand,
                 "cds_frame_offset": frame,
@@ -795,7 +808,7 @@ def design_hdr_donor(
     target_is_cds: bool = False,
     cds_frame_offset: int = 0,
     require_pam_disruption: bool = False,
-) -> dict[str, Any]:
+) -> ToolResult:
     """Design one HDR donor from the unedited target record.
 
     Omitted edit boundaries retain the original insertion API and insert
@@ -1017,7 +1030,16 @@ def design_hdr_donor(
     else:
         result["protocol_mode"] = "plasmid_donor"
 
-    return result
+    from core.io.input_resolution import resolve_sequence_record
+    donor_record = resolve_sequence_record({'sequence':donor_seq,'features':donor_features,'topology':'linear','id':'donor'})
+    donor = derived_molecule(donor_record,[as_molecule(rec)],operation='design_hdr_donor',
+                strandedness='single' if resolved_donor_type=='ssODN' else 'double',
+                mappings=[{'edit_start0':edit_start,'edit_end0':edit_end,'arm_intervals':[arms['left_arm_interval'],arms['right_arm_interval']]}])
+    edited = derived_molecule(edited_record,[as_molecule(rec)],operation='edited_locus_model')
+    result.pop('donor_sequence',None)
+    result.pop('features',None)
+    result['edited_target_record'] = edited
+    return ToolResult(products=[donor],analysis=result)
 
 
 def extract_homology_arms(
@@ -1029,7 +1051,7 @@ def extract_homology_arms(
     edit_dna: str | None = None,
     edit_start_0based: int | None = None,
     edit_end_0based: int | None = None,
-) -> dict[str, Any]:
+) -> ToolResult:
     """Extract homology arms from an original or explicitly edited target.
 
     With no edit interval this preserves the original cut-centered insertion
@@ -1039,7 +1061,8 @@ def extract_homology_arms(
     """
     from core.io.input_resolution import resolve_sequence_input
 
-    rec, seq = resolve_sequence_input(target_seq_or_file)
+    rec = as_molecule(target_seq_or_file,default_topology="linear")
+    seq = str(rec.seq)
     topo = rec.annotations.get("topology")
     is_circular = circular if circular is not None else topo == "circular"
     if (edit_start_0based is None) != (edit_end_0based is None):
@@ -1053,7 +1076,7 @@ def extract_homology_arms(
             bool(is_circular),
         )
         result.update({"edit_mode": "insert", "edited_target_sequence": seq})
-        return result
+        return _arm_products(rec,result)
 
     info = _normalise_hdr_edit(
         seq,
@@ -1110,7 +1133,7 @@ def extract_homology_arms(
             "edited_target_sequence": product,
             "edited_cut_position_0based": info["edited_cut_position_0based"],
         })
-        return result
+        return _arm_products(rec,result)
     result = _extract_arms_from_sequence(
         info["edited_target_sequence"],
         info["edited_cut_position_0based"],
@@ -1125,4 +1148,23 @@ def extract_homology_arms(
         "edited_target_sequence": info["edited_target_sequence"],
         "edited_cut_position_0based": info["edited_cut_position_0based"],
     })
-    return result
+    return _arm_products(rec,result)
+
+
+def _arm_products(source, data):
+    from core.models.construct_model import ConstructModel
+    from core.tools.sequence_ops import slice_record_interval
+    record = source
+    if data.get('edit_mode') == 'replace' or 'edit_start_0based' in data:
+        a,b = data['edit_start_0based'],data['edit_end_0based']
+        model = ConstructModel(source)
+        model.replace(a,b,data.get('edit_dna',''))
+        record = model.to_record()
+    products = []
+    for side in ('left','right'):
+        a,b = data[side+'_arm_interval']
+        length = data[side+'_arm_length']
+        clipped = slice_record_interval(record,a,length,circular=data.get('circular',False))
+        products.append(derived_molecule(clipped,[source],operation='extract_homology_arms',
+                    strandedness=source.strandedness,mappings=[{'start0':a,'length':length,'arm':side}]))
+    return ToolResult(products=products,analysis=data)
