@@ -105,24 +105,34 @@ flowchart LR
 
 | 改进 | 当前依据 | 最小处理与边界 |
 |---|---|---|
-| Recipe可作为组合步骤 | `ToolSpec.execute`要求ToolResult，RecipeResult另有流程信息，当前Pipeline不能直接调用Recipe | 在已有组合入口接纳成熟流程，统一产物和检查交接；保留协议、警告、完成状态、内部制备链及多产物选择。verification的subject不是新构建产物 |
-| 共用检查及交付编排 | Recipe CLI与Task分别组织检查和交付；已经共享部分准备文件写出及原子交付操作 | 收敛重复编排，方法特有检查仍由该方法负责；保留候选、元件、QC和完整构建的差别，不新增第二套领域算法 |
+| Recipe可作为组合步骤 | Python中Recipe产物已能进入原子工具；`ToolSpec.execute`要求ToolResult，当前Pipeline不能直接调用Recipe | 在已有组合入口接纳成熟流程，统一产物和检查交接；保留协议、警告、完成状态、内部制备链及多产物选择。verification的subject不是新构建产物 |
+| 共用检查及交付编排 | Recipe CLI与Task分别组织检查和交付；已经共享准备文件写出及原子提升 | 收敛重复编排与共享文件功能；方法特有检查仍由该方法负责；按候选、元件、QC、完整构建及请求范围确定交付条件 |
 | 合并重复整链计算 | 正常Pipeline首轮plan执行一次；validate分别以recompute和再次plan核对序列、源注释；CLI未指定拓扑时还会先执行一次 | 从实际执行产物取得拓扑；用一次从原始输入独立重建的完整材料同时核对序列与注释。保留输入版本、真实反应、目标及文件回读检查，不能直接信任可变plan |
 | 缩短默认宿主返回 | RecipeResult的完整分子、兼容投影和details重复序列化；已有4722 bp任务一次stdout JSON为202065 bytes | 默认返回状态、产物引用/版本、文件路径、关键检查和具体失败；完整数据保存并可按需读取。Python内部仍传完整Molecule，兼容字段迁移须检查现有调用者 |
-| 从实际中间体继续 | Pipeline已有实际父版本和步骤产物，但批量入口没有逐步继续协议 | 需要局部修订时复用未改变的实际产物，只重算受影响的依赖；材料、参数或条件改变后，相关下游和检查失效。不先建设全局缓存或通用调度平台 |
-| 统一能力发现 | describe_tools已有简表和按名称查询，原子ToolSpec与Recipe签名仍分开 | 在现有入口按需说明两类能力的输入、产物角色、适用条件和检查范围；先复用真实签名，不再维护第二份手工Schema |
+| 从实际中间体继续 | Pipeline已有实际父版本和步骤产物；后续步骤失败时，批量入口未保存成功前缀产物及继续回执 | 先保存实际成功步骤、失败位置和依赖；继续时绑定材料、参数、条件及方法/后端版本，重算受影响的下游。不先建设全局缓存或通用调度平台 |
+| 统一能力发现 | describe_tools已有简表和按名称查询；Recipe手工声明漏require_pam_disruption和max_pair_checks两个可选参数，真实签名查询可找到 | 在现有入口按需说明两类能力的输入、产物角色、适用条件和检查范围；复用真实签名生成有效定义，修正实际漂移 |
+| 结构化失败贯通 | CoreError有错误码、缺失字段及问题；Pipeline包裹异常和CLI写出丢失部分字段 | 保留原错误类型/码与步骤、材料版本上下文，按错误原因支持补参数、换路或执行重试；具体诊断保持可读 |
+| 目标覆盖明确 | Pipeline有元件存在/排除和可选方向检查，原始自然语言请求未进入执行Task | 保留原要求及已检查覆盖；为实际任务补必要后置核验，未被程序表达的要求由宿主/研究者核对，不把goal_valid当任意目标已理解 |
 
-整链3次或4次来自上述成功路径的源码调用关系，不是运行计时；202065 bytes是既有开发回放的文件大小，不是token测量或通用成本结论。实现依据见[Pipeline Handler](../snapgene-dna-design/core/handlers/composite_pipeline.py)、[验证](../snapgene-dna-design/core/runtime_validate.py)、[Pipeline CLI](../snapgene-dna-design/scripts/run_pipeline.py)、[Recipe契约](../snapgene-dna-design/core/recipes/contract.py)、[注册入口](../snapgene-dna-design/core/tools/registry.py)及[已有回放](archive/plans/real-task-usability-v2.0.2.md)。
+整链3次或4次最初来自源码调用关系，随后在63e97a0仓库外副本的成功公开CLI调用中核实；另一个实际PCR制备调用整链3次、Primer3进程6次，四项范围通过且源推导产物/注释相符。202065 bytes仍是既有开发回放的文件大小。没有重复计时基准、实际token或通用收益结论，完整条件见[本次调研与审查](archive/reviews/architecture-research-2026-10-06.md)。实现依据见[Pipeline Handler](../snapgene-dna-design/core/handlers/composite_pipeline.py)、[验证](../snapgene-dna-design/core/runtime_validate.py)、[Pipeline CLI](../snapgene-dna-design/scripts/run_pipeline.py)、[Recipe契约](../snapgene-dna-design/core/recipes/contract.py)、[注册入口](../snapgene-dna-design/core/tools/registry.py)及[已有回放](archive/plans/real-task-usability-v2.0.2.md)。
 
 `plan`目前已经执行计算，`execute`主要导出文件；不能把现有plan说成只有预计步骤。后续收敛须区分路线安排与已发生的计算，避免仅为生命周期字段再次运行整条链；不必为此创建另一套规划语言。Recipe中的引物搜索、条件分支和Gibson准备布局算法继续保留，不能为了变成“流程罐头”而削弱成静态表单。
 
-先处理Recipe组合与重复编排；重复重算、宿主输出随相关调用一起收敛。逐步继续和能力发现按真实调用需求推进。用户提供的流程也需适配实际材料、参数和检查；保存的是方法，历史PASS不随流程复制。
+先在已有接口收敛Recipe组合、共享编排、错误和成功步骤保留；重复重算、宿主输出随相关调用一起处理。继续及部分重算按真实任务需要推进。用户提供的流程需适配实际材料、参数和检查；保存的是方法，历史PASS不随流程复制。
 
 ### 判断改造是否有效
 
 用实际混合链验证成熟流程和原子操作可以连续调用，调用者不再手工提取裸DNA再补注释；QC不会被误当成构建，零/多产物选择明确。改变路线仍满足原始目标；失败保留已产生的证据，局部继续不能沿用受影响版本的检查。
 
 效率记录实际工具/Primer3调用次数、耗时和宿主输出字节。保持目标、反应链、材料注释与文件检查结果；错误源注释、改变的材料或失败反应仍被正确拒绝。当前记录不宣称改造已完成或性能已有提升。
+
+### 调研后的取舍
+
+[2026-10-06完整研究](archive/reviews/architecture-research-2026-10-06.md)包含外部一手资料、16方面源码矩阵和公开入口证据。结论收敛为：宿主自由调用底座保留，组合及检查/交付语义按阻断收敛；不预设新总执行器。成熟方法代码、可复用步骤模板和本次实际运行记录可以采用不同表示，Pipeline是可选批量形式，不要求所有方法内部展开成它的DSL。
+
+原始输入重建用于检查计划、产物和注释的一致性；同一算法再次运行不能证明算法本身科学正确。来源重建可以合并其重复部分，独立预期、领域不变量和真实正反例验收继续负责算法正确性。恢复旧运行是另一项职责，不能拿缓存结果替代新的来源核对。
+
+共享准备写出已有两个调用者，但其所有者目前为Recipe CLI；后续可抽出公共应用功能。Core到脚本的依赖须区分格式写出、外部后端和旧计算，逐项确定责任。不按目录名删除所有Handlers、planning或scripts，也不因标准参考而预设SBOL/MCP运行服务。大量批次、远程执行或长期恢复成为实际需求后，再比较现成workflow引擎。
 
 ## 统一分子契约目标架构
 
