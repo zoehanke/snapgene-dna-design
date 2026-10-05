@@ -4,7 +4,7 @@
 
 ## 当前授权与已结束工作
 
-2026-10-05负责人将真实任务可用性设为第一要务，选定现有九题、优先原失败任务。本轮按[真实任务可用性](real-task-usability.md)执行；属于开发回归，原宿主独立验收缺口在取得对应证据前继续保留。
+2026-10-05负责人将真实任务可用性设为第一要务，选定现有九题、优先原失败任务。[v2.0.2实际回放与修复](../archive/plans/real-task-usability-v2.0.2.md)已结束：7项通用阻断修复、14份构建、26个实际步骤、47组验证设计、独立包与Codex安装已核对，实施提交66e2c7c六环境CI通过。属于开发回归，原宿主独立验收缺口继续保留。
 
 2026-10-04负责人已明确授权实施[统一分子契约与连续工作流改造](unified-molecule-contract.md)的T01至T09全部代码。迁移及v2.0.0原工程验收已结束，最终提交923b5bc六环境CI通过，原记录保留。
 
@@ -14,6 +14,7 @@
 
 | 记录 | 当前分类 |
 |---|---|
+| [真实任务v2.0.2](../archive/plans/real-task-usability-v2.0.2.md) | 已结束；九题开发回放及实际安装完成，不替代同宿主对照或陌生任务评测 |
 | [v2残留缺陷收尾](../archive/plans/molecule-contract-v2.0.1.md) | 已结束；8项修复、1017项适用全量、54目标覆盖、性能预算、仓库外包及实施提交CI均有记录 |
 | [统一分子契约](../archive/plans/unified-molecule-contract-v2.0.0.md) | 已结束并归档；T01至T09、性能、包、限制与代码CI证据见r3 |
 | [目录迁移](../archive/plans/workspace-layout-v1.0.4.md) | 已结束；`d5cfa09`独立包及六环境CI通过 |
@@ -24,7 +25,7 @@
 
 | 事项 | 当前事实与处理边界 | 原记录 |
 |---|---|---|
-| 原九题完整复核及同宿主重测 | 已知开发题；换路、校订和污染分别统计，不算陌生题；未完成独立整体验收 | [v1.0.3交接](../archive/plans/workflow-host-readiness-v1.0.3.md)、[v1.0.4分类](../archive/plans/general-capability-audit-v1.0.4.md) |
+| 原九题同宿主重测及独立整体验收 | v2.0.2已执行已知九题开发回放，实际文件与反应有核对；同宿主受控对照、陌生用户及独立整体验收未完成；换路、校订分别保留 | [v2.0.2](../archive/plans/real-task-usability-v2.0.2.md)、[v1.0.3交接](../archive/plans/workflow-host-readiness-v1.0.3.md)、[v1.0.4分类](../archive/plans/general-capability-audit-v1.0.4.md) |
 | 宿主提示干扰、成本及实际用户价值 | 未做受控无Skill/旧版/新版或模式对照；代码三档一致性不能代替 | [v0.3.2交接](../archive/plans/workflow-phase-3-usability-repair-v0.3.2.md) |
 | 新版报告的独立真人理解 | 浏览器工程证据已有，陌生读者回答尚未验证；未提交Reader Demo保留原文件，其三条旧产物链接已不可达，待稿件接续时核对 | [阅读规则](../trace-report/design.md)、[Demo](safety-phase-3-reading-draft.md) |
 | 复杂源注释及制备/QC限制 | pET/Chr1完整表达边界仍需逐件检查；不自动校订源文件、不豁免失败；候选搜索失败如实报告 | [v0.3.2](../archive/plans/workflow-phase-3-usability-repair-v0.3.2.md)、[v1.0.3](../archive/plans/workflow-host-readiness-v1.0.3.md) |
