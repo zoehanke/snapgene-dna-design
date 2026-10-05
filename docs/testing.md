@@ -59,6 +59,8 @@ python -X utf8 -B tools/check_redistributable.py output/packages/snapgene-dna-de
 
 `benchmarks/runtime.py`、`benchmarks/construction.py`测程序耗时；`benchmarks/plot_results.py`绘图另需Matplotlib。保留所有样本、种子、环境、重复数和指标边界；tracemalloc不是完整进程RSS。Trace的合成节点重建不代表复杂科学网络性能。速度不能替代目标正确性，也不能宣称用户成本下降。
 
+分子契约补丁沿用`benchmarks/molecule_contract.py --skill-root <源码Skill根> --output <结果.json>`，同时比较原86d16f2和923b5bc；CPU中位不超过原基线1.5倍，Python分配峰值不超过2倍，不逐轮换基准。包内受影响连续链可用`tools/verify_molecule_residual_package.py --archive <包> --work <仓库外新目录> --report <结果.json>`核查：实际PCR、无裁剪、酶切、末端填补/连接及非零旋转，三档文件、注释、逐碱基值、引物表和检查范围一致。输入由脚本独立生成，404 bp填补连接和400 bp环化旋转的预期来自输入和反应事实；这是工程回归，不是宿主陌生任务评测。
+
 正式任务评测按[评分规则](question-bank/scoring-v0.1.md)隔离材料与答案，冻结代码/包/规则，分别报告回归、保留评测、污染、校订输入、人工介入及全部重复运行。新对话或改文件名不构成陌生评测。本项目目前没有隔离保留评测成功率提高证据。
 
 ## 最近已核查的工程证据

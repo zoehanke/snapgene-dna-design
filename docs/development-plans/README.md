@@ -6,13 +6,13 @@
 
 2026-10-04负责人已明确授权实施[统一分子契约与连续工作流改造](unified-molecule-contract.md)的T01至T09全部代码。迁移及v2.0.0原工程验收已结束，最终提交923b5bc六环境CI通过，原记录保留。
 
-2026-10-05独立审查确认8项残留缺陷。当前授权是生成[收尾修改方案](molecule-contract-v2-residual-fixes.md)：固定F01至F08、四类共因与一处CLI修补，写明验收和结束条件；本次不执行运行代码修复。无关新发现另行记录，原未关闭事项继续保留。
+2026-10-05独立审查确认8项残留缺陷；负责人随后授权按[收尾修改方案](molecule-contract-v2-residual-fixes.md)实施。固定F01至F08，目标2.0.1，修复与独立包已验证，全量/覆盖和最终CI正在核对。无关新发现另行记录，原未关闭事项继续保留。
 
 此前开发文档收敛、布局迁移和v1.0.4通用修复已结束，原证据和未关闭事项保留。
 
 | 记录 | 当前分类 |
 |---|---|
-| [v2残留缺陷收尾](molecule-contract-v2-residual-fixes.md) | 当前修改文档；8项固定验收，代码未实施，不重新打开整个迁移工程 |
+| [v2残留缺陷收尾](molecule-contract-v2-residual-fixes.md) | 当前实施收尾；8项已修复，验收进行中，不重新打开整个迁移工程 |
 | [统一分子契约](../archive/plans/unified-molecule-contract-v2.0.0.md) | 已结束并归档；T01至T09、性能、包、限制与代码CI证据见r3 |
 | [目录迁移](../archive/plans/workspace-layout-v1.0.4.md) | 已结束；`d5cfa09`独立包及六环境CI通过 |
 | [通用能力审查](../archive/plans/general-capability-audit-v1.0.4.md) | 已结束的修复/回归；未完成原九题独立验收，不是保留评测 |

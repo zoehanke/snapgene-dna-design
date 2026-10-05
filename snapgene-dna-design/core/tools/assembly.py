@@ -50,14 +50,35 @@ def ligate_fragments(fragments: list[MoleculeInput], circular: bool = False) -> 
         junctions.append({'from':i,'to':(i+1)%len(materials),'kind':a.right_end.kind})
     record = SeqRecord(Seq(''.join(str(m.seq) for m in materials)),id='ligation',
                        annotations={'molecule_type':'DNA','topology':'circular' if circular else 'linear'})
+    # Per-base data follows the reference-top concatenation. Absence is unknown.
+    for key in dict.fromkeys(k for m in materials for k in m.letter_annotations):
+        record.letter_annotations[key] = [value for m in materials for value in
+            copy.deepcopy(list(m.letter_annotations.get(key, [None] * len(m))))]
+    record.dbxrefs = list(dict.fromkeys(ref for m in materials for ref in m.dbxrefs))
+    annotation_conflicts = {}
+    versions = [m.record_version for m in materials]
+    for key in dict.fromkeys(k for m in materials for k in m.annotations):
+        if key in ('molecule_type', 'topology', 'strandedness'):
+            continue  # These describe the product, not inherited source state.
+        entries = [{'input_index': i, 'record_version': versions[i],
+                    'present': key in m.annotations, 'value': copy.deepcopy(m.annotations.get(key))}
+                   for i, m in enumerate(materials)]
+        if all(e['present'] and e['value'] == entries[0]['value'] for e in entries):
+            record.annotations[key] = copy.deepcopy(entries[0]['value'])
+        else:
+            annotation_conflicts[key] = entries
     offset=0
+    mappings=[]
     for material in materials:
         record.features.extend(copy.deepcopy(f)._shift(offset) for f in material.features)
+        mappings.append({'start0':0,'end0':len(material),'product_start0':offset,'strand':1})
         offset+=len(material)
     left,right = (None,None) if circular else (copy.deepcopy(materials[0].left_end),copy.deepcopy(materials[-1].right_end))
     if right is not None:right.cut_boundary=len(record)
-    product=derived_molecule(record,materials,operation='ligate_fragments',strandedness='double',left_end=left,right_end=right)
-    return ToolResult(products=[product],analysis={'junctions':junctions},checks=reaction_checks([product],'physical_end_ligation'))
+    product=derived_molecule(record,materials,operation='ligate_fragments',strandedness='double',
+                             left_end=left,right_end=right,mappings=mappings)
+    return ToolResult(products=[product],analysis={'junctions':junctions,
+                      'annotation_conflicts':annotation_conflicts},checks=reaction_checks([product],'physical_end_ligation'))
 
 
 def _assembly_material(sequence, features, sources, topology, operation, strandedness='double'):

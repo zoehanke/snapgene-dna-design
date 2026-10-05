@@ -150,6 +150,19 @@ def _preparation_check(product, rows, sources):
                 if all(material.get(k)==parent.get(k) for k in ('sequence','topology','strandedness','ends')):
                     visit(parents[0])
                     return
+                # Verify a recorded origin mapping against both actual versions.
+                # A tool name alone does not establish material equivalence.
+                mapping = material['source_refs'][0].get('mapping') or {}
+                origin = mapping.get('origin_0based')
+                sequence = parent.get('sequence', '')
+                if (type(origin) is int and 0 <= origin < len(sequence)
+                        and mapping.get('length') == len(sequence)
+                        and parent.get('topology') == material.get('topology') == 'circular'
+                        and parent.get('strandedness') == material.get('strandedness')
+                        and parent.get('ends') is None and material.get('ends') is None
+                        and material.get('sequence') == sequence[origin:] + sequence[:origin]):
+                    visit(parents[0])
+                    return
         if material is None or version not in checked:
             gaps.append(version)
             return

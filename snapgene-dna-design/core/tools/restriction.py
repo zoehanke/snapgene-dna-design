@@ -442,8 +442,14 @@ def fill_or_chew_overhang(seq: MoleculeInput, left_overhang: str | None = None,
         if left.kind == "3'-overhang" or right.kind == "3'-overhang":
             raise ValueError('Fill-in cannot blunt a protruding 3-prime terminus')
         addition = str(Seq(right.overhang_sequence).reverse_complement()) if right.kind=="5'-overhang" else ''
-        record = source[:] if not addition else source + SeqRecord(Seq(addition))
-        record.annotations = dict(source.annotations)
+        # Own every mutable field; SeqRecord slicing/concatenation may share qualifiers.
+        import copy
+        record = SeqRecord(Seq(sequence + addition), id=source.id, name=source.name,
+                           description=source.description, dbxrefs=list(source.dbxrefs),
+                           features=copy.deepcopy(source.features),
+                           annotations=copy.deepcopy(source.annotations))
+        for key, values in source.letter_annotations.items():
+            record.letter_annotations[key] = copy.deepcopy(list(values)) + [None] * len(addition)
         record.annotations['topology'] = 'linear'
     else:
         if left.kind == "5'-overhang" or right.kind == "5'-overhang":

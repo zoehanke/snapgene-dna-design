@@ -325,8 +325,8 @@ class ConstructModel:
             if unwrapped_end <= n:
                 return [_part(new_start, unwrapped_end, part)]
             split = [
-                _part(new_start, n, part),
-                _part(0, unwrapped_end - n, part),
+                _part(part.start + (new_start-start0), ExactPosition(n), part),
+                _part(ExactPosition(0), part.end + (unwrapped_end-n-end0), part),
             ]
             return list(reversed(split)) if part.strand == -1 else split
 

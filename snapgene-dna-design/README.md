@@ -2,6 +2,8 @@
 
 把自然语言需求和真实序列材料转成可检查的DNA设计、制备链、引物及GenBank/SnapGene文件。宿主AI选择路线，程序计算实际反应；文件检查不代表实验成功。
 
+v2.0.1保留v2公共接口，修复Wire引物分析、连续操作的元数据/复合位置传递、无裁剪状态和环状旋转制备追溯。连接缺失的逐碱基值为未知；记录级冲突可在`ToolResult.analysis.annotation_conflicts`查看各输入及版本。`--open-snapgene`报告结构化启动结果，桌面缺失仍为`UNAVAILABLE`，不影响已交付文件。
+
 ## 安装
 
 Python 3.10+。复制完整Skill目录，使用同一个Python环境安装依赖并检查环境：

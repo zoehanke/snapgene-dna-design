@@ -359,7 +359,7 @@ def calc_primer_tm(
     """
     from Bio.SeqUtils.MeltingTemp import Tm_NN
 
-    seq = str(primer_seq.seq).upper() if isinstance(primer_seq, SeqRecord) else "".join(str(primer_seq).split()).upper()
+    seq = str(as_molecule(primer_seq).seq)
     n = len(seq)
     if n == 0:
         return ToolResult(analysis={
@@ -901,8 +901,8 @@ def check_primer_dimers(
     Scans for complementary alignments between the two primers, specifically flagging
     3' end complementarity which causes catastrophic primer-dimer artifacts in PCR.
     """
-    p1 = str(primer1.seq if isinstance(primer1, SeqRecord) else primer1).strip().upper()
-    p2 = str(primer2.seq if isinstance(primer2, SeqRecord) else primer2).strip().upper() if primer2 else p1
+    p1 = str(as_molecule(primer1).seq)
+    p2 = str(as_molecule(primer2).seq) if primer2 is not None else p1
     is_self = p1 == p2
 
     # Convert primer2 to its complement so we can search for direct matching substrings

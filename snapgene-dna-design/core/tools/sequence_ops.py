@@ -326,6 +326,16 @@ def validate_cds_feature(feature, record_seq: str | Seq) -> dict[str, Any]:
 
 def _clip_feature_to_interval(feature, start0: int, end0: int, *, linearized_circular: bool = False):
     """Clip feature parts to a linear interval while retaining qualifiers."""
+    return _clip_feature_to_intervals(feature, [(start0, end0, 0, False)],
+                                      linearized_circular=linearized_circular)
+
+
+def _clip_feature_to_intervals(feature, intervals, *, linearized_circular=False):
+    """Map retained source intervals, then judge the original feature once.
+
+    Intervals contain source start/end, product offset and reverse-complement flag.
+    Source feature part order remains biological order, independent of extraction order.
+    """
     location = feature.location
     if location is None:
         return None
@@ -333,25 +343,30 @@ def _clip_feature_to_interval(feature, start0: int, end0: int, *, linearized_cir
     clipped_parts = []
     source_length = 0
     clipped_length = 0
+    retained = []
     for part in source_parts:
         part_start = int(part.start)
         part_end = int(part.end)
         source_length += max(0, part_end - part_start)
-        overlap_start = max(part_start, start0)
-        overlap_end = min(part_end, end0)
-        if overlap_start >= overlap_end:
-            continue
-        clipped_length += overlap_end - overlap_start
-        kwargs = {"strand": part.strand}
-        if getattr(part, "ref", None) is not None:
-            kwargs["ref"] = part.ref
-        if getattr(part, "ref_db", None) is not None:
-            kwargs["ref_db"] = part.ref_db
-        clipped_parts.append(FeatureLocation(
-            part.start + (-start0) if overlap_start == part_start else overlap_start - start0,
-            part.end + (-start0) if overlap_end == part_end else overlap_end - start0,
-            **kwargs,
-        ))
+        overlaps = []
+        for start0, end0, offset, reverse in intervals:
+            overlap_start, overlap_end = max(part_start,start0), min(part_end,end0)
+            if overlap_start >= overlap_end:
+                continue
+            kwargs = {'strand':part.strand, 'ref':part.ref, 'ref_db':part.ref_db}
+            local = FeatureLocation(
+                part.start-start0 if overlap_start==part_start else overlap_start-start0,
+                part.end-start0 if overlap_end==part_end else overlap_end-start0, **kwargs)
+            if reverse: local=local._flip(end0-start0)
+            overlaps.append((overlap_start,overlap_end,local._shift(offset) if offset else local))
+        overlaps.sort(key=lambda item:item[0], reverse=part.strand==-1)
+        clipped_parts.extend(item[2] for item in overlaps)
+        # Repeated selected intervals copy bases, but cannot restore missing source bases.
+        covered_end = part_start
+        for a,b,_ in sorted(overlaps, key=lambda item:item[0]):
+            clipped_length += max(0, b-max(a,covered_end))
+            covered_end = max(covered_end,b)
+        retained.append(overlaps)
     if not clipped_parts:
         return None
 
@@ -367,8 +382,8 @@ def _clip_feature_to_interval(feature, start0: int, end0: int, *, linearized_cir
     # itself is broken across the two ends. Do not assert an intact primer.
     split_primer = linearized_circular and "primer" in feature.type.lower() and any(
         a.strand == b.strand and (
-            (a.strand == 1 and int(a.end) == end0-start0 and int(b.start) == 0)
-            or (a.strand == -1 and int(a.start) == 0 and int(b.end) == end0-start0)
+            (a.strand == 1 and int(a.end) == intervals[0][1]-intervals[0][0] and int(b.start) == 0)
+            or (a.strand == -1 and int(a.start) == 0 and int(b.end) == intervals[0][1]-intervals[0][0])
         )
         for a, b in zip(clipped_parts, clipped_parts[1:])
     )
@@ -408,15 +423,14 @@ def _clip_feature_to_interval(feature, start0: int, end0: int, *, linearized_cir
             if old_codon_start in (1, 2, 3):
                 removed_5prime = 0
                 found_first_retained_part = False
-                for part in source_parts:
+                for part, overlaps in zip(source_parts, retained):
                     part_start = int(part.start)
                     part_end = int(part.end)
-                    overlap_start = max(part_start, start0)
-                    overlap_end = min(part_end, end0)
-                    if overlap_start >= overlap_end:
+                    if not overlaps:
                         if not found_first_retained_part:
                             removed_5prime += max(0, part_end - part_start)
                         continue
+                    overlap_start, overlap_end, _ = overlaps[0]
                     if not found_first_retained_part:
                         if (part.strand or 1) == 1:
                             removed_5prime += max(0, overlap_start - part_start)
@@ -693,9 +707,12 @@ def strip_terminal_codons(
         stop_stripped = True
 
     start = 3 if start_stripped else 0
-    record = slice_record_interval(source, start, len(seq))
+    changed = start_stripped or stop_stripped
+    record = slice_record_interval(source, start, len(seq)) if changed else copy.deepcopy(source)
     product = derived_molecule(record, [source], operation='strip_terminal_codons',
                                strandedness=source.strandedness,
+                               left_end=None if changed else copy.deepcopy(source.left_end),
+                               right_end=None if changed else copy.deepcopy(source.right_end),
                                mappings=[{'start0': start, 'length': len(seq), 'strand': 1}])
     return ToolResult(products=[product], analysis={
         "original_length": n,

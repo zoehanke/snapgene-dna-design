@@ -201,7 +201,7 @@ def execute_agent_pipeline(
     if delivery and auto_open_snapgene:
         dna_file = out_path / "authoritative" / "construct.dna"
         if dna_file.exists():
-            snapgene_status = open_in_snapgene(dna_file)
+            snapgene_status = open_in_snapgene(dna_file).analysis
 
     return {
         "status": status,

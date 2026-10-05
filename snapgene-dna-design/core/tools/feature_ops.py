@@ -88,7 +88,7 @@ def get_feature(file_path_or_record: MoleculeInput, name_or_type: str,
         reason = 'not found' if not candidates else 'ambiguous'
         raise ValueError(f'Feature selection {reason}: {name_or_type!r}; {len(candidates)} candidates; use return_all and explicit selection')
     products, matches = [], []
-    from core.tools.sequence_ops import _clip_feature_to_interval
+    from core.tools.sequence_ops import _clip_feature_to_intervals
     for _, selected_index, selected, values in candidates:
         sequence = selected.extract(source.seq)
         record = SeqRecord(sequence, id=source.id, name=source.name,
@@ -113,19 +113,18 @@ def get_feature(file_path_or_record: MoleculeInput, name_or_type: str,
                 piece=list(values[int(part.start):int(part.end)])
                 gathered.extend(piece[::-1] if part.strand == -1 else piece)
             record.letter_annotations[key]=gathered
-        mapping, offset = [], 0
+        mapping, intervals, offset = [], [], 0
         for part in selected.location.parts:
             start, end = int(part.start), int(part.end)
             mapping.append({'start0': start, 'end0': end, 'strand': part.strand})
-            for index, feature in enumerate(source.features):
-                if index == selected_index:
-                    continue
-                clipped = _clip_feature_to_interval(feature, start, end)
-                if clipped is not None:
-                    if part.strand == -1:
-                        clipped = clipped._flip(end - start)
-                    record.features.append(clipped._shift(offset))
+            intervals.append((start, end, offset, part.strand == -1))
             offset += end - start
+        for index, feature in enumerate(source.features):
+            if index == selected_index:
+                continue
+            clipped = _clip_feature_to_intervals(feature, intervals)
+            if clipped is not None:
+                record.features.append(clipped)
         products.append(derived_molecule(record, [source], operation='get_feature',
                         strandedness=source.strandedness, mappings=[{'parts': mapping}]))
         matches.append({'name': values[0] if values else selected.type, 'type': selected.type,

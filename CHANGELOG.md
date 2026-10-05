@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.0.1 · 2026-10-05 molecular contract residual fixes
+
+- Parse primer Wire/file inputs through the shared molecule boundary; preserve independent end-repair metadata and source references.
+- Map ligation per-base metadata, disclose record-level conflicts with input versions, and preserve complete nested compound features.
+- Preserve no-op physical state and fuzzy outside boundaries on circular rotation; verify actual rotation mappings before tracing preparation checks.
+- Project real desktop-launch analysis into the Pipeline CLI report. Missing desktop remains unavailable.
+
+## 2.0.0 · 2026-10-04 unified molecule contract
+
+Public atomic tools use Molecule and ToolResult, with complete intermediate records and explicit validation scopes. Migration evidence remains in the archived implementation plan; it does not certify all future inputs.
+
 ## 1.0.2 · 2026-09-30 delivery repair
 
 - Restriction and Type IIS annotations use the shared slicing contract: clipped CDS features retain partial status and correct phase, and do not assert their source's complete translation. Cut primers remain partial annotations.
