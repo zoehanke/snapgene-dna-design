@@ -383,6 +383,28 @@ def _promote_verified_candidate(
     }
 
 
+def _guardrail_failure_details(sanity_check: dict[str, Any]) -> dict[str, Any]:
+    """Expose the actual failed checks without changing delivery criteria."""
+    if not isinstance(sanity_check, dict):
+        return {"guardrail_evidence": "missing"}
+    table = sanity_check.get("guardrail_status_table") or {}
+    audits = sanity_check.get("annotated_cds_audits")
+    return {
+        "failed_codes": sanity_check.get("failed_codes", []),
+        "blocking_codes": sanity_check.get("blocking_codes", []),
+        "unknown_codes": sanity_check.get("unknown_codes", []),
+        "guardrail_failures": {
+            code: item for code, item in table.items()
+            if isinstance(item, dict) and item.get("status") not in ("PASS", "N/A")
+        } if isinstance(table, dict) else {},
+        "cds_failures": [
+            {key: audit.get(key) for key in ("name", "interval_0based", "strand", "validation_errors")}
+            for audit in (audits if isinstance(audits, list) else [])
+            if isinstance(audit, dict) and audit.get("validation_errors")
+        ],
+    }
+
+
 def finalize_candidate_construct(
     candidate_gb: str | pathlib.Path,
     candidate_fasta: str | pathlib.Path,
@@ -415,6 +437,7 @@ def finalize_candidate_construct(
         raise GateRejected(
             "GATE_GUARDRAILS_FAILED",
             "Authoritative promotion refused: missing, incomplete, or failed biological guardrail evidence",
+            details=_guardrail_failure_details(sanity_check),
         )
 
     gb_path = pathlib.Path(candidate_gb).resolve()
@@ -435,7 +458,8 @@ def finalize_candidate_construct(
         candidate_record, **context,
     )
     if actual_sanity["all_applicable_pass"] is not True or sanity_check.get("sequence_length") != len(candidate_record):
-        raise GateRejected("GATE_GUARDRAILS_FAILED", "Annotated candidate failed biological guardrails or does not match the supplied report")
+        raise GateRejected("GATE_GUARDRAILS_FAILED", "Annotated candidate failed biological guardrails or does not match the supplied report",
+                           details=_guardrail_failure_details(actual_sanity))
 
     manifest_payload = {
         "schema_version": "delivery-manifest-v1",

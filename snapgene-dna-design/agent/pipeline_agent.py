@@ -185,6 +185,32 @@ def execute_agent_pipeline(
     from scripts.run_recipe import write_preparation_artifacts
     preparation_files = observe("preparation", write_preparation_artifacts, preparation, out_path)
 
+    # Save the actual material products consumed by later steps. PCR export
+    # alone omits digested fragments and other intermediates in real workflows.
+    products_by_step = [
+        (step, step.get("details", {}).get("products", []))
+        for step in p.get("steps", [])
+    ]
+    used_versions = {
+        ref.get("record_version")
+        for _, products in products_by_step for product in products
+        for ref in product.get("source_refs", [])
+    }
+    from core.models.molecule import as_molecule
+    from core.tools.snapgene_io import export_snapgene
+    saved_products = []
+    for step_index, (step, products) in enumerate(products_by_step, 1):
+        for product_index, product in enumerate(products):
+            version = product.get("record_version")
+            if version not in used_versions or version == p.get("selected_output_version"):
+                continue
+            files = observe("intermediate_export", export_snapgene,
+                as_molecule(product), out_path / "intermediates",
+                f"step_{step_index:03d}_product_{product_index:03d}").analysis
+            saved_products.append({"step_id": step["step_id"], "product_index": product_index,
+                                   "record_version": version, **files})
+    preparation_files["step_products"] = saved_products
+
     delivery = None
     if report["overall"] == "verified":
         if user_confirmed:

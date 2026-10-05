@@ -308,21 +308,27 @@ def run_recipe_cli(
             raise FileNotFoundError(f"Candidate files missing for promotion: {cand_gb}, {cand_fa}")
 
         from core.runtime_gate import finalize_candidate_construct
-        authoritative_delivery = observe("finalize", finalize_candidate_construct,
-            candidate_gb=cand_gb,
-            candidate_fasta=cand_fa,
-            out_dir=out_path,
-            metadata={
-                "recipe": canonical_name,
-                "result_kind": res.result_kind,
-                "completeness": res.completeness,
-                "product_length": len(prod_seq),
-                "product_topology": topo,
-                "goal_check": goal_check,
-            },
-            sanity_check=sanity,
-            user_confirmed=user_confirmed,
-        )
+        from core.errors import GateRejected
+        try:
+            authoritative_delivery = observe("finalize", finalize_candidate_construct,
+                candidate_gb=cand_gb,
+                candidate_fasta=cand_fa,
+                out_dir=out_path,
+                metadata={
+                    "recipe": canonical_name,
+                    "result_kind": res.result_kind,
+                    "completeness": res.completeness,
+                    "product_length": len(prod_seq),
+                    "product_topology": topo,
+                    "goal_check": goal_check,
+                },
+                sanity_check=sanity,
+                user_confirmed=user_confirmed,
+            )
+        except GateRejected as exc:
+            exc.details = {**exc.details, "candidate_files": candidate_files,
+                           "result_json": str(result_json_path)}
+            raise
 
     return {
         "recipe": canonical_name,
@@ -413,25 +419,20 @@ def main():
     add_trace_arguments(parser)
     args = parser.parse_args()
 
-    params = {}
-    if args.params_json:
-        p_path = pathlib.Path(args.params_json)
-        if not p_path.exists():
-            print(f"Error: params-json file not found: {args.params_json}", file=sys.stderr)
-            sys.exit(1)
-        params = json.loads(p_path.read_text(encoding="utf-8"))
-    elif args.params:
-        p_path = pathlib.Path(args.params)
-        if p_path.is_file():
-            params = json.loads(p_path.read_text(encoding="utf-8"))
-        else:
-            try:
-                params = json.loads(args.params)
-            except Exception:
-                import ast
-                params = ast.literal_eval(args.params)
-
     try:
+        params = {}
+        if args.params_json:
+            params = json.loads(pathlib.Path(args.params_json).read_text(encoding="utf-8"))
+        elif args.params:
+            p_path = pathlib.Path(args.params)
+            if p_path.is_file():
+                params = json.loads(p_path.read_text(encoding="utf-8"))
+            else:
+                try:
+                    params = json.loads(args.params)
+                except Exception:
+                    import ast
+                    params = ast.literal_eval(args.params)
         summary = run_recipe_cli(
             recipe_name=args.recipe,
             params=params,
@@ -459,7 +460,18 @@ def main():
         else:
             print(format_markdown_summary(summary))
     except Exception as exc:
+        from core.errors import CoreError
+        if args.json:
+            error = exc.to_dict() if isinstance(exc, CoreError) else {
+                "status": "failed", "message": str(exc), "type": type(exc).__name__,
+                "write_authoritative_artifact": False,
+            }
+            print(json.dumps({"recipe": args.recipe, "status": "failed", "error": error,
+                              "authoritative_delivery": None}, ensure_ascii=False, indent=2, default=str))
         print(f"Error running recipe {args.recipe}: {exc}", file=sys.stderr)
+        for failure in getattr(exc, "details", {}).get("cds_failures", []):
+            for issue in failure.get("validation_errors") or []:
+                print(f"{issue.get('code')}: {issue.get('message')}", file=sys.stderr)
         sys.exit(1)
 
 

@@ -239,6 +239,44 @@ class IndependentContractBoundaries(unittest.TestCase):
             path.write_text(text.replace('original visible comment','changed visible comment'),encoding='utf-8')
             with self.assertRaisesRegex(ValueError,'information changed'):as_molecule(path)
 
+    def test_biopython_read_annotation_and_reexport_has_one_metadata_block(self):
+        from Bio import SeqIO
+        from core.io.molecule_codec import MARKER
+        source = self.material('ACGTCAGATCACCTAGTCGTA')
+        source.annotations['comment'] = 'original visible comment'
+        with tempfile.TemporaryDirectory(prefix='连续注释 ') as directory:
+            files = export_snapgene(source, directory, 'source').analysis
+            for index in range(3):
+                plain = SeqIO.read(files['gb_file'], 'genbank')
+                original_comment = plain.annotations['comment']
+                product = get_tool('annotate_feature').execute(record=plain,
+                    name=f'added_{index}', start=index, end=index+3).only_product()
+                files = export_snapgene(product, directory, f'revision_{index}').analysis
+                self.assertEqual(plain.annotations['comment'], original_comment)
+                self.assertEqual(Path(files['gb_file']).read_text(encoding='utf-8').count(MARKER), 1)
+                for key in ('gb_file', 'dna_file'):
+                    loaded = as_molecule(Path(files[key]))
+                    self.assertEqual(str(loaded.seq), str(source.seq))
+                    self.assertEqual(loaded.annotations['comment'], 'original visible comment')
+                    self.assertEqual(loaded.features[-1].qualifiers['label'], [f'added_{index}'])
+
+    def test_conflicting_biopython_references_remain_structured_on_wire(self):
+        from Bio.SeqFeature import Reference
+        first = self.material('ACGTCAGATC', ends=True)
+        second = self.material('TTAGCGGATC', ends=True)
+        for record, author in [(first, 'First author'), (second, 'Second author')]:
+            reference = Reference()
+            reference.authors = author
+            reference.title = 'Original material source'
+            reference.location = [FeatureLocation(0, len(record))]
+            record.annotations['references'] = [reference]
+        result = get_tool('ligate_fragments').execute(fragments=[first, second])
+        wire = json.loads(json.dumps(result.to_dict(), ensure_ascii=False))
+        references = wire['analysis']['annotation_conflicts']['references']
+        self.assertEqual([entry['value'][0]['authors'] for entry in references], ['First author', 'Second author'])
+        self.assertTrue(all(entry['value'][0]['__bio_reference__'] for entry in references))
+        self.assertEqual(first.annotations['references'][0].authors, 'First author')
+
     def test_native_annotation_edit_rebinds_real_metadata(self):
         rng=random.Random(91013)
         source=self.material(''.join(rng.choices('ACGT',k=140)),ends=True)

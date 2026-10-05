@@ -263,9 +263,9 @@ def prepare_pml104_guide(
     if not sequence.startswith(scaffold + "TTTTTT") or not sequence.endswith(spacer):
         raise ValueError("Template does not match the published pML104 PCR cassette layout")
     import copy
-    product = copy.deepcopy(amplified.only_product())
-    product.annotations["topology"] = "circular"
-    product.left_end = product.right_end = None
+    from core.tools.assembly import ligate_fragments
+    circularized = ligate_fragments([amplified.only_product()], circular=True)
+    product = copy.deepcopy(circularized.only_product())
     product.id = "pML104_guide"
     product.features.append(SeqFeature(FeatureLocation(len(sequence)-20, len(sequence), strand=1),
         type="misc_RNA", qualifiers={"label": ["guide spacer"], "note": [spacer]}))
@@ -287,14 +287,15 @@ def prepare_pml104_guide(
             "strand": -binding["strand"], "role": "pML104 inverse PCR"})
     template_data = {"sequence": str(source.seq), "topology": "circular",
                      "features": [feature_to_dict(f, n) for f in source.features], "id": source.id}
-    material = derived_molecule(product,[as_molecule(source)],operation="prepare_pml104_guide",strandedness="double")
-    return ToolResult(products=[material],analysis={"product_topology": "circular", "topology": "circular",
+    material = derived_molecule(product,[circularized.only_product()],operation="annotate_guide_cassette",strandedness="double")
+    return ToolResult(products=[material],checks=circularized.checks,analysis={"product_topology": "circular", "topology": "circular",
         "product_length": len(sequence),
         "spacer": spacer, "scaffold_prefix": prefix, "scaffold_complete": True,
         "primers": primers,
         "preparation": [{"id": "pML104_inverse_PCR", "method": "inverse_pcr",
                          "template": template_data, "template_orientation": -1,
                          "primers": primers, "product": amplified.only_product()}],
+        "reaction_products": circularized.products,
         "circularization": {"method": "KLD", "sequence_change": "none",
                             "steps": ["high-fidelity blunt PCR", "kinase and ligase circularization", "DpnI parental-template removal"]},
         "citation": "https://pmc.ncbi.nlm.nih.gov/articles/PMC5868978/"})

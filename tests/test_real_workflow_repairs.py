@@ -102,8 +102,11 @@ class RealWorkflowRepairTests(unittest.TestCase):
         self.assertFalse(any("QuikChange" in item or "THERMOCYCLING" in item
                              for item in reminders + [step["action"] for step in protocol]))
         primers = result["details"]["primers"]
-        self.assertEqual(primers[0]["qc_tm"], calc_primer_tm(primers[0]["binding_core"]).analysis["tm"])
-        self.assertEqual(primers[1]["qc_tm"], calc_primer_tm(primers[1]["binding_core"]).analysis["tm"])
+        # The shared design backend declares 50 nM oligos, 1.5 mM Mg and
+        # 0.6 mM dNTP. Default Mg-free Tm is a different calculation.
+        for primer in primers:
+            self.assertEqual(primer["qc_tm"], calc_primer_tm(primer["binding_core"],
+                primer_conc_nM=50.0, mg_conc_mM=1.5, dntp_conc_mM=0.6).analysis["tm"])
 
     def test_declared_golden_gate_pcr_cannot_fall_back_to_native_fragment(self):
         fragments = [

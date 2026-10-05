@@ -203,10 +203,12 @@ The tool performs the pML104 inverse-PCR and KLD preparation route, restores the
 | `start_0based` | `int` | required | Half-open mutation start. |
 | `end_0based` | `int` | required | Half-open mutation end. Equal boundaries insert. |
 | `alt_seq` | `str` | required | Replacement or inserted DNA. |
-| `target_flank_bp` | `int` | `15` | Requested flanking length used to build and check primers. |
+| `target_flank_bp` | `int` | `15` | QuikChange flank length, bounded to 10–25 bp; inverse PCR minimum core length, bounded to 15–30 bp, with longer cores selected by shared Primer3 design. |
 | `method` | `str` | `quikchange` | `quikchange` or `inverse_pcr`. Hyphens are normalized to underscores. |
 
 `method="quikchange"` designs complete complementary mutagenic oligos and counts actual sequence differences against the original template. `method="inverse_pcr"` designs a full-plasmid PCR intermediate from the original circular template, then models circularization and verifies the resulting product. A QuikChange complementary pair is expected by that method; do not apply an unrelated generic dimer rejection rule as if the intended complementarity were a failed product.
+
+Inverse PCR uses the shared anchored-primer search, complete-oligo structure checks and exact template simulation. It reports actual selected core lengths and Tm under the shared 50 nM oligo, 1.5 mM Mg and 0.6 mM dNTP calculation conditions. An unchanged-boundary search can have no solution; preserve the edit while choosing another supported preparation route. Fixed short flanks are not a verified primer design.
 
 QuikChange source annotations now identify each oligo's exact 3-prime wild-type anchoring segment; the complete mutagenic oligo, mismatch count and whole-oligo QuikChange Tm remain separate. Preparation export replays the original reference window and actual complementary oligos, including circular-origin changes and indels, rather than treating the method as an unchecked exception. Automatic preparation replay supports PCR, inverse PCR and QuikChange; unknown method labels are rejected, not silently exported as verified products.
 

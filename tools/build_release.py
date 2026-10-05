@@ -194,7 +194,7 @@ def _development_notice(version, redistributable):
         "reports as evidence for this version.\n"
         % (version, package_kind,
            ("This is a prerelease candidate for validation." if prerelease else
-            "This is a versioned source package; packaging alone does not certify release readiness. See CHANGELOG.md for scope and known limits."),
+            "This is a versioned source package; packaging alone does not certify release readiness. See README.md for scope and known limits."),
            ("this research archive may include external fixtures and reference "
             "assets. Its creation is not permission to publish them. See "
             "THIRD_PARTY_NOTICE.md."

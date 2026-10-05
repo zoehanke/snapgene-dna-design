@@ -319,20 +319,35 @@ def recipe_site_directed_mutagenesis(
         # tion.  The 5' tail on the forward oligo carries replacement DNA;
         # the PCR simulator, rather than direct string replacement, supplies
         # the linear intermediate.
-        inverse_flank = max(15, min(30, int(target_flank_bp)))
-        left_core = (_circular_slice(t_seq, start - inverse_flank, inverse_flank)
-                     if circular else t_seq[max(0, start - inverse_flank):start])
-        right_core = (_circular_slice(t_seq, end, inverse_flank)
-                      if circular else t_seq[end:end + inverse_flank])
-        if len(left_core) < 15 or len(right_core) < 15:
-            raise ValueError(
-                "inverse_pcr requires at least 15 bp of complete template flank on both sides"
-            )
-        fwd_primer = alt + right_core
-        rev_primer = str(Seq(left_core).reverse_complement())
+        from core.tools.amplification import design_overhang_primers, simulate_pcr
+        design_template, design_start, design_end = rec, end % n, start
+        if start == end:
+            # Insertion retains the entire circular template. Express that
+            # full interval on a rotated reference instead of a zero-width arc.
+            from core.tools.sequence_ops import rotate_sequence
+            design_template = rotate_sequence(rec, origin_0based=start).only_product()
+            design_start, design_end = 0, n
+        designed = design_overhang_primers(
+            design_template, start=design_start, end=design_end, fwd_5prime_overhang=alt,
+            min_core_len=max(15, min(30, int(target_flank_bp))),
+            circular=True, target_tm=60.0,
+        ).analysis
+        if start == end:
+            designed['design_reference_origin_0based'] = start
+            for key in ('forward_primer', 'reverse_primer'):
+                binding = designed[key]['binding']
+                for field in ('template_start_0based', 'template_end_0based'):
+                    binding[field] = (binding[field] + start) % n
+            designed['target_interval_0based'] = [start, end]
+            designed['target_interval_wraps_origin'] = True
+        forward = designed['forward_primer']
+        reverse = designed['reverse_primer']
+        right_core = forward['binding_core']
+        left_core = str(Seq(reverse['binding_core']).reverse_complement())
+        fwd_primer = forward['full_sequence']
+        rev_primer = reverse['full_sequence']
         fwd_position = end % n
         rev_position = (start - len(left_core)) % n
-        from core.tools.amplification import simulate_pcr
         pcr_res = simulate_pcr(
             rec,
             fwd_primer,
@@ -356,6 +371,7 @@ def recipe_site_directed_mutagenesis(
             "full_forward_primer_verified": True,
             "full_reverse_primer_verified": True,
             "pcr_intermediate": pcr_res,
+            "primer_design": designed,
             "linear_intermediate_sequence": linear_intermediate,
             "cyclized_sequence": cyclized,
             "product_derivation": (
@@ -363,8 +379,8 @@ def recipe_site_directed_mutagenesis(
                 "rotation of the linear amplicon at the original origin"
             ),
         }
-        fwd_tm = calc_primer_tm(right_core).analysis["tm"]
-        rev_tm = calc_primer_tm(rev_primer).analysis["tm"]
+        fwd_tm = forward['binding_core_tm']
+        rev_tm = reverse['binding_core_tm']
         primer_rows = [
             _primer_row(
                 "inverse_pcr_forward", fwd_primer, right_core,

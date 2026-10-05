@@ -2,7 +2,7 @@
 
 把自然语言需求和真实序列材料转成可检查的DNA设计、制备链、引物及GenBank/SnapGene文件。宿主AI选择路线，程序计算实际反应；文件检查不代表实验成功。
 
-v2.0.1保留v2公共接口，修复Wire引物分析、连续操作的元数据/复合位置传递、无裁剪状态和环状旋转制备追溯。连接缺失的逐碱基值为未知；记录级冲突可在`ToolResult.analysis.annotation_conflicts`查看各输入及版本。`--open-snapgene`报告结构化启动结果，桌面缺失仍为`UNAVAILABLE`，不影响已交付文件。
+v2.0.2保留v2公共接口，修复实际工作流中的GenBank重复元数据、文献引用JSON传递、原引物注释回读及guide制备追溯。Pipeline导出后续步骤实际使用的DNA产物；inverse PCR使用共享Primer3设计器，无合格引物时明确拒绝。Recipe的`--json`失败结果包含错误、具体编码区和已有候选文件。
 
 ## 安装
 

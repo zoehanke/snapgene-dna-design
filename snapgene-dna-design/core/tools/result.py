@@ -12,10 +12,13 @@ def to_wire(value):
         return {'data_type':'protein_sequence','value':str(value)}
     if isinstance(value, (Molecule, ToolResult)):
         return value.to_dict()
-    from Bio.SeqFeature import SeqFeature
+    from Bio.SeqFeature import SeqFeature, Reference
     if isinstance(value,SeqFeature):
         from core.models.molecule import feature_data
         return feature_data(value)
+    if isinstance(value, Reference):
+        from core.models.molecule import json_metadata
+        return json_metadata(value)
     if isinstance(value, dict):
         return {key: to_wire(item) for key, item in value.items()}
     if isinstance(value, (list, tuple)):

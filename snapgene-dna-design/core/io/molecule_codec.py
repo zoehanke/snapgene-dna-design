@@ -12,18 +12,31 @@ from core.models.molecule import Molecule, json_metadata, restore_metadata
 MARKER = 'MOLECULE-CONTRACT-V1:'
 
 
+def _visible_comment(comment):
+    if isinstance(comment, list):
+        comment = '\n'.join(comment)
+    return str(comment).split(MARKER, 1)[0].strip()
+
+
 def file_metadata(material):
     if not isinstance(material, Molecule):
         return None
     # Sequence and features remain in their normal file sections. Never use
     # this metadata to replace an edited sequence or repair failed annotations.
+    annotations = dict(material.annotations)
+    if 'comment' in annotations:
+        comment = _visible_comment(annotations['comment'])
+        if comment:
+            annotations['comment'] = comment
+        else:
+            annotations.pop('comment')
     return {'id': material.id, 'name': material.name, 'description': material.description,
             'strandedness': material.strandedness,
             'ends': None if material.topology == 'circular' or material.strandedness=='single' else {
                 'left': material.left_end.to_dict() if material.left_end else None,
                 'right': material.right_end.to_dict() if material.right_end else None},
             'source_refs': list(material.source_refs), 'operation': material.operation,
-            'annotations': json_metadata(material.annotations), 'dbxrefs': list(material.dbxrefs),
+            'annotations': json_metadata(annotations), 'dbxrefs': list(material.dbxrefs),
             'letter_annotations': json_metadata(dict(material.letter_annotations)),
             'feature_ids':[f.id for f in material.features],
             'sequence_sha256': material.sequence_sha256}
@@ -31,9 +44,7 @@ def file_metadata(material):
 
 def visible_fingerprint(record):
     annotations = dict(record.annotations)
-    comment=annotations.get('comment','')
-    if isinstance(comment,list):comment='\n'.join(comment)
-    comment=str(comment).split(MARKER,1)[0].strip()
+    comment=_visible_comment(annotations.get('comment',''))
     if comment:annotations['comment']=comment
     else:annotations.pop('comment',None)
     content = {'sequence':str(record.seq), 'id':record.id,'name':record.name,
@@ -57,6 +68,11 @@ def metadata_text(material, visible_record=None, *, native=False):
 
 def genbank_record(material):
     record = copy.deepcopy(material)
+    original = _visible_comment(record.annotations.get('comment', ''))
+    if original:
+        record.annotations['comment'] = original
+    else:
+        record.annotations.pop('comment', None)
     if record.annotations.get('topology') is None:
         record.annotations.pop('topology',None)
     # Bind to what the format actually writes, including its documented
@@ -66,11 +82,8 @@ def genbank_record(material):
     visible = SeqIO.read(io.StringIO(stream.getvalue()),'genbank')
     encoded = metadata_text(material, visible)
     if encoded:
-        original = record.annotations.get('comment', '')
-        if isinstance(original, list):
-            original = '\n'.join(original)
         prefix, payload = encoded.split(MARKER, 1)
-        record.annotations['comment'] = str(original) + '\n' + MARKER + '\n' + '\n'.join(textwrap.wrap(payload, 60))
+        record.annotations['comment'] = original + '\n' + MARKER + '\n' + '\n'.join(textwrap.wrap(payload, 60))
     return record
 
 

@@ -182,6 +182,14 @@ def _validate_annotation_retention(task, handler, product_record):
     expected_plan = handler.plan(task)
     from core.models.molecule import as_molecule
     expected_record = as_molecule(expected_plan['product_molecule'])
+    # Export and read-back infer missing primer sequence fields from actual
+    # feature coordinates. Compare both records in that same representation.
+    from core.tools.snapgene_io import normalize_primer_qualifiers, _primer_payload_from_feature, _primer_qualifiers
+    expected_record = normalize_primer_qualifiers(expected_record)
+    for feature in expected_record.features:
+        if "primer" in feature.type.lower():
+            feature.qualifiers.update(_primer_qualifiers(_primer_payload_from_feature(expected_record, feature)))
+    product_record = normalize_primer_qualifiers(product_record)
 
     def signature(feature):
         identity = {key: feature.qualifiers[key] for key in (

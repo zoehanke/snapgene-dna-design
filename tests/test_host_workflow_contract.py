@@ -19,6 +19,170 @@ ROOT = SKILL_ROOT
 
 
 class HostWorkflowContractTests(unittest.TestCase):
+    def test_recipe_cli_explains_failed_cds_and_preserves_candidate(self):
+        record = SeqIO.read(ROOT / 'fixtures/synthetic/pSynthetic-GFP.gb', 'genbank')
+        sequence = str(record.seq)
+        record.seq = Seq(sequence[:1000] + 'AAAGCTTAA' + sequence[1009:])
+        record.features.append(SeqFeature(FeatureLocation(1000, 1009, strand=1),
+            type='CDS', qualifiers={'label': ['错误编码区']}))
+        with tempfile.TemporaryDirectory() as temp:
+            base = pathlib.Path(temp)
+            source = base / '原始材料.gb'
+            SeqIO.write(record, source, 'genbank')
+            original = source.read_bytes()
+            params = base / 'params.json'
+            alt = 'C' if sequence[1300] != 'C' else 'G'
+            params.write_text(json.dumps({'template_seq_or_file': str(source),
+                'start_0based': 1300, 'end_0based': 1301, 'alt_seq': alt,
+                'method': 'quikchange'}), encoding='utf-8')
+            output = base / '结果'
+            run = subprocess.run([sys.executable, '-X', 'utf8', '-B',
+                str(ROOT / 'scripts/run_recipe.py'), '--recipe', 'recipe_site_directed_mutagenesis',
+                '--params-json', str(params), '--out-dir', str(output),
+                '--finalize', '--confirmed', '--json'], capture_output=True, encoding='utf-8')
+            self.assertNotEqual(run.returncode, 0, run.stdout + run.stderr)
+            result = json.loads(run.stdout)
+            self.assertEqual(result['status'], 'failed')
+            self.assertIsNone(result['authoritative_delivery'])
+            error = result['error']
+            self.assertEqual(error['error_code'], 'GATE_GUARDRAILS_FAILED')
+            failure = next(f for f in error['details']['cds_failures'] if f['name'] == '错误编码区')
+            self.assertEqual(failure['interval_0based'], [1000, 1009])
+            self.assertIn('CDS_START_CODON_INVALID', [i['code'] for i in failure['validation_errors']])
+            self.assertIn('错误编码区', run.stderr)
+            receipt = pathlib.Path(error['details']['result_json'])
+            self.assertTrue(receipt.is_file())
+            self.assertFalse(json.loads(receipt.read_text(encoding='utf-8'))['sanity_check']['all_applicable_pass'])
+            self.assertTrue((output / 'candidate/recipe_site_directed_mutagenesis.gb').is_file())
+            self.assertFalse((output / 'authoritative').exists())
+            self.assertEqual(source.read_bytes(), original)
+
+    def test_recipe_cli_parameter_failures_are_json(self):
+        with tempfile.TemporaryDirectory() as temp:
+            base = pathlib.Path(temp)
+            malformed = base / '错误参数.json'
+            malformed.write_text('{', encoding='utf-8')
+            for path in [malformed, base / 'missing.json']:
+                with self.subTest(path=path):
+                    run = subprocess.run([sys.executable, '-X', 'utf8', '-B',
+                        str(ROOT / 'scripts/run_recipe.py'), '--recipe', 'protein_tagging',
+                        '--params-json', str(path), '--out-dir', str(base / '结果'), '--json'],
+                        capture_output=True, encoding='utf-8')
+                    self.assertNotEqual(run.returncode, 0)
+                    result = json.loads(run.stdout)
+                    self.assertEqual(result['status'], 'failed')
+                    self.assertFalse(result['error']['write_authoritative_artifact'])
+                    self.assertIsNone(result['authoritative_delivery'])
+
+    def test_pipeline_exports_actual_consumed_digest_products(self):
+        from core.models.molecule import as_molecule
+        from core.models.assembly_model import FragmentEnd
+        from agent.pipeline_agent import execute_agent_pipeline
+        record = self.source()
+        sequence = str(record.seq).replace('GAATTC', 'GACTTC')
+        sequence = sequence[:90] + 'GAATTC' + sequence[96:]
+        record.seq = Seq(sequence)
+        material = as_molecule(record)
+        material.strandedness = 'double'
+        material.left_end = FragmentEnd('blunt', '', cut_boundary=0)
+        material.right_end = FragmentEnd('blunt', '', cut_boundary=len(material))
+        steps = [
+            {'step_id': 'actual_pcr', 'tool': 'simulate_pcr', 'params': {
+                'template': material.to_dict(), 'f_primer': sequence[:22],
+                'r_primer': str(Seq(sequence[-22:]).reverse_complement())}},
+            {'step_id': 'actual_digest', 'tool': 'digest_sequence', 'params': {'seq': '$actual_pcr', 'enzyme': 'EcoRI'}},
+            {'step_id': 'actual_join', 'tool': 'ligate_fragments', 'params': {
+                'fragments': ['$actual_digest.products.0', '$actual_digest.products.1']}},
+        ]
+        with tempfile.TemporaryDirectory(prefix='实际步骤 ') as temp:
+            from core.tools.snapgene_io import export_snapgene
+            source_file = export_snapgene(material, temp, 'source').analysis['gb_file']
+            steps[0]['params']['template'] = '$original'
+            result = execute_agent_pipeline('consumed_products', steps,
+                [{'source_id': 'original', 'path': source_file}],
+                product_topology='linear', out_dir=temp, user_confirmed=True,
+                expected_components=[{'name': 'original material', 'sequence': sequence}],
+                validation_requirements=['sequence_model', 'preparation_model', 'file', 'user_goal'])
+            self.assertEqual(result['validation_report']['overall'], 'verified', result['validation_report']['errors'])
+            products = result['preparation_files']['step_products']
+            digest_products = [p for p in products if p['step_id'] == 'actual_digest']
+            self.assertEqual([p['product_index'] for p in digest_products], [0, 1])
+            expected = [sequence[:91], sequence[91:]]
+            for saved, bases in zip(digest_products, expected):
+                for kind in ('gb_file', 'dna_file'):
+                    actual = as_molecule(pathlib.Path(saved[kind]))
+                    self.assertEqual(str(actual.seq), bases)
+                    self.assertEqual(actual.topology, 'linear')
+            self.assertFalse(any(p['step_id'] == 'actual_join' for p in products))
+
+    def test_inverse_pcr_selects_complete_checked_primers(self):
+        from core.recipes.mutagenesis import recipe_site_directed_mutagenesis
+        rng = random.Random(73022)
+        sequence = ''.join(rng.choices('ACGT', k=480))
+        source = SeqRecord(Seq(sequence), id='independent_circular_template',
+            annotations={'molecule_type': 'DNA', 'topology': 'circular'})
+        alternative = 'C' if sequence[200] != 'C' else 'A'
+        result = recipe_site_directed_mutagenesis(source, 200, 201, alternative, method='inverse_pcr')
+        self.assertEqual(str(result.product_record.seq), sequence[:200] + alternative + sequence[201:])
+        self.assertEqual(str(source.seq), sequence)
+        design = result.details['reaction_evidence']['primer_design']
+        for key in ('forward_primer', 'reverse_primer'):
+            self.assertTrue(design[key]['unique_binding'])
+            self.assertTrue(52 <= design[key]['binding_core_tm'] <= 72)
+            self.assertLessEqual(design[key]['full_length'], 60)
+        self.assertLessEqual(design['binding_core_delta_tm'], 3)
+        self.assertTrue(design['primer3_metrics']['selected_pair_quality']['complete_oligo_structure']['passed'])
+        with self.assertRaisesRegex(ValueError, 'unique|NO_VALID_PRIMER_PAIR'):
+            recipe_site_directed_mutagenesis(SeqRecord(Seq('A' * 480),
+                annotations={'molecule_type': 'DNA', 'topology': 'circular'}),
+                200, 201, 'C', method='inverse_pcr')
+
+    def test_guide_pipeline_retains_implicit_primers_and_actual_preparation(self):
+        from agent.pipeline_agent import execute_agent_pipeline
+        from core.io.input_resolution import resolve_sequence_record
+        scaffold = 'GTTTTAGAGCTAGAAATAGCAAGTTAAAATAAGGCTAGTCCGTTATCAACTTGAAAAAGTGGCACCGAGTCGGTGGTGC'
+        reverse_site = str(Seq('GATCATTTATCTTTCACTGC').reverse_complement())
+        backbone = SeqIO.read(ROOT / 'fixtures/synthetic/pSynthetic-GFP.gb', 'genbank')
+        middle = str(backbone.seq)
+        oriented = scaffold + 'TTTTTT' + middle + reverse_site + 'TCACCATGAACT'
+        scaffold_length = len(scaffold) + 6
+        oriented_record = SeqRecord(Seq(oriented), id='guide_template',
+            annotations={'molecule_type': 'DNA', 'topology': 'circular'})
+        oriented_record.features = [feature._shift(scaffold_length) for feature in backbone.features]
+        oriented_record.features.append(SeqFeature(FeatureLocation(scaffold_length+1000, scaffold_length+1017, strand=1),
+            type='primer_bind', qualifiers={'label': ['existing source primer']}))
+        source = oriented_record.reverse_complement(id=True, name=True, annotations=True)
+        spacer = 'ATCGTCAGTTGACCGATAGC'
+        expected = scaffold + 'TTTTTT' + middle + reverse_site + spacer
+        with tempfile.TemporaryDirectory(prefix='完整制备与原引物 ') as temp:
+            source_path = pathlib.Path(temp) / 'source.gb'
+            SeqIO.write(source, source_path, 'genbank')
+            original = source_path.read_bytes()
+            result = execute_agent_pipeline('guide_preparation', [
+                {'step_id': 'actual_guide', 'tool': 'prepare_pml104_guide', 'params': {
+                    'vector_record_or_seq': '$original', 'spacer_seq': spacer}}],
+                [{'source_id': 'original', 'path': str(source_path)}], product_topology='circular',
+                out_dir=temp, user_confirmed=True,
+                expected_components=[{'name': 'actual guide construct', 'sequence': expected}],
+                validation_requirements=['sequence_model', 'preparation_model', 'file', 'user_goal'])
+            self.assertEqual(result['validation_report']['overall'], 'verified', result['validation_report']['errors'])
+            product = resolve_sequence_record(pathlib.Path(temp) / 'authoritative/construct.gb')
+            self.assertEqual(str(product.seq), expected)
+            primer = next(f for f in product.features if f.qualifiers.get('label') == ['existing source primer'])
+            self.assertEqual(primer.qualifiers['binding_sequence'], [str(primer.extract(product.seq))])
+            self.assertEqual(source_path.read_bytes(), original)
+
+    def test_inverse_pcr_insertion_at_origin_and_internal_boundary(self):
+        from core.recipes.mutagenesis import recipe_site_directed_mutagenesis
+        sequence = ''.join(random.Random(73022).choices('ACGT', k=480))
+        for position in (0, 200):
+            source = SeqRecord(Seq(sequence), id='insertion_template',
+                annotations={'molecule_type': 'DNA', 'topology': 'circular'})
+            with self.subTest(position=position):
+                result = recipe_site_directed_mutagenesis(source, position, position, 'GCTGCT', method='inverse_pcr')
+                self.assertEqual(str(result.product_record.seq), sequence[:position]+'GCTGCT'+sequence[position:])
+                self.assertEqual(str(source.seq), sequence)
+
     @staticmethod
     def source():
         rng = random.Random(73021)
