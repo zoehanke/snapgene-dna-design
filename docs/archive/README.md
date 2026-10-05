@@ -17,3 +17,5 @@
 早期原件：[重构清单](RECONSTRUCTION-CHECKLIST-20260903.md)、[开发manifest](DEVELOPMENT-MANIFEST-v0.9.1-dev2.json)、[旧升级记录](upgrade-log.md)。历史叙述不为当前方案重写，移动时只修正引用；具体修改历史仍由Git保留。
 
 2026-10-05：[统一分子契约v2.0.0实施验收](plans/unified-molecule-contract-v2.0.0.md)，包含T01至T09、旧预期调整理由、性能、包验证和六环境代码CI；未关闭外部验证由当前交接继续管理。
+
+2026-10-05：[分子契约v2.0.1残留修复](plans/molecule-contract-v2.0.1.md)，固定F01至F08，包含原反例、独立边界、覆盖、冻结性能、三档独立包及六环境实施CI；保留前序未验证范围。
