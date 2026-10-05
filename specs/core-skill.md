@@ -1,6 +1,6 @@
 # Core skill
 
-Updated: 2026-10-05. This spec defines the current DNA product contract. Developer documents have a [single router](../docs/README.md); closed plans are historical references, while unresolved handoffs stay in the plan index. [History](../docs/history.md) explains its evolution; [development plans](../docs/development-plans/README.md) own implementation scope, validation and handoff. [Safety spec](safety-module.md) owns Evidence Trace; [SKILL.md](../snapgene-dna-design/SKILL.md) and [Recipe reference](../snapgene-dna-design/references/recipes.md) own usage and signatures.
+Updated: 2026-10-06. This spec defines the current DNA product contract. Developer documents have a [single router](../docs/README.md); closed plans are historical references, while unresolved handoffs stay in the plan index. [History](../docs/history.md) explains its evolution; [development plans](../docs/development-plans/README.md) own implementation scope, validation and handoff. [Safety spec](safety-module.md) owns Evidence Trace; [SKILL.md](../snapgene-dna-design/SKILL.md) and [Recipe reference](../snapgene-dna-design/references/recipes.md) own usage and signatures.
 
 ## Goal and current functionality
 
@@ -43,6 +43,16 @@ Lead the answer with the material conclusion, whether new design is needed and t
 - Bind checks to their actual object and scope: donor structure, exported file, integrated-locus model and cell phenotype are different conclusions. Investigate inherited annotation failures against source and product; neither blanket rejection nor unsupported exemption is acceptable.
 - Sequence/file checks establish their stated computational scope, not wet-lab performance, whole-genome specificity or safety. File hashes bind versions, not biological correctness.
 - Preserve external-service consent, provenance and distribution/license requirements. Local tools do not imply that the host never transmits data.
+
+## Workflow freedom and reuse
+
+Confirmed direction, 2026-10-06; orchestration changes remain unimplemented. [Architecture](../docs/architecture.md#流程复用与结构收敛方向) owns the findings and proposed interfaces; [handoff](../docs/development-plans/README.md) owns execution scope.
+
+- A workflow can be composed by the host, reused from built-in methods, or adapted from a user-supplied workflow. Its origin does not require a separate execution, validation or delivery architecture.
+- Task expresses the user's goal, materials and constraints; Pipeline expresses this run's steps; Recipe packages reusable method knowledge and algorithms. These are distinct responsibilities, not three mandatory parallel routes. Their current names and classes are implementation choices.
+- The host can reuse a whole method, combine it with atomic operations, or execute a step and revise the remaining route from observed results. Required scientific parameters remain explicit; a fixed task classification or fully populated upfront form must not substitute for this reasoning.
+- Reuse preserves mature candidate search, conditional preparation, method-specific checks and actual intermediates. It does not require flattening every Recipe into a static step list. A reused workflow is recomputed for its actual materials and conditions, not treated as a previous successful product.
+- Shared orchestration preserves full molecules, explicit product selection, result roles, check subjects/scopes and source-derived validation. Efficiency changes reduce redundant computation and default host payloads while keeping required checks and inspectable full results.
 
 ## Unified molecule and result contract
 

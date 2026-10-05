@@ -23,7 +23,7 @@
 
 ## DNA主线与保存数据
 
-宿主理解用户要求，选择Recipe、Pipeline或ConstructionTask。程序从真实输入计算、写文件并检查；先有计划不等于已经执行。
+宿主理解用户要求，选择Recipe、Pipeline或ConstructionTask。程序从真实输入计算、写文件并检查。当前Pipeline的plan已进行模拟计算，execute负责写出；plan不能证明正式文件已交付或实验完成。
 
 ```mermaid
 flowchart TD
@@ -47,7 +47,7 @@ flowchart TD
 | 数据/文件 | 保存什么 | 应怎样理解 |
 |---|---|---|
 | `task.json` | sources、target、operation、product、约束 | 本次用户要求及原始输入 |
-| `plan.json` | steps、product_features、任务/计划哈希、scope_note | 预计执行和作用范围，不是执行证据 |
+| `plan.json` | steps、product_features、任务/计划哈希、scope_note | 计划及计算结果；Pipeline含已计算中间体，不等同正式交付或实验完成 |
 | `execution.json` | 实际产物路径、文件哈希、执行哈希 | 实际写出结果 |
 | `validation.json` | artifact/computation/goal、errors、所查文件版本 | 只对应实际检查对象和范围 |
 | `DELIVERY-MANIFEST.json` | 本次证据、正式文件及范围 | 不得复用旧回执授权新文件 |
@@ -71,6 +71,58 @@ flowchart TD
 任务改变需重新计划和验证。正式提升使用本次独立临时目录及原子操作；失败不得清理其他尝试的文件。旧agent的preview交接与正式构建分开。
 
 Recipe和ConstructionTask保留流程级信息，原子工具共享ToolResult。ToolSpec的category表达副作用；参数形状、required与default从真实签名和领域约束生成，缓存校验器供Python及注册入口使用。产品入口只有products，不再有sequence_output_key或逐工具字段猜测。Schema不能证明生物学正确。
+
+## 流程复用与结构收敛方向
+
+2026-10-06确认原则并记录优化建议；本节是待实现方向，当前入口仍按上文运行。本轮不改运行代码。
+
+### 原理与最小结构
+
+任务有目标，执行有步骤，复用有方法。这三种职责需要表达，但不要求三套执行系统。AI自编、内置和用户提供的流程区别在来源；执行相同操作时，应使用相同材料、检查和交付语义。
+
+| 概念 | 保留职责 | 收敛方向 |
+|---|---|---|
+| Task | 原始目标、材料、约束和当前结果 | 提供执行上下文；方法选择后再补确需的参数，不靠固定任务分类替代AI判断 |
+| Pipeline | 本次实际步骤、依赖和产物选择 | 作为可执行流程实例；支持整链调用及按观察结果调整后续步骤 |
+| Recipe | 已成型的方法、候选搜索及条件判断 | 作为可组合的成熟流程；可整段复用，也可与原子操作混合 |
+
+结构是否合理，取决于调用者是否只需说明目标、实际材料和必要条件；相同执行责任是否只维护一次。层数、类名和统一外观不是判断依据。必要边界是科学计算、完整材料传递、对实际文件的检查和交付责任；按流程来源拆开这些责任没有原理上的必要。
+
+目标关系如下，表示职责，不要求新增同名类或框架：
+
+```mermaid
+flowchart LR
+ G[目标 / 材料 / 约束] --> A[宿主AI组织本次流程]
+ R[内置或用户的成熟流程] --> A
+ A --> E[执行原子操作或成熟流程]
+ E --> O[实际产物 / 检查 / 失败]
+ O --> A
+ O --> V[核对目标 / 材料来源 / 保存文件]
+ V --> D[交付]
+```
+
+### 已讨论改进与进一步优化
+
+| 改进 | 当前依据 | 最小处理与边界 |
+|---|---|---|
+| Recipe可作为组合步骤 | `ToolSpec.execute`要求ToolResult，RecipeResult另有流程信息，当前Pipeline不能直接调用Recipe | 在已有组合入口接纳成熟流程，统一产物和检查交接；保留协议、警告、完成状态、内部制备链及多产物选择。verification的subject不是新构建产物 |
+| 共用检查及交付编排 | Recipe CLI与Task分别组织检查和交付；已经共享部分准备文件写出及原子交付操作 | 收敛重复编排，方法特有检查仍由该方法负责；保留候选、元件、QC和完整构建的差别，不新增第二套领域算法 |
+| 合并重复整链计算 | 正常Pipeline首轮plan执行一次；validate分别以recompute和再次plan核对序列、源注释；CLI未指定拓扑时还会先执行一次 | 从实际执行产物取得拓扑；用一次从原始输入独立重建的完整材料同时核对序列与注释。保留输入版本、真实反应、目标及文件回读检查，不能直接信任可变plan |
+| 缩短默认宿主返回 | RecipeResult的完整分子、兼容投影和details重复序列化；已有4722 bp任务一次stdout JSON为202065 bytes | 默认返回状态、产物引用/版本、文件路径、关键检查和具体失败；完整数据保存并可按需读取。Python内部仍传完整Molecule，兼容字段迁移须检查现有调用者 |
+| 从实际中间体继续 | Pipeline已有实际父版本和步骤产物，但批量入口没有逐步继续协议 | 需要局部修订时复用未改变的实际产物，只重算受影响的依赖；材料、参数或条件改变后，相关下游和检查失效。不先建设全局缓存或通用调度平台 |
+| 统一能力发现 | describe_tools已有简表和按名称查询，原子ToolSpec与Recipe签名仍分开 | 在现有入口按需说明两类能力的输入、产物角色、适用条件和检查范围；先复用真实签名，不再维护第二份手工Schema |
+
+整链3次或4次来自上述成功路径的源码调用关系，不是运行计时；202065 bytes是既有开发回放的文件大小，不是token测量或通用成本结论。实现依据见[Pipeline Handler](../snapgene-dna-design/core/handlers/composite_pipeline.py)、[验证](../snapgene-dna-design/core/runtime_validate.py)、[Pipeline CLI](../snapgene-dna-design/scripts/run_pipeline.py)、[Recipe契约](../snapgene-dna-design/core/recipes/contract.py)、[注册入口](../snapgene-dna-design/core/tools/registry.py)及[已有回放](archive/plans/real-task-usability-v2.0.2.md)。
+
+`plan`目前已经执行计算，`execute`主要导出文件；不能把现有plan说成只有预计步骤。后续收敛须区分路线安排与已发生的计算，避免仅为生命周期字段再次运行整条链；不必为此创建另一套规划语言。Recipe中的引物搜索、条件分支和Gibson准备布局算法继续保留，不能为了变成“流程罐头”而削弱成静态表单。
+
+先处理Recipe组合与重复编排；重复重算、宿主输出随相关调用一起收敛。逐步继续和能力发现按真实调用需求推进。用户提供的流程也需适配实际材料、参数和检查；保存的是方法，历史PASS不随流程复制。
+
+### 判断改造是否有效
+
+用实际混合链验证成熟流程和原子操作可以连续调用，调用者不再手工提取裸DNA再补注释；QC不会被误当成构建，零/多产物选择明确。改变路线仍满足原始目标；失败保留已产生的证据，局部继续不能沿用受影响版本的检查。
+
+效率记录实际工具/Primer3调用次数、耗时和宿主输出字节。保持目标、反应链、材料注释与文件检查结果；错误源注释、改变的材料或失败反应仍被正确拒绝。当前记录不宣称改造已完成或性能已有提升。
 
 ## 统一分子契约目标架构
 
