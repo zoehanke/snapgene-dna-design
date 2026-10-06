@@ -111,6 +111,7 @@ class CandidateChecksTests(unittest.TestCase):
             nodes=[e['payload'] for e in events if e.get('event_type')=='node_recorded']
             self.assertEqual(len([n for n in nodes if n['kind']=='artifact' and n.get('role')=='authoritative']),3)
             self.assertEqual(len([n for n in nodes if n['kind']=='validation']),4)
+            self.assertTrue(all(n['result']=='passed' for n in nodes if n['kind']=='validation'))
 
     def test_history_wrong_source_unbound_fragments_and_lost_letters_are_rejected(self):
         from core.workflow import run_step

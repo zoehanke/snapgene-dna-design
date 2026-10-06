@@ -157,7 +157,7 @@ class TraceRun:
             report = value.get("validation")
             if isinstance(report, dict):
                 for scope, check in report.get("scope_results", {}).items():
-                    self.validation(scope, check.get("status", "INCOMPLETE"),
+                    self.validation(scope, check.get("status", "INCOMPLETE").lower(),
                         {"check": check, "validation_sha256": report.get("validation_sha256"),
                          "subject_version": report.get("subject_version")}, result_ref)
             if value.get("status") == "delivered" and value.get("directory"):
