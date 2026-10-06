@@ -120,17 +120,24 @@ class ToolSpec:
             adapted[canonical] = value
         return adapted
 
+    def bind_arguments(self, params):
+        """Share declared shape, aliases and defaults with the step boundary."""
+        adapted = self.adapt_params(params)
+        self._validator.validate(_schema_value(adapted))
+        bound = self._signature.bind(**adapted)
+        bound.apply_defaults()
+        return bound
+
     def execute(self, **kwargs):
         from core.errors import CoreError, ToolExecutionError
         from core.tools.result import ToolResult
         try:
-            adapted = self.adapt_params(kwargs)
-            self._validator.validate(_schema_value(adapted))
-            bound = self._signature.bind(**adapted)
-            bound.apply_defaults()
+            bound = self.bind_arguments(kwargs)
             result = self._function(*bound.args, **bound.kwargs)
             if not isinstance(result, ToolResult):
                 raise TypeError(f'{self.name} returned a non-contract result')
+            from core.workflow import record_operation
+            record_operation(self.name,dict(bound.arguments),result)
             return result
         except CoreError:
             raise

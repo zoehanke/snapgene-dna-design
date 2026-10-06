@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.1.0 · 2026-10-06 actual execution closure
+
+- Remove the undeclared 60 nt overlap limit with linear-time matching; reject full substrate consumption as an unsupported assembly.
+- Share atomic/Recipe step execution with replayable inputs, actual internal operations, concrete errors and locally checked continuation.
+- Rebuild candidate sequence, preparation, file and declared-goal checks from original materials and actual operations; imported PASS and sanity summaries alone cannot authorize a construct.
+- Generate final DNA, real intermediates, source primer annotations, role-specific orders and explanation from the same current bundle; bind validated native bytes through atomic promotion.
+- Preserve actual PCR circularization, Gibson rotation ancestry and authenticated GenBank long-qualifier identity. Host-wide enforcement and original-host natural reruns remain outside the demonstrated engineering results.
+
 ## 2.0.1 · 2026-10-05 molecular contract residual fixes
 
 - Parse primer Wire/file inputs through the shared molecule boundary; preserve independent end-repair metadata and source references.

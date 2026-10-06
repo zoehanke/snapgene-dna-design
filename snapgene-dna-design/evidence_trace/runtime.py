@@ -154,6 +154,14 @@ class TraceRun:
             self.validation("requested_components", value.get("status", "unknown"), value, result_ref)
         elif stage == "outcome":
             self.outcome = value.get("status", "finished")
+            report = value.get("validation")
+            if isinstance(report, dict):
+                for scope, check in report.get("scope_results", {}).items():
+                    self.validation(scope, check.get("status", "INCOMPLETE"),
+                        {"check": check, "validation_sha256": report.get("validation_sha256"),
+                         "subject_version": report.get("subject_version")}, result_ref)
+            if value.get("status") == "delivered" and value.get("directory"):
+                self.capture_files(value, result_ref)
         if stage in {"recipe_result", "outcome"}:
             # A failure result may list historical files and a task may list inputs.
             # Neither is a newly produced artifact of this run.
@@ -222,7 +230,11 @@ class TraceRun:
                            else 'modified' if str(path) in previous else 'created')
             self.recorder.record({"id": f"A-{self.run_id}-{len(self.artifacts)}", "kind": "artifact",
                 "path": str(path), "relative_path": relative, "sha256": sha,
-                "role": "authoritative" if relative.startswith("authoritative/") else "intermediate-or-candidate",
+                # The bundle also contains prepared inputs, source copies and records.
+                # Only the documented final three-format construct is the final artifact.
+                "role": "authoritative" if relative in (
+                    "authoritative/construct.gb","authoritative/construct.dna","authoritative/construct.fasta"
+                ) else "intermediate-or-candidate",
                 "generation_observation": observation,
                 "decision_ids": self.decisions, "validated_by": self.validations,
                 "result_event_ref": result_event_ref, "association_scope": "same_run",

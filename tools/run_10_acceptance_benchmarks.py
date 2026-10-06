@@ -520,15 +520,26 @@ def run_benchmark_10(evaluator: BenchmarkEvaluator):
 
     assert rejected, "Security gate must reject unconfirmed candidate"
 
-    # 3. Promotion with explicit user confirmation MUST SUCCEED
-    delivery = finalize_candidate_construct(
-        candidate_gb=cand_gb,
-        candidate_fasta=cand_fa,
-        out_dir=task_dir,
-        metadata={"recipe": "benchmark_10_test", "product_length": len(cand_rec), "product_topology": "circular"},
-        sanity_check=sanity,
-        user_confirmed=True,
-    )
+    # Preserve original sanity-only input: confirmation is not reaction evidence.
+    try:
+        finalize_candidate_construct(cand_gb,cand_fa,task_dir,
+            {"recipe":"benchmark_10_test"},sanity,True)
+    except GateRejected as exc:
+        assert exc.error_code=='GATE_EXECUTION_EVIDENCE_REQUIRED'
+    else:
+        raise AssertionError('Sanity alone authorized a complete construct')
+
+    # Positive delivery uses an actual public, source-bound reaction chain.
+    from core.workflow import run_step
+    from core.workflow_delivery import deliver_result
+    seq=str(cand_rec.seq)
+    sources={'template':cand_rec}
+    pcr=run_step('simulate_pcr',{'template':'$template','f_primer':seq[:24],
+        'r_primer':str(Seq(seq[-24:]).reverse_complement())},step_id='pcr',sources=sources)
+    assert pcr.error is None,pcr.error
+    circle=run_step('ligate_fragments',{'fragments':['$pcr'],'circular':True},step_id='circle',sources=sources,previous=[pcr])
+    assert circle.error is None,circle.error
+    delivery = deliver_result({'topology':'circular','expected_sequence':seq},sources,[pcr,circle],circle.result.only_product(),task_dir)
 
     auth_dir = pathlib.Path(delivery["directory"])
     assert auth_dir.exists(), "Authoritative directory must be created"
@@ -540,11 +551,13 @@ def run_benchmark_10(evaluator: BenchmarkEvaluator):
     evaluator.record_score(
         10, "Natural Language Goal & Security Gate",
         intent=2, strategy=2, sequence=2, validity=2, usability=2,
-        notes="Confirmed gate security: unconfirmed rejected (GATE_USER_CONFIRMATION_REQUIRED); confirmed promotes with DELIVERY-MANIFEST & 3 formats.",
+        notes="Unconfirmed and sanity-only delivery rejected; actual source-bound PCR/circularization delivers manifest and three formats.",
     )
 
 
 def main():
+    for stream in (sys.stdout,sys.stderr):
+        if hasattr(stream,'reconfigure'):stream.reconfigure(encoding='utf-8',errors='replace')
     print("=" * 80)
     print(">>> 10 SYNTHETIC WORKFLOW SMOKE CASES")
     print("=" * 80)

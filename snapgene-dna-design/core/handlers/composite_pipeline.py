@@ -33,8 +33,6 @@ from core.tools import (
 def _resolve_param_val(val, env, sources_map, results=None, analysis_steps=None):
     """Resolve JSON references to typed products or explicitly named analysis."""
     if isinstance(val, str):
-        if val in sources_map:
-            return sources_map[val]
         if not val.startswith('$'):
             return val
         reference = val[1:]
@@ -88,28 +86,29 @@ def run_pipeline_steps(steps, sources_map, output_step=None):
     """Carry one molecular contract without result-field guessing or recopying."""
     sources = _resolve_source_records(sources_map)
     env, rows = {}, []
+    executions=[]
     for step in steps:
         step_id, tool_name = step.get('step_id'), step.get('tool')
         if not step_id or step_id in env or step_id in sources:
             raise PlanningError('INVALID_STEP_ID', 'Step ids must be nonempty, unique and distinct from sources')
-        specification = get_tool(tool_name)
-        if specification is None:
-            raise PlanningError('UNSUPPORTED_PIPELINE_TOOL', f'Unknown atomic tool: {tool_name}')
-        if specification.category not in ('compute', 'inspect'):
-            raise PlanningError('PIPELINE_SIDE_EFFECT', f'{tool_name} has side effects; use a file/output boundary')
-        params = _resolve_param_val(step.get('params', {}), env, sources)
-        try:
-            result = specification.execute(**params)
-        except Exception as exc:
-            raise PlanningError('TOOL_EXECUTION_ERROR', f'{tool_name} failed in {step_id}: {exc}') from exc
-        if not isinstance(result, ToolResult):
-            raise PlanningError('INVALID_TOOL_RESULT', f'{tool_name} does not implement the molecular tool contract')
+        from core.workflow import run_step
+        executed=run_step(tool_name,step.get('params',{}),step_id=step_id,sources=sources,previous=executions,_history_checked=True)
+        if executed.error:
+            code=executed.error['error_code'] if executed.error['error_code'] in (
+                'PIPELINE_SIDE_EFFECT','ANALYSIS_OUTPUT_REFERENCE','UNRESOLVED_STEP_REFERENCE',
+                'EXPLICIT_PRODUCT_REQUIRED','INVALID_STEP_REFERENCE') else 'TOOL_EXECUTION_ERROR'
+            raise PlanningError(code,f'{tool_name} failed in {step_id}: {executed.error["message"]}',
+                                details={'failed_step':executed.to_dict(),'completed_steps':rows,
+                                         'original_error':executed.error})
+        result=executed.result
+        executions.append(executed)
         env[step_id] = result
         rows.append({'step_id': step_id, 'tool': tool_name,
                      'output_length': len(result.products[0]) if len(result.products) == 1 else None,
                      'output_sha256': result.products[0].sequence_sha256 if len(result.products)==1 else None,
                      'product_count': len(result.products), 'details': result.to_dict(),
-                     'params': copy.deepcopy(step.get('params', {}))})
+                     'params': copy.deepcopy(step.get('params', {})),
+                     'execution':executed.to_dict()})
     chosen = output_step or (steps[-1]['step_id'] if steps else None)
     if chosen is None:
         raise PlanningError('EMPTY_PIPELINE', 'Pipeline has no selected product')
@@ -123,6 +122,8 @@ def _preparation_check(product, rows, sources):
     """Follow actual product versions, not tool names or an expected final DNA."""
     records, checked = {}, set()
     roots = {as_molecule(source).record_version for source in sources.values()}
+    rows=[entry for row in rows for entry in (
+        [{'details':op['result']} for op in row.get('execution',{}).get('operations',[])] + [row])]
     for row in rows:
         details = row['details']
         for material in details['products']:

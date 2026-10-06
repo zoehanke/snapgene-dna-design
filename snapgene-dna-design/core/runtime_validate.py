@@ -25,7 +25,7 @@ from core.task import canonical_json, task_sha256
 from core.tools.sequence_ops import DNA_IUPAC_ALPHABET, validate_cds_feature
 
 
-def _validate_requested_components(task: dict, product_record, plan: dict | None = None) -> tuple[list[dict], list[str]]:
+def _validate_requested_components(task: dict, product_record, plan: dict | None = None, source_records=None) -> tuple[list[dict], list[str]]:
     """Check the user's component sequences against the actual file, never the plan."""
     from core.io.input_resolution import resolve_sequence_record
     from Bio.SeqFeature import FeatureLocation
@@ -37,7 +37,7 @@ def _validate_requested_components(task: dict, product_record, plan: dict | None
             values.extend(item if isinstance(item, (list, tuple)) else [item])
         return {str(v).casefold() for v in values}
 
-    sources = {}
+    sources = dict(source_records or {})
     source_errors = {}
     for source in task.get("sources", []):
         sid = source["source_id"]
@@ -182,14 +182,20 @@ def _validate_annotation_retention(task, handler, product_record):
     expected_plan = handler.plan(task)
     from core.models.molecule import as_molecule
     expected_record = as_molecule(expected_plan['product_molecule'])
+    return compare_retained_annotations(expected_record,product_record), expected_plan
+
+
+def compare_retained_annotations(expected_record,product_record):
+    """Shared comparison; callers must rebuild expected material from original inputs."""
     # Export and read-back infer missing primer sequence fields from actual
     # feature coordinates. Compare both records in that same representation.
     from core.tools.snapgene_io import normalize_primer_qualifiers, _primer_payload_from_feature, _primer_qualifiers
     expected_record = normalize_primer_qualifiers(expected_record)
-    for feature in expected_record.features:
-        if "primer" in feature.type.lower():
-            feature.qualifiers.update(_primer_qualifiers(_primer_payload_from_feature(expected_record, feature)))
     product_record = normalize_primer_qualifiers(product_record)
+    for record in (expected_record,product_record):
+        for feature in record.features:
+            if "primer" in feature.type.lower():
+                feature.qualifiers.update(_primer_qualifiers(_primer_payload_from_feature(record,feature)))
 
     def signature(feature):
         identity = {key: feature.qualifiers[key] for key in (
@@ -202,17 +208,21 @@ def _validate_annotation_retention(task, handler, product_record):
     expected = Counter(signature(f) for f in expected_record.features)
     actual = Counter(signature(f) for f in product_record.features)
     if expected - actual:
-        return ["ANNOTATION_RETENTION_FAILED: product lost or changed source-derived feature geometry, identity or coding metadata"], expected_plan
+        return ["ANNOTATION_RETENTION_FAILED: product lost or changed source-derived feature geometry, identity or coding metadata"]
+    if dict(product_record.letter_annotations)!=dict(expected_record.letter_annotations):
+        return ['MOLECULAR_RETENTION_FAILED: per-base metadata differs from input-derived material']
+    if product_record.dbxrefs!=expected_record.dbxrefs:
+        return ['MOLECULAR_RETENTION_FAILED: source references differ from input-derived material']
     from core.models.molecule import Molecule
     if isinstance(product_record,Molecule):
         for name in ('strandedness','source_refs'):
             if getattr(product_record,name) != getattr(expected_record,name):
-                return [f'MOLECULAR_RETENTION_FAILED: {name} differs from actual input-derived material'], expected_plan
+                return [f'MOLECULAR_RETENTION_FAILED: {name} differs from actual input-derived material']
         def ends(material):
             return [end.to_dict() if end else None for end in (material.left_end,material.right_end)]
         if ends(product_record) != ends(expected_record):
-            return ['MOLECULAR_RETENTION_FAILED: exposed ends differ from input-derived material'], expected_plan
-    return [], expected_plan
+            return ['MOLECULAR_RETENTION_FAILED: exposed ends differ from input-derived material']
+    return []
 
 
 def validate(task: dict, plan: dict, execution: dict) -> dict:

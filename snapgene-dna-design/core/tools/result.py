@@ -8,10 +8,17 @@ from core.models.molecule import Molecule
 def to_wire(value):
     """Serialize only at explicit report/file/CLI boundaries."""
     from core.models.molecule import ProteinSequence
+    from pathlib import Path
+    if isinstance(value,Path):
+        return str(value)
     if isinstance(value,ProteinSequence):
         return {'data_type':'protein_sequence','value':str(value)}
     if isinstance(value, (Molecule, ToolResult)):
         return value.to_dict()
+    from Bio.SeqRecord import SeqRecord
+    if isinstance(value,SeqRecord):
+        from core.models.molecule import as_molecule
+        return as_molecule(value).to_dict()
     from Bio.SeqFeature import SeqFeature, Reference
     if isinstance(value,SeqFeature):
         from core.models.molecule import feature_data

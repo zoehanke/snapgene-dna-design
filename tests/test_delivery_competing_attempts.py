@@ -18,6 +18,7 @@ from Bio.SeqRecord import SeqRecord
 
 from core.guardrails.checklist import quick_biological_sanity_check
 from core.runtime_gate import GateRejected, finalize_candidate_construct
+from delivery_storage_fixture import storage_delivery as finalize_candidate_construct
 from core.tools.snapgene_io import read_native_dna_record
 
 

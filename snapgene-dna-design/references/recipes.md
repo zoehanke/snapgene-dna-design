@@ -4,6 +4,8 @@ This file mirrors `core/recipes/` signatures; query `scripts/describe_tools.py` 
 
 ## Common preparation rule
 
+Recipes also run through `core.workflow.run_step` or `scripts/run_step.py`. `describe_tools.py <name>` shares signature-derived parameter validation with execution. Adaptation retains products, subject, roles/completeness, checks, primers, preparation, protocol, citations and actual internal operations. QC subject remains the checked source. Failed attempts remain recorded but supply no completed material. Resume against changed original input or implementation/backend conditions fails. Recipe finalization uses common candidate/bundle checks rather than sanity alone.
+
 Treat a source template, a prepared fragment, and a designed component as different things.
 
 ```text

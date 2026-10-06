@@ -493,7 +493,20 @@ def recipe_site_directed_mutagenesis(
             {"step": 3, "action": "Treat the reaction to remove parental circular template with DpnI according to the validated enzyme protocol."},
             {"step": 4, "action": "Purify the linear product and recircularize it with compatible end-phosphorylation and ligation/cyclization chemistry, such as KLD, according to the manufacturer's protocol."},
         ]
-    material = derived_molecule(resolve_sequence_record(circular_product_dict),[as_molecule(rec)],operation="recipe_site_directed_mutagenesis",strandedness="double")
+    final_record=resolve_sequence_record(circular_product_dict)
+    parents=[as_molecule(rec)]
+    if method=='inverse_pcr':
+        from core.tools import ligate_fragments, rotate_sequence
+        circular=ligate_fragments([pcr_evidence['pcr_intermediate'].only_product()],circular=True).only_product()
+        if len(circular)!=len(mutated_product) or mutated_product not in str(circular.seq)+str(circular.seq):
+            raise ValueError('PREPARATION_PRODUCT_MISMATCH: circularized PCR differs from requested edit')
+        origin=(str(circular.seq)+str(circular.seq)).find(mutated_product)
+        circular=rotate_sequence(circular,origin).only_product() if origin else circular
+        parents=[circular]
+    material = derived_molecule(final_record,parents,operation="recipe_site_directed_mutagenesis",strandedness="double")
+    if method=='quikchange' and preparation:
+        preparation[0]['product']=material.to_dict()
+        preparation[0]['evidence']=pcr_evidence
     return RecipeResult(
         recipe_name="recipe_site_directed_mutagenesis",
         result_kind="construct",

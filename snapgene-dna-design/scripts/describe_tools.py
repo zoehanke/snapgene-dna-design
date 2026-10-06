@@ -21,10 +21,10 @@ def describe(name: str | None = None) -> dict:
         return {'recipes': recipe_names,
                 'tools': [{'name': key, 'category': spec.category} for key,spec in sorted(TOOL_REGISTRY.items())]}
     if name in recipe_names:
-        fn = getattr(recipes,name)
-        return {'name': name, 'kind': 'recipe', 'signature': str(inspect.signature(fn)),
-                'description': inspect.getdoc(fn), 'reference': 'references/recipes.md',
-                'entrypoint': 'scripts/run_recipe.py'}
+        from core.workflow import get_method
+        spec=get_method(name)
+        return {**spec.to_definition(),'kind':'recipe','signature':str(spec._signature),
+                'reference':'references/recipes.md','entrypoint':'scripts/run_step.py or scripts/run_recipe.py'}
     spec = TOOL_REGISTRY.get(name)
     if spec is None:
         raise ValueError(f'Unknown tool or recipe: {name}')

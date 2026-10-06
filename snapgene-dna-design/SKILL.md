@@ -11,7 +11,7 @@ First decide whether supplied material can be reused, needs physical preparation
 
 ## Short workflow
 
-Use the installation's verified Python executable from `INSTALL-SOURCE.json` (`python_executable`) when provided; otherwise choose an interpreter and run `scripts/check_env.py --json` once. Use that interpreter for all commands below. Setup instructions are in [docs/installation.md](docs/installation.md).
+Read `INSTALL-SOURCE.json` only in this Skill root when present and use its verified `python_executable`. If absent, choose an interpreter and run `scripts/check_env.py --json` once. Do not search parent/test directories for installation records. Setup instructions are in [docs/installation.md](docs/installation.md).
 
 1. **Inspect sources.** Identify every source record, topology, feature interval, strand, and coordinate system. Start with:
 
@@ -26,6 +26,10 @@ Use the installation's verified Python executable from `INSTALL-SOURCE.json` (`p
 3. **Choose a route for the remaining work.** If new construction is needed, prefer a standard Recipe with the exact signatures and branch notes in [references/recipes.md](references/recipes.md). Use the composite pipeline for a multi-step or non-standard route. Already suitable material does not require a new construction run. When preparation is needed, keep its physical order visible:
 
    Query current parameters with `python scripts/describe_tools.py <recipe_or_tool>`; omit the name to list available entries. Use existing PCR/digest/assembly operations for sequence calculations. If custom code is needed, verify its final ordered oligos and actual returned products before delivering, including any later edits.
+
+   For one step at a time, use `python scripts/run_step.py --input step.json --out-dir build/step`. Inputs name `method`, `params`, `step_id` and original `sources`; continue with the previous `steps.json` as `history_file`. Tools and Recipes share the same entry. `$step.products.0` explicitly selects a real product; QC's `analysis.subject` is the checked source, not a new construct. Default output is concise; the returned record path holds full facts.
+
+   Finish construction with `scripts/finalize_workflow.py --input close.json --out-dir build/final --deliver --confirmed`. Inputs name the actual record, original requirements/sources, selected candidate and final oligos. Use existing user authorization for the flag; do not ask again. [Runnable example and exact input fields](examples/execution_workflow.py). The common gate replays actual work and builds one current bundle. Custom results without replayable transformation evidence retain INCOMPLETE scopes. A supplied already suitable donor still needs no redesign.
 
    ```text
    complete source -> PCR and/or digest -> actual intermediate -> assembly or ligation -> product checks

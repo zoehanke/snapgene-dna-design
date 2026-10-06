@@ -20,6 +20,7 @@ from core.errors import GateRejected, PlanningError, TaskValidationError
 from core.guardrails.checklist import quick_biological_sanity_check
 from core.io.input_resolution import resolve_sequence_input, resolve_sequence_string
 from core.runtime_gate import finalize_candidate_construct
+from delivery_storage_fixture import storage_delivery as finalize_candidate_construct
 from core.runtime_plan import compute_plan_sha256
 
 

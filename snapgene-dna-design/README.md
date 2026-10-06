@@ -6,6 +6,8 @@ v2.0.2保留v2公共接口，修复实际工作流中的GenBank重复元数据�
 
 ## 安装
 
+v2.1.0新增共同单步、候选核查和交付入口。Recipe与原子工具可混合，默认返回简短摘要，完整记录按需读取。交付保存实际中间体、注释源、当前订购表与说明；过期输入、用途或文件错配会阻止相应范围通过。重叠搜索取消隐藏60 nt上限，完全吞并一个输入片段时明确拒绝。
+
 Python 3.10+。复制完整Skill目录，使用同一个Python环境安装依赖并检查环境：
 
 ```text
@@ -28,6 +30,8 @@ python scripts/run_recipe.py --recipe recipe_protein_tagging --params-json fixtu
 ```
 
 最后一条产生带标签的合成教学component，不是完整表达质粒。[快速开始](docs/quick-start.md) · [用户指南](docs/user-guide.md) · [排障](docs/troubleshooting.md)
+
+逐步设计用`scripts/run_step.py`，共同收尾用`scripts/finalize_workflow.py`。Python入口为`core.workflow.run_step`、`core.workflow_validation.validate_candidate`和`core.workflow_delivery.deliver_result`。[完整短例](examples/execution_workflow.py)。原Recipe/Pipeline CLI保留；sanity-only直接提升完整构建已关闭，需要真实执行凭据。
 
 ## 看交付
 

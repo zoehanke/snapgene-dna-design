@@ -1,6 +1,6 @@
 # Safety module: Evidence Trace
 
-Updated: 2026-10-03. This spec owns current Trace behavior and evidence boundaries. Use the [developer router](../docs/README.md) for task-specific reading; completed plans are not default prerequisites. [History](../docs/history.md) records why they changed; [development plans](../docs/development-plans/README.md) own phase scope and results; [usage](../snapgene-dna-design/references/evidence-trace.md) owns CLI/Schema details; [design.md](../docs/trace-report/design.md) owns reading rules and links the optional framework and visual reference.
+Updated: 2026-10-06. This spec owns current Trace behavior and evidence boundaries. Use the [developer router](../docs/README.md) for task-specific reading; completed plans are not default prerequisites. [History](../docs/history.md) records why they changed; [development plans](../docs/development-plans/README.md) own phase scope and results; [usage](../snapgene-dna-design/references/evidence-trace.md) owns CLI/Schema details; [design.md](../docs/trace-report/design.md) owns reading rules and links the optional framework and visual reference.
 
 ## Purpose and present scope
 
@@ -25,6 +25,8 @@ Full data retention does not require copying full records into each derived sect
 ## DNA boundary and collection levels
 
 Observe actual route equivalents of task/plan/execute/validate/finalize at application boundaries. Trace changes no DNA, execution parameters, Core validation or authoritative files. Runtime results alone generate Validation and Artifact facts; preserve failures and original errors. Normal Trace errors continue DNA work with TRACE_INCOMPLETE; explicit strict policy may stop at the boundary without rolling back files. The [Core spec](core-skill.md) owns biological delivery.
+
+The shared step and workflow closure entries are additional observed application boundaries. A delivery bundle contains final DNA, intermediate/source copies and supporting records; only its declared final molecular files are authoritative Artifact nodes. Bundle membership alone does not turn every intermediate or report into a final construct. Off/Observed/Full must preserve these same Core results and delivered bytes.
 
 v2 Core observation includes complete molecular products, direct input-version references and scoped program checks. Serialize actual ToolResult/Molecule values at capture boundaries; never infer a material from an analysis string or promote a reaction/model check into experimental validation. Trace level changes remain observational. Canonical material/file bytes and validation meanings must match Off/Observed/Full for the same workflow.
 

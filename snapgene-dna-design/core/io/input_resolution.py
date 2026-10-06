@@ -35,7 +35,7 @@ def _read_record_from_file(p: pathlib.Path) -> SeqRecord:
         try:
             with p.open(encoding="utf-8") as handle:
                 from core.io.molecule_codec import restore_file_metadata
-                return restore_file_metadata(normalize_primer_qualifiers(SeqIO.read(handle, "genbank")))
+                return normalize_primer_qualifiers(restore_file_metadata(SeqIO.read(handle, "genbank")))
         except Exception as exc:
             raise ValueError(f"Failed to parse GenBank file '{p}': {exc}") from exc
     else:

@@ -62,6 +62,13 @@ def metadata_text(material, visible_record=None, *, native=False):
         data['visible_fingerprint'] = visible_fingerprint(visible_record)
         if native:
             data['native_feature_supplement'] = [feature_data(f) for f in material.features]
+        else:
+            # GenBank hard wrapping can insert spaces into long qualifier text.
+            # Restore only exact original fields after authenticating parsed file content.
+            data['qualifier_supplement'] = [
+                {key:value for key,value in feature_data(original)['qualifiers'].items()
+                 if value != parsed.qualifiers.get(key)}
+                for original,parsed in zip(material.features,visible_record.features)]
     payload = json.dumps(data, ensure_ascii=False, sort_keys=True, separators=(',', ':')).encode('utf-8')
     return MARKER + base64.b64encode(payload).decode('ascii')
 
@@ -118,6 +125,11 @@ def restore_file_metadata(record, text=None):
         from core.io.input_resolution import resolve_sequence_record
         current.features = resolve_sequence_record({'sequence':str(current.seq),
             'record_version': None,'features':data['native_feature_supplement']}).features
+    if 'qualifier_supplement' in data:
+        if len(current.features)!=len(data['qualifier_supplement']):
+            raise ValueError('Qualifier supplement no longer matches the actual features')
+        for feature,qualifiers in zip(current.features,data['qualifier_supplement']):
+            feature.qualifiers.update(qualifiers)
     result = Molecule(current, strandedness=data.get('strandedness'),
                       left_end=FragmentEnd(**ends['left']) if ends.get('left') else None,
                       right_end=FragmentEnd(**ends['right']) if ends.get('right') else None,

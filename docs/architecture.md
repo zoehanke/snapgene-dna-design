@@ -179,7 +179,7 @@ flowchart LR
 
 #### 拟公共入口与收尾
 
-拟提取三个连续责任，不是三套流程。名称是方案占位，运行中尚不可按这些名称调用；参数以实施后的同源定义为准。
+v2.1.0已提取三个连续责任，不是三套流程。Python实际模块为core/workflow.py、core/workflow_validation.py、core/workflow_delivery.py；薄CLI为run_step.py和finalize_workflow.py。
 
 | 接口责任 | 输入 / 输出 | 复用与限制 |
 |---|---|---|
@@ -190,6 +190,10 @@ flowchart LR
 原子ToolSpec保持严格，Recipe通过边界适配进入步骤调用，QC subject不变成新产物。单步失败保留原CoreError和成功前缀；逐步继续仅使用核对过输入、参数及实现/后端条件的旧结果。先支持本地继续，不增加全局运行状态平台。
 
 交付临时目录中的成品、中间体、订购表和说明共同生成并核查；直接Recipe提升也消费完整范围结果，不能只依赖sanity摘要。计算缺少证据时不得借通用文件bundle宣布验证完成。具体实施和验收由[开发方案](development-plans/actual-execution-closure.md)维护。
+
+单步记录保留规范化参数、来源/产物版本、实现及实际Primer3二进制绑定、结果和失败；上下文局部采集注册工具的内部操作，不修改DNA算法参数。Recipe返回仅在适配处统一；实际运算仍直接传Molecule。候选核查重放绑定的输入和方法，对外部自定义算法区分重放一致性与科学变换证明。文件路径沿共同writer确定对象与角色，原模板不能冒充PCR产物，订购表/说明/执行和要求记录也检查实际内容。
+
+core/preparation.py拥有准备重放和文件写出，scripts/run_recipe保留兼容导入。core/io/primer_annotation.py拥有原生/GenBank注释编辑，旧CLI保留入口及使用中的函数导入。正式bundle通过既有runtime_gate独占staging原子提升，复制已验证native后仍作三格式语义核查；哈希属于实际交付字节。Trace只把construct三格式标为最终产物，其余实际中间体仍保留，不改DNA或验证规则。
 
 #### 验收
 

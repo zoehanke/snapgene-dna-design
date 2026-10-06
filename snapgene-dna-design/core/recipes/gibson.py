@@ -415,8 +415,8 @@ def recipe_gibson_assembly(
                 rotation = (starts[0]-default_tail) % len(product)
                 if rotation:
                     parent = assembly_res.only_product()
-                    rotated = ConstructModel(parent).rotate(rotation).to_record()
-                    assembly_res.products = [derived_molecule(rotated, [parent], operation='rotate', strandedness=parent.strandedness)]
+                    from core.tools import rotate_sequence
+                    assembly_res.products = rotate_sequence(parent,rotation).products
                 assembly_res.analysis["origin_rotation_bp"] = rotation
         restored_features = _restore_unique_source_features(
             str(assembly_res.only_product().seq),

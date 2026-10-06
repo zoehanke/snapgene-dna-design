@@ -117,6 +117,8 @@ def simulate_overlap_assembly(
             "explicitly circular input fragment(s): %s"
             % ", ".join("fragment_%d" % index for index in circular_inputs)
         )
+    if any(record.strandedness=='single' for record in records):
+        raise ValueError('Overlap assembly requires duplex substrates; anneal single-stranded oligos first')
     seqs = [str(record.seq).upper() for record in records]
 
     if len(seqs) < 2:
@@ -135,12 +137,22 @@ def simulate_overlap_assembly(
         f_right = seqs[(i + 1) % n_frags]
 
         # Find longest matching overlap at the junction
-        best_ov = 0
-        max_possible = min(len(f_left), len(f_right), 60)
-        for ov_len in range(max_possible, min_overlap - 1, -1):
-            if f_left[-ov_len:] == f_right[:ov_len]:
-                best_ov = ov_len
-                break
+        # Prefix-function matching is O(n), including long or repetitive homology.
+        # '#' is outside the DNA alphabet and prevents crossing the two inputs.
+        limit = min(len(f_left),len(f_right))
+        text = f_right[:limit] + '#' + f_left[-limit:]
+        prefix = [0] * len(text)
+        for position in range(1,len(text)):
+            matched=prefix[position-1]
+            while matched and text[position] != text[matched]:
+                matched=prefix[matched-1]
+            if text[position] == text[matched]:
+                matched+=1
+            prefix[position]=matched
+        best_ov=prefix[-1]
+
+        if best_ov == limit:
+            raise ValueError('OVERLAP_FULL_CONTAINMENT: a complete substrate is consumed; provide distinct contributing fragments')
 
         if best_ov < min_overlap:
             between_desc = f"fragment_{i} and fragment_{(i + 1) % n_frags}"

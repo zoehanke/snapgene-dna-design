@@ -197,6 +197,9 @@ def _promote_verified_candidate(
     out_dir: pathlib.Path | str,
     manifest_payload: dict[str, Any],
     temp_identifier: str = "construct",
+    bundle_dir: pathlib.Path | None = None,
+    bundle_files: dict[str,str] | None = None,
+    candidate_dna: pathlib.Path | None = None,
 ) -> dict[str, Any]:
     """Single physical promoter for authoritative directory creation.
 
@@ -234,7 +237,11 @@ def _promote_verified_candidate(
 
         # Generate SnapGene native .dna
         dna_dst = tmp / "construct.dna"
-        write_dna = subprocess.run(
+        if candidate_dna is not None:
+            shutil.copyfile(candidate_dna,dna_dst)
+            write_dna = subprocess.CompletedProcess([],0,'','')
+        else:
+            write_dna = subprocess.run(
             [
                 sys.executable,
                 "-X",
@@ -254,7 +261,7 @@ def _promote_verified_candidate(
             text=True,
             encoding="utf-8",
             errors="replace",
-        )
+            )
         if write_dna.returncode != 0:
             raise GateRejected("GATE_DNA_WRITE_FAILED", write_dna.stderr[-500:])
 
@@ -340,9 +347,25 @@ def _promote_verified_candidate(
                 )
 
         # Build attested hashed DELIVERY-MANIFEST.json
+        if bundle_dir is not None:
+            if not bundle_files:
+                raise GateRejected('GATE_BUNDLE_EVIDENCE_MISSING','No verified current bundle files')
+            for relative,digest in bundle_files.items():
+                source=(bundle_dir/relative).resolve()
+                destination=(tmp/relative).resolve()
+                if not source.is_relative_to(bundle_dir.resolve()) or not destination.is_relative_to(tmp.resolve()):
+                    raise GateRejected('GATE_BUNDLE_PATH_INVALID','Bundle path leaves its owned directory')
+                if source.is_symlink() or _sha256_file(source).lower()!=digest.lower():
+                    raise GateRejected('GATE_BUNDLE_CHANGED','Bundle changed after checks: '+relative)
+                if relative in ('construct.gb','construct.fasta','construct.dna'):
+                    continue  # These three files were just independently converted and read back.
+                destination.parent.mkdir(parents=True,exist_ok=True)
+                shutil.copyfile(source,destination)
+                if _sha256_file(destination).lower()!=digest.lower():
+                    raise GateRejected('GATE_BUNDLE_CHANGED','Bundle copy differs: '+relative)
         manifest = dict(manifest_payload)
         manifest["files"] = {}
-        for rel in ("construct.gb", "construct.fasta", "construct.dna"):
+        for rel in sorted(str(path.relative_to(tmp)).replace('\\','/') for path in tmp.rglob('*') if path.is_file()):
             manifest["files"][rel] = {
                 "sha256": _sha256_file(tmp / rel),
                 "class": "authoritative",
@@ -461,22 +484,13 @@ def finalize_candidate_construct(
         raise GateRejected("GATE_GUARDRAILS_FAILED", "Annotated candidate failed biological guardrails or does not match the supplied report",
                            details=_guardrail_failure_details(actual_sanity))
 
-    manifest_payload = {
-        "schema_version": "delivery-manifest-v1",
-        "artifact_class": "authoritative",
-        "provenance_type": "recipe",
-        "recipe": metadata.get("recipe", "unknown"),
-        "product_length": metadata.get("product_length", 0),
-        "product_topology": metadata.get("product_topology", "circular"),
-        "guardrails": actual_sanity,
-        "metadata": metadata,
-    }
-
-    temp_id = str(metadata.get("recipe", "recipe_construct")).replace(" ", "_")
-    return _promote_verified_candidate(
-        candidate_gb=gb_path,
-        candidate_fasta=fa_path,
-        out_dir=out_dir,
-        manifest_payload=manifest_payload,
-        temp_identifier=temp_id,
-    )
+    execution_context=metadata.get('execution_context')
+    if not isinstance(execution_context,dict):
+        raise GateRejected('GATE_EXECUTION_EVIDENCE_REQUIRED',
+            'Sanity alone cannot authorize a complete construct; supply actual sources, steps and requirements')
+    from core.workflow_delivery import deliver_result
+    from core.models.molecule import as_molecule
+    return deliver_result(execution_context['requirements'],execution_context['sources'],execution_context['steps'],
+        as_molecule(gb_path),out_dir,primers=execution_context.get('primers'),result_kind='construct',
+        required_scopes=['sequence_model','preparation_model','file','user_goal'],sanity_context=context,
+        provenance={'recipe':metadata.get('recipe','unknown')})

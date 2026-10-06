@@ -215,7 +215,18 @@ def execute_agent_pipeline(
     if report["overall"] == "verified":
         if user_confirmed:
             # 5. Authoritative Finalize
-            delivery = observe("finalize", finalize, vtask, p, exec_res, report, out_path)
+            from core.workflow_delivery import deliver_result
+            steps=[row['execution'] for row in p['steps']]
+            sources_map={source['source_id']:as_molecule(source.get('_resolved_path') or source['path']) for source in vtask['sources']}
+            request={'topology':product_topology,'expected_components':expected_components or [],
+                     'forbidden_components':forbidden_components or []}
+            selected=output_step or pipeline_steps[-1]['step_id']
+            head,_,tail=selected.lstrip('$').partition('.')
+            product_index=int(tail.split('.')[1]) if tail.startswith('products.') else None
+            delivery=observe('finalize',deliver_result,request,sources_map,steps,as_molecule(p['product_molecule']),out_path,
+                required_scopes=vtask.get('validation_requirements',['sequence_model','file','user_goal']),
+                result_kind='construct',output_step=head,product_index=product_index,
+                provenance={'task_id':task_id,'task_sha256':p['task_sha256'],'plan_sha256':p['plan_sha256']})
             status = delivery["status"]
         else:
             status = "verified-candidate"
