@@ -4,7 +4,7 @@
 
 2026年10月6日更新 · 第4版
 
-近期排期见[给真人阅读的7天计划](../development-plans/real-task-readiness-human-plan.md)。本页保留比赛工作分类；下方细项的原进度说明截至10月3日，最新实现和未完成项以[当前交接](../development-plans/README.md)为准。
+近期排期见[给真人阅读的截止前计划](../development-plans/real-task-readiness-human-plan.md)：10月17日内部硬截止，10月15日锁定代码，16日至17日完成正式提交；18日至20日预留复查缓冲，21日官网完全截止。本页保留比赛工作分类；下方细项的原进度说明截至10月3日，最新实现和未完成项以[当前交接](../development-plans/README.md)为准。
 
 ## 先看安排
 
