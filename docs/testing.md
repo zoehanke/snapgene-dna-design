@@ -43,6 +43,8 @@ Core API例子：`python -X utf8 -B snapgene-dna-design/examples/core_workflow.p
 
 Trace记录完整不等于宿主全流程覆盖或科学结论成立。浏览器动作正常不等于人理解正常。桌面SnapGene格式实测、操作者审查、实验表型和全基因组特异性分别提供证据。
 
+本机6.0.2曾在两个转换任务同时运行时不生成部分GenBank输出，同输入串行复测通过；并发因果尚未受控证实。桌面CLI转换目前串行运行，不宣称并发支持。保留每轮失败及原退出码；某一步原样复测通过不能改写此前整套命令的失败报告。[当前闭环计划](development-plans/actual-execution-closure.md)保留本次实际记录。
+
 ## 环境与独立包
 
 记录源码提交、包清单/哈希、解释器、依赖、平台、实际后端、输入条件与人工介入。同平台精确复现可参考Skill内requirements-tested；跨平台或可选后端不沿用未经验证的保证。精确模型token不可得时写未知。
