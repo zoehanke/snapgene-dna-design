@@ -4,6 +4,8 @@
 
 只读`ls-remote`确认软件仓库HEAD/main为`241b12fcad038e9f56fac563438f717f38e40644`，未发现远端tag。源码树内容、当前Release列表、实际写入权限、Dashboard关联与自动冻结机制尚未确认。配置URL和存在main不等于受测软件已发布。本次只更新日程和交接，未推送GitLab、合并main或发布Release。
 
+2026-10-07进一步只读查询GitLab API：main根目录仅`.claude/`、`CLAUDE.md`、`LICENSE`、`README.md`，未见当前Skill源码目录。Release API返回403，未据此断言Release数量或写入权限。本队README明确要求源码进入本仓库main，并称Wiki Freeze时自动创建评审Release；Dashboard实际任务仍未核实。当前2.1.0测试包/DSH安装与dd293a8实施提交绑定，c921c00为后续开发记录提交且精确CI成功；下一步准备审定源码整合，不将已有GitHub/本机结果称为官方仓库发布。
+
 ## 版本交接
 
 具体日期与分工见[单人日程](../development-plans/real-task-readiness-human-plan.md)，不在这里再维护一套日历。准备2.0.2基线归档、修复候选版和最终参赛版：基线如实列开发回归与第2题已知失败；候选用于下载和宿主重测；最终版引用冻结审定代码。版本号随实际兼容性变化确定，公开日期与提交历史如实记录。
