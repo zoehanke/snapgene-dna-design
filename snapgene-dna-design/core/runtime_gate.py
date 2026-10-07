@@ -23,7 +23,7 @@ import tempfile
 
 from Bio import SeqIO
 
-from core.errors import GateRejected
+from core.errors import GateRejected, ValidationError
 from core.evidence import stamp_product
 from core.runtime_execute import compute_execution_sha256
 from core.runtime_plan import compute_plan_sha256
@@ -39,6 +39,81 @@ def _sha256_file(path: pathlib.Path | str) -> str:
         for chunk in iter(lambda: fh.read(1 << 20), b""):
             h.update(chunk)
     return h.hexdigest().upper()
+
+
+def _present_files(directory, manifest):
+    """Primary links refer to the final verified directory, never candidate copies."""
+    labels = {
+        'construct.gb': 'Result with annotations (GenBank)',
+        'construct.dna': 'Result with annotations (SnapGene)',
+        'construct.fasta': 'Result sequence (FASTA)',
+        'design.md': 'Current design, preparation and checked scope',
+        'oligo_order_table.tsv': 'Final oligo orders and uses',
+        'primer_order_table.tsv': 'Preparation primers and actual source positions',
+        'validation.json': 'Current validation results',
+        'preparation_quality.json': 'Complete preparation-oligo quality results',
+    }
+    entries = [{'path': str(directory / name), 'description': description,
+                'artifact': name, 'sha256': manifest['files'][name]['sha256']}
+               for name, description in labels.items() if name in manifest['files']]
+    entries.append({'path': str(directory / 'DELIVERY-MANIFEST.json'),
+                    'description': 'All delivered files and their version hashes',
+                    'artifact': 'DELIVERY-MANIFEST.json',
+                    'sha256': _sha256_file(directory / 'DELIVERY-MANIFEST.json')})
+    return entries
+
+
+def verify_delivery_files(directory, *, presented_files=None, expected_manifest_sha256=None):
+    """Read-only file-integrity and presentation-membership check, not new biology validation."""
+    directory = pathlib.Path(directory).resolve()
+    manifest_path = directory / 'DELIVERY-MANIFEST.json'
+    if not manifest_path.is_file():
+        raise ValidationError('DELIVERY_MANIFEST_MISSING', 'No delivery manifest at this directory')
+    digest = _sha256_file(manifest_path)
+    if expected_manifest_sha256 is not None and digest != expected_manifest_sha256.upper():
+        raise ValidationError('DELIVERY_MANIFEST_CHANGED', 'The expected delivery manifest changed')
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
+        files = manifest['files']
+        if not isinstance(files, dict) or not files:
+            raise ValueError('No file entries')
+        resolved = {}
+        changed = []
+        for name, entry in files.items():
+            path = (directory / name).resolve()
+            if not path.is_relative_to(directory) or path.is_symlink():
+                raise ValidationError('DELIVERY_PATH_INVALID', 'Manifest path leaves the delivered directory')
+            if not path.is_file() or _sha256_file(path) != entry['sha256'].upper():
+                changed.append(name)
+            resolved[path] = name
+    except ValidationError:
+        raise
+    except (KeyError, TypeError, ValueError, OSError) as exc:
+        raise ValidationError('DELIVERY_MANIFEST_INVALID', 'Malformed delivery file evidence') from exc
+    if changed:
+        raise ValidationError('DELIVERY_FILE_CHANGED', 'Delivered files are missing or changed', details={'files': changed})
+    resolved[manifest_path] = 'DELIVERY-MANIFEST.json'
+    if presented_files is not None:
+        if not isinstance(presented_files, list) or not presented_files:
+            raise ValidationError('PRESENTATION_INPUT_INVALID', 'presented_files must be a nonempty path/descriptor list')
+        for item in presented_files:
+            value = item.get('path') if isinstance(item, dict) else item
+            if not isinstance(value, (str, pathlib.Path)):
+                raise ValidationError('PRESENTATION_INPUT_INVALID', 'Every presentation entry needs a file path')
+            path = pathlib.Path(value).resolve()
+            if path not in resolved:
+                raise ValidationError('PRESENTATION_FILE_UNVERIFIED', 'Presented file is not a member of this validated delivery',
+                                      details={'path': str(path)})
+            if isinstance(item, dict):
+                actual_hash = digest if path == manifest_path else files[resolved[path]]['sha256'].upper()
+                if item.get('sha256') is not None and item['sha256'].upper() != actual_hash:
+                    raise ValidationError('PRESENTATION_FILE_CHANGED', 'Presentation descriptor belongs to an older file version')
+                if item.get('artifact') is not None and item['artifact'] != resolved[path]:
+                    raise ValidationError('PRESENTATION_ROLE_MISMATCH', 'Presentation path does not match its declared artifact')
+    return {'status': 'verified', 'scope': 'delivered file integrity and presentation membership only',
+            'directory': str(directory), 'manifest_sha256': digest,
+            'present_files': _present_files(directory, manifest),
+            'domain_validation_sha256': manifest.get('validation_sha256')}
 
 
 def _check_chain(task: dict, plan: dict, execution: dict, validation: dict) -> None:
@@ -403,6 +478,7 @@ def _promote_verified_candidate(
         "directory": str(authoritative),
         "manifest_sha256": _sha256_file(authoritative / "DELIVERY-MANIFEST.json"),
         "files": sorted(str(p.relative_to(authoritative)) for p in authoritative.iterdir()),
+        "present_files": _present_files(authoritative, manifest),
     }
 
 

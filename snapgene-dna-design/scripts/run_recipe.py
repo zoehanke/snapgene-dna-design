@@ -70,6 +70,8 @@ def run_recipe_cli(
     requirements["sources"] = params.pop("sources", [])
     if any(not isinstance(value, list) for value in requirements.values()):
         raise ValueError("expected_components, forbidden_components and sources must be lists")
+    from core.requirements import validate_component_declarations
+    validate_component_declarations(requirements)
 
     # 1. Execute Recipe
     from core.workflow import run_step, recipe_result, _materials
@@ -220,6 +222,7 @@ def run_recipe_cli(
         "candidate_directory": str(candidate_dir),
         "candidate_files": candidate_files,
         "authoritative_delivery": authoritative_delivery,
+        "present_files": authoritative_delivery.get('present_files', []) if authoritative_delivery else [],
         "recipe_result": res,
         "sanity_check": sanity,
         "preparation_files": preparation_files,
@@ -277,7 +280,9 @@ def format_markdown_summary(exec_summary: dict[str, Any]) -> str:
     lines.append("\n### Artifact Deliveries")
     lines.append(f"- **Candidate Directory**: `{exec_summary['candidate_directory']}`")
     if exec_summary.get("authoritative_delivery"):
-        lines.append(f"- **Authoritative Directory**: `{exec_summary['authoritative_delivery']['directory']}` (DELIVERY-MANIFEST.json signed)")
+        lines.append(f"- **Authoritative Directory**: `{exec_summary['authoritative_delivery']['directory']}` (hash-bound DELIVERY-MANIFEST.json)")
+        for entry in exec_summary['authoritative_delivery'].get('present_files', []):
+            lines.append(f"- [{entry['description']}]({entry['path']})")
 
     return "\n".join(lines)
 

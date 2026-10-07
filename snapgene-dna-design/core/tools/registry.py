@@ -208,6 +208,7 @@ def init_default_registry() -> None:
         prepare_pcr_fragment,
         simulate_pcr,
     )
+    from core.tools.comparison import compare_sequences
     from core.tools.assembly import (
         ligate_fragments,
         simulate_digest_ligation,
@@ -261,6 +262,9 @@ def init_default_registry() -> None:
     )
 
     tools = [
+        ToolSpec('compare_sequences', compare_sequences, 'inspect',
+                 'Compare actual sequence/feature regions with explicit local/global coverage; optionally report complete-CDS protein/codon differences. No phenotype inference.',
+                 {'properties': {'mode': {'enum': ['local', 'global']}, 'max_alignment_cells': {'minimum': 1}}}),
         ToolSpec('rotate_sequence',rotate_sequence,'compute',
                  'Rotate the origin of a circular Molecule, retaining sequence, annotations and input version.',
                  {'properties':{'origin_0based':{'minimum':0}}}),

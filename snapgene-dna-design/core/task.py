@@ -117,6 +117,14 @@ def validate_construction_task(task, base_dir=None):
             missing_fields=list(exc.path),
             details={"schema": str(exc.path)})
 
+    from core.requirements import validate_component_declarations
+    try:
+        validate_component_declarations(task)
+    except Exception as exc:
+        from core.errors import ValidationError
+        if not isinstance(exc, ValidationError):
+            raise
+        raise TaskValidationError(exc.error_code, exc.message, details=exc.details) from exc
     kind = get_task_kind(task["task_kind"])
 
     # ---- sources: identity, hash, evidence, topology ---------------------

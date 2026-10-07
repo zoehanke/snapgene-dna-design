@@ -247,6 +247,7 @@ def execute_agent_pipeline(
         "product_topology": product_topology,
         "validation_report": report,
         "delivery": delivery,
+        "present_files": delivery.get('present_files', []) if delivery else [],
         "snapgene_status": snapgene_status,
         "authoritative_dir": str(out_path / "authoritative") if delivery else None,
         "task_file": str(out_path / "task.json"),

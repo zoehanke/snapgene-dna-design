@@ -7,16 +7,21 @@ ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT))
 from core.workflow_validation import validate_candidate
 from core.workflow_delivery import deliver_result
-from core.errors import CoreError
+from core.errors import CoreError, ValidationError
 from evidence_trace.runtime import traced_run, add_trace_arguments, trace_options
 
 
 @traced_run('workflow')
 def execute(config,out_dir,deliver):
+    allowed = {'record_file', 'sources', 'steps', 'candidate', 'requirements', 'primers', 'files',
+               'result_kind', 'required_scopes', 'output_step', 'product_index', 'validation', 'sanity_context'}
+    if not isinstance(config, dict) or set(config) - allowed:
+        raise ValidationError('WORKFLOW_CONFIG_INVALID', 'Unknown or invalid workflow configuration fields',
+                              details={'supported_fields': sorted(allowed)})
     history=json.loads(Path(config['record_file']).read_text(encoding='utf-8')) if config.get('record_file') else config
     sources=config.get('sources',history.get('sources',{}))
     steps=history['steps']
-    options={key:config[key] for key in ('primers','result_kind','required_scopes','output_step','product_index') if key in config}
+    options={key:config[key] for key in ('primers','result_kind','required_scopes','output_step','product_index','sanity_context') if key in config}
     if deliver:
         return deliver_result(config['requirements'],sources,steps,config['candidate'],out_dir,
                               validation=config.get('validation'),**options)
@@ -24,7 +29,8 @@ def execute(config,out_dir,deliver):
     out=Path(out_dir);out.mkdir(parents=True,exist_ok=True)
     (out/'validation.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
     return {'status':report['overall'],'validation_file':str((out/'validation.json').resolve()),
-            'scope_results':{key:value['status'] for key,value in report['scope_results'].items()},'errors':report['errors']}
+            'scope_results':{key:value['status'] for key,value in report['scope_results'].items()},'errors':report['errors'],
+            'goal_coverage': report['goal_coverage'], 'preparation_quality': report['preparation_quality']}
 
 
 def main():
@@ -44,7 +50,7 @@ def main():
     except Exception as exc:
         result={'status':'failed','error':exc.to_dict() if isinstance(exc,CoreError) else {'message':str(exc)}}
     if result.get('status')=='delivered':
-        result={key:result[key] for key in ('status','directory','files','manifest_sha256')}
+        result={key:result[key] for key in ('status','directory','files','manifest_sha256','present_files','goal_coverage')}
     print(json.dumps(result,ensure_ascii=False,indent=2))
     return 0 if result.get('status') in ('verified','delivered') else 1
 

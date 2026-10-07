@@ -12,7 +12,7 @@ from core.workflow import _digest
 from core.workflow_validation import _step, replay_steps, validate_candidate
 
 
-def preparation_rows(steps):
+def preparation_rows(steps,candidate=None):
     """Actual PCR/Recipe preparations, deduplicated by material version."""
     rows=[]
     seen=set()
@@ -31,6 +31,9 @@ def preparation_rows(steps):
             if version not in seen:
                 rows.append(item)
                 seen.add(version)
+    if candidate is not None:
+        used = _used_products(steps, candidate)
+        rows = [row for row in rows if as_molecule(row['product']).record_version in used]
     return rows
 
 
@@ -61,7 +64,7 @@ def file_subjects(steps,candidate):
         if version==candidate.record_version:continue
         for extension in ('gb','dna'):
             subjects[f'actual_intermediates/intermediate_{index:03d}.{extension}']=product
-    for index,row in enumerate(preparation_rows(steps),1):
+    for index,row in enumerate(preparation_rows(steps,candidate),1):
         product=as_molecule(row['product'])
         annotated=annotate_record_primers(as_molecule(row['template']),row['primers'])
         for extension in ('gb','dna','fasta'):
@@ -94,12 +97,27 @@ def synthesis_orders(steps,candidate):
     return order_rows(orders)
 
 
-def render_design(material,result_kind,steps,orders):
+def render_design(material,result_kind,steps,orders,requirements=None,quality=None):
     document=['# Current design and preparation',f'Product: {len(material)} bp; topology: {material.topology}; role: {result_kind}.',
               '## Actual steps']
     document.extend(f'{i+1}. {step.method} ({step.step_id}).' for i,step in enumerate(steps))
     document.append('## Final oligos')
     document.extend(f'{row["name"]}: {row["sequence_5to3"]} ({row["role"]}).' for row in orders)
+    if requirements is not None:
+        document.append('## Original request and declared constraints')
+        for name in ('original_request', 'description', 'topology'):
+            if requirements.get(name): document.append(f'{name}: {requirements[name]}')
+        for name in ('expected_components', 'forbidden_components'):
+            for item in requirements.get(name, []):
+                descriptor = item if isinstance(item, str) else item.get('name', 'explicit sequence component')
+                source = item.get('source_id') if isinstance(item, dict) else None
+                document.append(f'{name}: {descriptor}' + (f' (source: {source})' if source else ''))
+        document.append('Checks cover declared computable constraints. Free-text meaning and experimental phenotype are not automatically verified.')
+    if quality is not None:
+        document.append('## Preparation oligo quality')
+        document.append(f'Overall: {quality["status"]}. Reaction replay and oligo quality are separate checks.')
+        document.extend(f'{row.get("id")}: {row["status"]} ({row["method"]}).' for row in quality['checks'])
+        document.append('Measurements/conditions are in preparation_quality.json; experimental efficiency is not established.')
     for step in steps:document.extend(str(p.get('action',p)) for p in step.result.analysis.get('protocol_steps',[]))
     return '\n\n'.join(document)+'\n'
 
@@ -110,6 +128,9 @@ def deliver_result(requirements,sources,steps,candidate,out_dir,*,primers=None,r
     from core.preparation import write_preparation_artifacts
     from core.tools import export_snapgene
     from core.runtime_gate import _promote_verified_candidate
+    from core.requirements import validate_requirements, validate_validation_options
+    validate_requirements(requirements)
+    validate_validation_options(required_scopes, result_kind)
     material=as_molecule(candidate)
     if validation is not None:
         payload={k:v for k,v in validation.items() if k!='validation_sha256'}
@@ -128,7 +149,7 @@ def deliver_result(requirements,sources,steps,candidate,out_dir,*,primers=None,r
     bundle=Path(tempfile.mkdtemp(prefix='candidate-',dir=out))
     try:
         replayed=replay_steps(steps,sources)
-        rows=preparation_rows(replayed)
+        rows=preparation_rows(replayed,material)
         preparation=write_preparation_artifacts(rows,bundle)
         files=export_snapgene(material,bundle,filename_base='construct').analysis
         from Bio import SeqIO
@@ -144,6 +165,8 @@ def deliver_result(requirements,sources,steps,candidate,out_dir,*,primers=None,r
         orders=[]
         for step in replayed:
             kind=step.result.analysis.get('result_kind')
+            if kind != 'verification' and not any(p.record_version in used for p in step.result.products):
+                continue
             for p in step.result.analysis.get('primers',[]):
                 if isinstance(p,dict):orders.append({**p,'role':'qc' if kind=='verification' else 'preparation'})
         for row in rows:
@@ -157,7 +180,7 @@ def deliver_result(requirements,sources,steps,candidate,out_dir,*,primers=None,r
         with order_path.open('w',encoding='utf-8',newline='') as handle:
             writer=csv.DictWriter(handle,fieldnames=['name','sequence_5to3','role'],delimiter='\t')
             writer.writeheader();writer.writerows(ordered)
-        (bundle/'design.md').write_text(render_design(material,result_kind,replayed,ordered),encoding='utf-8')
+        (bundle/'design.md').write_text(render_design(material,result_kind,replayed,ordered,requirements,preparation['quality']),encoding='utf-8')
         (bundle/'execution.json').write_text(json.dumps([s.to_dict() for s in replayed],ensure_ascii=False,indent=2),encoding='utf-8')
         (bundle/'requirements.json').write_text(json.dumps(requirements,ensure_ascii=False,indent=2),encoding='utf-8')
         checked_files={str(path.relative_to(bundle)).replace('\\','/'):str(path)
@@ -177,7 +200,8 @@ def deliver_result(requirements,sources,steps,candidate,out_dir,*,primers=None,r
              'requirements':requirements,'scope_results':report['scope_results'],'validation_sha256':report['validation_sha256'],
              'subject_version':material.record_version,'source_versions':report['source_versions']},
             bundle_dir=bundle,bundle_files=hashes,candidate_dna=Path(files['dna_file']))
-        return {**delivery,'validation':report,'candidate_directory':str(bundle),'preparation_files':preparation}
+        return {**delivery,'validation':report,'goal_coverage':report['goal_coverage'],
+                'candidate_directory':str(bundle),'preparation_files':preparation}
     except Exception as exc:
         (bundle/'failure.json').write_text(json.dumps({'status':'failed','message':str(exc)},ensure_ascii=False,indent=2),encoding='utf-8')
         raise

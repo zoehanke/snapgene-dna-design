@@ -539,7 +539,30 @@ def run_benchmark_10(evaluator: BenchmarkEvaluator):
     assert pcr.error is None,pcr.error
     circle=run_step('ligate_fragments',{'fragments':['$pcr'],'circular':True},step_id='circle',sources=sources,previous=[pcr])
     assert circle.error is None,circle.error
-    delivery = deliver_result({'topology':'circular','expected_sequence':seq},sources,[pcr,circle],circle.result.only_product(),task_dir)
+    # Keep the original arbitrary end primers as a quality-failure case.
+    # Frozen Primer3 also rejects their complete structures; do not relax it.
+    from core.workflow_validation import validate_candidate
+    original = validate_candidate({'topology':'circular','expected_sequence':seq},sources,[pcr,circle],
+        circle.result.only_product(),required_scopes=['sequence_model','preparation_model','user_goal'])
+    assert original['scope_results']['sequence_model']['status']=='PASSED'
+    assert original['scope_results']['preparation_model']['status']=='FAILED'
+    assert 'OLIGO_QUALITY_FAILED' in str(original['errors'])
+
+    # The same original template/target supports a real single-cut/ligation
+    # preparation. This positive route has no PCR oligos to mislabel as passed.
+    digest=run_step('digest_sequence',{'seq':'$template','enzyme':'EcoRI','circular':True},
+        step_id='digest',sources=sources)
+    assert digest.error is None,digest.error
+    ligated=run_step('ligate_fragments',{'fragments':['$digest'],'circular':True},
+        step_id='ligated',sources=sources,previous=[digest])
+    assert ligated.error is None,ligated.error
+    actual=str(ligated.result.only_product().seq)
+    origin=(actual+actual).find(seq)
+    assert len(actual)==len(seq) and origin>=0,'Original complete target must remain unchanged'
+    restored=run_step('rotate_sequence',{'dna_seq':'$ligated','origin_0based':origin},
+        step_id='restored',sources=sources,previous=[digest,ligated])
+    assert restored.error is None,restored.error
+    delivery = deliver_result({'topology':'circular','expected_sequence':seq},sources,[digest,ligated,restored],restored.result.only_product(),task_dir)
 
     auth_dir = pathlib.Path(delivery["directory"])
     assert auth_dir.exists(), "Authoritative directory must be created"

@@ -16,9 +16,14 @@ if str(ROOT) not in sys.path:
 def describe(name: str | None = None) -> dict:
     from core.tools import TOOL_REGISTRY
     import core.recipes as recipes
+    if name == 'workflow_requirements':
+        from core.requirements import requirements_definition
+        return {'name': name, 'kind': 'goal_contract', 'parameters': requirements_definition(),
+                'entrypoint': 'validate_candidate / deliver_result / scripts/finalize_workflow.py',
+                'coverage': 'Declared computable constraints; free-text original_request is retained, not automatically verified.'}
     recipe_names = sorted(n for n in dir(recipes) if n.startswith('recipe_') and callable(getattr(recipes,n)))
     if name is None:
-        return {'recipes': recipe_names,
+        return {'contracts': ['workflow_requirements'], 'recipes': recipe_names,
                 'tools': [{'name': key, 'category': spec.category} for key,spec in sorted(TOOL_REGISTRY.items())]}
     if name in recipe_names:
         from core.workflow import get_method
@@ -28,7 +33,7 @@ def describe(name: str | None = None) -> dict:
     spec = TOOL_REGISTRY.get(name)
     if spec is None:
         raise ValueError(f'Unknown tool or recipe: {name}')
-    entrypoint = ('scripts/run_pipeline.py' if spec.category in {'compute','inspect'}
+    entrypoint = ('scripts/run_step.py or scripts/run_pipeline.py' if spec.category in {'compute','inspect'}
                   else 'direct callable; use the corresponding file/external CLI, not a Pipeline step')
     return {**spec.to_definition(), 'signature': str(inspect.signature(spec.callable)),
             'parameter_aliases': spec.param_aliases,

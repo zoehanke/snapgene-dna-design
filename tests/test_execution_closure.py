@@ -205,7 +205,12 @@ class CandidateChecksTests(unittest.TestCase):
         selected=pcr.result.only_product()
         required=['sequence_model','preparation_model','user_goal']
         report=validate_candidate({'topology':'linear'},sources,[pcr],selected,required_scopes=required)
-        self.assertEqual(report['overall'],'verified',report['errors'])
+        # Preserve the original input. Frozen 2.1.0 Primer3 independently
+        # measures its forward hairpin at 51.27 C, above the unchanged 47 C
+        # default; reaction identity is valid but full preparation is not.
+        self.assertEqual(report['scope_results']['sequence_model']['status'],'PASSED')
+        self.assertEqual(report['scope_results']['preparation_model']['status'],'FAILED')
+        self.assertIn('OLIGO_QUALITY_FAILED', str(report['errors']))
         wrong=copy.deepcopy(selected)
         wrong.seq=Seq(str(wrong.seq)[:-1]+('A' if str(wrong.seq)[-1]!='A' else 'C'))
         report=validate_candidate({'topology':'linear'},sources,[pcr],wrong,required_scopes=required)

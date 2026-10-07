@@ -31,8 +31,7 @@ def main():
     sources={'source':source}
     steps=[]
     for name,method,params in [
-        ('pcr','simulate_pcr',{'template':'$source','f_primer':sequence[30:50],
-                               'r_primer':str(Seq(sequence[380:400]).reverse_complement())}),
+        ('pcr','prepare_pcr_fragment',{'template':'$source','start':30,'end':400}),
         ('cut','digest_sequence',{'seq':'$pcr','enzyme':'EcoRI'}),
         ('joined','ligate_fragments',{'fragments':['$cut.products.0','$cut.products.1']})]:
         step=run_step(method,params,step_id=name,sources=sources,previous=steps)

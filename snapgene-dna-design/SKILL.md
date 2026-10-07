@@ -23,6 +23,8 @@ Read `INSTALL-SOURCE.json` only in this Skill root when present and use its veri
 
 2. **State intent and material status.** Preserve the user's required components, interfaces, mutations and exclusions before choosing a route. Check that original list at handoff; a route that cannot satisfy it needs revision or an explicit incomplete result. Record what is provided prepared DNA, what must be prepared from a complete template, and what is only a design component. Express required/forbidden DNA in `expected_components` / `forbidden_components`; Recipe and Pipeline can resolve features from named `sources`, avoiding manual copying of long sequences. A backbone needs an actual preparation row or an explicit supplied-prepared status. User authorization persists.
 
+   Query `python scripts/describe_tools.py workflow_requirements` for the executable goal fields. Retain the user's exact text in `original_request` and add computable constraints as needed. Read `goal_coverage` at handoff: it lists what was checked and preserves free-text gaps. A string `requirements` list is descriptive text, not an executable component declaration; the goal boundary rejects it. Choose either an explicit component sequence or an original source selector; if both are supplied, they must agree.
+
 3. **Choose a route for the remaining work.** If new construction is needed, prefer a standard Recipe with the exact signatures and branch notes in [references/recipes.md](references/recipes.md). Use the composite pipeline for a multi-step or non-standard route. Already suitable material does not require a new construction run. When preparation is needed, keep its physical order visible:
 
    Query current parameters with `python scripts/describe_tools.py <recipe_or_tool>`; omit the name to list available entries. Use existing PCR/digest/assembly operations for sequence calculations. If custom code is needed, verify its final ordered oligos and actual returned products before delivering, including any later edits.
@@ -31,11 +33,17 @@ Read `INSTALL-SOURCE.json` only in this Skill root when present and use its veri
 
    Finish construction with `scripts/finalize_workflow.py --input close.json --out-dir build/final --deliver --confirmed`. Inputs name the actual record, original requirements/sources, selected candidate and final oligos. Use existing user authorization for the flag; do not ask again. [Runnable example and exact input fields](examples/execution_workflow.py). The common gate replays actual work and builds one current bundle. Custom results without replayable transformation evidence retain INCOMPLETE scopes. A supplied already suitable donor still needs no redesign.
 
+   Present the returned `present_files` paths from that delivery. Use `python scripts/verify_delivery.py --directory <returned-directory> --presented-json <selected-path-list.json> --manifest-sha256 <returned-hash>` to check the actual final selection. Edited/renamed candidate copies need renewed domain/file validation. This command verifies file membership and integrity, not new biological claims or arbitrary host activity.
+
+   Actual preparation pairs have separate complete-oligo quality results in `preparation_quality.json`; replay success is not a quality pass. Use the returned method/conditions and revise the route when quality fails or is incomplete. Known QuikChange complementary pairs are individually measured; ordinary PCR rules remain unchanged. Keep synthesis and QC uses separate.
+
    ```text
    complete source -> PCR and/or digest -> actual intermediate -> assembly or ligation -> product checks
    ```
 
    A theoretical tag, fusion, or other component result can guide design. It is not a PCR template. PCR must bind the complete original template and its returned product must feed the next digest or assembly step.
+
+   For source/reference similarity or coding-difference claims, query `describe_tools.py compare_sequences` and use its actual feature boundaries, coverage, orientation, frame and genetic code. Local mode handles a short region inside a longer reference. Inspect protein/codon results before saying changes are synonymous. Use selected-record coordinates; genomic offsets and phenotype require their own evidence.
 
    For a continuing task, reference the previous delivered file as the next actual template. Its retained sequence alone does not establish inheritance if preparation still uses the original parent. The PCR CLI supports 5-prime tails and annotated `.gb/.dna` output; its source copy and order tables use template coordinates, not final-product coordinates.
 

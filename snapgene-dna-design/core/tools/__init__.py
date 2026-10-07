@@ -7,6 +7,7 @@ silence internal sites via synonymous mutations, design primers, simulate PCR
 and cloning, fuse proteins in-frame, and export native SnapGene (.dna) files.
 """
 from __future__ import annotations
+from core.tools.comparison import compare_sequences
 
 from core.tools.amplification import (
     anneal_oligos,
@@ -107,6 +108,7 @@ __all__ = [
     "reverse_complement",
     "translate_dna",
     "get_codon_synonyms",
+    "compare_sequences",
     "silent_mutation_remove_site",
     "fuse_in_frame",
     "get_standard_element",

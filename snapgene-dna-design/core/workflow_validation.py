@@ -87,6 +87,9 @@ def validate_candidate(requirements,sources,steps,candidate,*,primers=None,files
     from core.runtime_validate import _validate_requested_components
     from core.tools.sequence_ops import validate_cds_feature
     from core.handlers.composite_pipeline import _preparation_check
+    from core.requirements import validate_requirements, validate_validation_options, goal_coverage
+    validate_requirements(requirements)
+    validate_validation_options(required_scopes, result_kind)
     material=as_molecule(candidate)
     errors=[]
     scopes={scope:check_result(scope,subject=material,status='INCOMPLETE',scope=scope)
@@ -151,6 +154,15 @@ def validate_candidate(requirements,sources,steps,candidate,*,primers=None,files
         scopes['sequence_model']=check_result('actual_step_replay',subject=material,status='INCOMPLETE' if not steps else 'FAILED',
                scope='sequence_model',details={'error':exc.to_dict() if isinstance(exc,ValidationError) else str(exc)})
 
+    from core.workflow_delivery import _used_products, preparation_rows
+    from core.preparation import check_preparation_quality
+    used_versions = _used_products(replayed, expected if expected is not None else material)
+    quality_rows = preparation_rows(replayed,expected if expected is not None else material)
+    quality = check_preparation_quality(quality_rows)
+    scopes['preparation_model']['details']['oligo_quality'] = quality
+    if quality['status'] in ('FAILED', 'INCOMPLETE'):
+        scopes['preparation_model']['status'] = quality['status']
+        errors.append('OLIGO_QUALITY_' + quality['status'] + ': complete preparation oligo quality was not established')
     actual_primers=[p for row in replayed for p in row.result.analysis.get('primers',[])]
     for row in replayed:
         for op in row.operations:
@@ -161,7 +173,7 @@ def validate_candidate(requirements,sources,steps,candidate,*,primers=None,files
         from core.workflow_delivery import _used_products, preparation_rows, synthesis_orders
         used=_used_products(replayed,expected or material)
         needed=[]
-        for row in preparation_rows(replayed):
+        for row in preparation_rows(replayed,expected if expected is not None else material):
             if as_molecule(row['product']).record_version in used:
                 needed.extend(p.get('sequence') or p.get('seq') for p in row['primers'])
         supplied={p.get('sequence') or p.get('sequence_5to3') or p.get('seq') for p in primers if p.get('role','preparation')=='preparation'}
@@ -193,11 +205,14 @@ def validate_candidate(requirements,sources,steps,candidate,*,primers=None,files
     goal_errors=[]
     from core.guardrails.checklist import quick_biological_sanity_check
     context={**(sanity_context or {}),'topology':material.topology}
+    if 'is_cds' in requirements and 'is_cds' in context and context['is_cds'] != requirements['is_cds']:
+        raise ValidationError('GOAL_CONTEXT_CONFLICT', 'is_cds disagrees between the goal and validation conditions')
     context.setdefault('is_cds',bool(requirements.get('is_cds',False)))
     sanity=quick_biological_sanity_check(material,**context)
     if sanity.get('all_applicable_pass') is not True:
         goal_errors.extend('BIOLOGICAL_CHECK_FAILED: '+str(code) for code in sanity.get('blocking_codes',[]))
-    structured=any(key in requirements for key in ('topology','expected_sequence','expected_components','forbidden_components'))
+    coverage=goal_coverage(requirements, [])
+    structured=bool(coverage['checked_fields'])
     if requirements.get('topology') and requirements['topology']!=material.topology:goal_errors.append('GOAL_TOPOLOGY_MISMATCH')
     if requirements.get('expected_sequence') and requirements['expected_sequence'].upper()!=str(material.seq):goal_errors.append('GOAL_SEQUENCE_MISMATCH')
     traces,component_errors=_validate_requested_components(requirements,material,source_records={k:as_molecule(v) for k,v in sources.items()})
@@ -205,7 +220,8 @@ def validate_candidate(requirements,sources,steps,candidate,*,primers=None,files
     errors.extend(goal_errors)
     scopes['user_goal']=check_result('computable_user_requirements',subject=material,
         status=('FAILED' if goal_errors else 'PASSED') if structured else 'INCOMPLETE',scope='user_goal',
-        details={'checks':traces,'errors':goal_errors,'semantic_coverage':'declared computable requirements only'})
+        details={'checks':traces,'errors':goal_errors,'coverage':goal_coverage(requirements,traces),
+                 'semantic_coverage':'declared computable requirements only'})
     hashes={}
     file_errors=[]
     if files:
@@ -235,7 +251,7 @@ def validate_candidate(requirements,sources,steps,candidate,*,primers=None,files
                 with path.open(encoding='utf-8') as handle:record=list(csv.DictReader(handle,delimiter='\t'))
                 if primers is None or record!=order_rows(primers):file_errors.append('ORDER_TABLE_MISMATCH')
             elif name=='design.md':
-                if primers is None or path.read_text(encoding='utf-8')!=render_design(material,result_kind,replayed,order_rows(primers)):
+                if primers is None or path.read_text(encoding='utf-8')!=render_design(material,result_kind,replayed,order_rows(primers),requirements,quality):
                     file_errors.append('EXPLANATION_NOT_CURRENT')
             elif name=='execution.json':
                 import json
@@ -244,10 +260,14 @@ def validate_candidate(requirements,sources,steps,candidate,*,primers=None,files
             elif name=='requirements.json':
                 import json
                 if json.loads(path.read_text(encoding='utf-8'))!=requirements:file_errors.append('REQUIREMENTS_RECORD_MISMATCH')
+            elif name=='preparation_quality.json':
+                import json
+                if json.loads(path.read_text(encoding='utf-8')) != quality:
+                    file_errors.append('PREPARATION_QUALITY_RECORD_MISMATCH')
             elif name=='primer_order_table.tsv':
                 import csv
                 from core.workflow_delivery import preparation_rows
-                needed=[(p.get('name','primer'),p.get('sequence') or p.get('seq')) for row in preparation_rows(replayed) for p in row['primers']]
+                needed=[(p.get('name','primer'),p.get('sequence') or p.get('seq')) for row in preparation_rows(replayed,material) for p in row['primers']]
                 with path.open(encoding='utf-8') as handle:orders=list(csv.DictReader(handle,delimiter='\t'))
                 if [(p.get('name'),p.get('sequence_5to3')) for p in orders]!=needed:file_errors.append('PREPARATION_ORDER_TABLE_MISMATCH')
             else:
@@ -259,6 +279,7 @@ def validate_candidate(requirements,sources,steps,candidate,*,primers=None,files
     required=required_scopes or (['sequence_model','preparation_model','file','user_goal'] if result_kind=='construct' else ['sequence_model','file','user_goal'])
     errors.extend('VALIDATION_SCOPE_UNSATISFIED: '+scope for scope in required if scopes[scope]['status']!='PASSED')
     result={'overall':'verified' if not errors else 'failed','scope_results':scopes,'errors':errors,
+            'goal_coverage':goal_coverage(requirements,traces), 'preparation_quality': quality,
             'subject_version':material.record_version,'source_versions':{k:as_molecule(v,default_topology='linear').record_version for k,v in sources.items()},
             'requirements':requirements,'conditions':runtime_conditions(),'primers':primers or [],'sanity_context':context,'sanity_check':sanity,
             'steps_sha256':_digest([_step(s).to_dict() for s in steps]),'artifact_hashes':hashes,'file_paths':{k:str(v) for k,v in (files or {}).items()},

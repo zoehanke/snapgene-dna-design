@@ -6,6 +6,12 @@ This file mirrors `core/recipes/` signatures; query `scripts/describe_tools.py` 
 
 Recipes also run through `core.workflow.run_step` or `scripts/run_step.py`. `describe_tools.py <name>` shares signature-derived parameter validation with execution. Adaptation retains products, subject, roles/completeness, checks, primers, preparation, protocol, citations and actual internal operations. QC subject remains the checked source. Failed attempts remain recorded but supply no completed material. Resume against changed original input or implementation/backend conditions fails. Recipe finalization uses common candidate/bundle checks rather than sanity alone.
 
+Executable common goals are defined by `describe_tools.py workflow_requirements`. Unknown goal/component fields and conflicting literal/source selectors are rejected. Preserve original text separately; returned goal coverage certifies declared computations, not all free-text meaning. Final links use `present_files` from the actual delivery, with optional `verify_delivery.py` before presentation.
+
+Preparation quality is checked independently from reaction replay and written as `preparation_quality.json`. Full-oligo measurements reuse [Primer3](https://primer3.org/manual.html) conditions; the default 47°C structural policy is not a universal experimental cutoff. [QuikChange's intended complementary pair](https://www.agilent.com/cs/library/usermanuals/Public/200518.pdf) is measured as two individual complete oligos; its source-window/reaction checks still apply. Backend limits or absent measurements retain INCOMPLETE, not a pass.
+
+`compare_sequences` is analysis-only. It reuses [Biopython pairwise alignment](https://biopython.org/docs/latest/Tutorial/chapter_pairwise.html) and the shared CDS validation contract. Local/global mode, query coverage, strand, actual selected boundaries and an explicit computation limit are reported. Coding changes are translated using the annotated frame/table; protein equality does not certify expression, selection or other phenotype.
+
 Treat a source template, a prepared fragment, and a designed component as different things.
 
 ```text

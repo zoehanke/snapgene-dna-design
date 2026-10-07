@@ -29,6 +29,10 @@ def _validate_requested_components(task: dict, product_record, plan: dict | None
     """Check the user's component sequences against the actual file, never the plan."""
     from core.io.input_resolution import resolve_sequence_record
     from Bio.SeqFeature import FeatureLocation
+    from core.requirements import validate_component_declarations
+    from core.models.molecule import as_molecule
+    from core.errors import ValidationError
+    validate_component_declarations(task)
 
     def names(feature):
         values = []
@@ -42,13 +46,32 @@ def _validate_requested_components(task: dict, product_record, plan: dict | None
     for source in task.get("sources", []):
         sid = source["source_id"]
         try:
-            sources[sid] = resolve_sequence_record(source.get("_resolved_path") or source.get("path") or source.get("filepath"))
+            loaded = resolve_sequence_record(source.get("_resolved_path") or source.get("path") or source.get("filepath"))
+            if sid in sources and as_molecule(sources[sid]).record_version != as_molecule(loaded).record_version:
+                raise ValidationError('GOAL_SOURCE_CONFLICT', f'Source id {sid} refers to different original materials')
+            sources[sid] = loaded
+        except ValidationError:
+            raise
         except Exception as exc:
             source_errors[sid] = str(exc)
 
     product = str(product_record.seq).upper()
     circular = product_record.annotations.get("topology") == "circular"
-    traces, errors = [], []
+    traces, errors = [], [f"GOAL_SOURCE_UNAVAILABLE: {sid}" for sid in source_errors]
+
+    def source_candidates(spec, records, name):
+        selected = set()
+        for record in records:
+            if spec.get('interval_0based') is not None:
+                start, end = spec['interval_0based']
+                if not 0 <= start < end <= len(record):
+                    raise ValidationError('COMPONENT_INPUT_INVALID', f"Invalid component interval for '{name}'")
+                selected.add(str(FeatureLocation(start, end).extract(record.seq)).upper())
+            else:
+                selected.update(str(feature.extract(record.seq)).upper() for feature in record.features
+                                if name.casefold() in names(feature))
+        return selected
+
     for forbidden, components in (
         (False, list(task.get("expected_components", [])) + list(task.get("product", {}).get("required_components", []))),
         (True, list(task.get("forbidden_components", [])) + list(task.get("product", {}).get("forbidden_components", []))),
@@ -69,18 +92,17 @@ def _validate_requested_components(task: dict, product_record, plan: dict | None
                     sequence = matches[0].get("expected_sequence")
             candidates = {str(sequence).upper()} if sequence else set()
             sid = spec.get("source_id")
+            if sid and sid not in sources:
+                errors.append(f"COMPONENT_UNRESOLVED: '{name}' names an unavailable original source {sid}")
+                continue
             records = [sources[sid]] if sid in sources else ([] if sid else list(sources.values()))
+            if candidates and (sid or spec.get('interval_0based') is not None):
+                derived = source_candidates(spec, records, name)
+                if len(derived) != 1 or derived != candidates:
+                    errors.append(f"COMPONENT_DECLARATION_CONFLICT: '{name}' explicit sequence does not match its source selector")
+                    continue
             if not candidates:
-                for record in records:
-                    if spec.get("interval_0based") is not None:
-                        start, end = spec["interval_0based"]
-                        if not 0 <= start < end <= len(record):
-                            raise ValueError(f"Invalid component interval for '{name}'")
-                        candidates.add(str(FeatureLocation(start, end).extract(record.seq)).upper())
-                    else:
-                        for feature in record.features:
-                            if name.casefold() in names(feature):
-                                candidates.add(str(feature.extract(record.seq)).upper())
+                candidates = source_candidates(spec, records, name)
             labelled = any(name.casefold() in names(f) for f in product_record.features)
             if forbidden and labelled:
                 present = True
@@ -100,7 +122,9 @@ def _validate_requested_components(task: dict, product_record, plan: dict | None
                 searchable = product + product[:len(needle) - 1] if circular else product
                 present = len(needle) <= len(product) and any(n in searchable for n in needles)
             passed = not present if forbidden else present
-            traces.append({"check": "forbidden_component" if forbidden else "expected_component", "component": name, "passed": passed})
+            traces.append({"check": "forbidden_component" if forbidden else "expected_component", "component": name,
+                           "source_id": sid, "strand": spec.get('strand'), "passed": passed,
+                           "scope": "declared sequence presence/absence; copy count and order are not implied"})
             if not passed:
                 code = "FORBIDDEN_COMPONENT_PRESENT" if forbidden else "REQUIRED_COMPONENT_MISSING"
                 errors.append(f"{code}: '{name}' failed the user's component requirement")
@@ -290,6 +314,20 @@ def validate(task: dict, plan: dict, execution: dict) -> dict:
         scope_results['preparation_model'] = check_result('preparation_model',subject=material,
             status=preparation.get('status','INCOMPLETE'),scope='preparation_model',
             details=preparation.get('details',{'reason':'No actual reaction chain was checked; sequence editing is not preparation'}))
+        recorded = [row['execution'] for row in (source_plan or {}).get('steps', []) if 'execution' in row]
+        if recorded:
+            from core.workflow_validation import _step
+            from core.workflow_delivery import preparation_rows, _used_products
+            from core.preparation import check_preparation_quality
+            steps = [_step(row) for row in recorded]
+            used = _used_products(steps, material)
+            quality = check_preparation_quality(preparation_rows(steps,material))
+            scope_results['preparation_model']['details']['oligo_quality'] = quality
+            if quality['status'] in ('FAILED', 'INCOMPLETE'):
+                scope_results['preparation_model']['status'] = quality['status']
+                scope_results['user_goal']['status'] = 'FAILED'
+                goal_ok = False
+                goal_errors.append('OLIGO_QUALITY_' + quality['status'] + ': complete preparation oligo quality was not established')
     required = task.get('validation_requirements', ['sequence_model','file','user_goal'])
     for scope in required:
         if scope_results.get(scope,{}).get('status') != 'PASSED':

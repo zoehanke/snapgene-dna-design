@@ -461,8 +461,7 @@ def recipe_site_directed_mutagenesis(
         # The preparation step is the actual linear PCR intermediate. Keep
         # the circularized mutant as the recipe's final construct separately.
         preparation_product_dict = {
-            "sequence": linear_intermediate,
-            "topology": "linear",
+            **pcr_evidence["pcr_intermediate"].only_product().to_dict(),
             "length": len(linear_intermediate),
             "features": pcr_evidence["pcr_intermediate"].only_product().to_dict()['features'],
             "method": "inverse_pcr_pcr_intermediate",
@@ -479,6 +478,8 @@ def recipe_site_directed_mutagenesis(
         "primers": primer_rows,
         "product": preparation_product_dict,
     }]
+    if method == 'inverse_pcr':
+        preparation[0]['annealing_temperature_hint_C'] = designed['primer3_metrics']['selected_pair_quality']['complete_oligo_structure']['annealing_temperature_C']
     if method == "quikchange":
         protocol_steps = [
             {"step": 1, "action": "Set up the QuikChange mutagenic PCR with the selected high-fidelity polymerase."},

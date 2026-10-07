@@ -24,8 +24,24 @@ class Primer3CoreError(RuntimeError):
         self.error_code=error_code
 
 
-def check_complete_oligo_pair(forward, reverse=None, core_path=None, annealing_temperature=None):
+def check_complete_oligo_pair(forward, reverse=None, core_path=None, annealing_temperature=None, primer_method='pcr'):
     """Measure complete oligos; omit reverse for an individual sequencing primer."""
+    method = str(primer_method).lower()
+    if method not in ('pcr', 'inverse_pcr', 'quikchange'):
+        raise Primer3CoreError('Unknown primer structural-check method', 'PRIMER_METHOD_INVALID')
+    if method == 'quikchange':
+        from Bio.Seq import Seq
+        if reverse is None or reverse.upper() != str(Seq(forward.upper()).reverse_complement()):
+            raise Primer3CoreError('QuikChange requires the actual complementary mutagenic pair', 'PRIMER_METHOD_INVALID')
+        # Primer3 rejects an exactly complementary pair in check_primers.
+        # Measure each actual complete oligo independently; that intended
+        # inter-primer duplex is not an ordinary-PCR dimer rejection.
+        left = check_complete_oligo_pair(forward, core_path=core_path, annealing_temperature=annealing_temperature)
+        right = check_complete_oligo_pair(reverse, core_path=core_path, annealing_temperature=annealing_temperature)
+        return {**left, 'passed': left['passed'] and right['passed'],
+                'metrics': {'forward': left['metrics']['forward'], 'reverse': right['metrics']['forward']},
+                'primer_method': method,
+                'excluded_metrics': ['pair: intentional complementary QuikChange duplex']}
     core_path = core_path or discover_primer3_core()
     if not core_path:
         raise Primer3CoreError("Full-oligo structural QC requires primer3_core",'BACKEND_UNAVAILABLE')
@@ -63,11 +79,17 @@ def check_complete_oligo_pair(forward, reverse=None, core_path=None, annealing_t
     # temperature-independent biological cutoff. When the caller supplies
     # its planned annealing temperature, retain a 5 C structure margin.
     limit = 47.0 if annealing_temperature is None else float(annealing_temperature) - 5.0
-    passed = all(value < limit for section in metrics.values() for value in section.values())
+    checked_sections = {key: section for key, section in metrics.items()
+                        if method != 'quikchange' or key != 'pair'}
+    # Fully overlapping QuikChange primers intentionally form a duplex. This
+    # is not a waiver for PCR: the known preparation method checks that pair.
+    passed = all(value < limit for section in checked_sections.values() for value in section.values())
     return {"passed": passed, "scope": "complete oligos including all 5prime tails",
             "engine": "Primer3 check_primers", "metrics": metrics,
             "annealing_temperature_C": annealing_temperature, "structure_limit_C": limit,
-            "conditions": {"monovalent_mM": 50, "divalent_mM": 1.5, "dNTP_mM": 0.6, "DNA_nM": 50}}
+            "conditions": {"monovalent_mM": 50, "divalent_mM": 1.5, "dNTP_mM": 0.6, "DNA_nM": 50},
+            "primer_method": method,
+            "excluded_metrics": ['pair: intentional complementary QuikChange duplex'] if method == 'quikchange' else []}
 
 
 def _candidate_names():

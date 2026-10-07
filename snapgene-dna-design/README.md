@@ -33,11 +33,14 @@ python scripts/run_recipe.py --recipe recipe_protein_tagging --params-json fixtu
 
 逐步设计用`scripts/run_step.py`，共同收尾用`scripts/finalize_workflow.py`。Python入口为`core.workflow.run_step`、`core.workflow_validation.validate_candidate`和`core.workflow_delivery.deliver_result`。[完整短例](examples/execution_workflow.py)。原Recipe/Pipeline CLI保留；sanity-only直接提升完整构建已关闭，需要真实执行凭据。
 
+目标格式查询`describe_tools.py workflow_requirements`。原文放`original_request`，元件放可执行的`expected_components`/`forbidden_components`；未支持字段明确拒绝，`goal_coverage`列出实际检查范围。序列/编码差异用`compare_sequences`检查真实边界和蛋白差异，结果不建立实验功能。
+
 ## 看交付
 
 - `candidate/`：计算候选；`intermediates/`：实际准备步骤产物。
 - `annotated_sources/`和`primer_order_table.tsv`：源图、完整订购引物、真实结合段和坐标。
 - `authoritative/`：该运行通过正式门限的`.gb/.dna/.fasta`及清单，仍限定于程序实际检查的范围。
+- 直接使用返回的`present_files`主链接；`scripts/verify_delivery.py`核查最后选择是否属于未改变的正式交付。`preparation_quality.json`单独记录完整制备引物质量及条件。
 - Evidence Trace：可选的过程与依据记录，保持DNA主线旁路。[使用说明](references/evidence-trace.md)
 
 直接调用scripts辅助模块时，在Skill目录把它加入Python导入路径：

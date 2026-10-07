@@ -50,9 +50,10 @@ class ToolRegistryTests(unittest.TestCase):
 
     def test_registry_size_and_schema_definitions(self):
         """Verify registry contains the current tools with no duplicate definitions."""
-        self.assertEqual(len(TOOL_REGISTRY), 43)
+        self.assertEqual(len(TOOL_REGISTRY), 44)
         defs = list_tool_definitions()
-        self.assertEqual(len(defs), 43)
+        self.assertEqual(len(defs), 44)
+        self.assertIn('compare_sequences', TOOL_REGISTRY)
         self.assertIn("prepare_pcr_fragment", TOOL_REGISTRY)
         names = [d["name"] for d in defs]
         self.assertIn("prepare_pml104_guide", TOOL_REGISTRY)

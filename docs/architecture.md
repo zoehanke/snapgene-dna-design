@@ -195,6 +195,12 @@ v2.1.0已提取三个连续责任，不是三套流程。Python实际模块为co
 
 core/preparation.py拥有准备重放和文件写出，scripts/run_recipe保留兼容导入。core/io/primer_annotation.py拥有原生/GenBank注释编辑，旧CLI保留入口及使用中的函数导入。正式bundle通过既有runtime_gate独占staging原子提升，复制已验证native后仍作三格式语义核查；哈希属于实际交付字节。Trace只把construct三格式标为最终产物，其余实际中间体仍保留，不改DNA或验证规则。
 
+2.1.1的同类修复在上述边界完成。`core/requirements.py`维护公共目标定义、嵌套元件形状及覆盖投影，Workflow拒绝未知目标字段，Task/Recipe共用元件声明检查；原始文本不能靠拓扑字段得到全面语义认证。`core/preparation.py`复算实际准备引物质量并写`preparation_quality.json`，Workflow和实际Composite Task核查按同一方法/条件消费结果。
+
+`runtime_gate`在原子提升后返回实际目录的`present_files`，`verify_delivery_files`和薄CLI`verify_delivery.py`只读核对清单及呈现成员。它不签署真实性、不重新建立领域证据，也无法拦截宿主任意present。主链接不应引用候选副本；编辑/另存须按现有核查重新绑定。
+
+`core/tools/comparison.py::compare_sequences`为纯分析工具，复用现有特征选择、完整CDS校验和Biopython对齐。局部/全局模式、覆盖、正反向、选取边界和显式计算量上限保留；编码比较记录蛋白/位置同义差异，长度/遗传码不同不强判变异类型。分析无DNA产物，不能作为新的制备材料或表型证明。说明从当前要求、步骤、订单和质量生成；不先建设新的解释平台。
+
 #### 验收
 
 用独立正反例经过真正公共入口验证长重叠、无同源、错误选择、丢注释及过期文件；成熟方法、原子组合和必要自定义流程都能传实际产物并进入共同核查。改订购引物或候选文件后，旧检查不再授权新结果，说明重新生成。

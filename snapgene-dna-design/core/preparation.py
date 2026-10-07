@@ -79,6 +79,40 @@ def check_preparation(preparation: list[dict]) -> None:
             raise ValueError(f"PREPARATION_PRODUCT_MISMATCH: '{item.get('id')}' does not match actual template and primers")
 
 
+def check_preparation_quality(preparation: list[dict]) -> dict:
+    """Measure actual complete preparation pairs using their known method/conditions."""
+    from core.tools.primer3_backend import check_complete_oligo_pair, Primer3CoreError
+    import math
+    checks = []
+    for item in preparation:
+        product = resolve_sequence_record(item['product'])
+        method = str(item.get('method', 'PCR')).lower()
+        primers = item.get('primers', [])
+        entry = {'id': item.get('id'), 'subject_version': product.record_version, 'method': method,
+                 'scope': 'complete preparation oligo structure, not experimental amplification efficiency'}
+        try:
+            if len(primers) != 2:
+                raise ValueError('Quality check needs the actual pair')
+            sequences = [p.get('sequence') or p.get('seq') or p.get('full_sequence') for p in primers]
+            if any(not isinstance(s, str) or not s for s in sequences):
+                raise ValueError('Quality check needs complete sequences')
+            temperature = item.get('annealing_temperature_hint_C')
+            if temperature is not None and (type(temperature) not in (int, float)
+                    or not math.isfinite(temperature) or not 0 < temperature < 100):
+                raise ValueError('Invalid declared annealing-temperature condition')
+            result = check_complete_oligo_pair(*sequences, annealing_temperature=temperature, primer_method=method)
+            entry.update(status='PASSED' if result['passed'] else 'FAILED', result=result)
+        except Primer3CoreError as exc:
+            entry.update(status='INCOMPLETE', error_code=exc.error_code, reason=str(exc))
+        except (ValueError, TypeError) as exc:
+            entry.update(status='FAILED', error_code='PREPARATION_QUALITY_INPUT_INVALID', reason=str(exc))
+        checks.append(entry)
+    status = ('FAILED' if any(c['status'] == 'FAILED' for c in checks) else
+              'INCOMPLETE' if any(c['status'] == 'INCOMPLETE' for c in checks) else
+              'PASSED' if checks else 'NOT_APPLICABLE')
+    return {'status': status, 'checks': checks, 'wet_lab': 'NOT_CHECKED'}
+
+
 def write_preparation_artifacts(preparation: list[dict], out_dir: str | pathlib.Path) -> dict:
     """Write the actual prepared fragments, source primer maps and order table."""
     from Bio import SeqIO
@@ -87,6 +121,10 @@ def write_preparation_artifacts(preparation: list[dict], out_dir: str | pathlib.
     out = pathlib.Path(out_dir)
     outputs, orders = [], []
     check_preparation(preparation)
+    quality = check_preparation_quality(preparation)
+    out.mkdir(parents=True, exist_ok=True)
+    quality_file = out / 'preparation_quality.json'
+    quality_file.write_text(json.dumps(quality, ensure_ascii=False, indent=2), encoding='utf-8')
     for index, item in enumerate(preparation, 1):
         product = resolve_sequence_record(item["product"])
         template = resolve_sequence_record(item["template"])
@@ -125,10 +163,10 @@ def write_preparation_artifacts(preparation: list[dict], out_dir: str | pathlib.
                            "tm_C": primer.get("binding_core_tm", primer.get("tm", primer.get("qc_tm", ""))),
                            "annealing_hint_C": item.get("annealing_temperature_hint_C", "")})
     if not orders:
-        return {"steps": [], "primer_order_table": None}
+        return {"steps": [], "primer_order_table": None, "quality": quality, "quality_file": str(quality_file)}
     order_file = out / "primer_order_table.tsv"
     with order_file.open("w", encoding="utf-8", errors="replace", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=list(orders[0]), delimiter="\t")
         writer.writeheader()
         writer.writerows(orders)
-    return {"steps": outputs, "primer_order_table": str(order_file)}
+    return {"steps": outputs, "primer_order_table": str(order_file), "quality": quality, "quality_file": str(quality_file)}
