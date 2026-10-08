@@ -140,6 +140,7 @@ def _run(args, out):
             },
             "validation": report,
             "delivery": delivery,
+            'goal_coverage':report['goal_coverage'],'task_completion':report['task_completion'],
             "session": session.to_record(),
             "write_authoritative_artifact": bool(delivery),
             "historical_artifacts_preserved": delivery is None,
@@ -173,6 +174,8 @@ def _emit(result, args, out):
         print(json.dumps(result, ensure_ascii=False, indent=2))
     else:
         print("status=%s" % result.get("status"))
+        if result.get('task_completion'):
+            print('task_completion=%s' % result['task_completion']['status'])
         if result.get("questions"):
             for question in result["questions"]:
                 print("[%s] %s" % (question["question_id"],

@@ -46,7 +46,10 @@ def _validate_requested_components(task: dict, product_record, plan: dict | None
     for source in task.get("sources", []):
         sid = source["source_id"]
         try:
-            loaded = resolve_sequence_record(source.get("_resolved_path") or source.get("path") or source.get("filepath"))
+            path=source.get("_resolved_path") or source.get("path") or source.get("filepath")
+            if path is None and sid in sources:
+                continue
+            loaded = resolve_sequence_record(path)
             if sid in sources and as_molecule(sources[sid]).record_version != as_molecule(loaded).record_version:
                 raise ValidationError('GOAL_SOURCE_CONFLICT', f'Source id {sid} refers to different original materials')
             sources[sid] = loaded
@@ -145,6 +148,9 @@ def compute_validation_sha256(val_dict: dict) -> str:
         "overall": val_dict.get("overall"),
         "artifact_hashes": val_dict.get("artifact_hashes", {}),
         "scope_results": val_dict.get('scope_results', {}),
+        'requirements':val_dict.get('requirements',{}),
+        'goal_coverage':val_dict.get('goal_coverage',{}),
+        'task_completion':val_dict.get('task_completion',{}),
     }
     return hashlib.sha256(canonical_json(semantic).encode("utf-8")).hexdigest().upper()
 
@@ -302,6 +308,26 @@ def validate(task: dict, plan: dict, execution: dict) -> dict:
             goal_ok = False
             goal_errors.append(f"Goal validation failed: {exc}")
 
+    from core.requirements import task_requirements,check_goal_constraints,goal_coverage,completion_report
+    requirements=task_requirements(task)
+    request_traces,request_errors,goal_checks=[],[],{}
+    if prod_rec is not None:
+        from core.task import read_record
+        try:
+            request_traces,request_errors,goal_checks=check_goal_constraints(requirements,prod_rec,
+                {s['source_id']:read_record(s.get('_resolved_path') or s['path']) for s in task['sources']})
+        except Exception as exc:
+            request_errors=['GOAL_VALIDATION_FAILED: '+str(exc)]
+        goal_errors.extend(request_errors)
+        evidence_traces.extend(request_traces)
+        goal_ok=goal_ok and not request_errors
+    coverage=goal_coverage(requirements,request_traces,checks=goal_checks,
+                           subject_version=getattr(prod_rec,'record_version',None))
+    prior_goal_failure=not goal_ok
+    unmapped_goal=any(item['status'] in ('MISSED','UNCHECKED') for item in coverage['goal_items']+coverage['check_results'])
+    if unmapped_goal:
+        goal_ok=False
+        goal_errors.append('GOAL_COVERAGE_INCOMPLETE: recognized requirements lack checked constraints')
     scope_results = {}
     from core.models.molecule import as_molecule
     from core.tools.result import check_result
@@ -310,6 +336,8 @@ def validate(task: dict, plan: dict, execution: dict) -> dict:
         for scope, passed in (('sequence_model',comp_ok),('file',art_ok),('user_goal',goal_ok)):
             scope_results[scope] = check_result(scope,subject=material,
                 status='PASSED' if passed else 'FAILED',scope=scope)
+        if unmapped_goal and not prior_goal_failure:
+            scope_results['user_goal']['status']='INCOMPLETE'
         preparation = (source_plan or {}).get('preparation_check', {})
         scope_results['preparation_model'] = check_result('preparation_model',subject=material,
             status=preparation.get('status','INCOMPLETE'),scope='preparation_model',
@@ -366,6 +394,8 @@ def validate(task: dict, plan: dict, execution: dict) -> dict:
         "evidence_traces": evidence_traces,
         "artifact_hashes": execution.get("artifact_hashes", {}),
         "scope_results": scope_results,
+        'requirements':requirements,'goal_coverage':coverage,
+        'task_completion':completion_report(coverage,local_success=overall=='verified',scope_results=scope_results),
     }
 
     val_res["validation_sha256"] = compute_validation_sha256(val_res)

@@ -2,6 +2,25 @@
 
 This file mirrors `core/recipes/` signatures; query `scripts/describe_tools.py` for the executable definition. CLI inputs accept DNA/file strings or complete molecule wire values. Python also accepts SeqRecord/Molecule. RecipeResult carries complete `products`, `analysis`, scoped `checks`, primers, warnings, protocol/citations and details. Sequence/topology/features in legacy reports are computed projections, not independent DNA outputs. Preparation rows carry actual template/product Molecules; serialize only at the report/file boundary.
 
+## Goal continuity
+
+Python `run_step(..., requirements=context)` and step JSON use the same context as `validate_candidate`/`deliver_result`. Later steps inherit it through `previous`/`history_file`; finalization can omit repeated requirements. Explicit additions merge with earlier constraints. A conflicting original request or scalar goal is rejected; changed routes and intermediate materials are allowed.
+
+Recipe CLI params may contain `requirements: {...}` or legacy `original_request`, `expected_components`, `forbidden_components`, `sources`, `goal_items`; direct Recipe scientific signatures stay unchanged. Pipeline JSON/Python accepts `requirements` and `original_request`; Task uses `requirements` plus existing `raw_request`/product constraints.
+
+```json
+{
+  "original_request": "Keep the supplied marker in a linear DNA fragment.",
+  "topology": "linear",
+  "expected_components": [{"name": "marker", "source_id": "original"}],
+  "goal_items": [{"id": "keep_marker", "text": "Keep the supplied marker",
+    "source_quote": "Keep the supplied marker",
+    "constraint_refs": ["/expected_components/0"]}]
+}
+```
+
+References name existing constraints (`/topology`, `/expected_sequence`, `/is_cds`, or an indexed component/required file). `source_quote` is checked against original text, not scientifically interpreted. MISSED means no mapped check; UNCHECKED means the check has not established a result. PASSED applies to the actual checked material/version. `task_completion.original_task_verified` is not promoted by local PASS; declared-goal success and free-text interpretation remain separate. Single analyses need no full goal.
+
 ## Common preparation rule
 
 Recipes also run through `core.workflow.run_step` or `scripts/run_step.py`. `describe_tools.py <name>` shares signature-derived parameter validation with execution. Adaptation retains products, subject, roles/completeness, checks, primers, preparation, protocol, citations and actual internal operations. QC subject remains the checked source. Failed attempts remain recorded but supply no completed material. Resume against changed original input or implementation/backend conditions fails. Recipe finalization uses common candidate/bundle checks rather than sanity alone.

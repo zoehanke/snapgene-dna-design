@@ -82,7 +82,7 @@ def _resolve_source_records(sources_map):
     return resolved
 
 
-def run_pipeline_steps(steps, sources_map, output_step=None):
+def run_pipeline_steps(steps, sources_map, output_step=None, requirements=None):
     """Carry one molecular contract without result-field guessing or recopying."""
     sources = _resolve_source_records(sources_map)
     env, rows = {}, []
@@ -92,7 +92,8 @@ def run_pipeline_steps(steps, sources_map, output_step=None):
         if not step_id or step_id in env or step_id in sources:
             raise PlanningError('INVALID_STEP_ID', 'Step ids must be nonempty, unique and distinct from sources')
         from core.workflow import run_step
-        executed=run_step(tool_name,step.get('params',{}),step_id=step_id,sources=sources,previous=executions,_history_checked=True)
+        executed=run_step(tool_name,step.get('params',{}),step_id=step_id,sources=sources,previous=executions,
+                          requirements=requirements,_history_checked=True)
         if executed.error:
             code=executed.error['error_code'] if executed.error['error_code'] in (
                 'PIPELINE_SIDE_EFFECT','ANALYSIS_OUTPUT_REFERENCE','UNRESOLVED_STEP_REFERENCE',
@@ -224,7 +225,8 @@ class CompositePipelineHandler(TaskHandler):
         steps = task["pipeline"]["steps"]
 
         output_step = task["pipeline"].get("output_step") or steps[-1]["step_id"]
-        final_record, step_records, _env = run_pipeline_steps(steps, sources_map, output_step)
+        from core.requirements import task_requirements
+        final_record, step_records, _env = run_pipeline_steps(steps, sources_map, output_step,task_requirements(task))
         final_seq = str(final_record.seq)
         if not final_seq:
             raise PlanningError('NO_PRODUCT_SEQUENCE', 'Selected molecular product is empty')
@@ -325,7 +327,8 @@ class CompositePipelineHandler(TaskHandler):
     def recompute(self, task: dict, plan: dict) -> str:
         sources_map = self._sources_map(task)
         steps = task.get("pipeline", {}).get("steps", [])
-        final_product, _, _ = run_pipeline_steps(steps, sources_map, task.get("pipeline", {}).get("output_step"))
+        from core.requirements import task_requirements
+        final_product, _, _ = run_pipeline_steps(steps, sources_map, task.get("pipeline", {}).get("output_step"),task_requirements(task))
         return str(final_product.seq).upper()
 
     def validate_goal(

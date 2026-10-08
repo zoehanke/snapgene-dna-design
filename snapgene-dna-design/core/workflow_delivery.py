@@ -128,8 +128,8 @@ def deliver_result(requirements,sources,steps,candidate,out_dir,*,primers=None,r
     from core.preparation import write_preparation_artifacts
     from core.tools import export_snapgene
     from core.runtime_gate import _promote_verified_candidate
-    from core.requirements import validate_requirements, validate_validation_options
-    validate_requirements(requirements)
+    from core.requirements import inherit_requirements, validate_validation_options
+    requirements=inherit_requirements(steps,requirements)
     validate_validation_options(required_scopes, result_kind)
     material=as_molecule(candidate)
     if validation is not None:
@@ -198,9 +198,10 @@ def deliver_result(requirements,sources,steps,candidate,out_dir,*,primers=None,r
         delivery=_promote_verified_candidate(Path(files['gb_file']),Path(files['fasta_file']),out,
             {'schema_version':'workflow-delivery-v1','artifact_class':'authoritative','result_kind':result_kind,'provenance':provenance or {},
              'requirements':requirements,'scope_results':report['scope_results'],'validation_sha256':report['validation_sha256'],
+             'goal_coverage':report['goal_coverage'],'task_completion':report['task_completion'],
              'subject_version':material.record_version,'source_versions':report['source_versions']},
             bundle_dir=bundle,bundle_files=hashes,candidate_dna=Path(files['dna_file']))
-        return {**delivery,'validation':report,'goal_coverage':report['goal_coverage'],
+        return {**delivery,'validation':report,'goal_coverage':report['goal_coverage'],'task_completion':report['task_completion'],
                 'candidate_directory':str(bundle),'preparation_files':preparation}
     except Exception as exc:
         (bundle/'failure.json').write_text(json.dumps({'status':'failed','message':str(exc)},ensure_ascii=False,indent=2),encoding='utf-8')

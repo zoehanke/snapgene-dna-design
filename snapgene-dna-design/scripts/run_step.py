@@ -12,11 +12,8 @@ from evidence_trace.runtime import traced_run, add_trace_arguments, trace_option
 
 
 def restore(data):
-    result=data.get('result')
-    if result is not None:
-        result=ToolResult([as_molecule(p) for p in result['products']],result['analysis'],result['checks'])
-    return StepExecution(data['step_id'],data['method'],data['params'],result,data.get('error'),
-                         data.get('input_versions',[]),data.get('source_versions',{}),data.get('conditions',{}),data.get('operations',[]))
+    from core.workflow_validation import _step
+    return _step(data)
 
 
 @traced_run('step')
@@ -31,11 +28,12 @@ def execute(config,out_dir):
         from core.workflow_validation import replay_steps
         previous=replay_steps(previous,config.get('sources',{}))
     record=run_step(config['method'],config.get('params',{}),step_id=config.get('step_id','step'),
-                    sources=config.get('sources',{}),previous=previous)
+                    sources=config.get('sources',{}),previous=previous,requirements=config.get('requirements'))
     out=Path(out_dir)
     out.mkdir(parents=True,exist_ok=True)
     histories=history+[record.to_dict()]
     payload={'status':record.status,'steps':histories,'sources':config.get('sources',{}),
+             'requirements':record.requirements,'goal_coverage':record.goal_coverage,'task_completion':record.task_completion,
              'products':product_summaries(record.result) if record.result else [],'error':record.error}
     (out/'steps.json').write_text(json.dumps(payload,ensure_ascii=False,indent=2),encoding='utf-8')
     if record.result:
@@ -64,7 +62,7 @@ def main():
     if args.full:
         payload=result
     else:
-        payload={key:result[key] for key in ('status','products','material_files','error') if key in result}
+        payload={key:result[key] for key in ('status','products','material_files','error','goal_coverage','task_completion') if key in result}
         payload['completed_prefix']=[row['step_id'] for row in result.get('steps',[]) if row['status']=='completed']
         payload['record_file']=str((Path(args.out_dir)/'steps.json').resolve())
     print(json.dumps(payload,ensure_ascii=False,indent=2))

@@ -36,7 +36,8 @@ def _step(value):
     if result is not None:
         result=ToolResult([as_molecule(p) for p in result['products']],result['analysis'],result['checks'])
     return StepExecution(value['step_id'],value['method'],value['params'],result,value.get('error'),
-                         value.get('input_versions',[]),value.get('source_versions',{}),value.get('conditions',{}),value.get('operations',[]))
+                         value.get('input_versions',[]),value.get('source_versions',{}),value.get('conditions',{}),value.get('operations',[]),
+                         value.get('requirements',{}),value.get('goal_coverage',{}))
 
 
 def replay_steps(steps,sources):
@@ -53,7 +54,8 @@ def replay_steps(steps,sources):
             raise ValidationError('SOURCE_VERSION_CHANGED',f'Original sources differ at {previous.step_id}')
         if previous.conditions != conditions:
             raise ValidationError('EXECUTION_CONDITIONS_CHANGED',f'Implementation/backend conditions differ at {previous.step_id}')
-        actual=run_step(previous.method,previous.params,step_id=previous.step_id,sources=sources,previous=replayed,_history_checked=True)
+        actual=run_step(previous.method,previous.params,step_id=previous.step_id,sources=sources,previous=replayed,
+                        requirements=previous.requirements,_history_checked=True)
         if actual.error:
             raise ValidationError('REPLAY_FAILED',f'{previous.step_id}: {actual.error["message"]}',details={'error':actual.error})
         if actual.result.products:
@@ -66,6 +68,8 @@ def replay_steps(steps,sources):
             raise ValidationError('EXECUTION_RESULT_CHANGED',f'Recorded parameters/material/result differ at {previous.step_id}')
         if _digest(actual.operations)!=_digest(previous.operations):
             raise ValidationError('REACTION_RECORD_CHANGED',f'Internal reaction facts differ at {previous.step_id}')
+        if actual.requirements!=previous.requirements:
+            raise ValidationError('GOAL_CONTEXT_CHANGED',f'Goal context differs at {previous.step_id}')
         replayed.append(actual)
         available.update(p.record_version for p in actual.result.products)
         available.update(p['record_version'] for op in actual.operations for p in op['result']['products'])
@@ -87,8 +91,9 @@ def validate_candidate(requirements,sources,steps,candidate,*,primers=None,files
     from core.runtime_validate import _validate_requested_components
     from core.tools.sequence_ops import validate_cds_feature
     from core.handlers.composite_pipeline import _preparation_check
-    from core.requirements import validate_requirements, validate_validation_options, goal_coverage
-    validate_requirements(requirements)
+    from core.requirements import (inherit_requirements, validate_validation_options, goal_coverage,
+                                   check_goal_constraints, completion_report)
+    requirements=inherit_requirements(steps,requirements)
     validate_validation_options(required_scopes, result_kind)
     material=as_molecule(candidate)
     errors=[]
@@ -211,25 +216,26 @@ def validate_candidate(requirements,sources,steps,candidate,*,primers=None,files
     sanity=quick_biological_sanity_check(material,**context)
     if sanity.get('all_applicable_pass') is not True:
         goal_errors.extend('BIOLOGICAL_CHECK_FAILED: '+str(code) for code in sanity.get('blocking_codes',[]))
-    coverage=goal_coverage(requirements, [])
-    structured=bool(coverage['checked_fields'])
-    if requirements.get('topology') and requirements['topology']!=material.topology:goal_errors.append('GOAL_TOPOLOGY_MISMATCH')
-    if requirements.get('expected_sequence') and requirements['expected_sequence'].upper()!=str(material.seq):goal_errors.append('GOAL_SEQUENCE_MISMATCH')
-    traces,component_errors=_validate_requested_components(requirements,material,source_records={k:as_molecule(v) for k,v in sources.items()})
+    traces,component_errors,goal_checks=check_goal_constraints(requirements,material,{k:as_molecule(v) for k,v in sources.items()})
     goal_errors.extend(component_errors)
+    coverage=goal_coverage(requirements,traces,checks=goal_checks,subject_version=material.record_version)
+    structured=bool(coverage['declared_fields'])
+    unmapped=any(item['status'] in ('MISSED','UNCHECKED') for item in coverage['goal_items'])
     errors.extend(goal_errors)
     scopes['user_goal']=check_result('computable_user_requirements',subject=material,
-        status=('FAILED' if goal_errors else 'PASSED') if structured else 'INCOMPLETE',scope='user_goal',
-        details={'checks':traces,'errors':goal_errors,'coverage':goal_coverage(requirements,traces),
+        status=('FAILED' if goal_errors else 'INCOMPLETE' if unmapped else 'PASSED') if structured else 'INCOMPLETE',scope='user_goal',
+        details={'checks':traces,'errors':goal_errors,'coverage':coverage,
                  'semantic_coverage':'declared computable requirements only'})
     hashes={}
     file_errors=[]
+    verified_files=set()
     if files:
         import hashlib
         from Bio import SeqIO
         from core.workflow_delivery import file_subjects,order_rows,render_design
         subjects=file_subjects(replayed,material)
         for name,path in files.items():
+            before_errors=len(file_errors)
             path=Path(path)
             if not path.is_file():file_errors.append('MISSING_FILE: '+name);continue
             hashes[name]=hashlib.sha256(path.read_bytes()).hexdigest()
@@ -272,14 +278,24 @@ def validate_candidate(requirements,sources,steps,candidate,*,primers=None,files
                 if [(p.get('name'),p.get('sequence_5to3')) for p in orders]!=needed:file_errors.append('PREPARATION_ORDER_TABLE_MISMATCH')
             else:
                 file_errors.append('FILE_CONTENT_UNVERIFIED: '+name)
+            if len(file_errors)==before_errors:verified_files.add(name)
         for name in requirements.get('required_files',[]):
             if name not in files:file_errors.append('MISSING_REQUIRED_FILE: '+name)
+        for index,name in enumerate(requirements.get('required_files',[])):
+            goal_checks[f'/required_files/{index}']='PASSED' if name in verified_files else 'FAILED'
         scopes['file']=check_result('saved_file_readback',subject=material,status='FAILED' if file_errors else 'PASSED',scope='file',details={'errors':file_errors})
         errors.extend(file_errors)
+    coverage=goal_coverage(requirements,traces,checks=goal_checks,subject_version=material.record_version)
+    if structured and not goal_errors:
+        goal_statuses=[item['status'] for item in coverage['goal_items']+coverage['check_results']]
+        scopes['user_goal']['status']='FAILED' if 'FAILED' in goal_statuses else 'INCOMPLETE' if any(s!='PASSED' for s in goal_statuses) else 'PASSED'
+    scopes['user_goal']['details']['coverage']=coverage
     required=required_scopes or (['sequence_model','preparation_model','file','user_goal'] if result_kind=='construct' else ['sequence_model','file','user_goal'])
     errors.extend('VALIDATION_SCOPE_UNSATISFIED: '+scope for scope in required if scopes[scope]['status']!='PASSED')
+    coverage=goal_coverage(requirements,traces,checks=goal_checks,subject_version=material.record_version)
     result={'overall':'verified' if not errors else 'failed','scope_results':scopes,'errors':errors,
-            'goal_coverage':goal_coverage(requirements,traces), 'preparation_quality': quality,
+            'goal_coverage':coverage, 'task_completion':completion_report(coverage,local_success=not errors,scope_results=scopes),
+            'preparation_quality': quality,
             'subject_version':material.record_version,'source_versions':{k:as_molecule(v,default_topology='linear').record_version for k,v in sources.items()},
             'requirements':requirements,'conditions':runtime_conditions(),'primers':primers or [],'sanity_context':context,'sanity_check':sanity,
             'steps_sha256':_digest([_step(s).to_dict() for s in steps]),'artifact_hashes':hashes,'file_paths':{k:str(v) for k,v in (files or {}).items()},

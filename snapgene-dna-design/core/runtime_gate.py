@@ -240,6 +240,9 @@ def finalize(task: dict, plan: dict, execution: dict, validation: dict, out_dir:
         "task_revision": task["revision"],
         "task_sha256": plan["task_sha256"],
         "plan_sha256": plan["plan_sha256"],
+        'requirements':validation.get('requirements',{}),
+        'goal_coverage':validation.get('goal_coverage',{}),
+        'task_completion':validation.get('task_completion',{}),
         "validation": {
             "overall": validation["overall"],
             "artifact_valid": validation["artifact_valid"],
@@ -257,13 +260,15 @@ def finalize(task: dict, plan: dict, execution: dict, validation: dict, out_dir:
         ),
     }
 
-    return _promote_verified_candidate(
+    result = _promote_verified_candidate(
         candidate_gb=pathlib.Path(execution["product_gb"]),
         candidate_fasta=pathlib.Path(execution["product_fasta"]),
         out_dir=out_dir,
         manifest_payload=manifest_payload,
         temp_identifier=task["task_id"],
     )
+    return {**result,'goal_coverage':validation.get('goal_coverage',{}),
+            'task_completion':validation.get('task_completion',{})}
 
 
 def _promote_verified_candidate(

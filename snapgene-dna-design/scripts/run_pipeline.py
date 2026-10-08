@@ -220,6 +220,8 @@ def _run(args, out):
             forbidden_components=metadata.get("forbidden_components", []),
             output_step=args.output_step or metadata.get("output_step"),
             validation_requirements=metadata.get('validation_requirements'),
+            requirements=metadata.get('requirements'),
+            original_request=metadata.get('original_request',metadata.get('raw_request')),
         )
         result["requested_topology"] = requested_topology
         result["actual_topology"] = result.get("actual_topology", result.get("product_topology"))
@@ -233,6 +235,7 @@ def _run(args, out):
         else:
             print(f"## Pipeline Execution: `{task_id}`")
             print(f"- **Status**: `{result['status']}`")
+            print(f"- **Task completion**: `{result['task_completion']['status']}` ({result['task_completion']['scope']})")
             print(f"- **Product Length**: {result['product_length']} bp ({result['product_topology']})")
             val = result.get("validation_report", {})
             print(f"- **Three-Layer Validation**: Artifacts={val.get('artifact_valid')}, Computation={val.get('computation_valid')}, Goal={val.get('goal_valid')}")

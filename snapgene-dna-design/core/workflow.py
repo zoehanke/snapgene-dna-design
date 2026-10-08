@@ -123,6 +123,8 @@ class StepExecution:
     source_versions: dict = field(default_factory=dict)
     conditions: dict = field(default_factory=dict)
     operations: list = field(default_factory=list)
+    requirements: dict = field(default_factory=dict)
+    goal_coverage: dict = field(default_factory=dict)
 
     @property
     def status(self):
@@ -132,13 +134,23 @@ class StepExecution:
         return {'step_id':self.step_id,'method':self.method,'status':self.status,
                 'params':to_wire(self.params),'result':to_wire(self.result),'error':self.error,
                 'input_versions':self.input_versions,'source_versions':self.source_versions,
-                'conditions':self.conditions,'operations':self.operations}
+                'conditions':self.conditions,'operations':self.operations,
+                'requirements':to_wire(self.requirements),'goal_coverage':to_wire(self.goal_coverage),
+                'task_completion':self.task_completion}
+
+    @property
+    def task_completion(self):
+        from core.requirements import completion_report
+        return completion_report(self.goal_coverage,local_success=not self.error,final=False)
 
 
-def run_step(method, params, *, step_id='step', sources=None, previous=(), _history_checked=False):
+def run_step(method, params, *, step_id='step', sources=None, previous=(), requirements=None, _history_checked=False):
     """Run one discoverable method; return real results or a concrete retained failure."""
     record=StepExecution(step_id,method,copy.deepcopy(params))
     try:
+        from core.requirements import inherit_requirements, goal_coverage, check_goal_constraints
+        record.requirements=inherit_requirements(previous,requirements)
+        record.goal_coverage=goal_coverage(record.requirements,[])
         from core.handlers.composite_pipeline import _resolve_param_val, _resolve_source_records
         sources=_resolve_source_records(sources or {})
         if previous and not _history_checked:
@@ -180,6 +192,10 @@ def run_step(method, params, *, step_id='step', sources=None, previous=(), _hist
         token=_operation_sink.set(record.operations)
         try:
             record.result=spec.execute(**record.params)
+            if len(record.result.products)==1 and record.requirements:
+                product=record.result.only_product()
+                traces,_,checks=check_goal_constraints(record.requirements,product,sources)
+                record.goal_coverage=goal_coverage(record.requirements,traces,checks=checks,subject_version=product.record_version)
         finally:
             _operation_sink.reset(token)
     except Exception as exc:

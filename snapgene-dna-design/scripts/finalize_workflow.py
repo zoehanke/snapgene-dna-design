@@ -23,14 +23,15 @@ def execute(config,out_dir,deliver):
     steps=history['steps']
     options={key:config[key] for key in ('primers','result_kind','required_scopes','output_step','product_index','sanity_context') if key in config}
     if deliver:
-        return deliver_result(config['requirements'],sources,steps,config['candidate'],out_dir,
+        return deliver_result(config.get('requirements',{}),sources,steps,config['candidate'],out_dir,
                               validation=config.get('validation'),**options)
-    report=validate_candidate(config['requirements'],sources,steps,config['candidate'],files=config.get('files'),**options)
+    report=validate_candidate(config.get('requirements',{}),sources,steps,config['candidate'],files=config.get('files'),**options)
     out=Path(out_dir);out.mkdir(parents=True,exist_ok=True)
     (out/'validation.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
     return {'status':report['overall'],'validation_file':str((out/'validation.json').resolve()),
             'scope_results':{key:value['status'] for key,value in report['scope_results'].items()},'errors':report['errors'],
-            'goal_coverage': report['goal_coverage'], 'preparation_quality': report['preparation_quality']}
+            'goal_coverage': report['goal_coverage'], 'task_completion':report['task_completion'],
+            'preparation_quality': report['preparation_quality']}
 
 
 def main():
@@ -50,7 +51,7 @@ def main():
     except Exception as exc:
         result={'status':'failed','error':exc.to_dict() if isinstance(exc,CoreError) else {'message':str(exc)}}
     if result.get('status')=='delivered':
-        result={key:result[key] for key in ('status','directory','files','manifest_sha256','present_files','goal_coverage')}
+        result={key:result[key] for key in ('status','directory','files','manifest_sha256','present_files','goal_coverage','task_completion')}
     print(json.dumps(result,ensure_ascii=False,indent=2))
     return 0 if result.get('status') in ('verified','delivered') else 1
 

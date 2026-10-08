@@ -97,6 +97,8 @@ def execute_agent_pipeline(
     forbidden_components: list | None = None,
     output_step: str | None = None,
     validation_requirements: list[str] | None = None,
+    requirements: dict | None = None,
+    original_request: str | None = None,
 ) -> dict[str, Any]:
     """Execute an agent-formulated composite pipeline deterministically and deliver SnapGene construct."""
     out_path = pathlib.Path(out_dir)
@@ -125,14 +127,21 @@ def execute_agent_pipeline(
                 "evidence": {"source_evidence_class": "user-provided"},
             })
 
+    from core.requirements import inherit_requirements
+    context={'topology':product_topology}
+    if expected_components is not None:context['expected_components']=expected_components
+    if forbidden_components is not None:context['forbidden_components']=forbidden_components
+    if original_request is not None:context['original_request']=original_request
+    request=inherit_requirements([{'requirements':context}],requirements)
     task = {
         "schema_version": "construction-task-v1",
         "task_id": task_id,
         "revision": 1,
         "mode": "formal",
         "task_kind": "composite_pipeline",
-        "expected_components": expected_components or [],
-        "forbidden_components": forbidden_components or [],
+        "expected_components": request.get('expected_components',[]),
+        "forbidden_components": request.get('forbidden_components',[]),
+        'requirements':request,'raw_request':request.get('original_request',''),
         "pipeline": {
             "steps": pipeline_steps,
             "output_step": output_step,
@@ -218,8 +227,6 @@ def execute_agent_pipeline(
             from core.workflow_delivery import deliver_result
             steps=[row['execution'] for row in p['steps']]
             sources_map={source['source_id']:as_molecule(source.get('_resolved_path') or source['path']) for source in vtask['sources']}
-            request={'topology':product_topology,'expected_components':expected_components or [],
-                     'forbidden_components':forbidden_components or []}
             selected=output_step or pipeline_steps[-1]['step_id']
             head,_,tail=selected.lstrip('$').partition('.')
             product_index=int(tail.split('.')[1]) if tail.startswith('products.') else None
@@ -242,6 +249,8 @@ def execute_agent_pipeline(
 
     return {
         "status": status,
+        'requirements':request,'goal_coverage':delivery['goal_coverage'] if delivery else report['goal_coverage'],
+        'task_completion':delivery['task_completion'] if delivery else report['task_completion'],
         "task_id": task_id,
         "product_length": len(p["product_sequence"]),
         "product_topology": product_topology,

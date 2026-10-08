@@ -43,6 +43,8 @@ def compute_plan_sha256(plan: dict) -> str:
         "scope_note": plan.get("scope_note"),
         "preparation_check": plan.get('preparation_check'),
         'selected_output_version':plan.get('selected_output_version'),
+        'requirements':plan.get('requirements',{}),
+        'goal_coverage':plan.get('goal_coverage',{}),
     }
     if "product_features" in plan:
         semantic["product_features"] = plan["product_features"]
@@ -66,6 +68,9 @@ def plan(task: dict, base_dir: str | None = None) -> tuple[dict, dict]:
     raw_plan["handler_id"] = handler.handler_id
     raw_plan["handler_version"] = handler.handler_version
     raw_plan["method_maturity"] = handler.method_maturity
+    from core.requirements import task_requirements,goal_coverage
+    raw_plan['requirements']=task_requirements(vtask)
+    raw_plan['goal_coverage']=goal_coverage(raw_plan['requirements'],[])
     if vtask["task_kind"] not in ("composite_pipeline", "pipeline"):
         raw_plan["scope_note"] = (
             "Deterministic sequence and annotation model. Experimental preparation "

@@ -1,6 +1,6 @@
 # Core skill
 
-Updated: 2026-10-06. This spec defines the current DNA product contract. Developer documents have a [single router](../docs/README.md); closed plans are historical references, while unresolved handoffs stay in the plan index. [History](../docs/history.md) explains its evolution; [development plans](../docs/development-plans/README.md) own implementation scope, validation and handoff. [Safety spec](safety-module.md) owns Evidence Trace; [SKILL.md](../snapgene-dna-design/SKILL.md) and [Recipe reference](../snapgene-dna-design/references/recipes.md) own usage and signatures.
+Updated: 2026-10-09. This spec defines the current DNA product contract. Developer documents have a [single router](../docs/README.md); closed plans are historical references, while unresolved handoffs stay in the plan index. [History](../docs/history.md) explains its evolution; [development plans](../docs/development-plans/README.md) own implementation scope, validation and handoff. [Safety spec](safety-module.md) owns Evidence Trace; [SKILL.md](../snapgene-dna-design/SKILL.md) and [Recipe reference](../snapgene-dna-design/references/recipes.md) own usage and signatures.
 
 ## Goal and current functionality
 
@@ -65,6 +65,18 @@ Version 2.1.1 repair contract: executable goal fields have one discoverable defi
 Actual preparation PCR oligos receive complete method-specific structural checks using the existing Primer3 conditions. Failed or incomplete quality does not become successful preparation through sequence replay. Fully complementary QuikChange oligos are individually measured because their intended duplex is a method property, not an ordinary-PCR dimer waiver. Synthetic annealing and diagnostic QC retain their own purposes. Quality records bind actual product versions and final oligos; common prose distinguishes calculation, quality and experimental evidence.
 
 Formal delivery returns `present_files` for its actual final bundle. `verify_delivery_files` checks unchanged manifest members and selected presentation paths; it is an integrity check, not renewed scientific validation or cryptographic authenticity. A separately written or edited file cannot inherit another object's validation. A full-access host may still bypass this interface; mandatory host-wide presentation enforcement requires host integration. Sequence comparison reports actual region/frame/table/coverage and coding differences, not phenotype or evolutionary homology certification.
+
+## Original-goal continuity
+
+Public Step, Recipe CLI, Pipeline and ConstructionTask boundaries carry the same optional `requirements` context. It preserves `original_request`, executable constraints and `goal_items` linking recognized requirements to constraint references and exact source quotations. Source selectors bind existing source records; a quotation proves where text occurred, not whether the host interpreted it correctly.
+
+Steps inherit earlier context when later calls omit it. Additional constraints and later bindings are permitted; earlier constraints and the original request cannot silently disappear or be replaced. Route/parameter changes remain free. A deliberately revised user goal starts a separately recorded context; this is not a session/state platform.
+
+Coverage distinguishes MISSED (recognized item has no executable check), UNCHECKED, FAILED and PASSED. Planning does not mark declarations checked. Intermediate coverage describes that material/version; a missing final component in an intermediate does not prohibit a route that adds it later. Final validation checks the actual selected material and saved files using the effective inherited context.
+
+`completed` describes a tool call; `verified` describes requested program scopes; `delivered` describes the checked files. Every related application response also exposes `task_completion` and `goal_coverage`. `DECLARED_GOALS_PASSED` certifies the declared executable scope only. Free text and host-authored mappings cannot automatically establish original-task semantic completeness; `original_task_verified` remains false and unverified text is explicit. No additional human approval loop is introduced.
+
+Analysis without a construction request remains usable. This boundary controls the Skill's own results, not arbitrary host scripts or final presentation. Future-use prechecks, primer search, performance optimization and Trace restructuring are separate work.
 
 ## Unified molecule and result contract
 

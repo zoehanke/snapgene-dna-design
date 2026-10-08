@@ -57,6 +57,7 @@ def run_recipe_cli(
     out_dir: str | pathlib.Path,
     finalize_requested: bool = False,
     user_confirmed: bool = False,
+    requirements: dict | None = None,
 ) -> dict[str, Any]:
     fn, canonical_name = get_recipe_function(recipe_name)
     out_path = pathlib.Path(out_dir).resolve()
@@ -66,9 +67,16 @@ def run_recipe_cli(
     # Retained candidate files are diagnostics, not this attempt's receipt.
     result_json_path.unlink(missing_ok=True)
     params = dict(params)
-    requirements = {key: params.pop(key, []) for key in ("expected_components", "forbidden_components")}
-    requirements["sources"] = params.pop("sources", [])
-    if any(not isinstance(value, list) for value in requirements.values()):
+    from core.requirements import inherit_requirements, goal_coverage, completion_report, check_goal_constraints
+    nested=params.pop('requirements',{})
+    legacy = {key: params.pop(key) for key in ("expected_components", "forbidden_components", "sources", "original_request", "goal_items") if key in params}
+    if any(key in legacy and not isinstance(legacy[key],list) for key in ('expected_components','forbidden_components','sources')):
+        raise ValueError('expected_components, forbidden_components and sources must be lists')
+    requirements=inherit_requirements([{'requirements':legacy},{'requirements':nested}],requirements)
+    requirements.setdefault('expected_components',[])
+    requirements.setdefault('forbidden_components',[])
+    requirements.setdefault('sources',[])
+    if any(not isinstance(requirements[key], list) for key in ('expected_components','forbidden_components','sources')):
         raise ValueError("expected_components, forbidden_components and sources must be lists")
     from core.requirements import validate_component_declarations
     validate_component_declarations(requirements)
@@ -76,7 +84,11 @@ def run_recipe_cli(
     # 1. Execute Recipe
     from core.workflow import run_step, recipe_result, _materials
     input_sources={f'input_{index}':material for index,material in enumerate(_materials(params))}
-    executed=observe('recipe_execute',run_step,canonical_name,params,step_id='recipe',sources=input_sources)
+    from core.models.molecule import as_molecule
+    for source in requirements.get('sources',[]):
+        path=source.get('_resolved_path') or source.get('path') or source.get('filepath')
+        if path is not None:input_sources[source['source_id']]=as_molecule(path)
+    executed=observe('recipe_execute',run_step,canonical_name,params,step_id='recipe',sources=input_sources,requirements=requirements)
     if executed.error:
         from core.errors import ToolExecutionError
         raise ToolExecutionError(executed.error['error_code'],executed.error['message'],details=executed.error.get('details'))
@@ -169,10 +181,18 @@ def run_recipe_cli(
         from core.runtime_validate import _validate_requested_components
         with (candidate_dir / f"{canonical_name}.gb").open(encoding="utf-8", errors="replace") as handle:
             actual_candidate = SeqIO.read(handle, "genbank")
-        traces, errors = _validate_requested_components(requirements, actual_candidate)
+        traces, errors = _validate_requested_components(requirements, actual_candidate,source_records=input_sources)
         goal_check = {"status": "failed" if errors else "passed", "checks": traces, "errors": errors}
     observe_value("goal_check", goal_check)
     result_dict["goal_check"] = goal_check
+    context_traces,context_errors,goal_checks=check_goal_constraints(requirements,product_record,input_sources) if product_record is not None else ([],[],{})
+    goal_check['errors']=list(dict.fromkeys(goal_check['errors']+context_errors))
+    if context_errors:goal_check['status']='failed'
+    coverage=goal_coverage(requirements,goal_check['checks'],checks=goal_checks,
+                           subject_version=product_record.record_version if product_record is not None else None)
+    result_dict['requirements']=requirements
+    result_dict['goal_coverage']=coverage
+    result_dict['task_completion']=completion_report(coverage,local_success=not goal_check['errors'])
     result_json_path.write_text(json.dumps(result_dict, indent=2, ensure_ascii=False, default=str), encoding="utf-8")
     candidate_files.append(str(result_json_path))
     observe_value("candidate_files", candidate_files)
@@ -204,7 +224,7 @@ def run_recipe_cli(
         from core.workflow_delivery import deliver_result
         from core.errors import GateRejected
         try:
-            request={**requirements,'topology':topo}
+            request=inherit_requirements([{'requirements':requirements}],{'topology':topo})
             authoritative_delivery = observe('finalize',deliver_result,request,input_sources,[executed],
                 product_record,out_path,primers=[{**p,'role':'preparation'} for p in res.primers],result_kind=res.result_kind,
                 sanity_context=sanity['validation_context'])
@@ -215,6 +235,8 @@ def run_recipe_cli(
 
     return {
         "recipe": canonical_name,
+        'requirements':requirements,'goal_coverage':coverage,
+        'task_completion':authoritative_delivery['task_completion'] if authoritative_delivery else result_dict['task_completion'],
         "result_kind": res.result_kind,
         "completeness": res.completeness,
         "product_length": len(prod_seq) if prod_seq else 0,
@@ -237,6 +259,8 @@ def format_markdown_summary(exec_summary: dict[str, Any]) -> str:
     lines = []
     lines.append(f"## Recipe Execution: `{exec_summary['recipe']}`")
     lines.append(f"- **Result Kind**: `{exec_summary['result_kind']}` ({exec_summary['completeness']})")
+    completion=exec_summary.get('task_completion',{'status':'UNVERIFIED','scope':'no task-completion evidence'})
+    lines.append(f"- **Task completion**: `{completion['status']}` ({completion['scope']})")
     if exec_summary["product_length"] > 0:
         lines.append(f"- **Product Sequence Length**: {exec_summary['product_length']} bp ({exec_summary['product_topology']})")
     if exec_summary.get("goal_check", {}).get("status") != "not_requested":
@@ -341,6 +365,8 @@ def main():
                 "sanity_check": summary["sanity_check"],
                 "preparation_files": summary["preparation_files"],
                 "goal_check": summary["goal_check"],
+                'requirements':summary['requirements'],'goal_coverage':summary['goal_coverage'],
+                'task_completion':summary['task_completion'],
             }
             print(json.dumps(out_data, indent=2, ensure_ascii=False, default=str))
         else:

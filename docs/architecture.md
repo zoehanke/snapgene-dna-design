@@ -48,6 +48,10 @@ flowchart TD
 
 ### 数据结构逐项说明
 
+2026-10-09目标连续性补充：`core/requirements.py`继续作为唯一公共目标定义，新增轻量`goal_items`（id、text、可选source_quote和constraint_refs），没有独立规则引擎。`StepExecution.requirements`保存有效上下文；下一步及最终核查继承前文并合并新增约束。Task的raw_request/product/top-level组件约束适配到同一上下文，Recipe的共同字段从方法参数中分离。
+
+`goal_coverage`按实际受检版本列出声明、对应检查和MISSED/UNCHECKED/FAILED/PASSED。计划保留未检查状态；中间体当前不满足最终要求可以继续执行。`task_completion`单独说明声明范围与原文语义边界；原`completed/verified/delivered`保持各自操作/程序/文件含义。Task/plan/validation既有哈希和交付清单绑定这些新增字段。自然语言完整性和来源解释仍由宿主/人负责，程序没有新增自然语言理解能力。
+
 | 对象及负责程序 | 保存什么 | 谁创建或推进 | 是否统管所有路线 |
 |---|---|---|---|
 | `Molecule`，[core/models/molecule.py](../snapgene-dna-design/core/models/molecule.py) | DNA、features、annotations、逐位信息、拓扑、单双链、真实末端、来源和版本 | 原材料解析、工具变换；跨JSON边界用wire还原 | 统一公共材料；不保存整个自然任务，也不决定下一步 |
