@@ -2,6 +2,198 @@
 
 本项目是宿主AI调用的本地Skill，没有内置替代宿主的推理服务。产品边界读两个spec；这里合并模块地图、数据流、集成和扩展位置。
 
+## 当前程序全景：谁决策、谁传数据、谁验收
+
+2026-10-08按2.1.1源码核对。下面同时说明实际程序和既有宿主测试，不能把已实现的接口、未来方向和历史运行混为一谈。运行范围含183个Python文件：scripts 80、core 67、agent 8、planning 6、design 2、evidence_trace 18、rules 2；另有Trace的JS/CSS、10份JSON schema、宿主和外部后端。脚本目录含兼容导入及演示，不是80个正式构建入口。
+
+**当前是大模型组织设计，程序用统一材料/结果契约执行支持的方法。不存在一个已强制覆盖所有宿主操作的总设计对象。** 判断架构时要分别看目标表达、材料传递、步骤调度、检查和最终呈现。
+
+| 关心什么 | 当前实际责任 | 程序边界 |
+|---|---|---|
+| 用户究竟要求什么 | 宿主大模型/使用者把自然请求整理成可计算约束 | 程序可保存原文、核查已声明约束，不自动证明任意自然语言要求已全部理解 |
+| 调哪个方法、失败后换哪条路 | 宿主选Recipe、Pipeline、Task或单步；Recipe内部也有既定搜索/分支 | 单步入口不负责自动规划剩余任务；已有方法不等于每一步都让模型重想 |
+| DNA怎样从前一步进入后一步 | 公共工具传Molecule，Pipeline/单步续用解析产物引用 | 支持链内由程序传完整对象，不要求模型重抄序列；任意宿主脚本不自动纳入 |
+| 谁算序列、酶切、引物和反应 | Core领域工具及相应后端 | 计算有具体方法及适用范围，统一类型本身不是科学正确性证明 |
+| 谁判断完成 | Core按实际对象、声明目标和所需范围检查；宿主解释结果并选择最终链接 | 能阻断自己的正式出口，不能控制全权限宿主的全部写文件、口头声明或present |
+
+### 整体调用关系
+
+```mermaid
+flowchart TD
+ U[用户请求与原始材料] --> H[DSH或Codex宿主大模型]
+ I[SKILL.md与入口说明] -.指导.-> H
+ H --> S[run_step 单步选择与续用]
+ H --> R[run_recipe 成熟方法]
+ H --> P[run_pipeline 显式步骤]
+ H --> T[run_construction_task 结构化任务]
+ R --> S
+ P --> C[Task与composite_pipeline Handler]
+ T --> C
+ C -->|复合步骤| S
+ C -->|专用Handler| D[确定性序列与注释模型]
+ S --> A[原子工具或Recipe内部算法]
+ A --> M[Molecule与ToolResult及执行事实]
+ D --> M
+ M --> V[目标 / 反应与质量 / 文件核查]
+ V --> G[正式交付与present_files]
+ G --> H
+ H --> X[自行编写脚本或独立CLI]
+ X -.需主动补接事实与核查.-> V
+ M -.公共边界观察.-> E[Evidence Trace]
+ H -.提交过程解释与报告组织.-> E
+ E --> W[本机HTML与Markdown]
+```
+
+图中没有“宿主所有动作必经网关”的含义。专用Task Handler并非全部建立实体制备证据；其sequence/annotation范围与复合反应路线分别报告。Trace旁路也不会替代失败的领域检查。
+
+### 数据结构逐项说明
+
+| 对象及负责程序 | 保存什么 | 谁创建或推进 | 是否统管所有路线 |
+|---|---|---|---|
+| `Molecule`，[core/models/molecule.py](../snapgene-dna-design/core/models/molecule.py) | DNA、features、annotations、逐位信息、拓扑、单双链、真实末端、来源和版本 | 原材料解析、工具变换；跨JSON边界用wire还原 | 统一公共材料；不保存整个自然任务，也不决定下一步 |
+| `FragmentEnd`/`AssemblyFragment`，[core/models/assembly_model.py](../snapgene-dna-design/core/models/assembly_model.py) | 物理端、突出端、片段及组装所需边界 | 酶切/退火/组装算法 | 领域模型，不是全局设计状态 |
+| `ConstructModel`，[core/models/construct_model.py](../snapgene-dna-design/core/models/construct_model.py) | 序列编辑、坐标与源注释映射 | 编辑和Handler计算 | 支持模块，不替代Molecule或Task |
+| `ToolResult`，[core/tools/result.py](../snapgene-dna-design/core/tools/result.py) | products、analysis、checks | 原子工具返回 | 公共结果契约；analysis不被隐式当DNA |
+| `RecipeResult`，[core/recipes/contract.py](../snapgene-dna-design/core/recipes/contract.py) | 方法产物、角色、完整性、引物、制备/检查/步骤说明 | Recipe内部算法；单步适配为ToolResult | 流程级结果，仍需正式核查，不能凭字段存在授权 |
+| `StepExecution`，[core/workflow.py](../snapgene-dna-design/core/workflow.py) | 实际方法、参数、返回/错误、输入/来源版本、运行条件及内部操作 | run_step执行时生成，失败也保留 | 统一实际步骤记录；method/params仍由调用者提供 |
+| Workflow `requirements`，[core/requirements.py](../snapgene-dna-design/core/requirements.py) | 原请求、拓扑、预期/禁止元件、序列等可计算约束 | 宿主整理；程序同源检查字段/冲突并返回goal_coverage | 在共同核查中使用，不是每个单步都自动持有的总上下文 |
+| ConstructionTask，[core/task.py](../snapgene-dna-design/core/task.py)、construction-task-v1 schema | sources、target、operation、product、约束、授权及所需核查范围 | 宿主构造；TaskSession补齐字段；注册器选择已明确的任务类型 | Task路线的统一上下文；不强制Recipe、独立CLI及任意脚本都先变成Task |
+| Task的plan/execution/validation，[core/runtime_plan.py](../snapgene-dna-design/core/runtime_plan.py)、[core/runtime_execute.py](../snapgene-dna-design/core/runtime_execute.py)、[core/runtime_validate.py](../snapgene-dna-design/core/runtime_validate.py) | 绑定任务的计算计划、实际文件、当前核查对象/范围 | Handler计算、执行器写出、校验器重查 | 此路线的数据生命周期，不等于宿主全局运行状态 |
+| Pipeline步骤JSON，[core/handlers/composite_pipeline.py](../snapgene-dna-design/core/handlers/composite_pipeline.py) | tool、params、step_id、来源/前序引用、输出选择 | 宿主写步骤；程序顺序执行和解析依赖 | 已声明流程可由程序整段执行，不自动发明未知下一步 |
+| Assembly intent/manual，[planning/intent.py](../snapgene-dna-design/planning/intent.py)、[planning/planner.py](../snapgene-dna-design/planning/planner.py) | 指定来源/区间、方法约束、引物和组装计算及说明 | 调用者给intent；既有规划器在支持方法中搜索 | 另一兼容入口，不是ConstructionTask或全部工具的唯一Schema |
+| DesignSpec，[design/spec.py](../snapgene-dna-design/design/spec.py) | 旧自然语言入口的目标、假设、证据、修订和状态机 | 旧parser/session/orchestrator | 旧入口仍有该模型，正式路径已弃用；不能描述为现有全部工具的共同总状态 |
+| preparation、订单与验证文件，[core/preparation.py](../snapgene-dna-design/core/preparation.py) | 真实模板/完整引物/产物、方法条件、质量及用途 | 方法返回事实后程序重算/写出 | 物理制备证据和模型反应分开；QC/synthesis不能冒充制备 |
+| Trace events/design_process/report_plan，[evidence_trace/](../snapgene-dna-design/evidence_trace/) | 捕获事实、解释归属、引用版本和报告组织 | 程序记录事实，宿主/研究者给科学语义和阅读编排 | 旁路记录，不是DNA执行器或自动科学裁判 |
+
+这些结构存在适配关系，不能合称一张已驱动全部程序的统一设计表。尤其Molecule统一的是材料，Task表达的是一条路线的目标上下文，两者不是同一职责。
+
+### 公开路线：从入口到最终文件
+
+| 路线与真实程序 | 数据怎样进入和交接 | 谁决定下一步 | 完成与限制 |
+|---|---|---|---|
+| 单步，[scripts/run_step.py](../snapgene-dna-design/scripts/run_step.py) → [core/workflow.py](../snapgene-dna-design/core/workflow.py) | method/params/sources及previous/history_file；程序解析`$step.products.0`并还原完整Molecule；输出steps.json和真实材料 | 宿主逐步选方法；单步本身不规划剩余工作 | 一步completed不等于整题完成；需共同核查/交付 |
+| 成熟方法，[scripts/run_recipe.py](../snapgene-dna-design/scripts/run_recipe.py) → run_step → core/recipes | 调用者给实际材料和必要参数；Recipe内部选候选、分支、计算并返回完整结果；适配后进入相同执行记录 | 宿主选方法；已封装算法内部由程序推进 | 写候选和订单/检查；正式请求再走共同交付，不是只套一份静态协议 |
+| 显式多步，[scripts/run_pipeline.py](../snapgene-dna-design/scripts/run_pipeline.py) → [agent/pipeline_agent.py](../snapgene-dna-design/agent/pipeline_agent.py) → Task/composite Handler → run_step | pipeline_steps由调用者传入；wrapper组织Task；解析来源和前序产物，按指定步骤执行 | 宿主先组织步骤；程序执行这段已组织流程，错误后由宿主决定调整 | Pipeline plan阶段已实际计算；execute负责写出；错误带已完成前缀，不表示有自动失败恢复规划 |
+| 专用任务，[scripts/run_construction_task.py](../snapgene-dna-design/scripts/run_construction_task.py) → [core/session.py](../snapgene-dna-design/core/session.py) → task/registry → runtime_* | TaskSession收集缺字段/答案；明确task_kind后由对应Handler生成计划并执行；任务/计划/文件版本相互绑定 | task_kind/语义选择由调用者决定；注册器确定性路由，不猜任务 | composite建立实际步骤链；其他Handler注明其sequence/annotation范围，不能统称全部完成实验制备模拟 |
+| 装配规划兼容入口，[scripts/plan_assembly.py](../snapgene-dna-design/scripts/plan_assembly.py) → planning.intent/planner/executor → rules | sources+intent，选择边界、方法、设计引物并计算实际准备/组装，输出manual和可选构建文件 | 输入意图由宿主给；支持方法范围内的搜索/选择由程序完成 | 此处也有结构化驱动，但该manual或out-construct不自动等于正式DELIVERY-MANIFEST通过 |
+| 直接原子调用，core/tools及独立scripts | Python可传完整Molecule；独立CLI通常读文件/JSON并写自己的结果 | 宿主组织多次调用；工具内确定性计算 | 直接调用不必自动留下StepExecution，也不自动做原任务的共同收尾 |
+| 旧自然语言入口，[scripts/run_design_agent.py](../snapgene-dna-design/scripts/run_design_agent.py) → agent.nl_parser/Session/Orchestrator → DesignSpec | 关键词/规则解析、补问、旧状态及子进程命令 | 规则解析和旧调度，不是仓库内另一个LLM服务 | formal明确拒绝；exploration/preview兼容存在，复杂修改不能靠关键词冒充实现 |
+| 自定义宿主脚本，宿主pwsh/write/edit工具 | 可自行读文件、拼字符串、重写文件，也可主动调用上述公共接口 | 宿主完全组织 | 不自动受统一契约和正式出口控制；未知算法缺重放证据时保持INCOMPLETE |
+
+Recipe/Pipeline/Task不会自行调用宿主模型进行一轮新推理。`agent`目录的名字也不代表内置另一个大模型。宿主服务的模型调用、上下文、子代理和present属于DSH/Codex，本仓库没有它们的内部源码；其实际行为只能结合会话记录确认。
+
+### 两类注册器与全部方法族
+
+`core/tools/registry.py`管理44个原子工具及真实参数、类别和返回契约；`core/registry.py`管理任务Handler。前者不是任务规划器，后者不会凭自然语言选任务。write/external工具需要自己的文件/外部边界，不能被普通run_step当成无副作用计算。
+
+`core/tools/recombination.py`另提供Gateway BP/LR等内部原语，由相应实现调用，未列为上述44个公开注册名。源码中存在函数与能够用run_step按名称调用，是不同条件。
+
+七个Recipe方法族及文件：`core/recipes/gibson.py`的recipe_gibson_assembly、`restriction_cloning.py`的recipe_restriction_cloning、`golden_gate.py`的recipe_golden_gate、`mutagenesis.py`的recipe_site_directed_mutagenesis、`protein_tagging.py`的recipe_protein_tagging、`crispr_hdr.py`的recipe_crispr_hdr_donor、`verification.py`的recipe_cloning_verification。recipe_point_mutagenesis是别名，不是第八套算法；`core/recipes/contract.py`负责结果类型，`core/recipes/__init__.py`导出方法和来源/接口定义。Recipe内部仍有方法专属逻辑，并未全部改写成统一静态Pipeline。
+
+任务实现共12类，注册名13个，pipeline是composite_pipeline别名。全部位于`core/handlers/`：`component_amplification.py`、`plasmid_replace.py`、`plasmid_insert.py`、`point_mutation.py`、`overlap_assembly.py`、`protein_fusion.py`、`integration_donor.py`、`gateway_recombination.py`、`restriction_ligation.py`、`hierarchical_assembly.py`、`crispr_editing.py`、`composite_pipeline.py`；`base.py`定义Handler接口，`__init__.py`注册实现。每类接收Task并计算相应领域结果，成熟度和scope由实际实现给出，名称存在不表示已支持全部实验方法。
+
+### 核查、文件与交付的程序
+
+| 程序 | 实际工作 | 不应扩大成什么 |
+|---|---|---|
+| `core/requirements.py` | 同源目标字段定义、嵌套声明/类型/冲突校验、goal_coverage | 不自动发现自然请求里所有漏报目标 |
+| `core/workflow_validation.py` | 重放StepExecution；核对实际产物、来源、制备质量、最终文件与所声明目标 | 重放一致不证明算法科学上永远正确 |
+| `core/runtime_validate.py`、`core/evidence_chain.py` | Task层计算/文件/目标核对及来源元件证据 | Task类型或scope合法不等于实体实验已完成 |
+| `core/preparation.py` | 真实制备重算、完整引物质量、用途、订单和配套文件 | 反应序列成立不自动让结构质量通过 |
+| `core/workflow_delivery.py` | 从本次步骤/真实产物生成同一bundle、中间体、说明、订单和当前核查 | 不是采信宿主自填的PASS文件 |
+| `core/runtime_gate.py` | 核对实际GB/native/FASTA及清单，正式提升，返回present_files；只读核对最终选中成员 | 哈希/成员完整性不是真实性签名，也不是宿主present访问控制 |
+| `scripts/finalize_workflow.py` | 公共CLI核查或正式交付实际步骤链 | 只选择候选文件不会自动补齐缺失方法证据 |
+| `scripts/verify_delivery.py` | 查当前呈现路径/清单哈希/文件内容属于本次正式bundle | 不重新证明新的科学结论 |
+| `core/io/input_resolution.py`、`core/io/molecule_codec.py`、`core/io/primer_annotation.py` | 统一输入解释、wire/文件补充信息绑定、引物规范化与注释 | FASTA或源格式限制不能靠metadata宣称无损 |
+| `core/tools/snapgene_io.py`及格式CLI | 写出/读回DNA和注释，native格式或桌面打开走明确边界 | 文件后缀或内部解析通过不等于桌面软件实测 |
+| `core/guardrails/checklist.py`、`rules/engine.py`、`rules/experience.py` | 特定生物/可行性条件及有范围的经验规则 | 规则库不是全自然语言理解器，也不能豁免失败 |
+| `core/evidence.py`、`core/errors.py`、`core/interval.py` | 来源/成熟度标识、结构化失败、区间约定 | 标签和统一错误类型不自动保证宿主理解或停止 |
+| `core/__init__.py`、`core/session.py` | 公共Task接口导出、Task问答/修订 | 不是宿主聊天会话的全局状态 |
+
+来源文件、真实返回和候选对象可以不同表示；进入边界时要显式解析与核对。宿主若转成裸字符串并手写新注释，已经离开原对象的自动继承语义。重新传入一个Molecule也只能表明对象形状合法，不能补回被丢弃的真实来源或目标。
+
+### 旧入口、独立规划与当前主线的关系
+
+| 模块 | 当前职责 |
+|---|---|
+| `agent/pipeline_agent.py` | 主线Pipeline到Task/Core的桥接，接收已组织步骤，未在内部调用LLM |
+| `agent/nl_parser.py` | 旧关键词自然语言识别，不能把它称作宿主大模型的理解能力 |
+| `agent/clarification.py`、`agent/session.py` | 旧DesignSpec字段补问、文件摘要、修订和证据状态 |
+| `agent/orchestrator.py` | 旧DesignSpec调度既有CLI子进程，formal拒绝，不能替代当前共同收尾 |
+| `agent/delivery.py` | 旧preview/交付快照边界，与Core正式构建交付区分 |
+| `agent/rule_capture.py` | 将限定自然语言经验规则编译为严格规则候选，不负责设计DNA |
+| `design/spec.py` | 旧DesignSpec生命周期，无分子算法；其schema不是ConstructionTask schema |
+| `planning/intent.py`、`planning/method_selector.py` | 结构化装配意图及支持范围内的确定性方法比较 |
+| `planning/planner.py`、`planning/executor.py`、`planning/manual_render.py` | 装配规划、真实准备/组装计算和JSON说明呈现；不等于统一宿主执行服务 |
+
+以上文件仍有现用或兼容职责，不能因为“旧”就全部判为死代码，也不能因为叫planner就认为模型每次设计一定经过它。
+
+### Trace全部程序及外部后端
+
+Trace的数据入口是`evidence_trace/runtime.py`观察公共调用，以及`intake.py`显式观察材料/交付；`settings.py`控制Off/Observed/Full；`models.py`定义记录形状，`recorder.py`追加事实，`storage.py`保存/导出。`projection.py`生成完整事实投影；`process.py`接受宿主/研究者写的design_process和report_plan并核查引用；`provenance.py`区分解释与输入观察；`coverage.py`列出捕获覆盖；`applicability.py`和`impact.py`比较已声明上下文/变更；`chain.py`组织导航；`reader.py`和`details.py`产生可读投影；`report.py`和`render.py`固定生成Markdown/HTML；`view.js`、`view.css`负责报告页面交互和样式。`scripts/trace_run.py`包裹一次指定命令，`scripts/trace_design.py`配置、记录、组织和渲染。`evidence_trace/__init__.py`负责包导出。
+
+Trace不会自动理解宿主全部科学思路，不自行发起LLM，也不会让失败领域结果变成通过。手工脚本未主动观察的动作，不可因某份Trace完整就推断已全部捕获。
+
+外部执行/依赖逐项区分：
+
+- Python运行本地程序；Biopython负责序列、特征、酶切/比对等基础算法；jsonschema检查形状。
+- `core/tools/primer3_backend.py`以独立进程调用Primer3-core，避免原生绑定失败终止主程序；`scripts/primer3_core_backend.py`是兼容导入，primer3_probe/install/check_env负责探测或安装。具体可用性取决于当前环境。
+- snapgene_reader/sgffp及输入输出程序处理native文件；可选SnapGene桌面程序用于实际打开/转换/回读，未接管本软件规划。
+- `scripts/azimuth_backend.py`、`deepcpf1_model.py`、`guide_scoring.py`是特定guide评分后端，属于有适用范围的预测模型，不能与宿主通用大模型混称。
+- `scripts/cas_offinder_adapter.py`调用可选Cas-OFFinder；`crispor_adapter.py`是外部适配骨架，`online_sources.py`连接公开服务。sequence_upload_consent/operation_consent维护相应请求边界，不属于序列执行调度器。
+- `parts/`、协议/来源数据、`references/`、`schemas/`、`third_party/`提供材料目录、用法、形状和受许可约束的资源。10份schema为construction-task-v1、design-spec-v1、assembly-plan-v0.9、reaction-profile-v0.8、provenance-v0.8、protocol-recommendation-v0.8、offtarget-result-v0.8、guide-design-result-v0.8、experience-rule-v1、crispr-design-report-v0.8；存在多个契约，不是一份Schema统管全部工具。
+- 外层`tests/`、`tools/`、`benchmarks/`检查、打包和测量软件；不作为独立Skill运行依赖，不自动参与每次用户任务。安装/manifest和CI证明对应版本，不证明宿主已完成任务。
+
+包初始化/导出文件另包括`agent/__init__.py`、`planning/__init__.py`、`design/__init__.py`、`core/models/__init__.py`、`core/tools/__init__.py`、`core/guardrails/__init__.py`、`core/io/__init__.py`。它们连接包和公开接口，不是额外自主规划器。
+
+### 三轮实际过程怎样使用了这些程序
+
+以下是已检查记录的摘要，历史宿主使用2.1.0，不能冒充当前2.1.1自然验收。真实任务评分与实现交接仍由[当前闭环计划](development-plans/actual-execution-closure.md)和[评分规则](question-bank/scoring-v0.1.md)管理；私有源DNA、全部会话及生成产物不进入源码或包。
+
+| 观察点 | DSH有Skill 2.1.0 | DSH无Skill | GPT6.1sol无Skill |
+|---|---|---|---|
+| 谁定路线 | 宿主选重叠路线，并有三项审查者辅助澄清 | 同一DSH主模型自行选PCR+Golden Gate，调用一名子代理 | 模型自行选两轮HiFi；未取得本轮完整会话 |
+| 实际用了什么 | 加载Skill，调用公共单步/核查/正式出口；同时大量自写脚本 | 自写解析、酶切、连接、文件和校验代码；日志未见加载该Skill | 交付独立build/verify/report脚本，没有Skill导入；以负责人声明记录无Skill条件 |
+| 材料和执行 | 6个真实PCR可构成5080 bp环形DNA，正式文件/清单可核对 | 局部PCR成立，但错取GFP源区间，错误酶切模型导致计划七接缝不相容 | 独立核对8个PCR、两轮3890/5283 bp及3520 nt供体成立 |
+| 目标怎样进入检查 | ConE/接口已被宿主遗漏，传入未支持requirements字符串字段，2.1.0静默忽略 | 用自己选的错误片段定义“正确目标”，没有回到原GFP模块 | 必需模块/接口保留；自检和独立核对成立，热力学质量仍有缺口 |
+| 最后文件 | 正式版本的选定源注释正确，宿主最后呈现另一个手写版本，原受检对象未贯穿 | GB标准解析失败，GFP标签没有对应GFP DNA，URA3等坐标错误 | ZIP、实际文件和副本复跑的序列/注释一致 |
+| 失败是否约束完成 | 有限scope的PASSED被扩大为原任务全部满足 | 会话内多次OVERALL: FAIL，仍声称全流程通过 | 160项自检不含热力学范围，已披露未测；补测发现一个强发卡风险及一条后端超长未核查 |
+| 结论 | 原任务失败，局部统一计算/交付链确实发挥作用 | 原任务失败，材料选择、物理模型、文件和验收同时错误 | 主体设计成立，完整质量未闭合；不据此宣称实验成功 |
+
+前两份DSH为同一DeepSeek Flash/max、同任务同材料；有Skill轮有真人辅助，无Skill轮有子代理，不能把观察差异全部因果归于Skill。扣除问答等待后经过时间42.76对35.57分钟，全日志工具调用含子代理239对338次：本例体现计算可靠性差异，没有整体提速或完整成功率提升证据。GPT6.1sol记录不具同条件，不能并入同模型对照。
+
+这些过程定位了具体边界：统一Molecule/ToolResult已经存在；使用公共入口时，程序能交接材料和复算反应。但原目标仍需宿主正确表达，所有自定义操作和最终present并不受强制统一。2.1.1已补目标字段/冲突、完整制备质量、正式呈现列表和事实比较，工程验证与下一轮自然宿主验收分开。
+
+#### DSH有Skill轮的真实调用顺序
+
+1. 宿主加载SKILL，读取安装来源和Trace设置，再通过pwsh/read及自写脚本检查源文件、位点和特征。此时既有Task、Recipe和M1规划器并没有自动获得一个共同总任务。
+2. 宿主自行选择六个模板片段、设计引物并写出自己的design.json和主候选。ConE及交换接口在这个宿主组织阶段已经被遗漏；不是某个正确交接的ConE分子后来被工具悄悄删除。
+3. 自写的pipeline_gate.py读取该设计，然后直接导入`core.workflow.run_step`：六次simulate_pcr返回完整产物，simulate_overlap_assembly通过`$片段ID`消费这些真实返回。这里程序负责对象交接和实际计算，不是模型在每次调用之间重新抄写序列。
+4. 同一宿主脚本调用deliver_result。输入目标包含宿主已算出的expected_sequence和未支持的字符串requirements列表，没有ConE/完整接口约束。2.1.0对该字段静默忽略；正式检查只证明其实际收到的有限目标。正式源注释/文件链成立，不能补回上游漏报目标。
+5. 宿主最终present选择先前另一套手写主文件。该文件DNA与正式圆形产物等价，注释却不同，所以正式目录的检查没有覆盖最后呈现的那个对象。
+
+本轮主执行器是宿主自己写的脚本加Core公共函数，不能描述成“完整run_pipeline.py或ConstructionTask统一接管了聊天”。能够确认公共执行/正式出口被用到，也能够确认宿主仍掌握目标表达、候选选择和最后呈现。
+
+Trace也须按实际入口区分：日志读取的设置为Full，但本轮主构建脚本直接调用Python Core，没有Trace wrapper。StepExecution及其operations是Core实际反应记录，不等于Trace events.jsonl。设置Full不会自动截获未接观察边界的所有pwsh/write/edit操作，不能从开关状态推断完整过程或报告已经产生。
+
+#### 两份无Skill结果的真实程序路径
+
+DSH无Skill轮自己创建解析器和构建/校验脚本，用错误的源区间和反向酶切规则组织片段、拼字符串并手写GB。它的子代理只核查所收到的同源区候选，不能代替原任务全部模块和制备验收。其主日志出现11次OVERALL: FAIL，最后仍输出完成；标准GB解析和独立酶切复算均失败。这里没有使用Molecule、ToolResult、StepExecution或Core正式交付边界的证据。
+
+GPT6.1sol无Skill交付则使用自己的Biopython、CSV、局部参考文件以及build_design.py、verify_design.py、write_report.py。检查者在独立副本复跑三段程序，三份产物序列和features及160项自检均复现；另行从原模板/完整引物独立核对了PCR和两轮组装。它说明单次任务可由模型自行组织脚本完成主体设计，不证明它具有本项目的公共运行契约；热力学质量缺口也没有因自检通过而消失。
+
+因此实际差异不是“有没有JSON”或“有没有Python”。要看目标是谁定义、步骤实际消费了哪个对象、校验是否独立于构建假设，以及最终文件是否仍是受检对象。未在这些运行中调用的Recipe、专用Handler、旧DesignSpec/M1入口及报告程序，只能说明库里具备什么，不能计为该轮已发挥的能力。
+
+### 判断“统一”应问的五个问题
+
+1. 工具之间传的是完整实际材料，还是宿主重写的序列/坐标？公共链支持前者，自定义脚本须逐件核查。
+2. 原要求是否完整保留并成为有效约束？Molecule和合法JSON不会自动补齐遗漏的原要求。
+3. 下一步由谁决定？宿主决定开放任务路线，Pipeline执行已声明步骤，Recipe推进已封装方法。
+4. 检查对应哪个对象和范围？反应、引物质量、文件及目标须分别看，不能用一个PASS替代全部。
+5. 用户最后收到的是否本次正式受检文件？程序已返回当前present_files，但宿主可绕开，仍需实际记录验收。
+
+本节解释现状，没有新增总执行器、强制表单或数据模型。下面原有2026-10-06方向/方案保留其日期含义，已实施部分以本节和当前交接为准。
+
 ## 目录与入口
 
 项目/Git根是外层；`snapgene-dna-design/`是独立Skill根。下表运行路径均相对于Skill根。
@@ -309,3 +501,134 @@ Biopython处理序列和特征；sgffp/snapgene_reader处理native文件；Prime
 新增工具在`core/tools/registry.py`按真实副作用注册；新增Recipe检查RecipeResult、准备链和默认入口。新增task_kind同时检查任务Schema、registry及Handler映射，实现validate_contract、clarify、plan、recompute、validate_goal，并复用交付边界。预期来自原输入和要求，不能从产物反推必然成功的预期。
 
 新增可选字段要明确缺失语义；改变含义需显式版本化或要求重生成。旧事件保留，旧组织可陈旧，报告可重建。扩展Trace需覆盖真实入口、旧日志、失败隔离和三档DNA一致性。取舍原因见[history](history.md)，具体实现和失败原件见[历史档案](archive/README.md)。
+
+## 全部运行程序索引（2.1.1）
+
+以下清单把上文职责落到实际文件。按源码静态枚举，不把每个文件当作一项独立产品能力。原子工具数量另按实际注册器核对。
+
+### 44个注册原子工具
+
+公共返回是ToolResult，products只放完整Molecule，纯分析看analysis。下表按实际实现模块列出全部注册名；导出和打开桌面分别属于write/external，run_step仅接受compute/inspect。
+
+| 实现模块 | 全部注册名 |
+|---|---|
+| [core/tools/amplification.py](../snapgene-dna-design/core/tools/amplification.py) | `calc_primer_tm`, `check_primer_dimers`, `design_overhang_primers`, `anneal_oligos`, `prepare_pcr_fragment`, `simulate_pcr` |
+| [core/tools/assembly.py](../snapgene-dna-design/core/tools/assembly.py) | `ligate_fragments`, `simulate_overlap_assembly`, `simulate_golden_gate`, `simulate_digest_ligation` |
+| [core/tools/comparison.py](../snapgene-dna-design/core/tools/comparison.py) | `compare_sequences` |
+| [core/tools/crispr.py](../snapgene-dna-design/core/tools/crispr.py) | `design_crispr_grna`, `prepare_grna_oligos`, `prepare_pml104_guide`, `design_hdr_donor`, `extract_homology_arms` |
+| [core/tools/experience_helper.py](../snapgene-dna-design/core/tools/experience_helper.py) | `query_lab_experience`, `get_experience_categories`, `get_experience_rule_by_id`, `list_all_experience_rules` |
+| [core/tools/feature_ops.py](../snapgene-dna-design/core/tools/feature_ops.py) | `get_feature`, `annotate_feature`, `migrate_features_after_assembly` |
+| [core/tools/fusion.py](../snapgene-dna-design/core/tools/fusion.py) | `fuse_in_frame`, `get_standard_element` |
+| [core/tools/inspection.py](../snapgene-dna-design/core/tools/inspection.py) | `inspect_dna`, `summarize_backbone`, `find_open_reading_frames` |
+| [core/tools/restriction.py](../snapgene-dna-design/core/tools/restriction.py) | `find_restriction_sites`, `digest_sequence`, `digest_type_iis`, `fill_or_chew_overhang`, `check_overhang_compatibility` |
+| [core/tools/sequence_ops.py](../snapgene-dna-design/core/tools/sequence_ops.py) | `rotate_sequence`, `extract_subsequence`, `check_reading_frame`, `mutate_sequence`, `strip_terminal_codons` |
+| [core/tools/snapgene_io.py](../snapgene-dna-design/core/tools/snapgene_io.py) | `export_snapgene`, `open_in_snapgene` |
+| [core/tools/translation.py](../snapgene-dna-design/core/tools/translation.py) | `reverse_complement`, `translate_dna`, `get_codon_synonyms`, `silent_mutation_remove_site` |
+
+### scripts目录全部80个文件
+
+入口列“main”表示源码有main函数；“模块”表示作为后端/兼容/辅助被调用。正式设计主线及其收尾关系以上文为准，单项CLI不会仅因运行成功就自动完成整题验收。
+
+| 文件 | 入口 | 做什么 |
+|---|---|---|
+| [scripts/align_sanger.py](../snapgene-dna-design/scripts/align_sanger.py) | main | 把实际Sanger读段比到参考构建，输出读段覆盖与差异；不构建DNA。 |
+| [scripts/align_seq.py](../snapgene-dna-design/scripts/align_seq.py) | main | 两序列比对和统计，返回比对分析。 |
+| [scripts/analyze_seq.py](../snapgene-dna-design/scripts/analyze_seq.py) | main | 基础序列统计、反向互补和翻译CLI。 |
+| [scripts/annotate.py](../snapgene-dna-design/scripts/annotate.py) | main | 自动候选注释/ORF分析，不能凭自动标签证明用户目标成立。 |
+| [scripts/annotate_offtargets.py](../snapgene-dna-design/scripts/annotate_offtargets.py) | main | 将已有脱靶结果映射到GenBank特征，不自行完成全基因组搜索。 |
+| [scripts/annotate_primers.py](../snapgene-dna-design/scripts/annotate_primers.py) | main | 在实际材料上添加或编辑引物注释，文件变化后需重新核查。 |
+| [scripts/assemble_contig.py](../snapgene-dna-design/scripts/assemble_contig.py) | main | 从测序读段做贪心contig组装，属于读段分析而非质粒制备路线。 |
+| [scripts/assembly_model.py](../snapgene-dna-design/scripts/assembly_model.py) | 模块 | 兼容导入core.models.assembly_model，不是另一套组装模型。 |
+| [scripts/azimuth_backend.py](../snapgene-dna-design/scripts/azimuth_backend.py) | 模块 | 可选Azimuth/Doench-2016特定guide预测后端。 |
+| [scripts/batch.py](../snapgene-dna-design/scripts/batch.py) | main | 对目录逐文件执行支持的单项操作；不是原任务的自动科学规划。 |
+| [scripts/cas_offinder_adapter.py](../snapgene-dna-design/scripts/cas_offinder_adapter.py) | 模块 | 探测、调用和解析可选Cas-OFFinder外部程序。 |
+| [scripts/characterize_reaction.py](../snapgene-dna-design/scripts/characterize_reaction.py) | main | 给片段生成局部序列/反应特征画像，供后续规则和方法参考。 |
+| [scripts/check_env.py](../snapgene-dna-design/scripts/check_env.py) | main | 探测实际解释器、依赖、模型文件和后端，分别报告缺失。 |
+| [scripts/codon_optimize.py](../snapgene-dna-design/scripts/codon_optimize.py) | main | 启发式密码子重编码，不能据此宣称表达优化已实验证实。 |
+| [scripts/construct_model.py](../snapgene-dna-design/scripts/construct_model.py) | 模块 | 兼容导入core.models.construct_model，不是独立主模型。 |
+| [scripts/convert.py](../snapgene-dna-design/scripts/convert.py) | main | 批量文件格式转换及冲突处理，不验证全任务生物目标。 |
+| [scripts/crispor_adapter.py](../snapgene-dna-design/scripts/crispor_adapter.py) | 模块 | CRISPOR外部适配骨架及请求组织，不等于已提供完整真实服务。 |
+| [scripts/deepcpf1_model.py](../snapgene-dna-design/scripts/deepcpf1_model.py) | 模块 | 可选DeepCpf1/AsCas12a特定guide预测后端。 |
+| [scripts/demo_engineering_cycle.py](../snapgene-dna-design/scripts/demo_engineering_cycle.py) | main | 预设合成输入的真实PCR和检查演示。 |
+| [scripts/demo_evidence_trace.py](../snapgene-dna-design/scripts/demo_evidence_trace.py) | main | 基于给定完整材料的Trace演示。 |
+| [scripts/demo_evidence_trace_phase3.py](../snapgene-dna-design/scripts/demo_evidence_trace_phase3.py) | main | 完整模板PCR修订及上下文变更的Trace演示。 |
+| [scripts/describe_tools.py](../snapgene-dna-design/scripts/describe_tools.py) | main | 列出实际原子/Recipe接口和workflow_requirements字段；不执行设计。 |
+| [scripts/design_gene_replacement.py](../snapgene-dna-design/scripts/design_gene_replacement.py) | main | 既有基因替换设计CLI，使用自己的参数和输出；不自动等于正式交付。 |
+| [scripts/design_guides.py](../snapgene-dna-design/scripts/design_guides.py) | main | 确定性guide候选扫描及字段输出。 |
+| [scripts/design_primers.py](../snapgene-dna-design/scripts/design_primers.py) | main | 既有引物候选搜索/排序CLI，底层调用相应设计与检查方法。 |
+| [scripts/diff_design_spec.py](../snapgene-dna-design/scripts/diff_design_spec.py) | main | 比较旧DesignSpec修订，不比较所有路线的全局任务状态。 |
+| [scripts/draw_map.py](../snapgene-dna-design/scripts/draw_map.py) | main | 从序列/特征绘制SVG图谱，绘图正确不能替代序列和目标核查。 |
+| [scripts/edit_plasmid.py](../snapgene-dna-design/scripts/edit_plasmid.py) | main | 实际序列编辑及特征迁移，编辑结果仍需后续范围核查。 |
+| [scripts/export_delivery_bundle.py](../snapgene-dna-design/scripts/export_delivery_bundle.py) | main | 保守地打包既有文件及审计清单，不以打包替代Core领域验收。 |
+| [scripts/finalize_workflow.py](../snapgene-dna-design/scripts/finalize_workflow.py) | main | 对实际步骤链、源材料和requirements共同核查或正式交付。 |
+| [scripts/find_sites.py](../snapgene-dna-design/scripts/find_sites.py) | main | 查找识别位点、酶信息和酶切分析。 |
+| [scripts/generate_construction_report.py](../snapgene-dna-design/scripts/generate_construction_report.py) | main | 把已有Task/构建事实组织成人可读报告。 |
+| [scripts/generate_crispr_design_report.py](../snapgene-dna-design/scripts/generate_crispr_design_report.py) | main | 组织既有CRISPR设计、评分/脱靶等结果和文件。 |
+| [scripts/generate_design_report.py](../snapgene-dna-design/scripts/generate_design_report.py) | main | 既有设计结果的JSON/HTML报告，不自动补缺失实验或语义证据。 |
+| [scripts/golden_gate.py](../snapgene-dna-design/scripts/golden_gate.py) | main | 独立Type IIS/Golden Gate实验性模拟入口，不能与所有同名路线等同。 |
+| [scripts/guide_scoring.py](../snapgene-dna-design/scripts/guide_scoring.py) | main | 按可用模型和适用范围调用guide评分后端。 |
+| [scripts/inspect_plasmid.py](../snapgene-dna-design/scripts/inspect_plasmid.py) | main | 快速读取真实质粒及功能/位点摘要，供宿主选择材料。 |
+| [scripts/install_primer3.py](../snapgene-dna-design/scripts/install_primer3.py) | main | 显式安装并探测Primer3，属于环境操作。 |
+| [scripts/manage_experience_rules.py](../snapgene-dna-design/scripts/manage_experience_rules.py) | main | 管理/审查/评估经验规则，不执行DNA构建。 |
+| [scripts/methylation.py](../snapgene-dna-design/scripts/methylation.py) | main | 甲基化基序重叠提示，不能替代实体模板甲基化检测。 |
+| [scripts/msa.py](../snapgene-dna-design/scripts/msa.py) | main | 多序列渐进/star比对，输出分析。 |
+| [scripts/mutagenesis.py](../snapgene-dna-design/scripts/mutagenesis.py) | main | 既有定点突变等模拟CLI，与成熟Recipe和Task入口分别使用。 |
+| [scripts/online_sources.py](../snapgene-dna-design/scripts/online_sources.py) | 模块 | 组织和调用在线权威来源/序列服务请求，涉及上传时走相应同意边界。 |
+| [scripts/operation_consent.py](../snapgene-dna-design/scripts/operation_consent.py) | 模块 | 操作请求、同意策略及透明日志辅助模块。 |
+| [scripts/parse_dna.py](../snapgene-dna-design/scripts/parse_dna.py) | main | 读取native/GB/FASTA并输出结构化摘要和注释。 |
+| [scripts/parts_library.py](../snapgene-dna-design/scripts/parts_library.py) | main | 查询本地结构化部件库，不自动选定用户所需材料。 |
+| [scripts/pcr_strategy.py](../snapgene-dna-design/scripts/pcr_strategy.py) | main | 依据模板特征建议PCR策略和延伸时间等条件。 |
+| [scripts/plan_assembly.py](../snapgene-dna-design/scripts/plan_assembly.py) | main | sources+intent进入planning规划/实际计算及手册输出。 |
+| [scripts/primer3_core_backend.py](../snapgene-dna-design/scripts/primer3_core_backend.py) | 模块 | 兼容导入Core独立进程Primer3后端，避免计算逻辑重复维护。 |
+| [scripts/primer3_probe.py](../snapgene-dna-design/scripts/primer3_probe.py) | 模块 | 探测可选Primer3原生绑定是否可用，不等于完整引物均通过。 |
+| [scripts/primer_design_engine.py](../snapgene-dna-design/scripts/primer_design_engine.py) | 模块 | 既有模板区间引物设计、候选比较和解释引擎，可被规划/CLI调用。 |
+| [scripts/primer_qc.py](../snapgene-dna-design/scripts/primer_qc.py) | 模块 | 纯Python引物互补/结构启发式分析，不等同完整热力学模型。 |
+| [scripts/protein_tools.py](../snapgene-dna-design/scripts/protein_tools.py) | main | 蛋白反向翻译、寡核苷酸等单项工具。 |
+| [scripts/protocol_evidence.py](../snapgene-dna-design/scripts/protocol_evidence.py) | 模块 | 读取带来源的协议资料，区分可用来源和未核实条目。 |
+| [scripts/provenance.py](../snapgene-dna-design/scripts/provenance.py) | 模块 | 来源、版本、程序探测和结果来源字段辅助模块。 |
+| [scripts/quick_validate.py](../snapgene-dna-design/scripts/quick_validate.py) | main | 最小确定性软件冒烟检查，属于工程诊断。 |
+| [scripts/recommend_protocol.py](../snapgene-dna-design/scripts/recommend_protocol.py) | main | 按特征和已加载来源给出协议建议。 |
+| [scripts/run_architecture_recovery_examples.py](../snapgene-dna-design/scripts/run_architecture_recovery_examples.py) | 模块 | 固定例子的架构修复公开入口复现，不是陌生任务自动规划。 |
+| [scripts/run_construction_task.py](../snapgene-dna-design/scripts/run_construction_task.py) | main | TaskSession、plan、execute、validate、finalize的结构化任务CLI。 |
+| [scripts/run_design_agent.py](../snapgene-dna-design/scripts/run_design_agent.py) | main | 旧关键词DesignSpec agent CLI；formal已拒绝，preview兼容分开。 |
+| [scripts/run_pipeline.py](../snapgene-dna-design/scripts/run_pipeline.py) | main | 接收已组织步骤，桥接Task/composite Handler并共同交付。 |
+| [scripts/run_recipe.py](../snapgene-dna-design/scripts/run_recipe.py) | main | 调用成熟方法，保存候选/订单/检查，按正式请求共同收尾。 |
+| [scripts/run_step.py](../snapgene-dna-design/scripts/run_step.py) | main | 执行一个原子工具或Recipe，保存完整实际步骤与失败，支持历史续用。 |
+| [scripts/sequence_upload_consent.py](../snapgene-dna-design/scripts/sequence_upload_consent.py) | 模块 | 逐次序列上传同意状态，不控制宿主所有可能的网络操作。 |
+| [scripts/sg_common.py](../snapgene-dna-design/scripts/sg_common.py) | 模块 | 独立CLI共享读写、酶/特征/统计辅助函数。 |
+| [scripts/simulate_advanced.py](../snapgene-dna-design/scripts/simulate_advanced.py) | main | 实验性高级克隆近似模拟，支持范围按具体方法报告。 |
+| [scripts/simulate_cloning.py](../snapgene-dna-design/scripts/simulate_cloning.py) | main | 既有克隆反应模拟和片段处理CLI。 |
+| [scripts/simulate_gel.py](../snapgene-dna-design/scripts/simulate_gel.py) | main | 根据预测片段绘制/计算电泳结果，不是实际跑胶证据。 |
+| [scripts/simulate_pcr.py](../snapgene-dna-design/scripts/simulate_pcr.py) | main | 依据完整实际模板和引物做PCR模拟并输出结果。 |
+| [scripts/snapgene_compatibility.py](../snapgene-dna-design/scripts/snapgene_compatibility.py) | main | 检查已知SnapGene读写/注释兼容风险。 |
+| [scripts/snapgene_roundtrip_gate.py](../snapgene-dna-design/scripts/snapgene_roundtrip_gate.py) | main | 可选真实桌面SnapGene回读边界，程序可用和结果需分别确认。 |
+| [scripts/trace_design.py](../snapgene-dna-design/scripts/trace_design.py) | main | Trace配置、显式记录、过程组织、覆盖/读者投影与报告渲染。 |
+| [scripts/trace_run.py](../snapgene-dna-design/scripts/trace_run.py) | main | 执行一次明确命令并观察声明的输入输出文件，不变成DNA科学裁判。 |
+| [scripts/validate_construct.py](../snapgene-dna-design/scripts/validate_construct.py) | main | 单个构建的结构/翻译等QC，不能替代原任务和完整制备链检查。 |
+| [scripts/validate_design_spec.py](../snapgene-dna-design/scripts/validate_design_spec.py) | main | 旧DesignSpec形状及状态机校验。 |
+| [scripts/validate_primer3_integration.py](../snapgene-dna-design/scripts/validate_primer3_integration.py) | main | 真实Primer3外部设计路径工程验收入口。 |
+| [scripts/validate_roundtrip.py](../snapgene-dna-design/scripts/validate_roundtrip.py) | main | 内部及可选桌面格式语义回读检查。 |
+| [scripts/validation_crosscheck.py](../snapgene-dna-design/scripts/validation_crosscheck.py) | 模块 | GC、Tm、位点和重叠的数值交叉核对辅助模块。 |
+| [scripts/verify_delivery.py](../snapgene-dna-design/scripts/verify_delivery.py) | main | 只读核对清单和最终选中呈现文件的成员/内容完整性。 |
+| [scripts/write_dna.py](../snapgene-dna-design/scripts/write_dna.py) | main | 将序列/特征写为DNA文件；写出不自动证明已通过领域验收。 |
+
+### 其余103个Python文件的完整归属
+
+每个文件均归入前文说明过的职责组。表中初始化文件负责包连接，不是额外执行路线。
+
+| 职责组 | 全部文件 |
+|---|---|
+| 宿主桥接与旧DesignSpec兼容 | [agent/__init__.py](../snapgene-dna-design/agent/__init__.py)、[agent/clarification.py](../snapgene-dna-design/agent/clarification.py)、[agent/delivery.py](../snapgene-dna-design/agent/delivery.py)、[agent/nl_parser.py](../snapgene-dna-design/agent/nl_parser.py)、[agent/orchestrator.py](../snapgene-dna-design/agent/orchestrator.py)、[agent/pipeline_agent.py](../snapgene-dna-design/agent/pipeline_agent.py)、[agent/rule_capture.py](../snapgene-dna-design/agent/rule_capture.py)、[agent/session.py](../snapgene-dna-design/agent/session.py) |
+| 装配意图、规划、执行和手册 | [planning/__init__.py](../snapgene-dna-design/planning/__init__.py)、[planning/executor.py](../snapgene-dna-design/planning/executor.py)、[planning/intent.py](../snapgene-dna-design/planning/intent.py)、[planning/manual_render.py](../snapgene-dna-design/planning/manual_render.py)、[planning/method_selector.py](../snapgene-dna-design/planning/method_selector.py)、[planning/planner.py](../snapgene-dna-design/planning/planner.py) |
+| 旧DesignSpec模型 | [design/__init__.py](../snapgene-dna-design/design/__init__.py)、[design/spec.py](../snapgene-dna-design/design/spec.py) |
+| Core目标、执行、核查与交付 | [core/__init__.py](../snapgene-dna-design/core/__init__.py)、[core/errors.py](../snapgene-dna-design/core/errors.py)、[core/evidence.py](../snapgene-dna-design/core/evidence.py)、[core/evidence_chain.py](../snapgene-dna-design/core/evidence_chain.py)、[core/interval.py](../snapgene-dna-design/core/interval.py)、[core/preparation.py](../snapgene-dna-design/core/preparation.py)、[core/registry.py](../snapgene-dna-design/core/registry.py)、[core/requirements.py](../snapgene-dna-design/core/requirements.py)、[core/runtime_execute.py](../snapgene-dna-design/core/runtime_execute.py)、[core/runtime_gate.py](../snapgene-dna-design/core/runtime_gate.py)、[core/runtime_plan.py](../snapgene-dna-design/core/runtime_plan.py)、[core/runtime_validate.py](../snapgene-dna-design/core/runtime_validate.py)、[core/session.py](../snapgene-dna-design/core/session.py)、[core/task.py](../snapgene-dna-design/core/task.py)、[core/workflow.py](../snapgene-dna-design/core/workflow.py)、[core/workflow_delivery.py](../snapgene-dna-design/core/workflow_delivery.py)、[core/workflow_validation.py](../snapgene-dna-design/core/workflow_validation.py) |
+| 领域检查清单 | [core/guardrails/__init__.py](../snapgene-dna-design/core/guardrails/__init__.py)、[core/guardrails/checklist.py](../snapgene-dna-design/core/guardrails/checklist.py) |
+| ConstructionTask Handler | [core/handlers/__init__.py](../snapgene-dna-design/core/handlers/__init__.py)、[core/handlers/base.py](../snapgene-dna-design/core/handlers/base.py)、[core/handlers/component_amplification.py](../snapgene-dna-design/core/handlers/component_amplification.py)、[core/handlers/composite_pipeline.py](../snapgene-dna-design/core/handlers/composite_pipeline.py)、[core/handlers/crispr_editing.py](../snapgene-dna-design/core/handlers/crispr_editing.py)、[core/handlers/gateway_recombination.py](../snapgene-dna-design/core/handlers/gateway_recombination.py)、[core/handlers/hierarchical_assembly.py](../snapgene-dna-design/core/handlers/hierarchical_assembly.py)、[core/handlers/integration_donor.py](../snapgene-dna-design/core/handlers/integration_donor.py)、[core/handlers/overlap_assembly.py](../snapgene-dna-design/core/handlers/overlap_assembly.py)、[core/handlers/plasmid_insert.py](../snapgene-dna-design/core/handlers/plasmid_insert.py)、[core/handlers/plasmid_replace.py](../snapgene-dna-design/core/handlers/plasmid_replace.py)、[core/handlers/point_mutation.py](../snapgene-dna-design/core/handlers/point_mutation.py)、[core/handlers/protein_fusion.py](../snapgene-dna-design/core/handlers/protein_fusion.py)、[core/handlers/restriction_ligation.py](../snapgene-dna-design/core/handlers/restriction_ligation.py) |
+| 材料解析和文件/注释边界 | [core/io/__init__.py](../snapgene-dna-design/core/io/__init__.py)、[core/io/input_resolution.py](../snapgene-dna-design/core/io/input_resolution.py)、[core/io/molecule_codec.py](../snapgene-dna-design/core/io/molecule_codec.py)、[core/io/primer_annotation.py](../snapgene-dna-design/core/io/primer_annotation.py) |
+| Core材料与物理/编辑模型 | [core/models/__init__.py](../snapgene-dna-design/core/models/__init__.py)、[core/models/assembly_model.py](../snapgene-dna-design/core/models/assembly_model.py)、[core/models/construct_model.py](../snapgene-dna-design/core/models/construct_model.py)、[core/models/molecule.py](../snapgene-dna-design/core/models/molecule.py) |
+| 成熟方法与结果契约 | [core/recipes/__init__.py](../snapgene-dna-design/core/recipes/__init__.py)、[core/recipes/contract.py](../snapgene-dna-design/core/recipes/contract.py)、[core/recipes/crispr_hdr.py](../snapgene-dna-design/core/recipes/crispr_hdr.py)、[core/recipes/gibson.py](../snapgene-dna-design/core/recipes/gibson.py)、[core/recipes/golden_gate.py](../snapgene-dna-design/core/recipes/golden_gate.py)、[core/recipes/mutagenesis.py](../snapgene-dna-design/core/recipes/mutagenesis.py)、[core/recipes/protein_tagging.py](../snapgene-dna-design/core/recipes/protein_tagging.py)、[core/recipes/restriction_cloning.py](../snapgene-dna-design/core/recipes/restriction_cloning.py)、[core/recipes/verification.py](../snapgene-dna-design/core/recipes/verification.py) |
+| Core原子工具、注册与后端 | [core/tools/__init__.py](../snapgene-dna-design/core/tools/__init__.py)、[core/tools/amplification.py](../snapgene-dna-design/core/tools/amplification.py)、[core/tools/assembly.py](../snapgene-dna-design/core/tools/assembly.py)、[core/tools/comparison.py](../snapgene-dna-design/core/tools/comparison.py)、[core/tools/crispr.py](../snapgene-dna-design/core/tools/crispr.py)、[core/tools/experience_helper.py](../snapgene-dna-design/core/tools/experience_helper.py)、[core/tools/feature_ops.py](../snapgene-dna-design/core/tools/feature_ops.py)、[core/tools/fusion.py](../snapgene-dna-design/core/tools/fusion.py)、[core/tools/inspection.py](../snapgene-dna-design/core/tools/inspection.py)、[core/tools/primer3_backend.py](../snapgene-dna-design/core/tools/primer3_backend.py)、[core/tools/recombination.py](../snapgene-dna-design/core/tools/recombination.py)、[core/tools/registry.py](../snapgene-dna-design/core/tools/registry.py)、[core/tools/restriction.py](../snapgene-dna-design/core/tools/restriction.py)、[core/tools/result.py](../snapgene-dna-design/core/tools/result.py)、[core/tools/sequence_ops.py](../snapgene-dna-design/core/tools/sequence_ops.py)、[core/tools/snapgene_io.py](../snapgene-dna-design/core/tools/snapgene_io.py)、[core/tools/translation.py](../snapgene-dna-design/core/tools/translation.py) |
+| Trace事实、组织、阅读与呈现 | [evidence_trace/__init__.py](../snapgene-dna-design/evidence_trace/__init__.py)、[evidence_trace/applicability.py](../snapgene-dna-design/evidence_trace/applicability.py)、[evidence_trace/chain.py](../snapgene-dna-design/evidence_trace/chain.py)、[evidence_trace/coverage.py](../snapgene-dna-design/evidence_trace/coverage.py)、[evidence_trace/details.py](../snapgene-dna-design/evidence_trace/details.py)、[evidence_trace/impact.py](../snapgene-dna-design/evidence_trace/impact.py)、[evidence_trace/intake.py](../snapgene-dna-design/evidence_trace/intake.py)、[evidence_trace/models.py](../snapgene-dna-design/evidence_trace/models.py)、[evidence_trace/process.py](../snapgene-dna-design/evidence_trace/process.py)、[evidence_trace/projection.py](../snapgene-dna-design/evidence_trace/projection.py)、[evidence_trace/provenance.py](../snapgene-dna-design/evidence_trace/provenance.py)、[evidence_trace/reader.py](../snapgene-dna-design/evidence_trace/reader.py)、[evidence_trace/recorder.py](../snapgene-dna-design/evidence_trace/recorder.py)、[evidence_trace/render.py](../snapgene-dna-design/evidence_trace/render.py)、[evidence_trace/report.py](../snapgene-dna-design/evidence_trace/report.py)、[evidence_trace/runtime.py](../snapgene-dna-design/evidence_trace/runtime.py)、[evidence_trace/settings.py](../snapgene-dna-design/evidence_trace/settings.py)、[evidence_trace/storage.py](../snapgene-dna-design/evidence_trace/storage.py) |
+| 可行性与经验规则 | [rules/engine.py](../snapgene-dna-design/rules/engine.py)、[rules/experience.py](../snapgene-dna-design/rules/experience.py) |
+
+Trace前端文件另为[evidence_trace/view.js](../snapgene-dna-design/evidence_trace/view.js)、[evidence_trace/view.css](../snapgene-dna-design/evidence_trace/view.css)。宿主程序、Python/第三方库和外部二进制的责任已在前文列出，其源码不属于上述183文件。
