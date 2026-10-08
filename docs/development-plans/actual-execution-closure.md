@@ -199,7 +199,22 @@ r3当前实现与证据（2026-10-07）：
 
 验证记录在项目忽略目录`output/goal-handoff-repair-20261007/`：首轮全量1053项有2失败、3错误、8跳过；上述条件传递及正确用途修复后，完整插桩1054项1046通过、8跳过，smoke/property/rich均退出0。原覆盖命令因runtime_validate/runtime_gate新分支未过门限退出1，原报告保留。新增公共入口边界13项全通过（含2项新增用例），复用原覆盖数据得到两个模块92.8/87.5%及94.74/88.41%行/分支覆盖，其余配置目标原均过门限；补充数据单独保存，不改写原失败。
 
-独立目标/呈现/质量13项、序列比较5项、原执行闭环13项、准备8项、成熟Recipe9项及Trace16项已通过。独立包、DSH安装及精确提交CI继续完成后补写；宿主自然重测仍未完成。旧DSH输出和辅助身份不因本轮工程修复重新计成功。
+独立目标/呈现/质量13项、序列比较5项、原执行闭环13项、准备8项、成熟Recipe9项及Trace16项已通过。宿主自然重测仍未完成。旧DSH输出和辅助身份不因本轮工程修复重新计成功。
+
+2026-10-08，r3工程交付：
+
+| 检查 | 实际结果与证据 |
+|---|---|
+| 源码与CI | 实施提交`a6fc443129fc6b65ebf610c94fb5d6b88c834de2`已push指定开发分支；[对应六环境CI](https://github.com/zoehanke/snapgene-dna-design/actions/runs/37732362213)核对该提交，不借用旧CI |
+| 独立包 | 从该提交的Git归档生成2.1.1可分发包，268项清单逐文件核对；ZIP CRC、清单及受限材料检查通过。包SHA-256为`5eaeaff92d9b39bcf053bdff8877973e07a8ed14cd72bd681fd13a94c65dc4c5` |
+| 仓库外公共入口 | 中文空格路径，真实`run_step.py`执行PCR→EcoRI酶切→连接，再用`finalize_workflow.py`正式交付370 bp；GB/native/FASTA读回序列、负链注释及逐位来源符合原材料独立预期；四范围和准备质量均PASSED |
+| Trace三档 | Off/Observed/Full上述DNA文件逐字节相同；订单、质量测量/条件和四范围结果一致。`verify_delivery.py`认可正式呈现列表，拒绝字节相同的未受检副本；未知目标字段明确拒绝 |
+| 安装 | DSH根目录已替换为2.1.1，268文件、VERSION、INSTALL-SOURCE及安装后完整公共CLI链重过；原2.1.0完整备份在`C:/Users/祝浩淇/.dsh/skill-backups/snapgene-dna-design-v2.1.0-before-a6fc443`，原2.0.2备份保留。Codex安装未替换 |
+| 环境 | 所用Python3.12及Primer3-core2.6.1可用，`core_ok=true`；Cas-OFFinder未安装，`release_real_ok=false`。不把环境可运行等同于全部可选后端已验证 |
+
+包位于`dist/goal-handoff-v2.1.1-verified/`，包来源文件`PACKAGE-SOURCE.json`绑定实施提交。私有材料、开发证据和未提交并行代码没有打入包。核查日志在项目忽略目录`output/goal-handoff-repair-20261007/`，包括package-verification、installation、installed-public-cli和installed-environment。第一次仓库外核查脚本误用不支持的`feature_label`字段，被程序正确拒绝；失败目录保留，改成已有合法名称选择后通过，未修改产品代码/门限。
+
+R01至R04已实施并验证，R05包/安装及回归证据已记录，CI按上方精确运行核对。D06下一项仍为负责人使用2.1.1从原请求/原材料自然重测。任意宿主脚本/present的强制接入、旧桌面并发根因、未知方向GenBank无损、陌生用户及实验效果均没有被本轮工程检查解决或替代。旧r2记录以下保留其原版本含义。
 
 实施提交`50679b8`的CI暴露Trace将Core的PASSED误判为待确认。`dd293a8`仅在采集边界转成既有Trace状态词，原Core检查留在details；原失败和更强断言保留。该[实施提交六环境CI全部通过](https://github.com/zoehanke/snapgene-dna-design/actions/runs/37478554196)，main仍为0236384，未合并、未写GitLab、未创建正式Release。
 
