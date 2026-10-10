@@ -156,7 +156,7 @@ Trace不会自动理解宿主全部科学思路，不自行发起LLM，也不会
 
 ### 三轮实际过程怎样使用了这些程序
 
-以下是已检查记录的摘要，历史宿主使用2.1.0，不能冒充当前2.1.1自然验收。真实任务评分与实现交接仍由[当前闭环计划](development-plans/actual-execution-closure.md)和[评分规则](question-bank/scoring-v0.1.md)管理；私有源DNA、全部会话及生成产物不进入源码或包。
+以下是已检查记录的摘要，历史宿主使用2.1.0，不能冒充当前2.1.1自然验收。真实任务评分与实现交接仍由[当前闭环计划](archive/plans/actual-execution-closure-v2.2.1.md)和[评分规则](question-bank/scoring-v0.1.md)管理；私有源DNA、全部会话及生成产物不进入源码或包。
 
 | 观察点 | DSH有Skill 2.1.0 | DSH无Skill | GPT6.1sol无Skill |
 |---|---|---|---|
@@ -399,7 +399,7 @@ RecipeResult在既有准备边界生成即时`preparation_feedback`，区分真�
 
 Core文件写出以原分子为补充元数据锚点，文件可见投影仍独立核对。引物坐标冗余字段在真实产物生成时同步，不能等export掩盖变换错误；裁剪的原完整结合信息和当前片段分开。保存回读保留原record_version，DNA或注释修改仍使旧补充失效。真实突出链与junction_label比较分别声明，未知拓扑不转换为字符串。
 
-交付临时目录中的成品、中间体、订购表和说明共同生成并核查；直接Recipe提升也消费完整范围结果，不能只依赖sanity摘要。计算缺少证据时不得借通用文件bundle宣布验证完成。具体实施和验收由[开发方案](development-plans/actual-execution-closure.md)维护。
+交付临时目录中的成品、中间体、订购表和说明共同生成并核查；直接Recipe提升也消费完整范围结果，不能只依赖sanity摘要。计算缺少证据时不得借通用文件bundle宣布验证完成。具体实施和验收由[开发方案](archive/plans/actual-execution-closure-v2.2.1.md)维护。
 
 单步记录保留规范化参数、来源/产物版本、实现及实际Primer3二进制绑定、结果和失败；上下文局部采集注册工具的内部操作，不修改DNA算法参数。Recipe返回仅在适配处统一；实际运算仍直接传Molecule。候选核查重放绑定的输入和方法，对外部自定义算法区分重放一致性与科学变换证明。文件路径沿共同writer确定对象与角色，原模板不能冒充PCR产物，订购表/说明/执行和要求记录也检查实际内容。
 
@@ -408,6 +408,8 @@ core/preparation.py拥有准备重放和文件写出，scripts/run_recipe保留�
 2.1.1的同类修复在上述边界完成。`core/requirements.py`维护公共目标定义、嵌套元件形状及覆盖投影，Workflow拒绝未知目标字段，Task/Recipe共用元件声明检查；原始文本不能靠拓扑字段得到全面语义认证。`core/preparation.py`复算实际准备引物质量并写`preparation_quality.json`，Workflow和实际Composite Task核查按同一方法/条件消费结果。
 
 `runtime_gate`在原子提升后返回实际目录的`present_files`，`verify_delivery_files`和薄CLI`verify_delivery.py`只读核对清单及呈现成员。它不签署真实性、不重新建立领域证据，也无法拦截宿主任意present。主链接不应引用候选副本；编辑/另存须按现有核查重新绑定。
+
+实测边界：`check_verification_quality`绑定当前交付分子的DNA。另一个阶段的QC即使本身成立，也不能当作该最终模板检查；当前用各阶段独立bundle/回执交接，不自动把多subject验证聚合进一个正式包。阶段实际订单和回执必须随完整任务保留。融合标签的CDS边界需要明确上下文，原缺stop不直接等于源DNA损坏；目前不自动判断全部标签/完整ORF含义。
 
 `core/tools/comparison.py::compare_sequences`为纯分析工具，复用现有特征选择、完整CDS校验和Biopython对齐。局部/全局模式、覆盖、正反向、选取边界和显式计算量上限保留；编码比较记录蛋白/位置同义差异，长度/遗传码不同不强判变异类型。分析无DNA产物，不能作为新的制备材料或表型证明。说明从当前要求、步骤、订单和质量生成；不先建设新的解释平台。
 

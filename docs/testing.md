@@ -39,11 +39,11 @@ Coverage读取真实模块的行/分支及套件退出码，目标和阈值以[�
 
 Core API例子：`python -X utf8 -B snapgene-dna-design/examples/core_workflow.py --out-dir output/api-example`，属于序列文件编辑。实际准备链演示：`python -X utf8 -B snapgene-dna-design/scripts/demo_engineering_cycle.py --out-dir output/demo`，属于预设方案回归，两者都不是宿主陌生任务或湿实验。
 
-单步实际执行与共同交付短例：`python -X utf8 -B snapgene-dna-design/examples/execution_workflow.py --out-dir output/closure-example`。独立闭环反例由`test_execution_closure.py`保留，检查原要求、来源、真正反应、文件及订单用途；新宿主自然任务仍需另一份实际会话证据。实际结果由[当前闭环计划](development-plans/actual-execution-closure.md)管理，不在此复制动态测试数量。
+单步实际执行与共同交付短例：`python -X utf8 -B snapgene-dna-design/examples/execution_workflow.py --out-dir output/closure-example`。独立闭环反例由`test_execution_closure.py`保留，检查原要求、来源、真正反应、文件及订单用途；新宿主自然任务仍需另一份实际会话证据。实际结果由[当前闭环计划](archive/plans/actual-execution-closure-v2.2.1.md)管理，不在此复制动态测试数量。
 
 Trace记录完整不等于宿主全流程覆盖或科学结论成立。浏览器动作正常不等于人理解正常。桌面SnapGene格式实测、操作者审查、实验表型和全基因组特异性分别提供证据。
 
-本机6.0.2曾在两个转换任务同时运行时不生成部分GenBank输出，同输入串行复测通过；并发因果尚未受控证实。桌面CLI转换目前串行运行，不宣称并发支持。保留每轮失败及原退出码；某一步原样复测通过不能改写此前整套命令的失败报告。[当前闭环计划](development-plans/actual-execution-closure.md)保留本次实际记录。
+本机6.0.2曾在两个转换任务同时运行时不生成部分GenBank输出，同输入串行复测通过；并发因果尚未受控证实。桌面CLI转换目前串行运行，不宣称并发支持。保留每轮失败及原退出码；某一步原样复测通过不能改写此前整套命令的失败报告。[当前闭环计划](archive/plans/actual-execution-closure-v2.2.1.md)保留本次实际记录。
 
 ## 环境与独立包
 
