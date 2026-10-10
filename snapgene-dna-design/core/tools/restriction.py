@@ -18,6 +18,20 @@ from core.models.molecule import MoleculeInput, as_molecule, derived_molecule
 from core.models.assembly_model import FragmentEnd
 from core.tools.result import ToolResult, reaction_checks
 
+# Enzyme properties, not material-specific exceptions. NEB product records,
+# checked 2026-10-10; other enzymes/conditional inhibition remain UNKNOWN.
+# Values concern dam/dcm only. CpG and actual substrate methylation are not inferred.
+METHYLATION_RESPONSES = {
+    'PvuI': ({'dam': 'insensitive', 'dcm': 'insensitive'}, 'r0150-pvui'),
+    'SspI': ({'dam': 'insensitive', 'dcm': 'insensitive'}, 'r0132-sspi'),
+    'BclI': ({'dam': 'blocked', 'dcm': 'insensitive'}, 'r0160-bcli'),
+    'XbaI': ({'dam': 'blocked', 'dcm': 'insensitive'}, 'r0145-xbai'),
+    'BamHI': ({'dam': 'insensitive', 'dcm': 'insensitive'}, 'r0136-bamhi'),
+    'NotI': ({'dam': 'insensitive', 'dcm': 'insensitive'}, 'r0189-noti'),
+    'BsaI': ({'dam': 'insensitive', 'dcm': 'conditional'}, 'r3733-bsai-hf-v2'),
+    'BsmBI': ({'dam': 'insensitive', 'dcm': 'insensitive'}, 'r0739-bsmbi-v2'),
+}
+
 
 def get_enzyme(enzyme_name: str):
     """Resolve a restriction enzyme name case-insensitively.
@@ -196,15 +210,21 @@ def find_restriction_sites(
             overhang_seq = h["overhang_sequence"]
             cuts_within = h.get("cuts_within_sequence", True)
 
-            # Check for prokaryotic Dam/Dcm methylation overlap
+            # A motif overlap is observable geometry, not enzyme sensitivity.
             recog_len = len(recog_seq) if recog_seq else 6
-            blocked_by = []
+            blocked_by, overlaps, unresolved = [], [], []
+            response, product = METHYLATION_RESPONSES.get(enz.__name__, ({}, None))
+            searchable = seq_str + seq_str[:12] if is_circular else seq_str
+            site_positions = {(recog_start+i) % n for i in range(recog_len)}
             for m_name, m_pat in [("dam", "GATC"), ("dcm", "CC[AT]GG"), ("ecoki", "AAC[ACGT]{6}GTGC")]:
-                for m in re.finditer(m_pat, seq_str):
-                    m_start = m.start()
-                    m_end = m.end()
-                    if not (recog_start + recog_len <= m_start or m_end <= recog_start):
-                        blocked_by.append(f"{m_name} overlap ({m.group(0)} at bp {m_start})")
+                for m in re.finditer(m_pat, searchable):
+                    if m.start() >= n: continue
+                    motif_positions = {(i % n if is_circular else i) for i in range(m.start(),m.end())}
+                    if site_positions.intersection(motif_positions):
+                        overlap = f"{m_name} overlap ({m.group(0)} at bp {m.start()})"
+                        overlaps.append(overlap)
+                        if response.get(m_name) == 'blocked': blocked_by.append(overlap)
+                        elif response.get(m_name) != 'insensitive': unresolved.append(overlap)
 
             sites.append({
                 "recognition_start_0based": recog_start,
@@ -216,6 +236,10 @@ def find_restriction_sites(
                 "cuts_within_sequence": cuts_within,
                 "strand": h.get("strand", 1),
                 "methylation_warnings": blocked_by,
+                "methylation_overlaps": overlaps,
+                "methylation_unresolved": unresolved,
+                "methylation_status": 'BLOCKED_IF_METHYLATED' if blocked_by else 'UNKNOWN' if unresolved else 'NO_PREDICTED_DAM_DCM_BLOCKADE',
+                "methylation_source": 'https://www.neb.com/en-us/products/'+product if product else None,
             })
 
         count = sum(site["cuts_within_sequence"] for site in sites)

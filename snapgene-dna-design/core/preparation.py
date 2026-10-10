@@ -113,6 +113,61 @@ def check_preparation_quality(preparation: list[dict]) -> dict:
     return {'status': status, 'checks': checks, 'wet_lab': 'NOT_CHECKED'}
 
 
+def check_verification_quality(primers, subject, steps=()):
+    """Final QC orders bind the delivered template and retain screening conditions."""
+    from core.models.molecule import as_molecule
+    from core.io.primer_annotation import find_unique_binding_site
+    from core.tools.primer3_backend import check_complete_oligo_pair, Primer3CoreError
+    material = as_molecule(subject)
+    checks, assays = [], []
+    ordered = [p for p in primers or [] if p.get('role') == 'qc']
+    sequences = {p.get('sequence') or p.get('sequence_5to3') or p.get('seq') for p in ordered}
+    for primer in ordered:
+        sequence = primer.get('sequence') or primer.get('sequence_5to3') or primer.get('seq')
+        row = {'name': primer.get('name'), 'sequence': sequence, 'status': 'PASSED', 'errors': []}
+        try:
+            start, strand = find_unique_binding_site(str(material.seq), sequence, material.topology == 'circular')
+            row.update(binding_interval_0based=[start, start + len(sequence)], strand=1 if strand == '+' else -1)
+        except ValueError:
+            row['errors'].append('NO_UNIQUE_BINDING_ON_FINAL_SUBJECT')
+        try:
+            row['structure'] = check_complete_oligo_pair(sequence)
+            if not row['structure']['passed']: row['errors'].append('STRUCTURE_SCREEN_FAILED')
+        except Primer3CoreError as exc:
+            row.update(status='INCOMPLETE', reason=str(exc))
+        if row['errors'] and row['status'] != 'INCOMPLETE': row['status'] = 'FAILED'
+        checks.append(row)
+    for step in steps:
+        analysis = step.result.analysis
+        if analysis.get('result_kind') != 'verification': continue
+        details = analysis.get('details', {})
+        declared = {p.get('sequence') for p in analysis.get('primers', [])}
+        if not sequences.intersection(declared): continue
+        source = as_molecule(analysis['subject'])
+        row = {'step_id': step.step_id, 'subject_version': source.record_version,
+               'status': 'PASSED', 'parental_pcr': details.get('parental_pcr', {'status': 'NOT_CHECKED'}),
+               'sequencing_coverage': details.get('sequencing_coverage', {'status': 'NOT_CHECKED'}),
+               'junction_pcr': details.get('junction_pcr_primers')}
+        # Annotation-only versions may share an assay; sequence or topology changes cannot.
+        if str(source.seq) != str(material.seq) or source.topology != material.topology:
+            row.update(status='FAILED', reason='QC_SUBJECT_CHANGED')
+        pair = details.get('junction_pcr_primers', {})
+        forward, reverse = pair.get('forward_primer_in_vector'), pair.get('reverse_primer_in_insert')
+        if forward in sequences and reverse in sequences:
+            try:
+                row['pair_structure'] = check_complete_oligo_pair(forward, reverse)
+                if not row['pair_structure']['passed']: row.update(status='FAILED', reason='PAIR_STRUCTURE_SCREEN_FAILED')
+            except Primer3CoreError as exc:
+                row.update(status='INCOMPLETE', reason=str(exc))
+        assays.append(row)
+    statuses = [r['status'] for r in checks + assays]
+    status = ('FAILED' if 'FAILED' in statuses else 'INCOMPLETE' if 'INCOMPLETE' in statuses else
+              'PASSED' if checks else 'NOT_APPLICABLE')
+    return {'status': status, 'subject_version': material.record_version, 'checks': checks, 'assays': assays,
+            'scope': 'exact binding and default full-oligo structural screen; not experimental performance',
+            'wet_lab': 'NOT_CHECKED'}
+
+
 def write_preparation_artifacts(preparation: list[dict], out_dir: str | pathlib.Path) -> dict:
     """Write the actual prepared fragments, source primer maps and order table."""
     from Bio import SeqIO

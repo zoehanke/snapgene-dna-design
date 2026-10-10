@@ -40,7 +40,8 @@ python scripts/run_recipe.py --recipe recipe_protein_tagging --params-json fixtu
 - `candidate/`：计算候选；`intermediates/`：实际准备步骤产物。
 - `annotated_sources/`和`primer_order_table.tsv`：源图、完整订购引物、真实结合段和坐标。
 - `authoritative/`：该运行通过正式门限的`.gb/.dna/.fasta`及清单，仍限定于程序实际检查的范围。
-- 直接使用返回的`present_files`主链接；`scripts/verify_delivery.py`核查最后选择是否属于未改变的正式交付。`preparation_quality.json`单独记录完整制备引物质量及条件。
+- 直接使用返回的`present_files`主链接；`scripts/verify_delivery.py`核查最后选择是否属于未改变的正式交付，并返回该回执原有的检查范围与任务完成边界。`preparation_quality.json`记录制备引物质量；`verification_quality.json`单独记录最终QC订单、亲本PCR预测与测序覆盖假设。
+- 补充测序引物传给QC Recipe的`sequencing_primers`，亲本材料传`background_templates`。[参数与范围](references/recipes.md)。复核后的科学说明放共同收尾的`report_notes`。订单、注释或文稿变更后重新finalize，再呈现当前回执的路径；文稿版本核查不等于自动证明其科学结论。
 - Evidence Trace：可选的过程与依据记录，保持DNA主线旁路。[使用说明](references/evidence-trace.md)
 
 直接调用scripts辅助模块时，在Skill目录把它加入Python导入路径：

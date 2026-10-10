@@ -85,8 +85,18 @@ def _match(expected,actual):
     return errors
 
 
+def _actual_step_primers(step):
+    """Include Recipe-internal actual reactions, retaining the owning step's purpose."""
+    rows=list(step.result.analysis.get('primers',[]))
+    for operation in step.operations:
+        analysis=operation['result']['analysis']
+        rows.extend(p for p in analysis.get('primers',[]) if isinstance(p,dict))
+        rows.extend(analysis[key] for key in ('forward_primer','reverse_primer') if isinstance(analysis.get(key),dict))
+    return [p for p in rows if isinstance(p,dict)]
+
+
 def validate_candidate(requirements,sources,steps,candidate,*,primers=None,files=None,
-                       required_scopes=None,result_kind='construct',output_step=None,product_index=None,sanity_context=None):
+                       required_scopes=None,result_kind='construct',output_step=None,product_index=None,sanity_context=None,report_notes=None):
     """Check computable requirements and actual chain without inventing a Task/route."""
     from core.runtime_validate import _validate_requested_components
     from core.tools.sequence_ops import validate_cds_feature
@@ -96,6 +106,8 @@ def validate_candidate(requirements,sources,steps,candidate,*,primers=None,files
     requirements=inherit_requirements(steps,requirements)
     validate_validation_options(required_scopes, result_kind)
     material=as_molecule(candidate)
+    if report_notes is not None and not isinstance(report_notes,str):
+        raise ValidationError('REPORT_NOTES_INVALID','report_notes must be text')
     errors=[]
     scopes={scope:check_result(scope,subject=material,status='INCOMPLETE',scope=scope)
             for scope in ('sequence_model','preparation_model','file','user_goal')}
@@ -168,12 +180,7 @@ def validate_candidate(requirements,sources,steps,candidate,*,primers=None,files
     if quality['status'] in ('FAILED', 'INCOMPLETE'):
         scopes['preparation_model']['status'] = quality['status']
         errors.append('OLIGO_QUALITY_' + quality['status'] + ': complete preparation oligo quality was not established')
-    actual_primers=[p for row in replayed for p in row.result.analysis.get('primers',[])]
-    for row in replayed:
-        for op in row.operations:
-            analysis=op['result']['analysis']
-            actual_primers.extend(p for p in analysis.get('primers',[]) if isinstance(p,dict))
-            actual_primers.extend(analysis[key] for key in ('forward_primer','reverse_primer') if isinstance(analysis.get(key),dict))
+    actual_primers=[p for row in replayed for p in _actual_step_primers(row)]
     if primers is not None:
         from core.workflow_delivery import _used_products, preparation_rows, synthesis_orders
         used=_used_products(replayed,expected or material)
@@ -194,19 +201,27 @@ def validate_candidate(requirements,sources,steps,candidate,*,primers=None,files
         for p in primers:
             sequence=p.get('sequence') or p.get('sequence_5to3')
             role=p.get('role','preparation')
+            if role not in ('preparation','qc','synthesis'):
+                errors.append('INVALID_OLIGO_ROLE')
+                scopes['preparation_model']['status']='FAILED'
+                continue
             if role=='synthesis':
                 if sequence not in {q['sequence_5to3'] for q in synthesis}:
                     errors.append('FINAL_OLIGO_NOT_IN_ACTUAL_REACTION')
                     scopes['preparation_model']['status']='FAILED'
                 continue
             allowed=[q for row in replayed if (row.result.analysis.get('result_kind')=='verification')==(role=='qc')
-                     for q in row.result.analysis.get('primers',[]) if isinstance(q,dict)]
-            if role=='qc' and not any(sequence==(q.get('sequence') or q.get('seq')) for q in allowed):
+                     for q in _actual_step_primers(row)]
+            if not any(sequence==(q.get('sequence') or q.get('sequence_5to3') or q.get('seq')) for q in allowed):
                 errors.append('OLIGO_ROLE_MISMATCH')
                 scopes['preparation_model']['status']='FAILED'
             if not any(sequence==(q.get('sequence') or q.get('sequence_5to3') or q.get('seq')) for q in actual_primers):
                 errors.append('FINAL_OLIGO_NOT_IN_ACTUAL_REACTION')
                 scopes['preparation_model']['status']='FAILED'
+    from core.preparation import check_verification_quality
+    verification_quality=check_verification_quality(primers,material,replayed)
+    if verification_quality['status'] in ('FAILED','INCOMPLETE'):
+        errors.append('VERIFICATION_QUALITY_'+verification_quality['status'])
     goal_errors=[]
     from core.guardrails.checklist import quick_biological_sanity_check
     context={**(sanity_context or {}),'topology':material.topology}
@@ -257,7 +272,7 @@ def validate_candidate(requirements,sources,steps,candidate,*,primers=None,files
                 with path.open(encoding='utf-8') as handle:record=list(csv.DictReader(handle,delimiter='\t'))
                 if primers is None or record!=order_rows(primers):file_errors.append('ORDER_TABLE_MISMATCH')
             elif name=='design.md':
-                if primers is None or path.read_text(encoding='utf-8')!=render_design(material,result_kind,replayed,order_rows(primers),requirements,quality):
+                if primers is None or path.read_text(encoding='utf-8')!=render_design(material,result_kind,replayed,order_rows(primers),requirements,quality,verification_quality,report_notes):
                     file_errors.append('EXPLANATION_NOT_CURRENT')
             elif name=='execution.json':
                 import json
@@ -270,6 +285,10 @@ def validate_candidate(requirements,sources,steps,candidate,*,primers=None,files
                 import json
                 if json.loads(path.read_text(encoding='utf-8')) != quality:
                     file_errors.append('PREPARATION_QUALITY_RECORD_MISMATCH')
+            elif name=='verification_quality.json':
+                import json
+                if json.loads(path.read_text(encoding='utf-8')) != verification_quality:
+                    file_errors.append('VERIFICATION_QUALITY_RECORD_MISMATCH')
             elif name=='primer_order_table.tsv':
                 import csv
                 from core.workflow_delivery import preparation_rows
@@ -296,6 +315,7 @@ def validate_candidate(requirements,sources,steps,candidate,*,primers=None,files
     result={'overall':'verified' if not errors else 'failed','scope_results':scopes,'errors':errors,
             'goal_coverage':coverage, 'task_completion':completion_report(coverage,local_success=not errors,scope_results=scopes),
             'preparation_quality': quality,
+            'verification_quality':verification_quality, 'report_notes':report_notes,
             'subject_version':material.record_version,'source_versions':{k:as_molecule(v,default_topology='linear').record_version for k,v in sources.items()},
             'requirements':requirements,'conditions':runtime_conditions(),'primers':primers or [],'sanity_context':context,'sanity_check':sanity,
             'steps_sha256':_digest([_step(s).to_dict() for s in steps]),'artifact_hashes':hashes,'file_paths':{k:str(v) for k,v in (files or {}).items()},

@@ -116,6 +116,10 @@ Recipe/Pipeline/Task不会自行调用宿主模型进行一轮新推理。`agent
 
 来源文件、真实返回和候选对象可以不同表示；进入边界时要显式解析与核对。宿主若转成裸字符串并手写新注释，已经离开原对象的自动继承语义。重新传入一个Molecule也只能表明对象形状合法，不能补回被丢弃的真实来源或目标。
 
+2026-10-10交付补充：QC Recipe在`details`中保存逐亲本PCR预测、补充Sanger引物检查及条件性覆盖。`core/preparation.check_verification_quality`把最终QC订单重新绑定当前模板，独立重查唯一结合及默认完整寡核苷酸结构；实际PCR对另做配对筛查。共同writer与validator共享该结果，写出`verification_quality.json`，FAILED/INCOMPLETE不能借制备范围PASS放行。
+
+自动订单仅在不同序列使用相同通用名时加步骤前缀；调用者自填的冲突名称直接拒绝。用途按所属真实步骤及其内部操作核对，不能通过把QC标成preparation或未知值跳过质量。`report_notes`经finalize_workflow传给共同writer/validator，进入验证摘要和当前文稿；它是调用者说明，不是程序科学证书。实际呈现仍使用原`present_files`和`verify_delivery_files`，未引入第二交付框架。限制酶查询保留甲基化重叠、已核实敏感性及未知效果；BIO-09不把未知重叠当作已证明阻断。
+
 ### 旧入口、独立规划与当前主线的关系
 
 | 模块 | 当前职责 |

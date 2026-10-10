@@ -14,14 +14,14 @@ from evidence_trace.runtime import traced_run, add_trace_arguments, trace_option
 @traced_run('workflow')
 def execute(config,out_dir,deliver):
     allowed = {'record_file', 'sources', 'steps', 'candidate', 'requirements', 'primers', 'files',
-               'result_kind', 'required_scopes', 'output_step', 'product_index', 'validation', 'sanity_context'}
+               'result_kind', 'required_scopes', 'output_step', 'product_index', 'validation', 'sanity_context','report_notes'}
     if not isinstance(config, dict) or set(config) - allowed:
         raise ValidationError('WORKFLOW_CONFIG_INVALID', 'Unknown or invalid workflow configuration fields',
                               details={'supported_fields': sorted(allowed)})
     history=json.loads(Path(config['record_file']).read_text(encoding='utf-8')) if config.get('record_file') else config
     sources=config.get('sources',history.get('sources',{}))
     steps=history['steps']
-    options={key:config[key] for key in ('primers','result_kind','required_scopes','output_step','product_index','sanity_context') if key in config}
+    options={key:config[key] for key in ('primers','result_kind','required_scopes','output_step','product_index','sanity_context','report_notes') if key in config}
     if deliver:
         return deliver_result(config.get('requirements',{}),sources,steps,config['candidate'],out_dir,
                               validation=config.get('validation'),**options)
@@ -31,7 +31,7 @@ def execute(config,out_dir,deliver):
     return {'status':report['overall'],'validation_file':str((out/'validation.json').resolve()),
             'scope_results':{key:value['status'] for key,value in report['scope_results'].items()},'errors':report['errors'],
             'goal_coverage': report['goal_coverage'], 'task_completion':report['task_completion'],
-            'preparation_quality': report['preparation_quality']}
+            'preparation_quality': report['preparation_quality'],'verification_quality':report['verification_quality']}
 
 
 def main():

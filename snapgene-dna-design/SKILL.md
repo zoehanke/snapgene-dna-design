@@ -37,6 +37,8 @@ Read `INSTALL-SOURCE.json` only in this Skill root when present and use its veri
 
    Actual preparation pairs have separate complete-oligo quality results in `preparation_quality.json`; replay success is not a quality pass. Use the returned method/conditions and revise the route when quality fails or is incomplete. Known QuikChange complementary pairs are individually measured; ordinary PCR rules remain unchanged. Keep synthesis and QC uses separate.
 
+   Add extra sequencing oligos through `recipe_cloning_verification(sequencing_primers=[{"name":"walk_F","sequence":"..."}])` on the actual current template. Supply `background_templates` for parent discrimination; inspect each predicted band rather than assuming parents are negative. `read_length_bp`/`read_trim_bp` describe coverage assumptions. Finalization measures all ordered QC oligos in `verification_quality.json`; backend availability or Tm alone is not quality evidence. Use unique order names. Put reviewed task-specific prose in finalization's `report_notes`, then deliver and verify the returned paths together. Changing orders, prose or annotations means finalize again, not edit the authoritative files.
+
    ```text
    complete source -> PCR and/or digest -> actual intermediate -> assembly or ligation -> product checks
    ```

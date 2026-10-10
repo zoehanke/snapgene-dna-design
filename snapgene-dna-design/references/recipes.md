@@ -284,7 +284,14 @@ QC候选必须唯一结合、核心Tm在52–72°C，并通过真实Primer3的�
 | `insert_start_0based` | `int` | required | Insert start in the recombinant record. |
 | `insert_end_0based` | `int` | required | Insert end in the recombinant record. |
 | `diagnostic_enzymes` | `list[str] \| None` | `None` | Optional enzymes for simulated diagnostic digest. |
+| `max_pair_checks` | `int \| None` | `None` | Optional search budget; exhaustion is incomplete search, not no solution. |
+| `background_templates` | `dict \| None` | `None` | Named actual parent templates; report exact PCR bands per template. |
+| `sequencing_primers` | `list[dict] \| None` | `None` | Supplementary complete oligos as `{name, sequence}`; binding and structure are checked. |
+| `read_length_bp` | `int \| None` | `None` | Assumed readable distance from primer 3prime end; no read data implied. |
+| `read_trim_bp` | `int` | `30` | Initial bases excluded from coverage; caller must choose conditions appropriate to its service. |
 
-This recipe returns a QC design plus an annotated copy of the source, including `.dna` with the designed primers. It retains source topology and existing features. PCR length comes from full-template exact-match simulation; primers are restricted to the actual backbone and insert. It refuses ambiguous binding. If an upstream Sanger primer is unavailable, it tries a reverse primer facing the junction. The reported distance is measured from the real 3′ end. Short inserts can require a matched lower-Tm pair within 52–72°C. Parental-template specificity and mismatch-tolerant off-target binding are not established by this local exact-match assay.
+Optional checks are in `RecipeResult.details`, or `ToolResult.analysis.details` after `run_step` adaptation. Background-positive PCR is a control finding, not failure of the construct. Ambiguous predictions remain UNKNOWN. Supplementary oligos failing default structure screening remain recorded; common final delivery rejects failed/incomplete QC quality. This screen does not establish experimental sequencing failure. Actual Sanger data and mismatch-tolerant/genomic off-target checks remain separate.
+
+This recipe returns a QC design plus an annotated copy of the source, including `.dna` with the designed primers. It retains source topology and existing features. PCR length comes from full-template exact-match simulation; primers are restricted to the actual backbone and insert. It refuses ambiguous binding. If an upstream Sanger primer is unavailable, it tries a reverse primer facing the junction. The reported distance is measured from the real 3′ end. Short inserts can require a matched lower-Tm pair within 52–72°C. Parent discrimination is unchecked without supplied backgrounds; mismatch-tolerant off-target binding and actual experimental specificity remain unverified.
 
 **Reading:** Green and Sambrook, Ch. 1 and Ch. 8; Sanger et al., *PNAS* (1977).

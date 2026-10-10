@@ -279,9 +279,12 @@ def scan_methylation_blockade(
     seq_str = str(record_or_seq.seq if isinstance(record_or_seq, SeqRecord) else record_or_seq).upper()
     res = find_restriction_sites(seq_str, enzymes=cloning_enzymes).analysis
 
-    blocked = []
+    blocked, unresolved = [], []
     for enz_name, details in res.get("enzymes", {}).items():
         for cut in details.get("cuts", []):
+            if cut.get('methylation_unresolved'):
+                unresolved.append({'enzyme': enz_name, 'position_0based': cut.get('recognition_start_0based'),
+                                   'overlaps': cut['methylation_unresolved']})
             warnings = cut.get("methylation_warnings", [])
             if warnings:
                 blocked.append({
@@ -296,10 +299,12 @@ def scan_methylation_blockade(
         "has_methylation_blockade": has_blockade,
         "blocked_sites": blocked,
         "blocked_enzymes": list({b["enzyme"] for b in blocked}),
+        "unresolved_sites": unresolved,
+        "scope": 'Predicted dam/dcm effects if substrate is methylated; no assay or CpG status inferred.',
         "details": (
-            f"Detected {len(blocked)} restriction site(s) completely or partially blocked by prokaryotic Dam/Dcm methylation: {[b['enzyme'] + ' at ' + str(b['position_0based']) for b in blocked]}. Enzyme will fail to cut plasmid isolated from standard DH5a/TOP10 strains."
+            f"Detected {len(blocked)} site(s) predicted blocked if methylated: {[b['enzyme'] + ' at ' + str(b['position_0based']) for b in blocked]}."
             if has_blockade
-            else "No methylation overlaps detected on specified enzymes."
+            else "Methylation effects remain unresolved at overlapping sites." if unresolved else "No predicted dam/dcm blockade on specified sites."
         ),
     }
 
@@ -792,7 +797,7 @@ def quick_biological_sanity_check(
         },
         "BIO-09-METHYLATION": {
             "title": "Dam/Dcm Methylation Cut Blockade",
-            "status": ("FAIL" if meth_check and meth_check.get("has_methylation_blockade") else "PASS") if cloning_enzymes else "N/A",
+            "status": ("FAIL" if meth_check and meth_check.get("has_methylation_blockade") else "UNKNOWN" if meth_check and meth_check.get('unresolved_sites') else "PASS") if cloning_enzymes else "N/A",
             "applicable": bool(cloning_enzymes),
             "details": meth_check.get("details", "N/A") if meth_check else "No restriction enzymes specified",
         },

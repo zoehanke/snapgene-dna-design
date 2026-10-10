@@ -166,12 +166,105 @@ def _search_verification_pair(forward, reverse, max_pair_checks=None):
     raise ValueError('QC_NO_SOLUTION: all applicable pairs in the declared search regions failed unchanged constraints')
 
 
+def _parental_pcr(templates, forward, reverse):
+    """Predict each actual background independently; unknown is never negative."""
+    rows = []
+    for name, value in (templates or {}).items():
+        record = as_molecule(value)
+        sequence = str(record.seq)
+        circular = record.topology == 'circular'
+        fwd = _find_primer_binding(sequence, forward, circular=circular, strand=1,
+                                   binding_core_length=len(forward))
+        rev = _find_primer_binding(sequence, reverse, circular=circular, strand=-1,
+                                   binding_core_length=len(reverse))
+        row = {'template': name, 'subject_version': record.record_version,
+               'product_lengths_bp': [], 'status': 'NO_PRODUCT_PREDICTED'}
+        if fwd and rev:
+            try:
+                result = simulate_pcr(record, forward, reverse, topology=record.topology,
+                    forward_binding_core_length=len(forward), reverse_binding_core_length=len(reverse))
+                row.update(status='PRODUCT_PREDICTED', product_lengths_bp=[len(p) for p in result.products])
+            except ValueError as exc:
+                row.update(status='UNKNOWN', reason=str(exc))
+        rows.append(row)
+    return {'status': 'CHECKED' if rows else 'NOT_CHECKED', 'templates': rows,
+            'all_negative': bool(rows) and all(r['status'] == 'NO_PRODUCT_PREDICTED' for r in rows),
+            'scope': 'exact-match PCR on supplied backgrounds; not selection or wet-lab evidence'}
+
+
+def _sequencing_checks(record, primers):
+    from core.io.primer_annotation import find_unique_binding_site
+    from core.tools.primer3_backend import Primer3CoreError
+    rows, measured = [], []
+    for primer in primers or []:
+        if not isinstance(primer, dict) or set(primer) - {'name', 'sequence'}:
+            raise ValueError('Sequencing primers require only name and complete sequence')
+        name, sequence = primer.get('name'), str(primer.get('sequence', '')).upper()
+        if not isinstance(name, str) or not name.strip() or not sequence or set(sequence) - set('ACGT'):
+            raise ValueError('Sequencing primer name and unambiguous DNA sequence are required')
+        row = {'name': name, 'sequence': sequence, 'errors': [], 'status': 'PASSED'}
+        try:
+            start, strand = find_unique_binding_site(str(record.seq), sequence, record.topology == 'circular')
+            row.update(binding_interval_0based=[start, start + len(sequence)], strand=1 if strand == '+' else -1)
+        except ValueError:
+            row['errors'].append('NO_UNIQUE_BINDING')
+        try:
+            row['structure'] = check_complete_oligo_pair(sequence)
+            if not row['structure']['passed']: row['errors'].append('STRUCTURE_SCREEN_FAILED')
+        except Primer3CoreError as exc:
+            row['status'] = 'INCOMPLETE'
+            row['errors'].append(exc.error_code)
+        if row['errors'] and row['status'] != 'INCOMPLETE': row['status'] = 'FAILED'
+        rows.append(row)
+        measured.append({**row, 'role': 'sanger_sequencing', 'binding_core': sequence,
+                         'tm': calc_primer_tm(sequence).analysis['tm']})
+    return rows, measured
+
+
+def sequencing_coverage(record, primers, read_length_bp, read_trim_bp=30):
+    """Geometric projection of stated usable read distances, not chromatograms."""
+    if read_length_bp is None:
+        return {'status': 'NOT_CHECKED', 'experimental_result': False}
+    if not isinstance(read_length_bp, int) or not isinstance(read_trim_bp, int) or not 0 <= read_trim_bp < read_length_bp:
+        raise ValueError('Require 0 <= read_trim_bp < read_length_bp (integer bases)')
+    n = len(record)
+    coverage = {1: set(), -1: set()}
+    from core.io.primer_annotation import find_unique_binding_site
+    for primer in primers:
+        if primer.get('role') != 'sanger_sequencing': continue
+        try:
+            sequence = primer['sequence']
+            start, side = find_unique_binding_site(str(record.seq), sequence, record.topology == 'circular')
+        except ValueError:
+            continue  # Unmatched/ambiguous oligos contribute no coverage.
+        strand = 1 if side == '+' else -1
+        positions = (start + len(sequence) + i if strand == 1 else start - 1 - i
+                     for i in range(read_trim_bp, read_length_bp))
+        coverage[strand].update(p % n for p in positions) if record.topology == 'circular' else coverage[strand].update(p for p in positions if 0 <= p < n)
+    def gaps(covered):
+        missing = [i for i in range(n) if i not in covered]
+        intervals = []
+        for pos in missing:
+            if intervals and intervals[-1][1] == pos: intervals[-1][1] += 1
+            else: intervals.append([pos, pos + 1])
+        return intervals
+    return {'status': 'PREDICTED', 'read_length_bp': read_length_bp, 'read_trim_bp': read_trim_bp,
+            'subject_version': record.record_version, 'experimental_result': False,
+            'scope': 'assumed readable distances from primer 3prime end; no observed sequencing quality',
+            'forward_gaps_0based': gaps(coverage[1]), 'reverse_gaps_0based': gaps(coverage[-1]),
+            'combined_gaps_0based': gaps(coverage[1] | coverage[-1])}
+
+
 def recipe_cloning_verification(
     recombinant_plasmid_seq_or_file: str | pathlib.Path | SeqRecord,
     insert_start_0based: int,
     insert_end_0based: int,
     diagnostic_enzymes: list[str] | None = None,
     max_pair_checks: int | None = None,
+    background_templates: dict | None = None,
+    sequencing_primers: list[dict] | None = None,
+    read_length_bp: int | None = None,
+    read_trim_bp: int = 30,
 ) -> RecipeResult:
     """Design local junction PCR, Sanger primers and diagnostic digests.
 
@@ -388,9 +481,17 @@ def recipe_cloning_verification(
             "strand": sanger_primer_res["strand"],
         })
 
+    parental = _parental_pcr(background_templates, fwd_primer_seq, rev_primer_seq)
+    if background_templates:
+        primers_dict['notes'] = 'Exact-match PCR checked on recombinant and supplied backgrounds; parent bands are listed separately. Selection is not a PCR-negative control.'
+    sequencing_checks, extra_primers = _sequencing_checks(as_molecule(rec), sequencing_primers)
+    primers_list.extend(extra_primers)
+    if len({p['name'] for p in primers_list}) != len(primers_list):
+        raise ValueError('QC primer names must be unique within one assay')
+    coverage = sequencing_coverage(as_molecule(rec), primers_list, read_length_bp, read_trim_bp)
     protocol_steps = [
         {"step": 1, "action": f"Pick candidate colonies and perform colony PCR using primers {fwd_primer_seq[:10]}... and {rev_primer_seq[:10]}... (expected size: {amplicon_size} bp)."},
-        {"step": 2, "action": "Compare the expected PCR band with a parental-template negative control; confirm candidate clones by sequencing."},
+        {"step": 2, "action": "Compare predicted bands on each supplied parental template; a parent may produce a band. Use other discriminating junctions and sequencing to confirm clones." if background_templates else "Parental-template discrimination has not been checked. Check the actual backgrounds before labelling them PCR-negative; confirm clones by sequencing."},
         {"step": 3, "action": "Isolate high-purity plasmid DNA from positive clones and run diagnostic restriction digests."},
         {"step": 4, "action": "Perform Sanger sequencing using primer anchored upstream of junction to confirm mutation/junction fidelity."},
     ]
@@ -406,7 +507,10 @@ def recipe_cloning_verification(
             'junction_pcr_design', subject=as_molecule(rec), status='PASSED', scope='verification_design',
             conditions={'insert_interval_0based': [ins_s, ins_e], 'tm_range_C': [52,72], 'max_tm_delta_C':3},
             details={'expected_amplicon_size_bp': amplicon_size, 'pair_search':pair_search,
-                     'parental_specificity': 'NOT_CHECKED', 'wet_lab': 'NOT_CHECKED'})],
+                     'parental_specificity': parental, 'wet_lab': 'NOT_CHECKED'})] + [
+            __import__('core.tools.result', fromlist=['check_result']).check_result(
+                'supplemental_sequencing_oligo', subject=as_molecule(rec), status=row['status'],
+                scope='verification_design', details=row) for row in sequencing_checks],
         primers=primers_list,
         quality_checks=quality_checks,
         warnings=warnings,
@@ -430,6 +534,9 @@ def recipe_cloning_verification(
             },
             "colony_pcr_primers": primers_dict,
             "junction_pcr_primers": primers_dict,
+            "parental_pcr": parental,
+            "sequencing_checks": sequencing_checks,
+            "sequencing_coverage": coverage,
             "diagnostic_restriction_digests": diagnostic_bands,
             "colony_pcr_simulation": pcr,
             "complete_oligo_structure": colony_structure,

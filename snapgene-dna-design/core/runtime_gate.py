@@ -52,6 +52,7 @@ def _present_files(directory, manifest):
         'primer_order_table.tsv': 'Preparation primers and actual source positions',
         'validation.json': 'Current validation results',
         'preparation_quality.json': 'Complete preparation-oligo quality results',
+        'verification_quality.json': 'Final QC oligos, parent backgrounds and sequencing assumptions',
     }
     entries = [{'path': str(directory / name), 'description': description,
                 'artifact': name, 'sha256': manifest['files'][name]['sha256']}
@@ -113,7 +114,9 @@ def verify_delivery_files(directory, *, presented_files=None, expected_manifest_
     return {'status': 'verified', 'scope': 'delivered file integrity and presentation membership only',
             'directory': str(directory), 'manifest_sha256': digest,
             'present_files': _present_files(directory, manifest),
-            'domain_validation_sha256': manifest.get('validation_sha256')}
+            'domain_validation_sha256': manifest.get('validation_sha256'),
+            'domain_scope_results':manifest.get('scope_results'),
+            'task_completion':manifest.get('task_completion')}
 
 
 def _check_chain(task: dict, plan: dict, execution: dict, validation: dict) -> None:

@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 import tempfile
 from core.errors import GateRejected
+from core.errors import ValidationError
 from core.models.molecule import as_molecule
 from core.tools.result import to_wire
 from core.workflow import _digest
@@ -76,9 +77,13 @@ def file_subjects(steps,candidate):
 
 def order_rows(primers):
     rows=[]
+    identifiers={}
     for p in primers:
         row={'name':p.get('name','oligo'),'sequence_5to3':p.get('sequence') or p.get('sequence_5to3') or p.get('seq'),
              'role':p.get('role','preparation')}
+        if row['name'] in identifiers and identifiers[row['name']] != row['sequence_5to3']:
+            raise ValidationError('ORDER_IDENTIFIER_CONFLICT','Different oligos share order identifier: '+str(row['name']))
+        identifiers[row['name']]=row['sequence_5to3']
         if row not in rows:rows.append(row)
     return rows
 
@@ -97,9 +102,12 @@ def synthesis_orders(steps,candidate):
     return order_rows(orders)
 
 
-def render_design(material,result_kind,steps,orders,requirements=None,quality=None):
+def render_design(material,result_kind,steps,orders,requirements=None,quality=None,verification_quality=None,report_notes=None):
     document=['# Current design and preparation',f'Product: {len(material)} bp; topology: {material.topology}; role: {result_kind}.',
               '## Actual steps']
+    if report_notes:
+        document[0:0]=['# 设计说明',report_notes,
+            '以下说明由调用者提交；文件核查确认它与本次交付绑定，科学说明需结合下方实际检查范围复核。']
     document.extend(f'{i+1}. {step.method} ({step.step_id}).' for i,step in enumerate(steps))
     document.append('## Final oligos')
     document.extend(f'{row["name"]}: {row["sequence_5to3"]} ({row["role"]}).' for row in orders)
@@ -118,12 +126,21 @@ def render_design(material,result_kind,steps,orders,requirements=None,quality=No
         document.append(f'Overall: {quality["status"]}. Reaction replay and oligo quality are separate checks.')
         document.extend(f'{row.get("id")}: {row["status"]} ({row["method"]}).' for row in quality['checks'])
         document.append('Measurements/conditions are in preparation_quality.json; experimental efficiency is not established.')
+    if verification_quality is not None:
+        document.extend(['## Verification oligo checks',f'Final QC screening: {verification_quality["status"]}.',
+                         'Full metrics, actual parent predictions and conditional read coverage: verification_quality.json.'])
+        for assay in verification_quality['assays']:
+            parental=assay['parental_pcr']
+            document.append(f'{assay["step_id"]}: parent background {parental["status"]}.')
+            for row in parental.get('templates',[]):
+                document.append(f'{row["template"]}: {row["status"]}; predicted lengths {row["product_lengths_bp"]} bp.')
+        document.append('A passed oligo screen does not establish observed sequencing or genomic integration. The actual scope and original-request boundary are in validation.json.')
     for step in steps:document.extend(str(p.get('action',p)) for p in step.result.analysis.get('protocol_steps',[]))
     return '\n\n'.join(document)+'\n'
 
 
 def deliver_result(requirements,sources,steps,candidate,out_dir,*,primers=None,result_kind='construct',
-                   required_scopes=None,validation=None,output_step=None,product_index=None,provenance=None,sanity_context=None):
+                   required_scopes=None,validation=None,output_step=None,product_index=None,provenance=None,sanity_context=None,report_notes=None):
     """Recheck actual work and publish a coherent bundle; supplied PASS cannot authorize it."""
     from core.preparation import write_preparation_artifacts
     from core.tools import export_snapgene
@@ -138,7 +155,8 @@ def deliver_result(requirements,sources,steps,candidate,out_dir,*,primers=None,r
             raise GateRejected('GATE_STALE_VALIDATION','Validation content changed')
         if (validation['subject_version']!=material.record_version or validation['requirements']!=requirements
                 or validation['steps_sha256']!=_digest([_step(s).to_dict() for s in steps])
-                or validation['primers']!=(primers or []) or validation['result_kind']!=result_kind):
+                or validation['primers']!=(primers or []) or validation['result_kind']!=result_kind
+                or validation.get('report_notes')!=report_notes):
             raise GateRejected('GATE_STALE_VALIDATION','Candidate, parameters, request or final oligos changed')
         for name,path in validation.get('file_paths',{}).items():
             path=Path(path)
@@ -168,26 +186,35 @@ def deliver_result(requirements,sources,steps,candidate,out_dir,*,primers=None,r
             if kind != 'verification' and not any(p.record_version in used for p in step.result.products):
                 continue
             for p in step.result.analysis.get('primers',[]):
-                if isinstance(p,dict):orders.append({**p,'role':'qc' if kind=='verification' else 'preparation'})
+                if isinstance(p,dict):orders.append({**p,'source_step':step.step_id,'role':'qc' if kind=='verification' else 'preparation'})
         for row in rows:
             orders.extend({**p,'role':'preparation'} for p in row['primers'])
         orders.extend(synthesis_orders(replayed,material))
         if primers is not None:
             orders=primers
+        else:
+            # Separate assays often emit the same generic names. Namespace only conflicts.
+            names={}
+            for p in orders:names.setdefault(p.get('name','oligo'),set()).add(p.get('sequence') or p.get('sequence_5to3') or p.get('seq'))
+            orders=[{**p,'name':str(p['source_step'])+'_'+p.get('name','oligo')}
+                    if len(names[p.get('name','oligo')])>1 and p.get('source_step') else p for p in orders]
         # One data object generates both order table and prose, never independent copies.
         ordered=order_rows(orders)
         order_path=bundle/'oligo_order_table.tsv'
         with order_path.open('w',encoding='utf-8',newline='') as handle:
             writer=csv.DictWriter(handle,fieldnames=['name','sequence_5to3','role'],delimiter='\t')
             writer.writeheader();writer.writerows(ordered)
-        (bundle/'design.md').write_text(render_design(material,result_kind,replayed,ordered,requirements,preparation['quality']),encoding='utf-8')
+        from core.preparation import check_verification_quality
+        verification_quality=check_verification_quality(ordered,material,replayed)
+        (bundle/'verification_quality.json').write_text(json.dumps(verification_quality,ensure_ascii=False,indent=2),encoding='utf-8')
+        (bundle/'design.md').write_text(render_design(material,result_kind,replayed,ordered,requirements,preparation['quality'],verification_quality,report_notes),encoding='utf-8')
         (bundle/'execution.json').write_text(json.dumps([s.to_dict() for s in replayed],ensure_ascii=False,indent=2),encoding='utf-8')
         (bundle/'requirements.json').write_text(json.dumps(requirements,ensure_ascii=False,indent=2),encoding='utf-8')
         checked_files={str(path.relative_to(bundle)).replace('\\','/'):str(path)
                        for path in bundle.rglob('*') if path.is_file()}
         report=validate_candidate(requirements,sources,replayed,material,primers=ordered,files=checked_files,
                    required_scopes=required_scopes,result_kind=result_kind,output_step=output_step,product_index=product_index,
-                   sanity_context=sanity_context)
+                   sanity_context=sanity_context,report_notes=report_notes)
         (bundle/'validation.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
         if report['overall']!='verified':
             raise GateRejected('GATE_WORKFLOW_INCOMPLETE','Current execution/files failed requested scope checks',
