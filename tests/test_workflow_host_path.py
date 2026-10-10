@@ -161,6 +161,7 @@ class HostWorkflowTests(unittest.TestCase):
             proc,status=self.invoke('run_step.py',['--workspace',root/'work','--status'],root)
             self.assertEqual(proc.returncode,0,proc.stderr)
             self.assertEqual(status['selected_product_ref'],'$shorter.products.0')
+            self.assertEqual(status['requirements'],{'topology':'linear'})
 
     def test_wrong_record_type_has_a_specific_recovery_instruction(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -192,6 +193,24 @@ class HostWorkflowTests(unittest.TestCase):
             self.assertEqual([row['step_id'] for row in history['steps']],['fragment','bad_shape','recovered'])
             self.assertEqual(history['steps'][1]['params'],[])
             self.assertEqual(history['steps'][1]['error']['error_code'],'TOOL_ARGUMENT_INVALID')
+
+    def test_real_verification_recipe_cli_serializes_nested_reaction_facts(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root=Path(temp)
+            rng=random.Random(921873)
+            original=SeqRecord(Seq(''.join(rng.choices('ACGT',k=1200))),id='independent-qc',
+                        annotations={'molecule_type':'DNA','topology':'linear'})
+            from core.tools.result import to_wire
+            config={'method':'recipe_cloning_verification','step_id':'qc','sources':{'material':to_wire(original)},
+                    'params':{'recombinant_plasmid_seq_or_file':'$material',
+                              'insert_start_0based':450,'insert_end_0based':850}}
+            path=root/'qc.json';path.write_text(json.dumps(config),encoding='utf-8')
+            proc,result=self.invoke('run_step.py',['--input',path,'--workspace',root/'work'],root)
+            self.assertEqual(proc.returncode,0,result)
+            reaction=result['analysis']['details']['colony_pcr_simulation']
+            self.assertGreater(reaction['products'][0]['length'],0)
+            self.assertIn('analysis',reaction)
+            self.assertEqual(result['subject_ref'],'$qc.analysis.subject')
 
 
 if __name__=='__main__': unittest.main()

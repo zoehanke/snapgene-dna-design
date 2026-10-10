@@ -5,7 +5,7 @@ from pathlib import Path
 import sys
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT))
-from core.workflow import run_step, StepExecution, product_summaries, step_summary, read_workflow_record
+from core.workflow import run_step, StepExecution, product_summaries, step_summary, read_workflow_record, concise_value
 from core.errors import CoreError, ValidationError
 from core.tools.result import ToolResult
 from core.models.molecule import as_molecule
@@ -67,6 +67,7 @@ def main():
             if workspace is None:raise ValidationError('WORKSPACE_REQUIRED','--status requires --workspace')
             current=read_workflow_record(workspace/'steps.json')
             result={'status':current['status'],'selected_product_ref':current.get('selected_product_ref'),
+                    'requirements':concise_value(current.get('requirements',{})),
                     'sources':list(current['sources']),'products':[p for row in current['steps'] if row.get('result') and not row.get('error')
                     for p in product_summaries(restore(row).result,row['step_id'])],
                     'summary':current.get('summary'),'record_file':str(workspace/'steps.json'),'error':current.get('error')}

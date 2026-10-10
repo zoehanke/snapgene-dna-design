@@ -14,7 +14,7 @@ from core.workflow_validation import _step, replay_steps, validate_candidate
 
 
 def preparation_rows(steps,candidate=None):
-    """Actual PCR/Recipe preparations, deduplicated by material version."""
+    """Owned actual reactions; rich rows and check replays are one preparation."""
     rows=[]
     seen=set()
     for step in steps:
@@ -27,11 +27,24 @@ def preparation_rows(steps,candidate=None):
                     'template':operation['params']['template_path_or_seq'],
                     'product':operation['result']['products'][0],
                     'primers':operation['result']['analysis']['primers']})
+        ordinal=0
         for item in candidates:
-            version=as_molecule(item['product']).record_version
-            if version not in seen:
-                rows.append(item)
-                seen.add(version)
+            template=as_molecule(item['template'])
+            product=as_molecule(item['product'])
+            pair=tuple(p.get('sequence') or p.get('sequence_5to3') or p.get('seq') or p.get('full_sequence')
+                       for p in item['primers'])
+            key=(step.step_id,template.record_version,product.record_version,pair)
+            if key in seen:
+                continue
+            seen.add(key)
+            ordinal+=1
+            # Only projection labels change. Keep real molecules/oligos and
+            # original labels, and never edit the recorded program response.
+            owner=f'{step.step_id}_{ordinal}'
+            rows.append({**item,'source_step':step.step_id,'local_id':item.get('id'),
+                         'id':owner,'template_version':template.record_version,'product_version':product.record_version,
+                         'primers':[{**p,'original_name':p.get('name','primer'),
+                                     'name':owner+'_'+p.get('name','primer')} for p in item['primers']]})
     if candidate is not None:
         used = _used_products(steps, candidate)
         rows = [row for row in rows if as_molecule(row['product']).record_version in used]
@@ -185,15 +198,19 @@ def deliver_result(requirements,sources,steps,candidate,out_dir,*,primers=None,r
             if version==material.record_version:continue
             export_snapgene(product,bundle/'actual_intermediates',filename_base=f'intermediate_{index:03d}')
             exported.add(version)
-        orders=[]
+        # The same owned rows generate source maps, preparation details and
+        # purchase entries. Do not collect their generic analysis aliases again.
+        orders=[{**p,'source_step':row['source_step'],'role':'preparation'} for row in rows for p in row['primers']]
+        represented={(row['source_step'],p.get('sequence') or p.get('sequence_5to3') or p.get('seq'))
+                     for row in rows for p in row['primers']}
         for step in replayed:
             kind=step.result.analysis.get('result_kind')
             if kind != 'verification' and not any(p.record_version in used for p in step.result.products):
                 continue
             for p in step.result.analysis.get('primers',[]):
-                if isinstance(p,dict):orders.append({**p,'source_step':step.step_id,'role':'qc' if kind=='verification' else 'preparation'})
-        for row in rows:
-            orders.extend({**p,'role':'preparation'} for p in row['primers'])
+                if isinstance(p,dict) and (kind=='verification' or
+                        (step.step_id,p.get('sequence') or p.get('sequence_5to3') or p.get('seq')) not in represented):
+                    orders.append({**p,'source_step':step.step_id,'role':'qc' if kind=='verification' else 'preparation'})
         orders.extend(synthesis_orders(replayed,material))
         if primers is not None:
             orders=primers

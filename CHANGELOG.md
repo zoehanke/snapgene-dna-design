@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.2.1 · 2026-10-11 actual multi-Recipe delivery
+
+- Serialize nested ToolResult facts in default QC summaries through the shared wire boundary; retain protein types and actual calculation data.
+- Bind preparation rows to the actual owning step and template/product versions. Generate automatic orders and preparation details from these same rows without duplicate PCR entries; caller-supplied conflicting identifiers still reject.
+- Check every preparation-table column, including ownership, versions and coordinates. Keep the frozen 2.2.0 host runs unchanged and report their failures separately.
+
 ## 2.2.0 · 2026-10-11 current-material workflow
 
 - Extend the existing step/finalization CLI with one workspace, automatic continuation, actual analysis/check summaries and product references; preserve the old entry points.

@@ -241,15 +241,39 @@ def check_verification_quality(primers, subject, steps=()):
             'wet_lab': 'NOT_CHECKED'}
 
 
+def preparation_order_rows(preparation: list[dict]) -> list[dict]:
+    """One complete CSV projection of owned actual preparation facts."""
+    orders=[]
+    for index,item in enumerate(preparation,1):
+        product=resolve_sequence_record(item['product'])
+        template=resolve_sequence_record(item['template'])
+        prefix=f'preparation_{index:02d}'
+        for primer in item['primers']:
+            row={'preparation':item.get('id',prefix),'template':template.id,
+                 'source_step':item.get('source_step',''),'local_preparation_id':item.get('local_id',item.get('id',prefix)),
+                 'template_version':template.record_version,'product_version':product.record_version,
+                 'coordinate_reference':str(pathlib.Path('annotated_sources')/(prefix+'_source.gb')),
+                 'coordinate_system':'0-based half-open on annotated source',
+                 'name':primer.get('name','primer'),'original_name':primer.get('original_name',primer.get('name','primer')),
+                 'sequence_5to3':primer.get('sequence') or primer.get('seq'),
+                 'binding_sequence_5to3':primer.get('binding_sequence') or primer.get('binding_core',''),
+                 'binding_interval_0based':json.dumps(primer.get('binding_interval_0based')),
+                 'strand':primer.get('strand'),'tm_C':primer.get('binding_core_tm',primer.get('tm',primer.get('qc_tm',''))),
+                 'annealing_hint_C':item.get('annealing_temperature_hint_C','')}
+            orders.append({key:'' if value is None else str(value) for key,value in row.items()})
+    return orders
+
+
 def write_preparation_artifacts(preparation: list[dict], out_dir: str | pathlib.Path) -> dict:
     """Write the actual prepared fragments, source primer maps and order table."""
     from Bio import SeqIO
     from core.tools.snapgene_io import annotate_record_primers
     from core.tools.amplification import simulate_pcr
     out = pathlib.Path(out_dir)
-    outputs, orders = [], []
+    outputs=[]
     check_preparation(preparation)
     quality = check_preparation_quality(preparation)
+    orders=preparation_order_rows(preparation)
     out.mkdir(parents=True, exist_ok=True)
     quality_file = out / 'preparation_quality.json'
     quality_file.write_text(json.dumps(quality, ensure_ascii=False, indent=2), encoding='utf-8')
@@ -278,18 +302,9 @@ def write_preparation_artifacts(preparation: list[dict], out_dir: str | pathlib.
         with fa.open("w", encoding="utf-8", errors="replace") as handle:
             SeqIO.write(product, handle, "fasta")
         outputs.append({"id": item.get("id", prefix), "method": item.get("method", "PCR"),
+                        "source_step": item.get('source_step'),
+                        "template_version": template.record_version, "product_version": product.record_version,
                         "product": fragment, "fasta": str(fa), "annotated_source": source_files})
-        for primer in primers:
-            orders.append({"preparation": item.get("id", prefix), "template": template.id,
-                           "coordinate_reference": str(pathlib.Path(source_files["gb_file"]).resolve().relative_to(out.resolve())),
-                           "coordinate_system": "0-based half-open on annotated source",
-                           "name": primer.get("name", "primer"),
-                           "sequence_5to3": primer.get("sequence") or primer.get("seq"),
-                           "binding_sequence_5to3": primer.get("binding_sequence") or primer.get("binding_core", ""),
-                           "binding_interval_0based": json.dumps(primer.get("binding_interval_0based")),
-                           "strand": primer.get("strand"),
-                           "tm_C": primer.get("binding_core_tm", primer.get("tm", primer.get("qc_tm", ""))),
-                           "annealing_hint_C": item.get("annealing_temperature_hint_C", "")})
     if not orders:
         return {"steps": [], "primer_order_table": None, "quality": quality, "quality_file": str(quality_file)}
     order_file = out / "primer_order_table.tsv"

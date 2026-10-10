@@ -260,6 +260,12 @@ def product_summaries(result,step_id=None):
 
 def concise_value(value):
     """Readable actual facts, with long molecular payloads kept in the record."""
+    if isinstance(value,ToolResult):
+        return {'products':[concise_value(p) for p in value.products],
+                'analysis':concise_value(value.analysis),'checks':concise_value(value.checks)}
+    from core.models.molecule import ProteinSequence
+    if isinstance(value,ProteinSequence):
+        return {'data_type':'protein_sequence','value':concise_value(str(value))}
     if isinstance(value,(Molecule,SeqRecord)):
         material=as_molecule(value)
         return {'record_version':material.record_version,'length':len(material),'topology':material.topology}
@@ -270,7 +276,8 @@ def concise_value(value):
         return [concise_value(v) for v in value]
     if isinstance(value,str) and len(value)>300:
         return {'length':len(value),'detail':'Full value in record_file'}
-    return value
+    converted=to_wire(value)
+    return concise_value(converted) if converted is not value else value
 
 
 def step_summary(step):
@@ -284,7 +291,8 @@ def step_summary(step):
              'products':product_summaries(result,step.step_id) if result else [],
              'analysis':concise_value(result.analysis) if result else {},
              'checks':concise_value(checks),'candidate_readiness':readiness,
-             'error':step.error,'goal_coverage':step.goal_coverage,'task_completion':step.task_completion}
+             'error':step.error,'requirements':concise_value(step.requirements),
+             'goal_coverage':step.goal_coverage,'task_completion':step.task_completion}
     if result and result.analysis.get('subject') is not None:
         summary['subject_ref']=f'${step.step_id}.analysis.subject'
         summary['subject']=concise_value(result.analysis['subject'])

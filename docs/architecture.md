@@ -393,6 +393,8 @@ v2.1.0已提取三个连续责任，不是三套流程。Python实际模块为co
 
 RecipeResult在既有准备边界生成即时`preparation_feedback`，区分真实反应重放、完整引物结构和未验证实验效率。Workflow继续独立复算；导入反馈不能代替本次核查。当前模板、完整引物及方法条件均绑定。没有实际准备的分析/组件不制造准备PASS。
 
+2.2.1的`preparation_rows`按实际步骤、模板/产物版本和完整pair整理同一次准备；Recipe富行与嵌套PCR操作不重复生成订单。规范准备ID和引物名保留原名称，原执行响应不改。`preparation_order_rows`是writer与文件校验共用的CSV投影，来源、版本、坐标等全列均核对。默认步骤摘要通过既有wire边界展开嵌套ToolResult，并显示当前requirements；不把程序对象转成说明字符串。
+
 正式`deliver_result`按result_kind补齐最低范围：construct必须四范围；局部分析仍用validate_candidate。旧Pipeline序列级默认显式为component，新增construct选择自动要求准备；准备失败单独保留，不冒充用户目标失败或实体制备完成。实际QC subject才能以verification交付。
 
 Core文件写出以原分子为补充元数据锚点，文件可见投影仍独立核对。引物坐标冗余字段在真实产物生成时同步，不能等export掩盖变换错误；裁剪的原完整结合信息和当前片段分开。保存回读保留原record_version，DNA或注释修改仍使旧补充失效。真实突出链与junction_label比较分别声明，未知拓扑不转换为字符串。

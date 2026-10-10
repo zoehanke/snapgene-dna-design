@@ -302,9 +302,10 @@ def validate_candidate(requirements,sources,steps,candidate,*,primers=None,files
             elif name=='primer_order_table.tsv':
                 import csv
                 from core.workflow_delivery import preparation_rows
-                needed=[(p.get('name','primer'),p.get('sequence') or p.get('seq')) for row in preparation_rows(replayed,material) for p in row['primers']]
+                from core.preparation import preparation_order_rows
+                needed=preparation_order_rows(preparation_rows(replayed,material))
                 with path.open(encoding='utf-8') as handle:orders=list(csv.DictReader(handle,delimiter='\t'))
-                if [(p.get('name'),p.get('sequence_5to3')) for p in orders]!=needed:file_errors.append('PREPARATION_ORDER_TABLE_MISMATCH')
+                if orders!=needed:file_errors.append('PREPARATION_ORDER_TABLE_MISMATCH')
             else:
                 file_errors.append('FILE_CONTENT_UNVERIFIED: '+name)
             if len(file_errors)==before_errors:verified_files.add(name)
