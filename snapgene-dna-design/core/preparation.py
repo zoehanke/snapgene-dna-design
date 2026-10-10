@@ -86,9 +86,18 @@ def check_preparation_quality(preparation: list[dict]) -> dict:
     checks = []
     for item in preparation:
         product = resolve_sequence_record(item['product'])
+        template = resolve_sequence_record(item['template']) if item.get('template') is not None else None
         method = str(item.get('method', 'PCR')).lower()
         primers = item.get('primers', [])
         entry = {'id': item.get('id'), 'subject_version': product.record_version, 'method': method,
+                 'template_version': template.record_version if template is not None else None,
+                 'binding_context_status': 'PROVIDED' if template is not None else 'NOT_PROVIDED',
+                 'oligos': [{'name': p.get('name', side),
+                            'sequence_5to3': p.get('sequence') or p.get('seq') or p.get('full_sequence'),
+                            'binding_sequence_5to3': p.get('binding_sequence') or p.get('binding_core') or p.get('core'),
+                            'binding_interval_0based': p.get('binding_interval_0based'),
+                            'strand': p.get('strand')}
+                           for p, side in zip(primers, ('F', 'R'))],
                  'scope': 'complete preparation oligo structure, not experimental amplification efficiency'}
         try:
             if len(primers) != 2:
@@ -102,6 +111,15 @@ def check_preparation_quality(preparation: list[dict]) -> dict:
                 raise ValueError('Invalid declared annealing-temperature condition')
             result = check_complete_oligo_pair(*sequences, annealing_temperature=temperature, primer_method=method)
             entry.update(status='PASSED' if result['passed'] else 'FAILED', result=result)
+            if result['passed'] and template is None:
+                entry.update(status='INCOMPLETE', error_code='PREPARATION_TEMPLATE_NOT_PROVIDED',
+                             reason='Complete oligo structure was measured, but the current binding template was not provided')
+            entry['failed_metrics'] = [
+                {'oligo': section, 'metric': metric, 'value_C': value,
+                 'limit_C': result['structure_limit_C']}
+                for section, metrics in result['metrics'].items()
+                for metric, value in metrics.items()
+                if value >= result['structure_limit_C']]
         except Primer3CoreError as exc:
             entry.update(status='INCOMPLETE', error_code=exc.error_code, reason=str(exc))
         except (ValueError, TypeError) as exc:
@@ -111,6 +129,61 @@ def check_preparation_quality(preparation: list[dict]) -> dict:
               'INCOMPLETE' if any(c['status'] == 'INCOMPLETE' for c in checks) else
               'PASSED' if checks else 'NOT_APPLICABLE')
     return {'status': status, 'checks': checks, 'wet_lab': 'NOT_CHECKED'}
+
+
+def preparation_feedback(preparation: list[dict]) -> dict:
+    """Current oligo preparation facts; assembly/goal completion remains separate."""
+    from core.errors import CoreError
+    quality = check_preparation_quality(preparation)
+    replay = []
+    for item in preparation:
+        method = str(item.get('method', 'PCR')).lower()
+        row = {'id': item.get('id'), 'method': method,
+               'template_version': resolve_sequence_record(item['template']).record_version,
+               'subject_version': resolve_sequence_record(item['product']).record_version,
+               'binding_scope': ('complete wild-type flanks and complementary mutagenic oligos'
+                                 if method == 'quikchange' else 'exact 3prime cores on the actual template'),
+               'reaction_scope': ('template-driven mutagenic replacement model'
+                                  if method == 'quikchange' else 'actual primer-driven PCR product')}
+        try:
+            check_preparation([item])
+            row['status'] = 'PASSED'
+        except (CoreError, ValueError, TypeError, KeyError) as exc:
+            row.update(status='FAILED', reason=str(exc),
+                       error_code=getattr(exc, 'error_code', 'PREPARATION_REPLAY_FAILED'))
+        replay.append(row)
+    replay_status = ('FAILED' if any(r['status'] == 'FAILED' for r in replay) else
+                     'PASSED' if replay else 'NOT_APPLICABLE')
+    status = ('FAILED' if 'FAILED' in (replay_status, quality['status']) else
+              'INCOMPLETE' if quality['status'] == 'INCOMPLETE' else
+              'PASSED' if replay_status == quality['status'] == 'PASSED' else 'NOT_APPLICABLE')
+    actions = []
+    if replay_status == 'FAILED':
+        actions.append('Recheck the actual template, complete oligos and intended product boundaries; retain the candidate until the reaction is corrected.')
+    if quality['status'] == 'FAILED':
+        actions.append('Review the failed complete-oligo metric and its conditions; adjust binding/flank boundaries or tail placement without changing the requested DNA goal.')
+        if any(r['method'] == 'quikchange' for r in replay):
+            actions.append('An existing inverse_pcr route can be evaluated as an alternative; the selected QuikChange method has not been changed.')
+    elif quality['status'] == 'INCOMPLETE':
+        actions.append('Resolve the reported backend availability/length limit before treating structural quality as established; another supported preparation route may be evaluated.')
+    return {'status': status, 'ready_for_preparation': status == 'PASSED',
+            'scope': 'declared PCR/mutagenic oligo reaction replay and full-oligo structure only; assembly, whole-task completion and experimental efficiency are separate',
+            'reaction_replay': {'status': replay_status, 'checks': replay}, 'quality': quality,
+            'suggested_actions': actions, 'wet_lab': 'NOT_CHECKED'}
+
+
+def enrich_recipe_preparation(result):
+    """Shared immediate Recipe feedback, reused without recomputing imported results."""
+    rows = result.details.get('preparation', [])
+    if not rows or 'preparation_feedback' in result.analysis:
+        return result
+    feedback = preparation_feedback(rows)
+    result.analysis['preparation_feedback'] = feedback
+    result.quality_checks['preparation_replay_status'] = feedback['reaction_replay']['status']
+    result.quality_checks['complete_oligo_structure_status'] = feedback['quality']['status']
+    if feedback['status'] != 'PASSED':
+        result.warnings.append('PREPARATION_' + feedback['status'] + ': the retained DNA is a candidate; current reaction/complete-oligo checks are not ready. ' + ' '.join(feedback['suggested_actions']))
+    return result
 
 
 def check_verification_quality(primers, subject, steps=()):

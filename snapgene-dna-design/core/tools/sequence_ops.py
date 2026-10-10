@@ -489,7 +489,8 @@ def slice_record_interval(
     fragment.dbxrefs = list(record.dbxrefs)
     fragment.id, fragment.name, fragment.description = record.id, record.name, record.description
     fragment.annotations["topology"] = "linear"
-    return fragment
+    from core.io.primer_annotation import sync_primer_coordinates
+    return sync_primer_coordinates(fragment)
 
 
 def rotate_sequence(dna_seq: MoleculeInput, origin_0based: int) -> ToolResult:

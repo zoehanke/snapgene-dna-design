@@ -12,6 +12,68 @@ from Bio.SeqFeature import SeqFeature
 from Bio.SeqRecord import SeqRecord
 from core.tools.snapgene_io import _primer_location, annotate_record_primers, normalize_primer_definition
 
+
+def sync_primer_coordinates(record: SeqRecord) -> SeqRecord:
+    """Refresh redundant coordinates from the current Feature locations.
+
+    Called when an actual product is formed, not while exporting it. The
+    oligo and declared binding core are never rewritten to fit a new DNA.
+    A partial site's original full binding metadata belongs to its source;
+    the surviving parts are recorded separately and are not an intact primer.
+    """
+    import copy
+    from core.tools.snapgene_io import _location_interval, _strand_char
+    replacements = {}
+    binding_fields = ('binding_interval', 'binding_interval_0based', 'binding_strand',
+                      'binding_sequence', 'binding_core_length')
+    for index, feature in enumerate(record.features):
+        active = 'primer' in feature.type.lower()
+        source_type = feature.qualifiers.get('source_feature_type', [])
+        if isinstance(source_type, str):
+            source_type = [source_type]
+        partial = not active and any('primer' in str(value).lower() for value in source_type)
+        if not active and not partial:
+            continue
+        qualifiers = copy.deepcopy(feature.qualifiers)
+        if partial:
+            original_binding = {key: qualifiers.pop(key) for key in binding_fields if key in qualifiers}
+            if original_binding:
+                existing = qualifiers.get('source_binding', [])
+                if not isinstance(existing, list):
+                    existing = [existing]
+                qualifiers['source_binding'] = existing + [json.dumps(original_binding, separators=(',', ':'))]
+            qualifiers['binding_retained'] = [json.dumps([
+                {'start0': int(part.start), 'end0': int(part.end), 'strand': part.strand}
+                for part in feature.location.parts], separators=(',', ':'))]
+        elif any(key in qualifiers for key in ('binding_interval', 'binding_interval_0based', 'binding_strand')) or (
+                feature.location.strand in (1, -1) and not any(key in qualifiers for key in ('binding_sequence', 'binding_seq', 'binding_core'))):
+            start, end = _location_interval(feature.location, len(record))
+            if not any(key in qualifiers for key in ('binding_sequence', 'binding_seq', 'binding_core')) and feature.location.strand in (1, -1):
+                # A known complete location establishes this binding core,
+                # but cannot establish an unspecified full ordered oligo.
+                core = str(feature.extract(record.seq)).upper()
+                qualifiers['binding_sequence'] = [core]
+                qualifiers.setdefault('binding_core_length', [str(len(core))])
+                qualifiers.setdefault('binding_interval', [json.dumps([start, end], separators=(',', ':'))])
+                qualifiers.setdefault('binding_strand', [_strand_char(feature.location.strand)])
+            if 'binding_interval' in qualifiers:
+                qualifiers['binding_interval'] = [json.dumps([start, end], separators=(',', ':'))]
+            if 'binding_interval_0based' in qualifiers:
+                old = qualifiers['binding_interval_0based']
+                qualifiers['binding_interval_0based'] = ([start, end] if isinstance(old, list) and all(type(v) is int for v in old)
+                    else [json.dumps([start, end], separators=(',', ':'))])
+            if 'binding_strand' in qualifiers:
+                qualifiers['binding_strand'] = [_strand_char(feature.location.strand)]
+        if qualifiers != feature.qualifiers:
+            updated = copy.deepcopy(feature)
+            updated.qualifiers = qualifiers
+            replacements[index] = updated
+    if not replacements:
+        return record
+    result = copy.copy(record)
+    result.features = [replacements.get(i, feature) for i, feature in enumerate(record.features)]
+    return result
+
 def _strand_char(strand: int | str | None) -> str:
     if strand in (-1, "-", "reverse"):
         return "-"

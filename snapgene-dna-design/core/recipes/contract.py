@@ -32,6 +32,13 @@ class RecipeResult:
     citations: list[dict[str, Any]] = field(default_factory=list)
     details: dict[str, Any] = field(default_factory=dict)
 
+    def __post_init__(self):
+        # Shape completeness is distinct from current oligo preparation quality.
+        # Reconstructed result objects already carry their measured feedback.
+        if self.details.get('preparation') and 'preparation_feedback' not in self.analysis:
+            from core.preparation import enrich_recipe_preparation
+            enrich_recipe_preparation(self)
+
     @property
     def product_record(self):
         if self.result_kind == 'verification':
@@ -61,7 +68,7 @@ class RecipeResult:
         return [{"name": k, "value": v} for k, v in self.quality_checks.items()]
 
     def is_plasmid_construct(self) -> bool:
-        """Check if this recipe generated a full plasmid construct ready for .dna export."""
+        """Check full molecular shape; current quality and final acceptance are separate."""
         return self.result_kind == "construct" and self.completeness == "complete_construct"
 
     def to_dict(self) -> dict[str, Any]:

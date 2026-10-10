@@ -252,12 +252,18 @@ class TestDefectGovernance(unittest.TestCase):
             fill_or_chew_overhang("CCCC", left_overhang="AATT", overhang_type="5prime", action="chew_back")
 
     def test_golden_gate_and_overhang_compatibility(self):
-        """Verify check_overhang_compatibility handles both Golden Gate top-strand motif and opposite strand annealing."""
+        """Retain the old inputs while making junction labels and physical ends explicit.
+
+        Old default accepted AATG/AATG and AATG/CATT together. Independent
+        reverse-complement calculation establishes only the latter as actual
+        5'-to-3' extensions; the former remains a valid label comparison.
+        """
         from core.tools.restriction import check_overhang_compatibility
 
         # 1. Golden Gate Type IIS top-strand convention: matching 4-bp junctions (e.g. BsaI AATG and AATG)
-        res_gg = check_overhang_compatibility("AATG", "AATG", type1="5prime", type2="5prime")
+        res_gg = check_overhang_compatibility("AATG", "AATG", type1="5prime", type2="5prime", representation="junction_label")
         self.assertTrue(res_gg.analysis["compatible"], "Identical Golden Gate junction motifs must be compatible")
+        self.assertFalse(check_overhang_compatibility("AATG", "AATG", type1="5prime", type2="5prime").analysis["compatible"])
 
         # 2. Opposite strand physical extension convention: AATG and CATT (reverse complement)
         res_opp = check_overhang_compatibility("AATG", "CATT", type1="5prime", type2="5prime")

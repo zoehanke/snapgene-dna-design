@@ -24,7 +24,9 @@ def describe(name: str | None = None) -> dict:
     recipe_names = sorted(n for n in dir(recipes) if n.startswith('recipe_') and callable(getattr(recipes,n)))
     if name is None:
         return {'contracts': ['workflow_requirements'], 'recipes': recipe_names,
-                'tools': [{'name': key, 'category': spec.category} for key,spec in sorted(TOOL_REGISTRY.items())]}
+                'tools': [{'name': key, 'category': spec.category, 'description':spec.description,
+                           'required_parameters':spec.parameters_schema.get('required',[])} for key,spec in sorted(TOOL_REGISTRY.items())],
+                'workflow':'run_step.py --workspace WORK --input STEP.json; returned product_ref is the next material; finalize_workflow.py --workspace WORK --deliver --confirmed --out-dir FINAL'}
     if name in recipe_names:
         from core.workflow import get_method
         spec=get_method(name)
@@ -45,9 +47,16 @@ def main():
         sys.stdout.reconfigure(encoding='utf-8',errors='replace')
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('name', nargs='?', help='Tool/recipe name; omit to list available names')
+    parser.add_argument('--search',help='Find methods by capability/name/docstring; does not choose a scientific route')
     args = parser.parse_args()
     try:
-        result = describe(args.name)
+        if args.search:
+            from core.workflow import method_definitions
+            query=args.search.casefold()
+            result={'query':args.search,'methods':[{'name':d['name'],'description':d.get('description',''),
+                    'required_parameters':d['parameters'].get('required',[])} for d in method_definitions()
+                    if query in (d['name']+' '+d.get('description','')).casefold()]}
+        else:result = describe(args.name)
     except ValueError as error:
         parser.error(str(error))
     print(json.dumps(result,ensure_ascii=False,indent=2))

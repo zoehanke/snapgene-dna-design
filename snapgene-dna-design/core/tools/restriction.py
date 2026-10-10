@@ -15,7 +15,7 @@ from Bio.SeqRecord import SeqRecord
 
 from core.tools.inspection import _load_record
 from core.models.molecule import MoleculeInput, as_molecule, derived_molecule
-from core.models.assembly_model import FragmentEnd
+from core.models.assembly_model import FragmentEnd, compatible_sticky
 from core.tools.result import ToolResult, reaction_checks
 
 # Enzyme properties, not material-specific exceptions. NEB product records,
@@ -280,8 +280,17 @@ def check_overhang_compatibility(
     overhang2: str,
     type1: str = "5prime",
     type2: str = "5prime",
+    representation: str = "actual_5to3",
 ) -> ToolResult:
-    """Check whether two overhangs can ligate (sticky end complementarity or blunt)."""
+    """Compare actual 5'-to-3' extensions, or explicitly selected junction labels.
+
+    Label equality is a design convention, not evidence of physical ligation.
+    Actual reactions use Molecule ends through ligate_fragments.
+    """
+    if representation not in ('actual_5to3', 'junction_label'):
+        raise ValueError('Overhang representation must be actual_5to3 or junction_label')
+    context = {'representation': representation, 'scope':
+               'physical_overhang_complementarity' if representation == 'actual_5to3' else 'junction_label_equality'}
     o1 = str(overhang1 or "").strip().upper()
     o2 = str(overhang2 or "").strip().upper()
     t1 = str(type1).lower()
@@ -289,6 +298,7 @@ def check_overhang_compatibility(
 
     if t1 == "blunt" and t2 == "blunt":
         return ToolResult(analysis={
+            **context,
             "compatible": True,
             "type": "blunt-blunt",
             "message": "Both ends are blunt; non-directional ligation possible",
@@ -296,24 +306,30 @@ def check_overhang_compatibility(
 
     if t1 != t2:
         return ToolResult(analysis={
+            **context,
             "compatible": False,
             "type": f"{t1}-{t2}",
             "message": f"End geometry mismatch: {t1} cannot ligate with {t2}",
         })
 
     o2_rc = str(Seq(o2).reverse_complement()) if o2 else ""
-    # Compatible if either:
-    # 1. Matching top-strand junction motif (e.g. Golden Gate / Type IIS convention): o1 == o2
-    # 2. Opposing single-stranded extensions (Watson-Crick complementary annealing): o1 == o2_rc
-    is_compat = (o1 == o2 or o1 == o2_rc) and len(o1) > 0
+    if representation == 'actual_5to3':
+        kind = {'5prime': "5'-overhang", '3prime': "3'-overhang"}[t1]
+        is_compat = bool(o1 and o2) and compatible_sticky(FragmentEnd(kind, o1), FragmentEnd(kind, o2))
+    else:
+        is_compat = bool(o1) and o1 == o2
+    message = ("Actual sticky extensions are complementary" if is_compat else f"Actual sticky extensions are not complementary: {o1} vs {o2}")
+    if representation == 'junction_label':
+        message = 'Junction labels match; this does not establish physical ligation' if is_compat else f'Junction labels differ: {o1} vs {o2}'
 
     return ToolResult(analysis={
+        **context,
         "compatible": is_compat,
         "type": f"{t1}-{t2}",
         "overhang1": o1,
         "overhang2": o2,
         "overhang2_rc": o2_rc,
-        "message": "Sticky ends are complementary and ligatable" if is_compat else f"Sticky ends do not match: {o1} vs {o2}",
+        "message": message,
     })
 
 

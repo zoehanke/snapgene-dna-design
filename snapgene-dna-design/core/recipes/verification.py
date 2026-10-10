@@ -21,6 +21,7 @@ from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
 from core.recipes.contract import RecipeResult
+from core.errors import PlanningError
 from core.models.molecule import as_molecule, derived_molecule
 from core.tools.amplification import calc_primer_tm, check_primer_dimers, simulate_pcr, _find_primer_binding
 from core.models.construct_model import feature_to_dict
@@ -284,7 +285,13 @@ def recipe_cloning_verification(
             "Minimum required length is 80 bp. For CRISPR knock-in, provide the edited genomic locus with flanking regions."
         )
 
-    topo = str(rec.annotations.get("topology", "circular")).lower()
+    topo = rec.annotations.get("topology")
+    if topo not in ('circular', 'linear'):
+        raise PlanningError('MOLECULE_TOPOLOGY_REQUIRED',
+            'QC requires the actual template topology, linear or circular; unknown topology cannot define junction geometry',
+            missing_fields=['recombinant_plasmid_seq_or_file.topology'],
+            details={'allowed_values': ['linear', 'circular'],
+                     'recovery': 'Provide the actual source topology or an annotated material that declares it'})
     is_circ = (topo == "circular")
 
     ins_s = insert_start_0based % n if is_circ else insert_start_0based

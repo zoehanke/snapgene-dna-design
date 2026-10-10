@@ -2,11 +2,11 @@
 
 把自然语言需求和真实序列材料转成可检查的DNA设计、制备链、引物及GenBank/SnapGene文件。宿主AI选择路线，程序计算实际反应；文件检查不代表实验成功。
 
-v2.0.2保留v2公共接口，修复实际工作流中的GenBank重复元数据、文献引用JSON传递、原引物注释回读及guide制备追溯。Pipeline导出后续步骤实际使用的DNA产物；inverse PCR使用共享Primer3设计器，无合格引物时明确拒绝。Recipe的`--json`失败结果包含错误、具体编码区和已有候选文件。
+当前版本2.2.0。Recipe与原子操作共用实际产物、当前质量检查和正式交付；工作目录支持逐步继续，原材料及失败记录保留。AI选择路线，程序不把正确序列或局部PASS自动当作完整任务完成。
 
 ## 安装
 
-v2.1.0新增共同单步、候选核查和交付入口。Recipe与原子工具可混合，默认返回简短摘要，完整记录按需读取。交付保存实际中间体、注释源、当前订购表与说明；过期输入、用途或文件错配会阻止相应范围通过。重叠搜索取消隐藏60 nt上限，完全吞并一个输入片段时明确拒绝。
+交付保存实际中间体、注释源、当前订购表与说明；过期输入、用途或文件错配不能沿用旧检查。完整记录按需读取，默认摘要返回实际计算结果和未就绪原因。
 
 Python 3.10+。复制完整Skill目录，使用同一个Python环境安装依赖并检查环境：
 
@@ -32,6 +32,18 @@ python scripts/run_recipe.py --recipe recipe_protein_tagging --params-json fixtu
 最后一条产生带标签的合成教学component，不是完整表达质粒。[快速开始](docs/quick-start.md) · [用户指南](docs/user-guide.md) · [排障](docs/troubleshooting.md)
 
 逐步设计用`scripts/run_step.py`，共同收尾用`scripts/finalize_workflow.py`。Python入口为`core.workflow.run_step`、`core.workflow_validation.validate_candidate`和`core.workflow_delivery.deliver_result`。[完整短例](examples/execution_workflow.py)。原Recipe/Pipeline CLI保留；sanity-only直接提升完整构建已关闭，需要真实执行凭据。
+
+v2.2.0推荐同一工作目录连续调用。第一步JSON提供实际源材料、原要求和本步参数；后续JSON只需方法和参数，引用上一条返回的`product_ref`，不用抄序列或完整历史。多产物须明确选择。
+
+```text
+python scripts/describe_tools.py --search digest
+python scripts/run_step.py --workspace work --input first-step.json
+python scripts/run_step.py --workspace work --input next-step.json
+python scripts/run_step.py --workspace work --status
+python scripts/finalize_workflow.py --workspace work --candidate-ref "$final.products.0" --deliver --confirmed --out-dir delivery
+```
+
+`$final.products.0`替换为实际返回引用。Recipe与原子方法共用这条路径。失败保留已完成材料和具体检查，使用新step_id继续；新增源材料使用新代号。正式构建必需四个检查范围，不能删掉准备检查放行。只交付序列设计时显式用`--result-kind component`。Pipeline也区分component序列设计与construct完整准备，默认component，不把受检设计文件当作制备完成。
 
 目标格式查询`describe_tools.py workflow_requirements`。原文放`original_request`，元件放可执行的`expected_components`/`forbidden_components`；未支持字段明确拒绝，`goal_coverage`列出实际检查范围。序列/编码差异用`compare_sequences`检查真实边界和蛋白差异，结果不建立实验功能。
 

@@ -122,11 +122,21 @@ class ToolSpec:
 
     def bind_arguments(self, params):
         """Share declared shape, aliases and defaults with the step boundary."""
-        adapted = self.adapt_params(params)
-        self._validator.validate(_schema_value(adapted))
-        bound = self._signature.bind(**adapted)
-        bound.apply_defaults()
-        return bound
+        import jsonschema
+        from core.errors import ToolExecutionError
+        try:
+            adapted = self.adapt_params(params)
+            self._validator.validate(_schema_value(adapted))
+            bound = self._signature.bind(**adapted)
+            bound.apply_defaults()
+            return bound
+        except (jsonschema.ValidationError,TypeError,ValueError) as exc:
+            # jsonschema's full str includes the entire schema and input DNA.
+            # Keep the actual failed field and message, plus the real signature.
+            raise ToolExecutionError('TOOL_ARGUMENT_INVALID',getattr(exc,'message',str(exc)),
+                details={'tool':self.name,'parameter_path':list(getattr(exc,'absolute_path',[])),
+                         'required_parameters':self.parameters_schema.get('required',[]),
+                         'recovery':'Inspect the actual signature with describe_tools.py '+self.name}) from exc
 
     def execute(self, **kwargs):
         from core.errors import CoreError, ToolExecutionError
@@ -417,6 +427,8 @@ def init_default_registry() -> None:
                     "overhang2": {"type": "string"},
                     "type1": {"type": "string", "enum": ["5prime", "3prime", "blunt"], "default": "5prime"},
                     "type2": {"type": "string", "enum": ["5prime", "3prime", "blunt"], "default": "5prime"},
+                    "representation": {"type": "string", "enum": ["actual_5to3", "junction_label"],
+                        "description": "actual_5to3: each protruding strand's 5prime-to-3prime sequence; junction_label: explicit design-label equality"},
                 },
                 "required": ["overhang1", "overhang2"],
             },

@@ -140,6 +140,8 @@ def main():
     parser.add_argument("--out-dir", default="./output", help="Output directory (default: ./output)")
     parser.add_argument("--confirmed", action="store_true", help="Explicit user confirmation for authoritative delivery")
     parser.add_argument("--output-step", help="Sequence-producing step to deliver when later steps perform analysis")
+    parser.add_argument("--result-kind", choices=['construct','component'],
+                        help="construct requires actual preparation; default component delivers scoped sequence design")
     parser.add_argument("--open-snapgene", action="store_true", help="Launch desktop SnapGene viewer on generated construct")
     parser.add_argument("--json", action="store_true", help="Output results in JSON format")
 
@@ -222,6 +224,7 @@ def _run(args, out):
             validation_requirements=metadata.get('validation_requirements'),
             requirements=metadata.get('requirements'),
             original_request=metadata.get('original_request',metadata.get('raw_request')),
+            result_kind=args.result_kind or metadata.get('result_kind','component'),
         )
         result["requested_topology"] = requested_topology
         result["actual_topology"] = result.get("actual_topology", result.get("product_topology"))

@@ -88,6 +88,26 @@ def method_definitions():
     return [get_method(name).to_definition() for name in names]
 
 
+def read_workflow_record(value):
+    """Read executed steps, never reinterpret a Task plan as reaction evidence."""
+    from core.errors import ValidationError
+    if isinstance(value,(str,Path)):
+        try:
+            value=json.loads(Path(value).read_text(encoding='utf-8-sig'))
+        except (OSError,ValueError) as exc:
+            raise ValidationError('WORKFLOW_RECORD_INVALID','Read the actual steps.json returned by run_step, not a Task plan.json',
+                                  details={'reason':str(exc)}) from exc
+    if (not isinstance(value,dict) or not isinstance(value.get('sources',{}),dict)
+            or not isinstance(value.get('steps'),list)
+            or any(not isinstance(row,dict) or not {'step_id','method','params','result'} <= set(row)
+                   or (not isinstance(row['params'],dict) and not
+                       (isinstance(row.get('error'),dict) and row['error'] and row.get('result') is None))
+                   for row in value.get('steps',[]))):
+        raise ValidationError('WORKFLOW_RECORD_INVALID','Expected executed steps.json from run_step: sources is an object and each step has step_id, method, params and result. Task plan.json is not this record.',
+                              details={'required_fields':['sources','steps'],'recovery':'Use returned record_file; for Task use its own execute/validate/finalize entry.'})
+    return value
+
+
 def _materials(value):
     if isinstance(value,Molecule):
         return [value]
@@ -147,17 +167,36 @@ class StepExecution:
 def run_step(method, params, *, step_id='step', sources=None, previous=(), requirements=None, _history_checked=False):
     """Run one discoverable method; return real results or a concrete retained failure."""
     record=StepExecution(step_id,method,copy.deepcopy(params))
+    normalized_previous=[]
     try:
+        from core.workflow_validation import _step
+        try:
+            for row in previous:normalized_previous.append(_step(row))
+        except (KeyError,TypeError,AttributeError,ValueError) as exc:
+            raise PlanningError('WORKFLOW_RECORD_INVALID','previous must contain actual StepExecution or serialized executed steps; Task plans are not execution records',
+                                details={'reason':str(exc)}) from exc
+        previous=normalized_previous
+        reserved_step_ids={row.step_id for row in previous}
         from core.requirements import inherit_requirements, goal_coverage, check_goal_constraints
         record.requirements=inherit_requirements(previous,requirements)
         record.goal_coverage=goal_coverage(record.requirements,[])
+        if not isinstance(params,dict):
+            raise PlanningError('TOOL_ARGUMENT_INVALID','params must be a JSON object; the rejected input remains in the failed step record',
+                                details={'provided_type':type(params).__name__})
         from core.handlers.composite_pipeline import _resolve_param_val, _resolve_source_records
+        if sources is not None and not isinstance(sources,dict):
+            from core.errors import ValidationError
+            raise ValidationError('WORKFLOW_RECORD_INVALID','sources must be an object keyed by material ids; use actual steps.json, not Task plan.json')
         sources=_resolve_source_records(sources or {})
+        collisions=set(sources)&reserved_step_ids
+        if collisions:
+            raise PlanningError('INVALID_SOURCE_ID','New material IDs cannot shadow recorded step products',
+                                details={'conflicting_ids':sorted(collisions),'recovery':'Give added source materials distinct IDs; keep the actual existing product references.'})
         if previous and not _history_checked:
             from core.workflow_validation import replay_steps
             previous=replay_steps(previous,sources)
         completed={row.step_id:row.result for row in previous if row.status=='completed'}
-        if not step_id or step_id in completed or step_id in sources:
+        if not step_id or step_id in reserved_step_ids or step_id in sources:
             raise PlanningError('INVALID_STEP_ID','Step id must be unique and distinct from sources')
         spec=get_method(method)
         if spec is None:
@@ -202,16 +241,54 @@ def run_step(method, params, *, step_id='step', sources=None, previous=(), requi
         record.error=exc.to_dict() if isinstance(exc,CoreError) else {
             'status':'failed','error_code':'STEP_EXECUTION_FAILED','message':str(exc),
             'details':{'exception':type(exc).__name__},'write_authoritative_artifact':False}
+        record.error['details'].setdefault('available_product_refs',
+            [f'${row.step_id}.products.{index}' for row in normalized_previous if row.result and not row.error
+             for index in range(len(row.result.products))])
+        record.error['details'].setdefault('recovery',
+            'Keep completed material references, give a new step_id, and inspect current parameters with describe_tools.py '+str(method))
     return record
 
 
-def product_summaries(result):
+def product_summaries(result,step_id=None):
     """Summarize real products without silently selecting one or turning QC into DNA."""
-    return [{'product_index':index,'length':len(m),'topology':m.topology,
+    return [{'product_index':index,**({'product_ref':f'${step_id}.products.{index}'} if step_id else {}),'length':len(m),'topology':m.topology,
              'strandedness':m.strandedness,'ends':m.to_dict()['ends'],
              'record_version':m.record_version,'source_versions':[r['record_version'] for r in m.source_refs],
              'features':[f.qualifiers.get('label',f.qualifiers.get('gene',[f.type])) for f in m.features]}
             for index,m in enumerate(result.products)]
+
+
+def concise_value(value):
+    """Readable actual facts, with long molecular payloads kept in the record."""
+    if isinstance(value,(Molecule,SeqRecord)):
+        material=as_molecule(value)
+        return {'record_version':material.record_version,'length':len(material),'topology':material.topology}
+    if isinstance(value,dict):
+        if 'sequence' in value and 'record_version' in value:return concise_value(as_molecule(value))
+        return {k:concise_value(v) for k,v in value.items() if k not in ('method_analysis','preparation','subject')}
+    if isinstance(value,(list,tuple)):
+        return [concise_value(v) for v in value]
+    if isinstance(value,str) and len(value)>300:
+        return {'length':len(value),'detail':'Full value in record_file'}
+    return value
+
+
+def step_summary(step):
+    result=step.result
+    checks=result.checks if result else []
+    feedback=result.analysis.get('preparation_feedback',{}) if result else {}
+    readiness=('FAILED' if any(c['status']=='FAILED' for c in checks) or feedback.get('status')=='FAILED' else
+               'INCOMPLETE' if any(c['status']=='INCOMPLETE' for c in checks) or feedback.get('status')=='INCOMPLETE' else
+               'CHECKED_SCOPES_PASSED' if checks else 'NOT_CHECKED')
+    summary={'step_id':step.step_id,'method':step.method,'status':step.status,
+             'products':product_summaries(result,step.step_id) if result else [],
+             'analysis':concise_value(result.analysis) if result else {},
+             'checks':concise_value(checks),'candidate_readiness':readiness,
+             'error':step.error,'goal_coverage':step.goal_coverage,'task_completion':step.task_completion}
+    if result and result.analysis.get('subject') is not None:
+        summary['subject_ref']=f'${step.step_id}.analysis.subject'
+        summary['subject']=concise_value(result.analysis['subject'])
+    return summary
 
 
 def recipe_result(result):

@@ -143,18 +143,9 @@ def _apply_mutation_record(rec, start: int, end: int, alt: str, circular: bool):
     return model
 
 
-def _record_dict(rec, feature_to_dict):
-    return {
-        "id": rec.id or rec.name or "template",
-        "name": rec.name or rec.id or "template",
-        "sequence": str(rec.seq).upper(),
-        "annotations": {
-            "molecule_type": rec.annotations.get("molecule_type", "DNA"),
-            "topology": rec.annotations.get("topology", "linear"),
-        },
-        "features": [feature_to_dict(feature, len(rec.seq))
-                     for feature in rec.features],
-    }
+def _record_dict(rec):
+    """Preserve the real template version, including its upstream provenance."""
+    return as_molecule(rec).to_dict()
 
 
 def _mismatch_count(reference: str, alternate: str) -> int:
@@ -252,7 +243,7 @@ def recipe_site_directed_mutagenesis(
         except (ValueError, TranslationError):
             translation = str(coding.translate(table=table)).rstrip("*")
         feature.qualifiers["translation"] = [translation]
-    template_dict = _record_dict(rec, feature_to_dict)
+    template_dict = _record_dict(rec)
 
     pcr_evidence = None
     if method == "quikchange":

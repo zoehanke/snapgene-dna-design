@@ -148,6 +148,11 @@ def deliver_result(requirements,sources,steps,candidate,out_dir,*,primers=None,r
     from core.requirements import inherit_requirements, validate_validation_options
     requirements=inherit_requirements(steps,requirements)
     validate_validation_options(required_scopes, result_kind)
+    mandatory=['sequence_model','file','user_goal']
+    if result_kind=='construct':mandatory.insert(1,'preparation_model')
+    # A caller may request extra checks, but cannot subtract the role's checks.
+    # Recheck them rather than rejecting an otherwise valid prepared molecule.
+    required_scopes=list(dict.fromkeys(mandatory+(required_scopes or [])))
     material=as_molecule(candidate)
     if validation is not None:
         payload={k:v for k,v in validation.items() if k!='validation_sha256'}

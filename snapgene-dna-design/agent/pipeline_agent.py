@@ -99,8 +99,12 @@ def execute_agent_pipeline(
     validation_requirements: list[str] | None = None,
     requirements: dict | None = None,
     original_request: str | None = None,
+    result_kind: str = 'component',
 ) -> dict[str, Any]:
-    """Execute an agent-formulated composite pipeline deterministically and deliver SnapGene construct."""
+    """Execute actual steps; default to a sequence-design component, not proven preparation.
+
+    Request result_kind='construct' for complete preparation and delivery checks.
+    """
     out_path = pathlib.Path(out_dir)
     out_path.mkdir(parents=True, exist_ok=True)
 
@@ -128,6 +132,13 @@ def execute_agent_pipeline(
             })
 
     from core.requirements import inherit_requirements
+    from core.requirements import validate_validation_options
+    validate_validation_options(validation_requirements,result_kind)
+    if result_kind not in ('construct','component'):
+        raise ValueError('Pipeline DNA delivery supports construct or component; use the step interface for QC/oligo/protocol subjects.')
+    if result_kind=='construct':
+        validation_requirements=list(dict.fromkeys(
+            ['sequence_model','preparation_model','file','user_goal']+(validation_requirements or [])))
     context={'topology':product_topology}
     if expected_components is not None:context['expected_components']=expected_components
     if forbidden_components is not None:context['forbidden_components']=forbidden_components
@@ -232,7 +243,7 @@ def execute_agent_pipeline(
             product_index=int(tail.split('.')[1]) if tail.startswith('products.') else None
             delivery=observe('finalize',deliver_result,request,sources_map,steps,as_molecule(p['product_molecule']),out_path,
                 required_scopes=vtask.get('validation_requirements',['sequence_model','file','user_goal']),
-                result_kind='construct',output_step=head,product_index=product_index,
+                result_kind=result_kind,output_step=head,product_index=product_index,
                 provenance={'task_id':task_id,'task_sha256':p['task_sha256'],'plan_sha256':p['plan_sha256']})
             status = delivery["status"]
         else:
@@ -249,6 +260,9 @@ def execute_agent_pipeline(
 
     return {
         "status": status,
+        "result_kind": result_kind,
+        "scope_note": ('Actual preparation, sequence, files and declared goals are required.' if result_kind=='construct'
+                       else 'Sequence-design component; preparation and experimental readiness are not certified.'),
         'requirements':request,'goal_coverage':delivery['goal_coverage'] if delivery else report['goal_coverage'],
         'task_completion':delivery['task_completion'] if delivery else report['task_completion'],
         "task_id": task_id,

@@ -42,6 +42,8 @@ def _step(value):
 
 def replay_steps(steps,sources):
     """Ignore imported PASS/operation claims; recompute each recorded public call."""
+    if not isinstance(sources,dict):
+        raise ValidationError('WORKFLOW_RECORD_INVALID','sources must be an object; use executed steps.json from run_step')
     source_versions={key:as_molecule(value,default_topology='linear').record_version for key,value in sources.items()}
     conditions=runtime_conditions()
     replayed=[]
@@ -50,11 +52,12 @@ def replay_steps(steps,sources):
         previous=_step(value)
         if previous.error:
             continue  # Retained failed attempts supply no selectable material or checks.
-        if previous.source_versions != source_versions:
+        if any(source_versions.get(key)!=version for key,version in previous.source_versions.items()):
             raise ValidationError('SOURCE_VERSION_CHANGED',f'Original sources differ at {previous.step_id}')
         if previous.conditions != conditions:
             raise ValidationError('EXECUTION_CONDITIONS_CHANGED',f'Implementation/backend conditions differ at {previous.step_id}')
-        actual=run_step(previous.method,previous.params,step_id=previous.step_id,sources=sources,previous=replayed,
+        step_sources={key:sources[key] for key in previous.source_versions}
+        actual=run_step(previous.method,previous.params,step_id=previous.step_id,sources=step_sources,previous=replayed,
                         requirements=previous.requirements,_history_checked=True)
         if actual.error:
             raise ValidationError('REPLAY_FAILED',f'{previous.step_id}: {actual.error["message"]}',details={'error':actual.error})
@@ -105,6 +108,7 @@ def validate_candidate(requirements,sources,steps,candidate,*,primers=None,files
                                    check_goal_constraints, completion_report)
     requirements=inherit_requirements(steps,requirements)
     validate_validation_options(required_scopes, result_kind)
+    required=required_scopes or (['sequence_model','preparation_model','file','user_goal'] if result_kind=='construct' else ['sequence_model','file','user_goal'])
     material=as_molecule(candidate)
     if report_notes is not None and not isinstance(report_notes,str):
         raise ValidationError('REPORT_NOTES_INVALID','report_notes must be text')
@@ -122,6 +126,11 @@ def validate_candidate(requirements,sources,steps,candidate,*,primers=None,files
         if chosen is None:raise ValidationError('UNKNOWN_OUTPUT_STEP','Output step is absent')
         if chosen.result.analysis.get('result_kind') in ('verification','primers','protocol') and result_kind=='construct':
             raise ValidationError('RESULT_ROLE_MISMATCH','QC/oligo/protocol results are not new constructs')
+        if result_kind in ('verification','primers','protocol') and chosen.result.analysis.get('result_kind')!=result_kind:
+            raise ValidationError('RESULT_ROLE_MISMATCH','Requested role does not match the actual selected operation',
+                                  details={'requested':result_kind,'actual':chosen.result.analysis.get('result_kind','DNA transformation')})
+        if result_kind=='verification' and chosen.result.analysis.get('subject') is None:
+            raise ValidationError('RESULT_ROLE_MISMATCH','Verification must name its actual checked subject')
         if result_kind=='verification' and chosen.result.analysis.get('subject') is not None:
             expected=as_molecule(chosen.result.analysis['subject'])
         elif product_index is None:
@@ -167,7 +176,7 @@ def validate_candidate(requirements,sources,steps,candidate,*,primers=None,files
         scopes['preparation_model']=check_result('actual_reaction_chain',subject=material,
             status=preparation['status'] if not mismatches else 'FAILED',scope='preparation_model',details=preparation['details'])
     except Exception as exc:
-        if steps:errors.append(str(exc))
+        if steps:errors.append((exc.error_code+': '+str(exc)) if isinstance(exc,ValidationError) else str(exc))
         scopes['sequence_model']=check_result('actual_step_replay',subject=material,status='INCOMPLETE' if not steps else 'FAILED',
                scope='sequence_model',details={'error':exc.to_dict() if isinstance(exc,ValidationError) else str(exc)})
 
@@ -179,7 +188,8 @@ def validate_candidate(requirements,sources,steps,candidate,*,primers=None,files
     scopes['preparation_model']['details']['oligo_quality'] = quality
     if quality['status'] in ('FAILED', 'INCOMPLETE'):
         scopes['preparation_model']['status'] = quality['status']
-        errors.append('OLIGO_QUALITY_' + quality['status'] + ': complete preparation oligo quality was not established')
+        if 'preparation_model' in required:
+            errors.append('OLIGO_QUALITY_' + quality['status'] + ': complete preparation oligo quality was not established')
     actual_primers=[p for row in replayed for p in _actual_step_primers(row)]
     if primers is not None:
         from core.workflow_delivery import _used_products, preparation_rows, synthesis_orders
@@ -309,7 +319,6 @@ def validate_candidate(requirements,sources,steps,candidate,*,primers=None,files
         goal_statuses=[item['status'] for item in coverage['goal_items']+coverage['check_results']]
         scopes['user_goal']['status']='FAILED' if 'FAILED' in goal_statuses else 'INCOMPLETE' if any(s!='PASSED' for s in goal_statuses) else 'PASSED'
     scopes['user_goal']['details']['coverage']=coverage
-    required=required_scopes or (['sequence_model','preparation_model','file','user_goal'] if result_kind=='construct' else ['sequence_model','file','user_goal'])
     errors.extend('VALIDATION_SCOPE_UNSATISFIED: '+scope for scope in required if scopes[scope]['status']!='PASSED')
     coverage=goal_coverage(requirements,traces,checks=goal_checks,subject_version=material.record_version)
     result={'overall':'verified' if not errors else 'failed','scope_results':scopes,'errors':errors,

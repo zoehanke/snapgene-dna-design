@@ -7,12 +7,15 @@
 | 需求 | 入口 | 交付解释 |
 |---|---|---|
 | 检查现有材料 | inspect_plasmid.py | 文件层事实，不保证培养/表型 |
+| 逐步设计或修订路线 | run_step.py --workspace | 续用实际product_ref，查看当前检查和保留的失败 |
 | 标准制备与构建 | run_recipe.py | 配方计算、制备产物、引物及候选 |
 | 多步组合 | run_pipeline.py | 每步引用真实中间记录；明确 output_step |
 | 结构化任务 | run_construction_task.py | 任务、计划、执行、验证与正式交付 |
 | 旧确定性意图规划 | plan_assembly.py | 有限语法/能力；不假装任意自然语言理解 |
 
-Recipe 精确参数只在[配方参考](../references/recipes.md)维护；CLI 执行前用 `--help`。Composite 引用 `$source`、`$step` 或 `$step.field`；传整份记录保留注释。
+Recipe 精确参数只在[配方参考](../references/recipes.md)维护；CLI 执行前用 `--help`。实际产物引用`$step.products.0`，分析读取`$step.analysis.field`；传整份记录保留注释。多产物明确选择。新增源材料代号不能与已有步骤重名。
+
+Pipeline默认component，只交付注明范围的序列设计。需要完整制备时用`--result-kind construct`，四个范围必须通过。逐步工作用`finalize_workflow.py --workspace`收尾，默认同样要求完整构建；单纯序列设计显式选择component。
 
 ## 看结果
 

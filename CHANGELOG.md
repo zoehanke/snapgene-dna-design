@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.2.0 · 2026-10-11 current-material workflow
+
+- Extend the existing step/finalization CLI with one workspace, automatic continuation, actual analysis/check summaries and product references; preserve the old entry points.
+- Keep Core molecule identity through GenBank/native export; separate real 5prime sticky strands from junction labels, and diagnose unknown topology/incorrect workflow record types.
+- Allow adding original sources without invalidating unchanged previous inputs; actual source changes still reject continuation.
+- Provide shared immediate Recipe preparation feedback bound to the current template, complete oligos and method conditions; preserve failed candidates and actionable next choices.
+- Prevent construct delivery from disabling mandatory preparation checks and prevent ordinary DNA edits from masquerading as verification.
+- This is a development version. Real-host, package and regression evidence are maintained in the active execution-closure plan; no automatic wet-lab or full natural-language success claim.
+
 ## 2.1.0 · 2026-10-06 actual execution closure
 
 - Remove the undeclared 60 nt overlap limit with linear-time matching; reject full substrate consumption as an unsupported assembly.

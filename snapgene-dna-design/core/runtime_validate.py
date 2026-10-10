@@ -353,9 +353,6 @@ def validate(task: dict, plan: dict, execution: dict) -> dict:
             scope_results['preparation_model']['details']['oligo_quality'] = quality
             if quality['status'] in ('FAILED', 'INCOMPLETE'):
                 scope_results['preparation_model']['status'] = quality['status']
-                scope_results['user_goal']['status'] = 'FAILED'
-                goal_ok = False
-                goal_errors.append('OLIGO_QUALITY_' + quality['status'] + ': complete preparation oligo quality was not established')
     required = task.get('validation_requirements', ['sequence_model','file','user_goal'])
     for scope in required:
         if scope_results.get(scope,{}).get('status') != 'PASSED':

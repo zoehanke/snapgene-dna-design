@@ -227,5 +227,7 @@ def derived_molecule(record: SeqRecord, sources=(), *, operation: str,
         refs.append({'molecule_id': f'{material.id}:{version}', 'record_version': version,
                      'sequence_sha256': material.sequence_sha256, 'input_index': index,
                      'mapping': mappings[index] if mappings else None})
+    from core.io.primer_annotation import sync_primer_coordinates
+    record = sync_primer_coordinates(record)
     return Molecule(record, strandedness=strandedness, left_end=left_end,
                     right_end=right_end, source_refs=refs, operation=operation, _owned=True)

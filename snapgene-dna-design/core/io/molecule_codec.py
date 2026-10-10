@@ -24,7 +24,7 @@ def file_metadata(material):
     # Sequence and features remain in their normal file sections. Never use
     # this metadata to replace an edited sequence or repair failed annotations.
     annotations = dict(material.annotations)
-    if 'comment' in annotations:
+    if 'comment' in annotations and MARKER in str(annotations['comment']):
         comment = _visible_comment(annotations['comment'])
         if comment:
             annotations['comment'] = comment
@@ -75,6 +75,10 @@ def metadata_text(material, visible_record=None, *, native=False):
 
 def genbank_record(material):
     record = copy.deepcopy(material)
+    # The physical DNA aliases accepted by Molecule share one file header.
+    # Its exact original annotation remains in the authenticated supplement.
+    if str(record.annotations.get('molecule_type', '')).upper() in ('DS-DNA', 'SS-DNA'):
+        record.annotations['molecule_type'] = 'DNA'
     original = _visible_comment(record.annotations.get('comment', ''))
     if original:
         record.annotations['comment'] = original

@@ -389,6 +389,14 @@ v2.1.0已提取三个连续责任，不是三套流程。Python实际模块为co
 
 原子ToolSpec保持严格，Recipe通过边界适配进入步骤调用，QC subject不变成新产物。单步失败保留原CoreError和成功前缀；逐步继续仅使用核对过输入、参数及实现/后端条件的旧结果。先支持本地继续，不增加全局运行状态平台。
 
+2.2.0在原入口增加`--workspace`。`WORK/steps.json`保存实际历史，序号目录保存每次调用；后续只提交方法和参数，直接使用返回的`product_ref`。原来源可追加，已绑定版本不可替换；失败ID不可复用。`--status`显示材料引用和最近真实检查。参数错误在ToolSpec返回具体字段与真实签名，错误Task计划不能被解释为实际执行记录。
+
+RecipeResult在既有准备边界生成即时`preparation_feedback`，区分真实反应重放、完整引物结构和未验证实验效率。Workflow继续独立复算；导入反馈不能代替本次核查。当前模板、完整引物及方法条件均绑定。没有实际准备的分析/组件不制造准备PASS。
+
+正式`deliver_result`按result_kind补齐最低范围：construct必须四范围；局部分析仍用validate_candidate。旧Pipeline序列级默认显式为component，新增construct选择自动要求准备；准备失败单独保留，不冒充用户目标失败或实体制备完成。实际QC subject才能以verification交付。
+
+Core文件写出以原分子为补充元数据锚点，文件可见投影仍独立核对。引物坐标冗余字段在真实产物生成时同步，不能等export掩盖变换错误；裁剪的原完整结合信息和当前片段分开。保存回读保留原record_version，DNA或注释修改仍使旧补充失效。真实突出链与junction_label比较分别声明，未知拓扑不转换为字符串。
+
 交付临时目录中的成品、中间体、订购表和说明共同生成并核查；直接Recipe提升也消费完整范围结果，不能只依赖sanity摘要。计算缺少证据时不得借通用文件bundle宣布验证完成。具体实施和验收由[开发方案](development-plans/actual-execution-closure.md)维护。
 
 单步记录保留规范化参数、来源/产物版本、实现及实际Primer3二进制绑定、结果和失败；上下文局部采集注册工具的内部操作，不修改DNA算法参数。Recipe返回仅在适配处统一；实际运算仍直接传Molecule。候选核查重放绑定的输入和方法，对外部自定义算法区分重放一致性与科学变换证明。文件路径沿共同writer确定对象与角色，原模板不能冒充PCR产物，订购表/说明/执行和要求记录也检查实际内容。
