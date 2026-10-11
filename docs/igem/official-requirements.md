@@ -38,4 +38,6 @@ Best Software：**BS1** 标准/格式兼容；**BS2** 验证；**BS3** 其他项
 
 **未核实：**个人写权限、正式表单保存/提交、安全批准、奖项自荐及最终回执。未推送或部署本轮 Toolkit。负责人需要审定科学事实、作者/外部资产权属和AI披露，再亲自完成官方操作及回执核对。
 
-10月15日代码冻结、16日上传、17日内部验收是本队内部计划，不能表述成iGEM官方截止。当前本地候选开发及验证状态由[现行计划](../development-plans/genome-revival-toolkit-v0.1.md)管理。
+本轮本地技术准备已有9bc9aa3冻结包、实际工程/独立包及自然宿主主候选证据；额外宿主文稿和原请求摘要边界如实保留。源码r2已从新本地Git目录运行原套件与builder，额外资源skip未改门限。它们不替代正式远端main、Linux/GitLab CI、权属批准或官方提交回执。具体状态由[GitLab交接](gitlab-migration.md)和[Wiki证据段](software-wiki-draft.md)拥有。
+
+10月15日代码冻结、16日上传、17日内部验收是本队内部计划，不能表述成iGEM官方截止。本轮本地候选与验证见[实施记录](../archive/plans/genome-revival-toolkit-v0.1.md)；后续授权看[当前交接](../development-plans/README.md)。

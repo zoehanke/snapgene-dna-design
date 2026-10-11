@@ -4,7 +4,7 @@
 
 Target: [Tianjin /software](https://2026.igem.wiki/tianjin/software). Official source repository: [igem-tianjin2026](https://gitlab.igem.org/2026/software/tianjin/igem-tianjin2026).
 
-This manuscript organizes the team's supplied research objectives and documented engineering work. Team members must review scientific substance, contribution statements and every result before publication. Toolkit 0.1.0, DNA Design Core 2.2.2 and Evidence Trace 0.3.3 are implemented local candidates. Public-interface project calculations and independent positive/negative cases have run. The complete regression, final source/package identity and normal-host outcomes are still pending. The official repository still contains its template, so these links do not imply that this candidate has been submitted.
+This manuscript organizes the team's supplied research objectives and documented engineering work. Team members must review scientific substance, contribution statements and every result before publication. Toolkit 0.1.0, DNA Design Core 2.2.2 and Evidence Trace 0.3.3 are frozen local candidates from source `9bc9aa3`. The package and applicable engineering checks passed. Independent review confirmed a normal-host primary Identity result, while supplementary host reports contain corrections and are outside the program receipt. This is not evidence of general autonomous reliability or fully verified final presentation. The official repository still contains its template, so these links do not imply that this candidate has been submitted.
 
 ---
 
@@ -109,7 +109,19 @@ Developer-assisted runs are labeled separately from autonomous host outcomes. Kn
 
 Earlier testing of the general Core exposed missed goals and failed final delivery even when individual operations were correct. Those records informed this release's scope and limits; they do not prove the new Toolkit has passed its own tests. No new claim of user efficiency, general task success rate or wet-lab effectiveness is made without corresponding evidence.
 
-**Current release verification:** independent checks have covered the Kits' valid, invalid and ambiguous inputs, source changes, stale receipts, actual public calls and Trace failures. The real developer-assisted Construct and Identity cases described above are inspectable. They do not stand in for the pending complete suite, extracted-package tests, normal-host run or human/experimental validation. Final source and package identity will be added after freezing.
+**Engineering verification:** the frozen implementation completed 1,202 tests on the verified Windows/Python 3.12 environment: 1,194 passed, eight skipped and none failed, in 930.643 seconds. A separate CLI smoke run passed 95 checks. Required Primer3 execution had no skips. The skips retain their resource/optional-integration reasons; these totals are engineering checks, not successful research tasks. Extracted-package checks exercised actual fields, complete oligos and current receipts.
+
+**Normal-host pilot:** one official DeepSeek Flash/max run began with the frozen package, unchanged original material and the natural given-region request. No reference primers, expected products or developer-selected window were supplied. It selected a different interval and called the actual Identity entry. Independent inspection of the raw inputs verified its primary 526/250 bp products, full-primer binding and thermodynamic metrics. The highest hairpin temperature, 40.12°C, is also below the unchanged default 47°C limit; success does not depend on raising that limit through its declared 58°C annealing condition. The proposed laboratory temperature and actual gel separation remain untested.
+
+The run ended normally after 825.734 seconds with 117 public tool calls retained. The two primary oligos and four program-generated result files match their current receipt and inputs. This meets the limited exit of completing one supported core Kit through a natural host. It is a known-project pilot, not heldout evaluation; filesystem isolation and latent training-data exposure were not established.
+
+**Presentation corrections:** the host's extra `REPORT.md` and `TECHNICAL-CHECKS.md` are not receipt members. Verification of the four canonical files cannot authorize the whole output directory. Its supplemental report describes script calculations as measurements and labels a segment inside the deletion as conserved between both references. Both statements require correction; the original report is retained. An earlier AI rationale also cites Tm values that do not match the final oligos. Final program/alternative-condition values are 59.7/60.2°C and 55.2/55.8°C respectively. The outdated rationale stays a reviewable AI declaration, not program-confirmed evidence.
+
+The full natural request is preserved in the actual host record. The host's JSON `original_request` is a summary. Trace's literal reference proves which submitted JSON text was used, not automatic capture of the original dialogue verbatim. Independent comparison found no task-blocking omission in this pilot; that result is not a general natural-language completeness guarantee.
+
+The host wrote exploratory candidate-selection scripts. These actions are retained in the real host log but are not automatically covered by Toolkit-only Trace. Its additional hand-written reports also require separate review rather than inheriting the program receipt. This pilot therefore does not establish reduced token cost, minimal scripting or complete capture of the host's design process.
+
+**Exported-source reproduction:** the separately prepared public-source candidate ran the same unchanged suite and build entry from a new local Git directory: 1,202 tests, 1,179 passed, 23 skipped and no failures, in 830.875 seconds; the builder exited normally and produced a 252-file runtime package. More unavailable-resource tests skip in this export because restricted materials are excluded. Required Primer3 had no skips. This is Windows local reproduction, not a successful remote GitLab pipeline or Linux verification.
 
 ## Installation, formats and reuse
 
@@ -143,7 +155,7 @@ Independent reader comprehension, external users and software-linked wet-lab out
 
 Original project code uses MIT, while dependencies, external programs and supplied materials retain their own licenses. Software and Wiki licenses are distinct. Source availability on the official repository remains pending the team's reviewed upload.
 
-OpenAI Codex has assisted with implementation, review, test construction and documentation preparation. The actual host model ID was not obtained for this development run; subagents inherited the host model without an override, and no model version is inferred from informal names. Real official DeepSeek Flash with maximum reasoning effort has been used for recorded general-Core host pilots; Toolkit host validation must be reported separately. No new model weights were trained. Vendor training data are not independently available to the team. Human contributions must be confirmed from the team's records before final disclosure.
+OpenAI Codex has assisted with implementation, review, test construction and documentation preparation. The actual host model ID was not obtained for this development run; subagents inherited the host model without an override, and no model version is inferred from informal names. Real official DeepSeek Flash with maximum reasoning effort has been used for recorded general-Core host pilots and the separately evaluated Toolkit pilot described above. No new model weights were trained. Vendor training data are not independently available to the team. Human contributions must be confirmed from the team's records before final disclosure.
 
 The manuscript's project objectives come from the team's supplied research requirements. Code, calculations, references and scientific statements still require appropriate human review. AI-assisted engineering checks are not described as independent human or expert endorsement.
 
@@ -155,16 +167,19 @@ The team will disclose AI use, third-party support and student contributions thr
 
 ### Evidence that must be frozen
 
+Current implementation: `9bc9aa31e9ba57216ae7eae9964ae8bd840a417e`. Toolkit ZIP: 1,743,113 bytes, SHA-256 `90F4BD9B9664CAF0C36FD3DBD8051A6DDA3DC37EA7975CC8C1D9D0A52547AF5F`, 252 payload files plus its manifest. Local host uses one independent test installation; the existing desktop Skill is unchanged. Source upload preparation and official submission are distinct artifacts.
+
 | Item | Current source | Publication condition |
 |---|---|---|
 | Project aims and unresolved experiments | Reviewed original project files; local `project-materials.md` | Team confirms role/strain statements and publication rights |
 | Architecture and supported scope | [Toolkit spec](../../specs/genome-revival-toolkit.md), [Core spec](../../specs/core-skill.md), [Trace spec](../../specs/safety-module.md) | Match actual frozen implementation |
-| Construct case | Local `public-construct/RESULTS.md`, three-mode outputs and `public/real-record-review.json`; [Toolkit plan](../development-plans/genome-revival-toolkit-v0.1.md) | 1,802 bp, eight oligos, actual preparation/readback and current receipts checked; assisted parameters, not autonomous or experimental |
+| Construct case | Local `public-construct/RESULTS.md`, three-mode outputs and `public/real-record-review.json`; [Toolkit plan](../archive/plans/genome-revival-toolkit-v0.1.md) | 1,802 bp, eight oligos, actual preparation/readback and current receipts checked; assisted parameters, not autonomous or experimental |
 | Identity case | Local `identity/RESULTS.md`, original failed assay and `developer-alternative-independent.json` | 650/374 bp assisted candidate checked; first quality failure retained; given regions only |
 | Evidence case | Local `evidence/RESULTS.md`, sourced documents and missing-data result | `incomplete`/`NOT_TESTED`, no invented project measurements |
-| Normal host | New isolated official DSH run on frozen Toolkit | Keep natural request, tools, actual artifacts and public final outcome; do not use Core pilots as Toolkit proof |
+| Normal host | Local `host-runs/identity-0.1.0/INDEPENDENT-REVIEW.md`, final public calls and actual files | Primary 526/250 bp computation and canonical delivery independently checked; supplementary reports unbound/corrections retained; no heldout claim |
 | Package/release | Commit, SHA-256, manifest, dependencies, installation and applicable suites | No private material or developer-machine dependency |
-| Official upload | [GitLab handoff](gitlab-migration.md) | Human upload, official main/CI and receipt actually verified |
+| Reviewed source export | Local `igem/software-source-9bc9aa3-docs-r2.MANIFEST.json`, link dispositions and reproduction logs | Core code unchanged, actual local suite/build checked; final documentation revision pending, rights and official size not approved |
+| Official upload | [GitLab handoff](gitlab-migration.md) | Human upload, official main/CI and receipt remain pending |
 
 ### Required figures and files
 
@@ -175,6 +190,8 @@ The team will disclose AI use, third-party support and student contributions thr
 5. **Reproducibility links:** final README, source/commit, approved downloadable package and computational evidence.
 
 All Wiki assets must use approved iGEM hosting. Use code-generated figures from documented computations and genuine screenshots. Do not generate or retouch images to imitate research evidence.
+
+Already prepared: `assets/toolkit-architecture.svg` from the actual modules; local `igem/host-identity-report.png` is a genuine screenshot of the actual host-produced Trace. Existing Construct screenshots and success/failure reports are retained with their case records. Raw screenshots show recorded software, not reader comprehension or experimental results; public hosting still requires the team's reviewed upload.
 
 ### Remaining human actions
 

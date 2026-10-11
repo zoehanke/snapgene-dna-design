@@ -1,6 +1,6 @@
 # Genome Revival Toolkit
 
-2026-10-11。本文件拥有项目专用Skill的产品边界；DNA底座契约仍由[Core spec](core-skill.md)管理，证据记录由[Trace spec](safety-module.md)管理。[当前计划](../docs/development-plans/genome-revival-toolkit-v0.1.md)记录实施和实证，不替代本契约。
+2026-10-11。本文件拥有项目专用Skill的产品边界；DNA底座契约仍由[Core spec](core-skill.md)管理，证据记录由[Trace spec](safety-module.md)管理。[实施记录](../docs/archive/plans/genome-revival-toolkit-v0.1.md)保存本轮实证，[当前交接](../docs/development-plans/README.md)承接未关闭项，不替代本契约。
 
 ## 目标与当前授权
 
@@ -27,6 +27,8 @@
 ## Evidence Trace
 
 三个Kit共用现有Trace采集、追加式日志、组织和确定性HTML/Markdown。程序可整理自己实际执行的流程骨架和返回事实；科学理由只引用用户/AI/研究者明确提交的记录，不自动补原始思考。观察顺序不冒充因果，记录完整性、DNA检查及实验结论分开。
+
+`original_request`是宿主提交的文本，不自动等于逐字原对话；JSON字段的verbatim引用只能证明该字段。宿主摘要与原会话需分开保存和核对。原AI理由可与后续计算冲突，程序PASS不认证理由。宿主另写的报告、备用候选或外部脚本不自动进入Kit回执和Trace范围。
 
 报告先说明任务与实际结果，再呈现主要过程、依据、当前检查和文件；技术详情独立可达。文件改变和新事实使旧关联/组织陈旧，报告可从日志重建。未观察的宿主脚本、外部编辑与呈现列采集缺口；Full不等于全部捕获。Off/Observed/Full保持相同DNA与质量语义，normal故障不改变Core结果，strict准确报告缺记录。
 

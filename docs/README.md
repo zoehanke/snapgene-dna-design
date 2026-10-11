@@ -5,7 +5,7 @@
 | 要做什么 | 读什么 |
 |---|---|
 | 修改主设计、CLI、交付或接口 | [Core spec](../specs/core-skill.md)；需要定位模块时读[架构](architecture.md) |
-| 修改Genome Revival三个Kit或项目Context | [Toolkit spec](../specs/genome-revival-toolkit.md)、[当前计划](development-plans/genome-revival-toolkit-v0.1.md)；DNA/Trace共用边界仍读对应spec |
+| 修改Genome Revival三个Kit或项目Context | [Toolkit spec](../specs/genome-revival-toolkit.md)、[当前交接](development-plans/README.md)；本轮实证按需读[实施记录](archive/plans/genome-revival-toolkit-v0.1.md)，DNA/Trace共用边界仍读对应spec |
 | 修改Evidence Trace | [安全模块spec](../specs/safety-module.md)；修改报告时加读[阅读与界面规范](trace-report/design.md) |
 | 环境、调试、扩展与提交 | [开发指南](developer-guide.md) |
 | 测试、复现、打包或性能测量 | [测试与验收](testing.md)；任务评分另读[评分规则](question-bank/scoring-v0.1.md) |

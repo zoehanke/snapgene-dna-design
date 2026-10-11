@@ -7,7 +7,7 @@
 | 项目 | 当前事实 |
 |---|---|
 | 开发仓库 | GitHub `zoehanke/snapgene-dna-design`，分支 `codex/real-workflow-readiness-20260907` |
-| 本轮基线 | `fa0f3cb`文档，Core2.2.1实施`7ebd0cc`；Toolkit0.1.0/Core2.2.2/Trace0.3.3候选实施中，最终身份等实际冻结 |
+| 本轮基线/冻结 | Core2.2.1实施`7ebd0cc`、文档`fa0f3cb`；本轮实施冻结`9bc9aa3`，Toolkit0.1.0/Core2.2.2/Trace0.3.3。ZIP SHA `90F4BD9B9664CAF0C36FD3DBD8051A6DDA3DC37EA7975CC8C1D9D0A52547AF5F`，252 payload |
 | 软件GitLab | [专属仓库](https://gitlab.igem.org/2026/software/tianjin/igem-tianjin2026)，本地remote名`gitlab`；匿名团队API已确认关联 |
 | 官方源码 | main/HEAD为`241b12fcad038e9f56fac563438f717f38e40644`，树仅`.claude/`、`CLAUDE.md`、`LICENSE`、`README.md`，未包含当前软件 |
 | CI准备 | 根`.gitlab-ci.yml`已准备：Python3.12.4、现有固定requirements-tested、共同测试入口及`tools/build_toolkit.py --out-dir dist`；本地YAML及实际CLI形状核对通过，远端GitLab CI未运行 |
@@ -23,6 +23,8 @@
 候选同时记录：Toolkit/Core/Trace版本、源提交及未提交项状态、包SHA-256/文件清单、实际依赖/后端、独立包与宿主结果、计算案例和限制。私有DNA、实验原件、考官资料、凭据、编译程序和大媒体不随源码提交；公开演示材料须有分发依据。仓库须小于50MB，最终以官方仓库实际大小核对；当前本地Git对象约7.1MiB仅是准备依据。
 
 本机`audit-output/genome-revival-toolkit-20261011/igem/`已准备逐文件源码清单、排除原因和大小记录。当前所选源文件低于50MB，具体字节以带时间的清单为准，不等于冻结源码或官方Git仓库大小。最终提交后重新生成；旧历史、公开文档链接和外部权属保留人工审定，不能只按路径过滤就宣称可任意分发。
+
+源r1保留104条排除导致的链接缺口。r2新目录纳入38份必要且经有限DNA/凭据筛查的历史Markdown，99处不能分发的引用改为非点击内部记录说明并保留原引用；504文件、6.352MiB，零相对断链。独立本地Git没有remote，现行套件实际1202项中1179通过、23跳过、0失败，830.875秒；真实Primer3未skip，实际builder退出0。额外资源skip不计为成功；正式Linux/GitLab CI仍未运行。最终r3根据文档收尾SHA生成，只再核源码/252 payload、链接和必要入口，不重复同一全量。技术准备、许可批准及官方接收分开记录。
 
 原代码采用MIT，官方软件模板当前Apache-2.0。整合时保留各部分来源和许可，团队确认原代码权属后决定顶层许可，不能用模板许可重新授权所有第三方。Wiki继续原CC-BY4.0 LICENSE，不删除或改成软件MIT。
 

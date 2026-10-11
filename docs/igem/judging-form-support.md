@@ -21,9 +21,11 @@
 | BS5 易用 | 按任务选Kit，默认报告显示目标、结果、过程、检查与文件 | 正常宿主实际交付、报告链接；真人理解和效率尚未核实 |
 | BS6 维护 | 单一Core来源、轻量Context、公开接口、依赖和限制 | 包清单、安装复现、架构、测试及许可；正式GitLab CI待部署核查 |
 
-完整英文正文、素材和待冻结声明见[Wiki稿](software-wiki-draft.md)。现行实施证据由[Toolkit计划](../development-plans/genome-revival-toolkit-v0.1.md)管理，不在表单材料另维护成绩表。
+完整英文正文、素材和待冻结声明见[Wiki稿](software-wiki-draft.md)。现行实施证据由[Toolkit计划](../archive/plans/genome-revival-toolkit-v0.1.md)管理，不在表单材料另维护成绩表。
 
-本轮已有受限计算证据：实际CHR1材料经公共Construct入口交付1802 bp供体与8条完整oligo，三档DNA/注释/订单/质量及四scope一致；给定Sc/SY14区域的开发者辅助候选预测650/374 bp且完整质量核对成立，原全区间质量失败保留；无原始实验表的Evidence结果为incomplete/NOT_TESTED。以上不是宿主自主成功或湿实验结果。全量、冻结包及正常宿主验收仍待最终记录。
+本轮受限计算证据：实际CHR1公共Construct交付1802 bp及8条完整oligo，三档DNA/注释/订单/质量及四scope一致；开发者辅助Identity650/374 bp，原质量失败保留；无原始实验表的Evidence为incomplete/NOT_TESTED。9bc9aa3完整1202项中1194通过、8跳过、0失败，CLI smoke95通过；冻结包252 payload及独立字段/完整oligo/回执核查成立。
+
+自然DeepSeek Flash/max单轮自主主候选526/250 bp与4份canonical结果独立核对通过，117次公开调用/13.76分钟，无预填引物或选区路线。补充两报告不在回执，并有“计算写成实测”和“删除区写作共有保守区”错误；旧Tm理由也需复核。不能写全部呈现verified、少脚本、省token或通用成功率提高。原对话保留，但宿主JSON原请求为摘要，Trace不等于自动逐字采集原对话。没有heldout、实验或独立陌生用户结果。
 
 ## 提交前必须确认
 

@@ -57,7 +57,7 @@ python -X utf8 -B tools/build_toolkit.py --out-dir output/toolkit-package
 
 默认从精确Git提交构包，包内只有一个Skill入口，同版Core由源树生成vendor子集。`--working-tree`只产出诊断包，不是冻结候选。最终候选须在仓库外解包，核对TOOLKIT-MANIFEST及SHA，清除PYTHONPATH后实际调用三Kit和verify。正常宿主另用独立测试配置安装此包，只给自然请求与必要原材料，不给预先选好的引物、完整参数或参考答案；现用安装保持不变。
 
-开发者指定路线、改选检测窗口和宿主自主完成分别记录。真实材料例不等于陌生评测；局部PCR预测、来源记录、文件核验和湿实验结论也分别报告。报告浏览器及链接可用不替代真人理解试读。当前阶段及实际证据由[Toolkit计划](development-plans/genome-revival-toolkit-v0.1.md)拥有。
+开发者指定路线、改选检测窗口和宿主自主完成分别记录。真实材料例不等于陌生评测；局部PCR预测、来源记录、文件核验和湿实验结论也分别报告。报告浏览器及链接可用不替代真人理解试读。当前阶段及实际证据由[Toolkit计划](archive/plans/genome-revival-toolkit-v0.1.md)拥有。
 
 记录源码提交、包清单/哈希、解释器、依赖、平台、实际后端、输入条件与人工介入。同平台精确复现可参考Skill内requirements-tested；跨平台或可选后端不沿用未经验证的保证。精确模型token不可得时写未知。
 
