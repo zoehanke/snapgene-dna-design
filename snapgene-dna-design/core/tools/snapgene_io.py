@@ -459,16 +459,25 @@ def write_native_dna(record: SeqRecord, out_path: str | pathlib.Path) -> str | p
         if "primer" in f.type.lower():
             payload = _primer_payload_from_feature(record, f)
             start, end = payload["binding_interval_0based"]
+            site = SgffBindingSite(
+                start=start, end=end, bound_strand=payload['strand'],
+                annealed_bases=payload['binding_sequence'])
+            if payload.get('native_partial'):
+                original = payload['native_site']
+                site.melting_temperature = original.get('melting_temperature')
+                site.simplified = original.get('simplified', False)
+                site.extras = copy.deepcopy(original.get('extras', {}))
+                components = site.extras.get('Component', [])
+                if isinstance(components, dict):
+                    components = [components]
+                for component in components:
+                    if component.get('hybridizedRange'):
+                        component['hybridizedRange'] = f'{start}-{end-1}'
             primer = SgffPrimer(
                 name=payload["name"],
                 sequence=payload["sequence"],
                 binding_sites=[
-                    SgffBindingSite(
-                        start=start,
-                        end=end,
-                        bound_strand=payload["strand"],
-                        annealed_bases=payload["binding_sequence"],
-                    )
+                    site
                 ],
             )
             sg.primers.add(primer)
@@ -579,6 +588,19 @@ def _primer_payload_from_feature(record: SeqRecord, feature: SeqFeature) -> dict
     else:
         full = _normalise_dna(full, "sequence")
 
+    if _first_qualifier(feature, 'binding_status') == 'native_partial':
+        from core.io.molecule_codec import decode_source_binding
+        source = json.loads(decode_source_binding(_first_qualifier(feature, 'source_binding') or '{}'))
+        site = source.get('native_site', {})
+        original_core = source.get('binding_sequence', '')
+        if (source.get('primer_sequence') != full or extracted != original_core or
+                not _native_non3prime_segment(full, original_core, site)):
+            raise ValueError('Native partial primer metadata contradicts the retained sequence or original Components')
+        return {'name': _first_qualifier(feature, 'label', 'gene') or feature.id or 'primer',
+                'sequence': full, 'binding_sequence': extracted,
+                'binding_interval_0based': [start, end], 'strand': strand,
+                'native_partial': True, 'native_site': site}
+
     core = _first_qualifier(feature, "binding_sequence", "binding_seq", "binding_core")
     if core is not None:
         core = _normalise_dna(core, "binding_sequence")
@@ -600,6 +622,20 @@ def _primer_payload_from_feature(record: SeqRecord, feature: SeqFeature) -> dict
 
 def _native_site_location(start: int, end: int, strand: int, sequence_length: int, topology: str):
     return _primer_location(start, end, strand, sequence_length, topology)
+
+
+def _native_non3prime_segment(full, core, site):
+    """Native Components explicitly show a mapped segment and an unmapped 3prime part."""
+    components = site.get('extras', {}).get('Component', [])
+    if isinstance(components, dict):
+        components = [components]
+    if not components or not all(isinstance(c, dict) for c in components):
+        return False
+    mapped = [c for c in components if c.get('hybridizedRange')]
+    return (len(mapped) == 1 and not components[-1].get('hybridizedRange') and
+            ''.join(str(c.get('bases', '')) for c in components).upper() == full and
+            str(mapped[0].get('bases', '')).upper() == core and not full.endswith(core) and
+            mapped[0]['hybridizedRange'] == f'{site["start"]}-{site["end"]-1}')
 
 
 def enrich_native_primer_features(record: SeqRecord, source_path: str | pathlib.Path) -> SeqRecord:
@@ -645,13 +681,31 @@ def enrich_native_primer_features(record: SeqRecord, source_path: str | pathlib.
                 "binding_interval_0based": [start, end],
                 "strand": _strand_char(strand_int),
             }
+            native_site = {'start': start, 'end': end, 'bound_strand': site.bound_strand,
+                           'annealed_bases': core, 'melting_temperature': site.melting_temperature,
+                           'simplified': site.simplified, 'extras': copy.deepcopy(getattr(site, 'extras', {}))}
+            qualifiers = _primer_qualifiers(payload)
+            if _native_non3prime_segment(payload['sequence'], payload['binding_sequence'], native_site):
+                actual = _extract_reference_interval(str(result.seq).upper(), start, end, topology)
+                actual = actual if strand_int == 1 else str(Seq(actual).reverse_complement())
+                if actual != core:
+                    raise ValueError('Native partial primer segment does not match its declared template location')
+                source_binding = {'primer_sequence': payload['sequence'], 'binding_sequence': core,
+                                  'native_site': native_site}
+                qualifiers = {'label': [payload['name']], 'primer_sequence': [payload['sequence']],
+                              'binding_status': ['native_partial'], 'partial': ['true'],
+                              'source_feature_type': ['primer_bind'],
+                              'source_binding': [json.dumps(source_binding, ensure_ascii=False, separators=(',', ':'))],
+                              'binding_retained': [json.dumps([{'start0': start, 'end0': end, 'strand': strand_int}], separators=(',', ':'))],
+                              'note': ['Native Components report an unmapped 3prime part; this historical partial match is not an active PCR binding core.']}
             if payload["sequence"].endswith(payload["binding_sequence"]):
                 payload["tail_5prime"] = payload["sequence"][: -len(payload["binding_sequence"])]
+                qualifiers = _primer_qualifiers(payload)
             primer_features.append(
                 SeqFeature(
                     location,
                     type="primer_bind",
-                    qualifiers=_primer_qualifiers(payload),
+                    qualifiers=qualifiers,
                 )
             )
     result.features = non_primers + primer_features

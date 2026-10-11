@@ -143,14 +143,15 @@ def _read_one(path, fmt):
         return read_native_dna_record(path)
     try:
         with open(path, "r", encoding="utf-8-sig") as handle:
-            record=normalize_primer_qualifiers(SeqIO.read(handle, fmt))
+            record=SeqIO.read(handle, fmt)
     except UnicodeDecodeError:
         # Legacy INSDC files are sometimes stored as a single-byte encoding.
         with open(path, "r", encoding="latin-1") as handle:
-            record=normalize_primer_qualifiers(SeqIO.read(handle, fmt))
+            record=SeqIO.read(handle, fmt)
     from core.models.molecule import as_molecule
     from core.io.molecule_codec import restore_file_metadata
-    return as_molecule(restore_file_metadata(record))
+    # Authenticate the actual parsed file before normalizing formatting spaces.
+    return as_molecule(normalize_primer_qualifiers(restore_file_metadata(record)))
 
 
 def load_seq(source):

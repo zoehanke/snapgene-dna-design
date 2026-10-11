@@ -19,6 +19,12 @@ def record_title(record):
 
 def build_report(graph):
     records = graph["source_records"]
+    latest_run = graph['runs'][-1]['id'] if graph.get('runs') else None
+    outcomes = [record for record in records.values() if record.get('event_type') == 'stage_completed'
+                and record.get('run_id') == latest_run and record.get('payload', {}).get('stage') == 'outcome'
+                and isinstance(record['payload'].get('result'), dict) and record['payload']['result'].get('summary')]
+    latest_outcome = max(outcomes, key=lambda record: record['sequence'], default=None)
+    outcome_result = latest_outcome['payload']['result'] if latest_outcome else {}
     process, plan = graph.get("design_process"), graph.get("report_plan") or {}
     state = graph["snapshot"]["organization_status"]
     # Stale organization remains available as history, but does not narrate newer facts.
@@ -64,7 +70,7 @@ def build_report(graph):
         if node["kind"] == "validation":
             checks.append({"ref": node["key"], "check": node["check"], "result": node.get("result"),
                            "run_id": node.get("run_id"),
-                           "status": "not_requested" if node.get("result") in ("not_requested", "N/A", "not_applicable") else check_status(node.get("result"))[0]})
+                           "status": "not_requested" if node.get("result") in ("not_requested", "N/A", "not_applicable", "NOT_APPLICABLE") else check_status(node.get("result"))[0]})
         elif node["kind"] == "artifact":
             artifacts.append({"ref": node["key"], **{k: node.get(k) for k in
                 ("path", "sha256", "role", "run_id", "result_event_ref", "generation_observation", "validated_by")}})
@@ -177,6 +183,9 @@ def build_report(graph):
         owned = [step['subject_ref']] if step.get('subject_ref') else step['source_refs']
         step['changes'] = changes_for([record_at(ref).get('key', ref) for ref in owned])
     return {"title": plan.get("title", "生物设计记录") if active else "生物设计记录",
+            "outcome_summary": outcome_result.get('summary'),
+            "outcome_ref": latest_outcome['event_id'] if latest_outcome else None,
+            "unverified_scope": outcome_result.get('report_unverified_scope', outcome_result.get('unverified', outcome_result.get('not_checked', []))),
             "context": context, "requirements": graph["task"]["requirements"],
             "snapshot": graph["snapshot"], "integrity": graph["integrity"],
             "steps": steps, "stages": active["stages"] if active else [],
@@ -238,6 +247,8 @@ def markdown(report):
     def source_names(refs):
         return ', '.join(safe(report['sources'][r]['title']) for r in refs if r in report['sources'])
     lines = ["# " + safe(report["title"]), ""]
+    if report.get('outcome_summary'):
+        lines += ['本次实际结果：' + safe(report['outcome_summary']), '']
     if report["snapshot"]["organization_status"] != "current":
         lines += ["设计过程尚未整理或组织已陈旧。以下为有限事实记录。", ""]
     lines += ["## 任务与要求", ""]
@@ -275,6 +286,8 @@ def markdown(report):
     if not report["artifacts"]:
         lines += ["未记录产物。", ""]
     lines += [safe(c['display_check']) + "：" + safe(c['display_result']) + "\n" for c in report["checks"]]
+    if report.get('unverified_scope'):
+        lines += ['程序未验证的范围：', ''] + ['- ' + safe(value) for value in report['unverified_scope']] + ['']
     if report["review"]:
         lines += ["## 需要处理", ""] + [safe(r["text"]) + "\n" for r in report["review"]]
     if report.get("handoff"):

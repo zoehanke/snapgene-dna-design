@@ -8,7 +8,7 @@ from evidence_trace.applicability import assess
 from evidence_trace.provenance import decision_provenance, requirement_provenance
 
 VERSION = "reader-v0.3.1"
-NOT_REQUESTED = ("not_requested", "not_applicable", "N/A")
+NOT_REQUESTED = ("not_requested", "not_applicable", "NOT_APPLICABLE", "N/A")
 CHECK_NAMES = {"artifact_valid": "产物文件检查", "computation_valid": "构建计算检查",
                "goal_valid": "任务目标检查", "biological_sanity": "序列与注释规则检查",
                "requested_components": "指定元件检查"}
@@ -19,9 +19,9 @@ INPUT_NAMES = {"source": "来源", "boundary": "边界", "method": "构建方法
 
 
 def check_status(value):
-    if value is True or value in ("PASS", "passed", "verified"):
+    if value is True or value in ("PASS", "PASSED", "passed", "verified"):
         return "passed", "通过"
-    if value is False or value in ("FAIL", "failed"):
+    if value is False or value in ("FAIL", "FAILED", "failed"):
         return "failed", "未通过"
     return "unknown", "结果待确认"
 
@@ -253,7 +253,8 @@ def build_reader(graph):
         path = PurePosixPath(n.get("relative_path", n.get("path", "")).replace("\\", "/"))
         if path.name == "DELIVERY-MANIFEST.json":
             continue
-        candidate_result = n.get("run_id") not in formal_runs and str(path).startswith("candidate/")
+        candidate_result = n.get("run_id") not in formal_runs and n.get('role') == 'intermediate-or-candidate' and (
+            str(path).startswith('candidate/') or n.get('generation_observation') in {'created', 'modified', 'rewritten_same_content'})
         if n.get("role") != "authoritative" and n["key"] not in consumed | declared_records and not candidate_result:
             continue
         key = (n["run_id"], n.get("role"), str(path.parent), path.stem, n.get("result_event_ref") or n["key"])

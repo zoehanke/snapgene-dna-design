@@ -29,7 +29,7 @@ def render(directory, graph, formats="both"):
                               for n in graph["nodes"] if n["kind"] == "artifact"],
                 "snapshot": graph["snapshot"],
                 "derived_files": ["graph.json"] + (["index.html"] if formats in {"html", "both"} else [])
-                                 + (["report.md"] if formats in {"markdown", "both"} else [])}
+                                 + (["report.md", "details.md"] if formats in {"markdown", "both"} else [])}
     (directory / "TRACE-MANIFEST.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
     assets = pathlib.Path(__file__).parent
     document = PAGE.replace("__STYLE__", (assets / "view.css").read_text(encoding="utf-8"))
@@ -39,7 +39,10 @@ def render(directory, graph, formats="both"):
     if formats in {"html", "both"}:
         (directory / "index.html").write_text(document, encoding="utf-8")
     if formats in {"markdown", "both"}:
-        (directory / "report.md").write_text(markdown(graph["report"]), encoding="utf-8")
+        complete = markdown(graph['report'])
+        body, _, details = complete.partition('\n## 查看详细记录\n')
+        (directory / 'report.md').write_text(body + '\n## 查看详细记录\n\n[可读详情](details.md) · [完整技术记录](graph.json)\n', encoding='utf-8')
+        (directory / 'details.md').write_text('# 可读详情\n' + details, encoding='utf-8')
     return graph
 
 

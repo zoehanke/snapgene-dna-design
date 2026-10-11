@@ -6,6 +6,8 @@ Updated: 2026-10-11. This spec defines the current DNA product contract. Develop
 
 Workspace layout: project/Git root owns AGENTS, specs, developer docs/tests/tools and the project navigation README. `snapgene-dna-design/` is the standalone Skill root with its own user README, SKILL.md, runtime code and references. Its packaged README is the same usage document maintained in source. Runtime code must not depend on the outer development tree; packages contain only the tracked Skill subtree and permitted materials, not developer records or grader tools. The migration changes paths and packaging, not DNA semantics.
 
+[Genome Revival Toolkit](genome-revival-toolkit.md) is a separate project-specific Skill consuming this same Core source/version. Its context and report-file checks do not replace Core DNA validation. Independent packaging bundles reviewed runtime modules without maintaining a second DNA implementation.
+
 Help molecular and synthetic biology researchers turn real materials and a design request into correct, inspectable DNA constructs and usable preparation instructions. Serve general research and laboratory R&D; iGEM and safety work extend that practical purpose.
 
 | Surface | Current responsibility |
@@ -154,6 +156,10 @@ Current methods and evidence boundaries are maintained in [testing](../docs/test
 Non-Composite ConstructionTask handlers model declared sequence/annotation changes. Their plan and delivery `scope_note` must state that physical preparation is not established; use an actual Recipe/Pipeline for preparation claims. New plans bind `product_features` and scope to the plan hash. Regenerate old plans missing the annotation contract; do not reuse old receipts as current evidence.
 
 Fusion-tag templates need an explicit coding-boundary interpretation. An inherited CDS without its own terminal stop is not, by itself, proof of damaged DNA; the feature may describe a bounded tag within a larger reading frame. The current full-CDS gate does not infer every such biological context. Retain the original source, explain any annotation revision independently, and do not add a stop or remove checks merely to promote a candidate. Automatic resolution of ambiguous fusion annotations and reliable unsupervised reference-numbered multi-round mutation remain unverified.
+
+Native primer sites can explicitly describe only a 5-prime component while the complete oligo's 3-prime component is not hybridized there. Preserve original sites, positions, full oligos and Component data as historical partial observations, not active cores, orders or quality passes. Complete current binding and inconsistent declarations retain strict checks. Typed datetime/date metadata survives versioning and file read-back rather than being deleted.
+
+`integration_donor` derives explicitly requested arm lengths from the actual reference/locus with bounds and orientation checked. This is a sequence model; physical preparation and final file evidence remain separate.
 
 Derive translation only from a valid complete CDS with no supplied translation. Do not overwrite conflicting source translations or demote invalid CDS annotations to make validation pass. Recompute expected components and feature transformations from the original task/source, not mutable plan declarations.
 

@@ -1,6 +1,6 @@
 # Safety module: Evidence Trace
 
-Updated: 2026-10-06. This spec owns current Trace behavior and evidence boundaries. Use the [developer router](../docs/README.md) for task-specific reading; completed plans are not default prerequisites. [History](../docs/history.md) records why they changed; [development plans](../docs/development-plans/README.md) own phase scope and results; [usage](../snapgene-dna-design/references/evidence-trace.md) owns CLI/Schema details; [design.md](../docs/trace-report/design.md) owns reading rules and links the optional framework and visual reference.
+Updated: 2026-10-11. This spec owns current Trace behavior and evidence boundaries. Use the [developer router](../docs/README.md) for task-specific reading; completed plans are not default prerequisites. [History](../docs/history.md) records why they changed; [development plans](../docs/development-plans/README.md) own phase scope and results; [usage](../snapgene-dna-design/references/evidence-trace.md) owns CLI/Schema details; [design.md](../docs/trace-report/design.md) owns reading rules and links the optional framework and visual reference.
 
 ## Purpose and present scope
 
@@ -20,6 +20,8 @@ The [v0.3.2 repair plan](../docs/archive/plans/workflow-phase-3-usability-repair
 
 The complete machine result includes design_process, its exact report-plan version, source records, typed relationships, coverage and findings. An unassigned record remains accessible; hiding detail in the report never deletes underlying information. Missing/stale organization produces an explicitly limited factual view, not a completed scientific narrative.
 
+For a defined Toolkit workflow, program code may project its known executed stages, explicit inputs/returns and supplied statements into a sourced process skeleton, attributed to `workflow-program`. It cannot supply missing AI decisions, scientific reasons, paper support or causality. User/AI/researcher scientific organization remains distinct and may add sourced interpretation. An observed call now retains its actual callable and molecular wire/version rather than only a molecule count.
+
 Full data retention does not require copying full records into each derived section or embedding the whole machine result in HTML. Reading projections use references and explicit record locations; large-payload changes must preserve evidence, compatibility and offline reading rather than truncate history.
 
 ## DNA boundary and collection levels
@@ -27,6 +29,8 @@ Full data retention does not require copying full records into each derived sect
 Observe actual route equivalents of task/plan/execute/validate/finalize at application boundaries. Trace changes no DNA, execution parameters, Core validation or authoritative files. Runtime results alone generate Validation and Artifact facts; preserve failures and original errors. Normal Trace errors continue DNA work with TRACE_INCOMPLETE; explicit strict policy may stop at the boundary without rolling back files. The [Core spec](core-skill.md) owns biological delivery.
 
 The shared step and workflow closure entries are additional observed application boundaries. A delivery bundle contains final DNA, intermediate/source copies and supporting records; only its declared final molecular files are authoritative Artifact nodes. Bundle membership alone does not turn every intermediate or report into a final construct. Off/Observed/Full must preserve these same Core results and delivered bytes.
+
+Toolkit adds one shared boundary for all three Kits. Nested formal DNA uses the actual Core receipt/manifest and file version, not a fixed folder name. Supporting reports remain supporting files. An explicit recorded run may scope a handoff; absent scope retains ambiguous same-path/same-byte history. Returned uppercase Core states retain their semantics; repeated outcome echoes do not become independent checks.
 
 v2 Core observation includes complete molecular products, direct input-version references and scoped program checks. Serialize actual ToolResult/Molecule values at capture boundaries; never infer a material from an analysis string or promote a reaction/model check into experimental validation. Trace level changes remain observational. Canonical material/file bytes and validation meanings must match Off/Observed/Full for the same workflow.
 
@@ -69,6 +73,7 @@ REASSESS, RECHECK and RERUN request reconsideration, evidence checking and progr
 - Opening a choice, file or source remains a human-reading action: explain its meaning, basis, limits and relationships. Schema, IDs, hashes and raw events are not the default detail content. Unknown types get an honest readable limitation and a separate technical entry, not recursive raw-field rendering.
 - Bind evidence to its actual Decision/Claim; contextual references do not inherit another choice's evidence. Keep each relation, conditions and limits together. Omitting a choice from the main narrative must preserve its readable details. Actual changes and review findings remain readable without opening machine JSON; unfamiliar findings remain visible as unclassified records.
 - research-report-v1 supplies a consistent format; task content and step count come from records. Do not hard-code example choices, invent user interventions, or create generic review/experiment warnings to fill a template.
+- A returned result summary and its unverified scope may appear first, with their actual source event. Markdown readable details are exported separately from the primary report; full machine information remains accessible. This does not introduce a new model call or a visual redesign.
 - Separate capture faults, missing explanations, unassigned information and actionable scientific review. An unrequested check is not failure; a partial applicability judgment is not automatically a task defect.
 - Untraced files remain visible as recording gaps with filename, missing relationship and practical consequence. Do not turn them into scientific todo items or fabricate history to mark them linked. Actually missing files or mismatched checked versions remain delivery issues. Every promised view/download action must have a valid target.
 - For major reading-organization changes, use representative static/interactive examples and existing participant feedback to assess understanding early. This is not a blanket preapproval gate for every renderer fix. Proceed within existing authorization, record missing feedback and never claim human acceptance from model self-review or browser tests.

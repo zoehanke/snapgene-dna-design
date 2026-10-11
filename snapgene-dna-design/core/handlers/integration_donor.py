@@ -44,12 +44,47 @@ class IntegrationDonorHandler(TaskHandler):
     def clarify(self, task: dict) -> list[dict]:
         questions = []
         arms = task.get("operation", {}).get("homology_arms") or {}
-        if not arms.get("left_arm") or not arms.get("right_arm"):
+        locus = task.get("operation", {}).get("locus") or {}
+        can_derive = locus.get("source_id") and locus.get("interval_0based") and arms.get("arm_length")
+        if (not arms.get("left_arm") or not arms.get("right_arm")) and not can_derive:
             questions.append({
                 "field": "operation.homology_arms",
                 "question": "请提供用于基因组整合的左侧（5'）与右侧（3'）同源臂序列。",
             })
         return questions
+
+    def _arm_sequences(self, task: dict, operation: dict) -> tuple[str, str]:
+        """Resolve declared arms, deriving omitted arms from the actual locus only."""
+        arms = operation.get("homology_arms") or {}
+        left = str(arms.get("left_arm") or "").upper()
+        right = str(arms.get("right_arm") or "").upper()
+        if left and right:
+            return left, right
+        locus = operation.get("locus") or {}
+        length = arms.get("arm_length")
+        if not locus.get("source_id") or length is None:
+            return left, right  # Explicitly approved single-arm designs retain their scope.
+        if type(length) is not int or length <= 0:
+            raise TaskValidationError("INTEGRATION_ARM_LENGTH_INVALID", "arm_length must be a positive integer")
+        source = next(s for s in task["sources"] if s["source_id"] == locus["source_id"])
+        reference = resolve_sequence_record(source["_resolved_path"])
+        start, end = map(int, locus["interval_0based"])
+        strand = locus.get("strand", 1)
+        if strand not in (1, -1):
+            raise TaskValidationError("INTEGRATION_LOCUS_STRAND_INVALID", "locus strand must be 1 or -1")
+        if not 0 <= start <= end <= len(reference):
+            raise PlanningError("INTEGRATION_LOCUS_OUT_OF_RANGE", "locus interval outside reference length or wrapping")
+        left_length, right_length = len(left) or length, len(right) or length
+        upstream_length = left_length if strand == 1 else right_length
+        downstream_length = right_length if strand == 1 else left_length
+        topology = source.get("topology", "linear")
+        if topology == "linear" and (start < upstream_length or end + downstream_length > len(reference)):
+            raise PlanningError("INTEGRATION_LOCUS_OUT_OF_RANGE", "homology arm flank extends beyond linear chromosome boundary")
+        if not left:
+            left = extract_interval(reference, start-left_length, start, topology=topology, whole_record_approved=True) if strand == 1 else extract_interval(reference, end, end+left_length, topology=topology, strand=-1, whole_record_approved=True)
+        if not right:
+            right = extract_interval(reference, end, end+right_length, topology=topology, whole_record_approved=True) if strand == 1 else extract_interval(reference, start-right_length, start, topology=topology, strand=-1, whole_record_approved=True)
+        return left.upper(), right.upper()
 
     def plan(self, task: dict) -> dict:
         self.validate_contract(task)
@@ -63,8 +98,7 @@ class IntegrationDonorHandler(TaskHandler):
 
         op = task.get("operation", {})
         arms = op.get("homology_arms") or {}
-        left = str(arms.get("left_arm") or "")
-        right = str(arms.get("right_arm") or "")
+        left, right = self._arm_sequences(task, op)
         left_record, right_record = SeqRecord(Seq(left.upper())), SeqRecord(Seq(right.upper()))
 
         locus_spec = op.get("locus") or {}
@@ -190,9 +224,7 @@ class IntegrationDonorHandler(TaskHandler):
         component_seq = extract_interval(tmpl_rec, s0, e0, topology=tmpl_source.get("topology", "linear"), whole_record_approved=True).upper()
 
         op = task.get("operation", {}).get("integration") or task.get("operation", {})
-        arms = op.get("homology_arms") or {}
-        left = str(arms.get("left_arm") or "").upper()
-        right = str(arms.get("right_arm") or "").upper()
+        left, right = self._arm_sequences(task, op)
 
         return left + component_seq + right
 

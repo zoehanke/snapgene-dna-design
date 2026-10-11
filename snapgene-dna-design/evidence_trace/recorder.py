@@ -80,7 +80,7 @@ def project(events, errors=()):
                     explanation_gaps.append({"node": node["key"], "reason": "缺少决策说明"})
                 if not any(node.get("references", {}).get(f) for f in ("claim_ids", "responds_to", "validated_by")) and not node.get("basis_refs"):
                     coverage_gaps.append({"node": node["key"], "reason": "未关联选择依据"})
-            if node["kind"] == "validation" and node.get("result") not in (True, "PASS", "passed", "verified", "not_requested", "N/A", "not_applicable"):
+            if node["kind"] == "validation" and node.get("result") not in (True, "PASS", "PASSED", "passed", "verified", "not_requested", "N/A", "not_applicable", "NOT_APPLICABLE"):
                 queue.append({"node": node["key"], "reason": "程序检查未通过或未评估"})
         elif kind == "evidence_linked":
             edges.append({**p, "recorded_sequence": event["sequence"]})

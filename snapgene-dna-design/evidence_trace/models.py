@@ -5,7 +5,7 @@ import hashlib
 import json
 import pathlib
 import re
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 KINDS = {"requirement", "source", "statement", "claim", "decision", "validation", "artifact"}
 REF_FIELDS = {"responds_to": "requirement", "source_id": "source", "claim_ids": "claim",
@@ -58,6 +58,8 @@ def snapshot(value, key=""):
         return "[omitted]"
     if value is None or isinstance(value, (bool, int, float)):
         return value
+    if isinstance(value, (datetime, date)):
+        return {'python_type': type(value).__name__, 'isoformat': value.isoformat()}
     if isinstance(value, pathlib.Path):
         return str(value)
     if isinstance(value, str):
@@ -71,11 +73,11 @@ def snapshot(value, key=""):
         if value and all(isinstance(v, str) for v in value):
             value = command_snapshot(value)
         return [snapshot(v, key) for v in value]
+    if hasattr(value, "to_dict"):
+        return snapshot(value.to_dict())
     if hasattr(value, "seq"):
         return {"record_id": value.id, "sequence": snapshot(str(value.seq)),
                 "topology": value.annotations.get("topology"), "feature_count": len(value.features)}
-    if hasattr(value, "to_dict"):
-        return snapshot(value.to_dict())
     return {"python_type": type(value).__name__}
 
 

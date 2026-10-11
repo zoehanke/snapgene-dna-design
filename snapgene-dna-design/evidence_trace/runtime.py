@@ -28,7 +28,7 @@ def input_snapshot(value, key=""):
         return [input_snapshot(v, key) for v in value]
     if isinstance(value, (str, pathlib.Path)) and len(str(value)) < 1024 and "\n" not in str(value):
         p = pathlib.Path(value)
-        if p.suffix.lower() in {".gb", ".gbk", ".dna", ".fasta", ".fa"} and p.is_file():
+        if p.suffix.lower() in {".gb", ".gbk", ".dna", ".fasta", ".fa", ".fna", ".gz", ".json", ".csv", ".tsv"} and p.is_file():
             return {"source_path": str(p.resolve()), "source_sha256": file_digest(p)}
     return snapshot(value)
 
@@ -60,6 +60,8 @@ class TraceRun:
         self.run_id = uuid.uuid4().hex
         self.errors, self.decisions, self.validations = [], [], []
         self.artifacts = set()
+        self.authoritative_files = set()
+        self.returned_checks = set()
         self.output_baseline = None
         self.recorder = None
         self.outcome = "unfinished"
@@ -119,7 +121,7 @@ class TraceRun:
         if self.recorder:
             return self.recorder.append(kind, payload)
 
-    def validation(self, name, result, details, result_event_ref=None):
+    def validation(self, name, result, details, result_event_ref=None, *, tool=None, tool_version=None):
         dependencies = {
             "artifact_valid": ["sequence", "topology", "features"],
             "computation_valid": ["source", "sequence", "boundary", "orientation", "component", "method", "mutation", "order", "topology"],
@@ -129,7 +131,8 @@ class TraceRun:
         }
         key = self.recorder.record({"id": f"V-{self.run_id}-{len(self.validations)+1}", "kind": "validation",
             "check": name, "result": result, "details": snapshot(details),
-            "tool": "snapgene-dna-design", "tool_version": self.core_version,
+            "tool": tool or "snapgene-dna-design", "tool_version": tool_version or self.core_version,
+            "scope": details.get('scope') or details.get('check', {}).get('scope'),
             "decision_ids": self.decisions, "depends_on_fields": dependencies.get(name, []),
             "result_event_ref": result_event_ref, "association_scope": "same_run",
             "dependency_scope_complete": False}, runtime=True, actor="runtime")
@@ -142,6 +145,20 @@ class TraceRun:
         result_event = self.event("stage_completed", {"stage": stage, "stage_ref": stage_ref,
                                                       "result": summary, "observation_phase": "returned_value"})
         result_ref = result_event["event_id"]
+        # Observe checks actually returned by a public operation. Core objects
+        # and Toolkit aggregate checks keep their declared tool and scope.
+        checks = summary.get('checks', []) if isinstance(summary, dict) else []
+        if isinstance(summary, dict) and isinstance(summary.get('result'), dict):
+            checks = summary['result'].get('checks', checks)
+        for check in checks if isinstance(checks, list) else []:
+            if isinstance(check, dict) and check.get('status') in {'PASSED', 'FAILED', 'INCOMPLETE', 'NOT_APPLICABLE'}:
+                stamp = json.dumps(check, sort_keys=True, ensure_ascii=False)
+                if stage == 'outcome' and stamp in self.returned_checks:
+                    continue
+                self.returned_checks.add(stamp)
+                self.validation(check.get('name', 'Returned program check'), check['status'],
+                                {'check': check, 'scope': check.get('scope')}, result_ref,
+                                tool=check.get('tool'), tool_version=check.get('tool_version'))
         if stage == "validate":
             for field in ("artifact_valid", "computation_valid", "goal_valid"):
                 if field in value:
@@ -202,6 +219,16 @@ class TraceRun:
 
     def capture_files(self, value, result_event_ref=None):
         if isinstance(value, dict):
+            if value.get('status') == 'delivered' and value.get('directory') and value.get('manifest_sha256'):
+                directory = pathlib.Path(value['directory']).resolve()
+                manifest_path = directory / 'DELIVERY-MANIFEST.json'
+                if manifest_path.is_file() and file_digest(manifest_path).lower() == str(value['manifest_sha256']).lower():
+                    manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
+                    if manifest.get('artifact_class') == 'authoritative':
+                        for name in ('construct.gb', 'construct.dna', 'construct.fasta'):
+                            info = manifest.get('files', {}).get(name, {})
+                            if info.get('sha256'):
+                                self.authoritative_files.add((str(directory / name), info['sha256'].lower()))
             if value.get("directory") and isinstance(value.get("files"), list):
                 for name in value["files"]:
                     self.capture_files(pathlib.Path(value["directory"]) / name, result_event_ref)
@@ -214,7 +241,7 @@ class TraceRun:
             if len(str(value)) > 1024 or "\n" in str(value):
                 return
             path = pathlib.Path(value)
-            if path.suffix.lower() not in {".gb", ".dna", ".fasta", ".fa", ".json", ".tsv"}:
+            if path.suffix.lower() not in {".gb", ".dna", ".fasta", ".fa", ".json", ".tsv", ".csv", ".md", ".html"}:
                 return
             path = path.resolve()
             if not path.is_relative_to(self.out) or path.is_relative_to(self.directory) or not path.is_file():
@@ -232,9 +259,8 @@ class TraceRun:
                 "path": str(path), "relative_path": relative, "sha256": sha,
                 # The bundle also contains prepared inputs, source copies and records.
                 # Only the documented final three-format construct is the final artifact.
-                "role": "authoritative" if relative in (
-                    "authoritative/construct.gb","authoritative/construct.dna","authoritative/construct.fasta"
-                ) else "intermediate-or-candidate",
+                "role": "authoritative" if (str(path), sha.lower()) in self.authoritative_files else (
+                    "intermediate-or-candidate" if path.suffix.lower() in {'.gb', '.dna', '.fasta', '.fa'} else 'supporting-file'),
                 "generation_observation": observation,
                 "decision_ids": self.decisions, "validated_by": self.validations,
                 "result_event_ref": result_event_ref, "association_scope": "same_run",
@@ -269,6 +295,7 @@ def observe(stage, fn, *args, **kwargs):
     if run is None:
         return fn(*args, **kwargs)
     started = run.safe(lambda: run.event("stage_started", {"stage": stage,
+        "callable": getattr(fn, '__module__', '') + '.' + getattr(fn, '__qualname__', type(fn).__name__),
         "observation_phase": "submitted_inputs", "input": input_snapshot({"args": args, "kwargs": kwargs})}))
     stage_ref = started["event_id"] if started else None
     try:
@@ -325,6 +352,9 @@ def observe_files(stage, fn, *, args=(), kwargs=None, input_paths=(), output_pat
         event = run.event("file_operation_completed", {"stage": stage, "stage_ref": stage_ref,
             "result": snapshot(result), "before": before, "after": after})
         previous = {x["path"]: x["sha256"] for x in before}
+        declared_writes = {str(pathlib.Path(item['path']).resolve()): item for item in result.get('write_receipts', [])
+                           if isinstance(item, dict) and item.get('path') and type(item.get('characters_written')) is int
+                           and item['characters_written'] >= 0} if isinstance(result, dict) else {}
         graph = project(run.recorder.events)
         inputs = [n["key"] for n in graph["nodes"] if n["kind"] == "artifact" and any(
             n["path"] == stamp["path"] and n["sha256"] == stamp["sha256"] for stamp in before[:len(input_paths)])]
@@ -336,6 +366,9 @@ def observe_files(stage, fn, *, args=(), kwargs=None, input_paths=(), output_pat
                 continue
             known = item['path'] in previous or (baseline_complete and any(path.is_relative_to(p) for p in directories))
             status = "presence_only" if not known or previous.get(item['path']) == item['sha256'] else "modified" if previous.get(item['path']) else "created"
+            written = declared_writes.get(item['path'], {})
+            if known and previous.get(item['path']) == item['sha256'] and written.get('sha256') == item['sha256']:
+                status = 'rewritten_same_content'
             key = run.recorder.record({"id": "A-" + uuid.uuid4().hex, "kind": "artifact", **item,
                 "role": artifact_role, "generation_observation": status, "input_artifact_refs": inputs,
                 "input_files": before[:len(input_paths)], "result_event_ref": event["event_id"],

@@ -7,6 +7,7 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any, TypeAlias
 from Bio.Seq import Seq
@@ -61,6 +62,10 @@ def feature_data(feature):
 
 
 def json_metadata(value):
+    if isinstance(value, datetime):
+        return {'__bio_date__': 'datetime', 'value': value.isoformat()}
+    if isinstance(value, date):
+        return {'__bio_date__': 'date', 'value': value.isoformat()}
     if isinstance(value, Reference):
         return {'__bio_reference__': True, 'authors': value.authors, 'title': value.title,
                 'journal': value.journal, 'medline_id': value.medline_id,
@@ -78,6 +83,11 @@ def json_metadata(value):
 
 def restore_metadata(value):
     from Bio.SeqFeature import FeatureLocation, CompoundLocation
+    if isinstance(value, dict) and set(value) == {'__bio_date__', 'value'}:
+        if value['__bio_date__'] == 'datetime':
+            return datetime.fromisoformat(value['value'])
+        if value['__bio_date__'] == 'date':
+            return date.fromisoformat(value['value'])
     if isinstance(value, dict) and value.get('__bio_reference__'):
         reference = Reference()
         for field in ('authors', 'title', 'journal', 'medline_id', 'pubmed_id', 'comment'):

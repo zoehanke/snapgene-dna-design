@@ -1,40 +1,46 @@
 # GitLab源码与版本交接
 
-2026-10-06更新。本地开发分支为`codex/real-workflow-readiness-20260907`，GitHub origin为`zoehanke/snapgene-dna-design`。已有`gitlab` remote指向[专属软件仓库](https://gitlab.igem.org/2026/software/tianjin/igem-tianjin2026)；它与`gitlab.igem.org/2026/tianjin` Wiki仓库不同。
+2026-10-11。**本轮只准备本地候选，不推送、合并main、部署Wiki或发布Release。** 官方规则及日期见[官方核对](official-requirements.md)。正式账号和最终提交由负责人亲自操作。
 
-只读`ls-remote`确认软件仓库HEAD/main为`241b12fcad038e9f56fac563438f717f38e40644`，未发现远端tag。源码树内容、当前Release列表、实际写入权限、Dashboard关联与自动冻结机制尚未确认。配置URL和存在main不等于受测软件已发布。本次只更新日程和交接，未推送GitLab、合并main或发布Release。
+## 已核实状态
 
-2026-10-07进一步只读查询GitLab API：main根目录仅`.claude/`、`CLAUDE.md`、`LICENSE`、`README.md`，未见当前Skill源码目录。Release API返回403，未据此断言Release数量或写入权限。本队README明确要求源码进入本仓库main，并称Wiki Freeze时自动创建评审Release；Dashboard实际任务仍未核实。当前2.1.0测试包/DSH安装与dd293a8实施提交绑定，c921c00为后续开发记录提交且精确CI成功；下一步准备审定源码整合，不将已有GitHub/本机结果称为官方仓库发布。
+| 项目 | 当前事实 |
+|---|---|
+| 开发仓库 | GitHub `zoehanke/snapgene-dna-design`，分支 `codex/real-workflow-readiness-20260907` |
+| 本轮基线 | `fa0f3cb`文档，Core2.2.1实施`7ebd0cc`；Toolkit0.1.0/Core2.2.2/Trace0.3.3候选实施中，最终身份等实际冻结 |
+| 软件GitLab | [专属仓库](https://gitlab.igem.org/2026/software/tianjin/igem-tianjin2026)，本地remote名`gitlab`；匿名团队API已确认关联 |
+| 官方源码 | main/HEAD为`241b12fcad038e9f56fac563438f717f38e40644`，树仅`.claude/`、`CLAUDE.md`、`LICENSE`、`README.md`，未包含当前软件 |
+| CI准备 | 根`.gitlab-ci.yml`已准备：Python3.12.4、现有固定requirements-tested、共同测试入口及`tools/build_toolkit.py --out-dir dist`；本地YAML及实际CLI形状核对通过，远端GitLab CI未运行 |
+| Wiki | [独立Wiki源码](https://gitlab.igem.org/2026/tianjin)，不与软件仓库混用 |
+| 未核实 | 写权限、Release完整列表、正式表单与上传回执；无tag响应不等于已查完所有Release |
 
-## 版本交接
+官方模板要求软件源码在`main`，并说明Wiki Freeze自动生成评审Release。自动冻结不能代替提前上传、从官方仓库复现和回执核对。本机源码、GitHub CI、ZIP或受测安装均不是官方已接收证据。
 
-具体日期与分工见[单人日程](../development-plans/real-task-readiness-human-plan.md)，不在这里再维护一套日历。准备2.0.2基线归档、修复候选版和最终参赛版：基线如实列开发回归与第2题已知失败；候选用于下载和宿主重测；最终版引用冻结审定代码。版本号随实际兼容性变化确定，公开日期与提交历史如实记录。
+## 候选目录与发布清单
 
-每版记录目标commit/来源、源码、可安装包、变更、实际检查及未解决项。GitLab [Release](https://docs.gitlab.com/user/project/releases/)关联tag，可附发布说明和下载资产；只有tag不代表安装和任务验收完成。候选修正后发布新版本，不移动已用作证据的旧tag。
+保留既有开发Git历史，发布前本地归档。准备可审阅的软件源树，至少包含两个Skill源码、三个Kit、同版Core/Trace、公共README与安装/Quick Start、依赖固定文件、LICENSE/第三方notice、必要测试和可运行GitLab CI。独立Toolkit包在构建时包含同版底座，不在源码树维护第二套DNA实现。
 
-最终审定源码要进入官方main；单独的开发分支或下载ZIP不能代替官方源码交付。官方main已有独立历史时，通过正常审查整合，保留模板及已有工作；记录它与GitHub来源的内容映射，不要求两个tip相同。不force、不mirror、不删除旧历史。
+候选同时记录：Toolkit/Core/Trace版本、源提交及未提交项状态、包SHA-256/文件清单、实际依赖/后端、独立包与宿主结果、计算案例和限制。私有DNA、实验原件、考官资料、凭据、编译程序和大媒体不随源码提交；公开演示材料须有分发依据。仓库须小于50MB，最终以官方仓库实际大小核对；当前本地Git对象约7.1MiB仅是准备依据。
 
-发布准备在修复期间进行。推送指定refs、main整合和公开Release按当时已有明确授权执行；排期更新本身不执行这些操作。自动产生评审快照的模板说明需与本队Dashboard实际规则核对，不能等待未确认的自动行为代替提交。
+本机`audit-output/genome-revival-toolkit-20261011/igem/`已准备逐文件源码清单、排除原因和大小记录。当前所选源文件低于50MB，具体字节以带时间的清单为准，不等于冻结源码或官方Git仓库大小。最终提交后重新生成；旧历史、公开文档链接和外部权属保留人工审定，不能只按路径过滤就宣称可任意分发。
 
-## 历史准备记录
+原代码采用MIT，官方软件模板当前Apache-2.0。整合时保留各部分来源和许可，团队确认原代码权属后决定顶层许可，不能用模板许可重新授权所有第三方。Wiki继续原CC-BY4.0 LICENSE，不删除或改成软件MIT。
 
-此前准备仅检查remotes/branches/tags/对象大小/忽略规则/追踪文件；当时没有新增remote、推送、发布或表单操作。待确认资产列于[attribution](../attribution.md)。本机用户DNA/环境/生成日志不会因Git忽略而自动从旧历史消失，因此发布前还要检查纳入内容和历史。
+## 负责人操作顺序
 
-本轮扫描864个不超过2MB的可达历史blob，私钥、GitHub/OpenAI token三类模式未命中；[结果](../../results/engineering-audit-20260922/history-secret-scan.json)。这是有限模式核查，不能证明历史中没有任何秘密或未授权生物数据；迁移前的权属审核仍保留。
+1. 审定本地候选、科学表述、许可、公开材料及AI披露。保存代码/包/评分冻结记录和本地历史备份。
+2. 从官方软件仓库取得新工作副本，保留模板和远端历史。把审定源文件及来源提交映射作为正常提交/审查整合到`main`；不要force、mirror或覆盖旧历史。无需为交付而移植所有私有开发数据或强求两仓库tip相同。
+3. 核对官方`main`内容、GitLab CI、README命令、仓库大小。重新从官方源码安装，核对实际版本和案例输出。GitHub CI不能代称GitLab CI。
+4. 将审定Wiki正文、代码生成图和真实截图整合进Wiki现有源工程，维持`.gitlab-ci.yml`、固定依赖及原LICENSE；媒体上传iGEM托管，去掉外部运行请求。不要用外仓库`.git`覆盖Wiki历史。
+5. 本人核对软件关联、Wiki标准页、Attributions/AI披露、奖项自荐与其他必需交付，保存真实回执。核对官方生成的评审快照，不能只等自动行为。
 
-## 获授权后的操作
+若另建公开tag/Release，保留原证据版本，不移动旧tag；下载资产须从实际产出包重新检查。源码、CI、包、安装、Wiki和回执各自记录，不能互相替代。
 
-1. 对已存在的软件仓库核对源码、模板、Dashboard关联、权限和目标refs；确认已获许可内容及历史。
-2. 记录所有本地branch/tag及tip；`git bundle create ../snapgene-history.bundle --all` 保存离线恢复副本。
-3. 使用本地最终仓库克隆迁移副本，保留完整Git对象；不要仅上传ZIP，也不要 squash/filter-repo 清理历史。
-4. 使用已存在并核对过的`gitlab` remote，只推明确审核的分支和标签；审定内容按获准流程整合到main，不使用会删除远端refs的`push --mirror`，不force覆盖已有工作。
-5. 用 `git ls-remote` 对比目标refs和本地commit，重新克隆官方仓库，执行公开quick-start及测试，再核对Wiki链接和Dashboard回执。
-
-只读核对示例；写入操作以审定refs和已有授权为准：
+## 仅只读核对
 
 ```text
 git remote get-url gitlab
 git ls-remote gitlab HEAD refs/heads/main refs/tags/*
 ```
 
-具体整合方法及哪些recovery refs纳入发布，在审定清单中确定。源码、tag、Release、包、GitLab对应CI和真实下载检查通过后分别记录；GitHub CI不表述为GitLab CI。完整历史中的代码/图片/外部序列权属未清楚时先解决，不自动重写过去或宣称迁移完成。
+已有历史扫描仅覆盖有限秘密模式，不证明所有权属和隐私均合规。旧扫描记录保留在[工程审查归档](../archive/reviews/final-remediation-report.md)，当前外部资产边界见[归属](../attribution.md)。正式操作前由负责人审阅候选纳入内容。

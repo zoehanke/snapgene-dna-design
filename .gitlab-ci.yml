@@ -1,0 +1,33 @@
+# Local submission preparation. No release, push or deployment jobs.
+image: python:3.12.4-slim-bookworm
+
+stages:
+  - test
+  - package
+
+variables:
+  PYTHONUTF8: "1"
+  PYTHONDONTWRITEBYTECODE: "1"
+  SNAPGENE_RUN_PRIMER3: "1"
+
+default:
+  before_script:
+    - apt-get update
+    - apt-get install -y --no-install-recommends git
+    - python -m pip install --requirement snapgene-dna-design/requirements-tested.txt
+
+test:
+  stage: test
+  script:
+    - python -X utf8 -B tools/run_test_suite.py
+
+package:
+  stage: package
+  script:
+    - python -X utf8 -B tools/build_toolkit.py --out-dir dist
+  artifacts:
+    name: "genome-revival-toolkit-${CI_COMMIT_SHORT_SHA}"
+    paths:
+      - dist/*.zip
+      - dist/*manifest*.json
+      - dist/*MANIFEST*.json

@@ -27,7 +27,8 @@ def sync_primer_coordinates(record: SeqRecord) -> SeqRecord:
     binding_fields = ('binding_interval', 'binding_interval_0based', 'binding_strand',
                       'binding_sequence', 'binding_core_length')
     for index, feature in enumerate(record.features):
-        active = 'primer' in feature.type.lower()
+        active = ('primer' in feature.type.lower() and
+                  feature.qualifiers.get('binding_status') != ['native_partial'])
         source_type = feature.qualifiers.get('source_feature_type', [])
         if isinstance(source_type, str):
             source_type = [source_type]

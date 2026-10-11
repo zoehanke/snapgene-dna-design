@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.2.2 · 2026-10-11 reference-bound integration donors
+
+- Derive omitted homology arms from the explicitly selected reference locus and positive arm length; keep negative-strand biological arm order and reject unavailable flanks.
+- Recompute those actual source-derived arms during validation. A sequence-only donor remains incomplete for preparation; the Toolkit uses existing PCR/Gibson and formal delivery for that evidence.
+- Preserve typed datetime/date metadata from real reference Molecules through versioning, JSON and GenBank/native read-back; keep original string dates and annotations unchanged.
+- Preserve native primer Components that show an unannealed 3prime part as historical partial sites, retaining full oligos, original type, mapped positions and native fields. These sites do not become active preparation/QC orders or waive complete-oligo checks.
+- Encode structured primer history inside its GenBank qualifier as declared UTF-8/base64 JSON. Direct Biopython readers can recover original fields without COMMENT metadata; Core decodes it and rejects invalid encodings while retaining legacy plain JSON support.
+- This local development candidate reuses Core 2.2.1. No official release, installation replacement or experimental integration result is implied.
+
 ## 2.2.1 · 2026-10-11 actual multi-Recipe delivery
 
 - Serialize nested ToolResult facts in default QC summaries through the shared wire boundary; retain protein types and actual calculation data.

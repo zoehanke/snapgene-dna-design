@@ -1,6 +1,14 @@
 # 架构、数据与接口
 
-本项目是宿主AI调用的本地Skill，没有内置替代宿主的推理服务。产品边界读两个spec；这里合并模块地图、数据流、集成和扩展位置。
+本项目是宿主AI调用的本地Skill，没有内置替代宿主的推理服务。通用DNA与Trace边界读对应spec，项目专用工作流读[Toolkit spec](../specs/genome-revival-toolkit.md)；这里管理模块与数据接口。
+
+## Genome Revival Toolkit：项目专用调用边界
+
+`genome-revival-toolkit/scripts/run_toolkit.py`路由Construct、Genome Identity和Revival Evidence；`revival/context.py`解析版本化项目JSON，校对实际文件、记录ID/区域及声明身份，文件或已加载Context变化不沿用旧版本。`revival/construct.py`组合已有Task供体模型、真实PCR/Gibson、供体QC和Core交付；Identity组合已有比对、引物设计、完整质量及逐参考PCR；Evidence只比较已提交观察/对照。
+
+`revival/runner.py`提供共享执行/导出，`reporting.py`按实际事件投影已知流程、关联文件并复用Trace确定性报告。程序只组织已知工作流事实，不生成科学理由；明确提交的说明保留归属。Toolkit配套文件回执核对报告/输入版本，DNA仍由原Core回执负责，不另建DNA裁判。关闭Trace不改变生物学参数或领域结果。
+
+Core源码只在`snapgene-dna-design/`维护。开发入口复用兄弟目录，独立包在`vendor/dna-design-core/`携带同版受审运行模块与许可，不含第二个Skill入口。`tools/build_toolkit.py`正式构建只取精确Git归档；工作树诊断包单独标识。本轮Core必要修复为2.2.2，来源2.2.1；Trace为0.3.3，Toolkit为0.1.0。
 
 ## 当前程序全景：谁决策、谁传数据、谁验收
 
@@ -489,6 +497,8 @@ Recipe保留协议、文献、警告和完成状态等流程信息，但原子�
 私有命名不是访问控制。模块调用约定和架构测试用于发现绕过；拥有任意Python执行权限的宿主仍可能直接调用内部实现，不能把提示词或下划线命名宣称为强制隔离。自写脚本也须使用完整变换及实际文件检查，声明的产物不能冒充准备证据。
 
 核心工具之间的特殊格式适配消除。GenBank、SnapGene、Primer3等外部格式在明确边界集中转换；旧公开入口兼容只依据真实使用者保留，记录位置和移除条件。分批迁移是开发手段，最终核心交接不得长期同时接受互相猜测的新旧产物格式。
+
+GenBank 的结构化引物历史 `source_binding` 在字段内声明 `base64-json-v1:` 编码，负载为原 JSON 文本的 UTF-8/base64；直接 Bio 读取后去除编码文本的折行空白即可独立还原，不依赖 COMMENT 补充。Core 在核对实际文件指纹后解码，拒绝无效或未知编码，兼容旧版普通 JSON；内部历史、原生 Component、完整 oligo 和注释位置保持原值。
 
 参数模型、AI可见说明、运行校验和序列化共享一份有效定义；必要反应条件和分子不变量由实现检查，不能用Schema合法代替科学正确。Pydantic是否采用需有依赖和性能依据，当前不预设。内存对象通过受控引用/只读共享及必要的新产物构造避免全量重复复制；性能不以丢信息、意外原地修改或跳必需检查换取。
 

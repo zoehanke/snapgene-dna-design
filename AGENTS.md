@@ -4,11 +4,14 @@
 
 Project/Git root contains development instructions, specs, docs, tests, benchmarks and tools. `snapgene-dna-design/` is the Skill root. Its README and SKILL.md are runtime/user entry points. Preserve standalone Skill operation; runtime modules must not import project development helpers. Build packages from the Skill root, excluding development data.
 
+`genome-revival-toolkit/` is the project-specific Skill. It consumes the same DNA Core source; independent packages bundle the selected runtime version rather than maintaining a second implementation.
+
 ## Read before work
 
 Use [docs/README.md](docs/README.md) as the developer document router. Read only the branch relevant to the current task; completed plans and old manuals under `docs/archive/` are historical evidence, not startup prerequisites or current instructions.
 
 - For skill behavior, DNA operations, architecture, CLI, tests or releases, read [specs/core-skill.md](specs/core-skill.md).
+- For Genome Revival Kit workflows, Project Context or Toolkit packaging, also read [specs/genome-revival-toolkit.md](specs/genome-revival-toolkit.md).
 - For biosafety, biosecurity, ethics or safety-feature research/development, read [specs/safety-module.md](specs/safety-module.md). Also read the core spec when changing the design workflow or shared code.
 - For skill-facing instructions or examples, also read [SKILL.md](snapgene-dna-design/SKILL.md) and the relevant signature in [references/recipes.md](snapgene-dna-design/references/recipes.md).
 - For external sequence services, read [references/privacy-and-consent.md](snapgene-dna-design/references/privacy-and-consent.md); for biological recommendations, read [references/source-policy.md](snapgene-dna-design/references/source-policy.md).

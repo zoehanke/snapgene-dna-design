@@ -1,27 +1,35 @@
 # Judging Form 支撑材料
 
-供队伍改写并提交，未代填官方表单。标准Wiki页面：`https://2026.igem.wiki/tianjin/software`；软件GitLab：**NEEDS WEBSITE/DASHBOARD ACTION**，确切URL待确认。
+2026-10-11。供负责人审定后亲自填写，不代操作官方账号。规则只在[官方核对](official-requirements.md)维护。
 
-## VERIFIED CLAIMS（范围受证据限制）
+**Wiki：** `https://2026.igem.wiki/tianjin/software`。**专属软件：** [igem-tianjin2026](https://gitlab.igem.org/2026/software/tianjin/igem-tianjin2026)。URL及团队关联已核实，当前源码尚未上传，表单保存及自荐状态未核实。
 
-软件把宿主提出的设计参数转为实际序列操作、注释文件和计算检查。Recipe/Pipeline支持多步材料传递；Native/GB互操作和引物位置有独立反例测试。Evidence Trace保存可观察事实与声明，固定生成可读报告；不能证明宿主全部内部活动。工程周期修复了真实错误放行、注释/状态丢失与报告关联问题，细节和最终结果见[final report](../archive/reviews/final-remediation-report.md)。
+## 核心表述
 
-BS1–BS6证据索引：[best-software-evidence](best-software-evidence.md)、[traceability](traceability-matrix.md)。合成benchmark测量的是运行成本，不是实验成功率或用户效率。
+以下英文根据团队提出的研究目标整理，需团队审定，不代表实验已经成功：
 
-可供团队据实改写的英文核心段落：
+> Genome Revival Toolkit supports the molecular work behind our yeast-genome research: preparing defined genetic constructs, distinguishing supplied reference regions and organizing research observations with explicit controls and limits. One Skill combines three focused Kits with the existing DNA Design Core and a shared Evidence Trace. The host or researcher supplies scientific choices; the program computes supported sequence operations and records their actual inputs, checks and outputs. It does not simulate cellular revival, infer complete genome elimination from one locus or certify biosafety. Computational results, model-assisted task outcomes and experimental observations are reported separately.
 
-> SnapGene DNA Design turns explicit design requests and supplied sequence records into inspectable computational constructs through reusable recipes and composable tools. The implementation computes preparation intermediates where the selected route supports them, preserves annotations and full primer information, and checks saved artifacts before formal delivery. Evidence Trace separately records observed execution and sourced public explanations. Our validation combines independent positive and negative sequence cases, real external-tool integrations and extracted-package tests. Computational validation, user effectiveness and experimental outcomes are reported separately.
+## 六项评审对应证据
 
-提交前从最终报告填写最终测试、覆盖与bench数据；选两项与本团队实际需求对应的结果展开，不堆测试总数。标准互操作引用[兼容表](standards-compatibility.md)，外部集成引用[实际接口](../architecture.md)，维护和复现引用[开发指南](../developer-guide.md)。任何“其他队伍已受益”“节省多少时间”“提高安全性”的句子都需要外部记录支持。
+| 维度 | 可以说明什么 | 本轮需要绑定的证据 |
+|---|---|---|
+| BS1 标准 | 复用GenBank/FASTA/SnapGene及带注释的分子；不宣称已支持SBOL | 实际输入/保存回读；[兼容边界](standards-compatibility.md) |
+| BS2 验证 | 独立正反例、真实材料计算、正常宿主和独立包分别验 | 冻结提交/包、运行日志、实际产物及检查；旧Core成绩不能替代Toolkit验证 |
+| BS3 复用价值 | 位点供体、区域鉴别和有对照的记录整理可用于相似任务 | 明确支持范围与可复现案例；陌生用户价值尚未核实 |
+| BS4 集成 | 一个入口调用同版Core、实际Primer3与公共交付/Trace | 可运行Quick Start及底座来源，不是新模型训练 |
+| BS5 易用 | 按任务选Kit，默认报告显示目标、结果、过程、检查与文件 | 正常宿主实际交付、报告链接；真人理解和效率尚未核实 |
+| BS6 维护 | 单一Core来源、轻量Context、公开接口、依赖和限制 | 包清单、安装复现、架构、测试及许可；正式GitLab CI待部署核查 |
 
-## NEEDS HUMAN INPUT
+完整英文正文、素材和待冻结声明见[Wiki稿](software-wiki-draft.md)。现行实施证据由[Toolkit计划](../development-plans/genome-revival-toolkit-v0.1.md)管理，不在表单材料另维护成绩表。
 
-队员贡献与外部帮助归属；对源文件/图片/代码的许可确认；最终表述、项目贡献定位及奖项自荐。
+本轮已有受限计算证据：实际CHR1材料经公共Construct入口交付1802 bp供体与8条完整oligo，三档DNA/注释/订单/质量及四scope一致；给定Sc/SY14区域的开发者辅助候选预测650/374 bp且完整质量核对成立，原全区间质量失败保留；无原始实验表的Evidence结果为incomplete/NOT_TESTED。以上不是宿主自主成功或湿实验结果。全量、冻结包及正常宿主验收仍待最终记录。
 
-## NEEDS EXTERNAL EVIDENCE
+## 提交前必须确认
 
-独立用户测试、专家复核、与本系统产物绑定的湿实验、可选硬件环境。[采集要求](external-evidence-needed.md)
+- 本轮实际版本、源码和受检包一致；仅使用该版本真实结果，不混合旧版成绩。
+- 项目株系、实验角色和实验完成状态来自原记录，不能用PV宣传稿替代；未知身份与SY14 URA3位点如实保留。
+- 学生、外部帮助、历史底座和AI用途归属准确；本轮没有新训练/微调权重。
+- 官方软件 `main`、Wiki `/software` 和可复现证据可访问；负责人亲自填写并核对表单/自荐回执。
 
-## NEEDS WEBSITE/DASHBOARD ACTION
-
-官方软件仓库、Wiki发布、Judging/Attributions/Safety相关表单及截止前状态回执。不要把本文件或本地测试当作官方已接收。
+独立外部用户、专家复核及与本软件交付绑定的湿实验目前没有新增证据。不得写“其他团队已受益”“节省多少时间”“提高实验成功率”或“复活已验证”。

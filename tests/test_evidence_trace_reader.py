@@ -115,7 +115,12 @@ class ReaderTests(unittest.TestCase):
         self.assertFalse(any(s["kind"] == "choice" for s in reader["steps"]))
         self.assertTrue(any(s.get("phase") == "submitted_inputs" for s in reader["steps"]))
         self.assertTrue(any(s.get("checks") for s in reader["steps"]))
-        self.assertTrue(any(s.get("role") == "authoritative" for s in reader["steps"]))
+        # Original bytes and caller status stay unchanged. A filename and a
+        # simulated "delivered" return do not establish a Core-checked DNA file.
+        # Actual receipt-backed nested delivery is tested independently in
+        # test_toolkit_trace_boundaries; this fixture remains the negative case.
+        self.assertFalse(any(s.get("role") == "authoritative" for s in reader["steps"]))
+        self.assertTrue(any(s.get("role") == "intermediate-or-candidate" for s in reader["steps"]))
         self.assertFalse(reader["review"])
         self.assertEqual(reader["runs"][0]["context"], [])
         self.assertTrue(reader["diagnostics"]["coverage_gaps"])

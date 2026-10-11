@@ -8,6 +8,8 @@ r16，2026-10-03。当前阅读规则的唯一来源；设计转向原因见[项
 
 数据接口见 [数据层到阅读层映射](../../snapgene-dna-design/references/evidence-trace-reader-mapping.md)。底层 reader 提供事实与旧日志支持；正式 HTML 消费完整组织结果的 report 投影，原记录留在详情引用中。关系必须区分声明依据、修订、调用阶段、材料引用和实际生成，不能把普通排序画成因果线。
 
+2026-10-11 Toolkit补充：既定专业工作流可由程序把实际输入/返回及已提交说明整理为有来源的步骤骨架，归属workflow-program，不补科学理由。首屏优先使用本次真实返回的结果摘要，并列明未验证范围；不以记录数量代替结果。Markdown默认正文与可读详情分文件，完整技术记录仍独立可达。同内容重写不意味着新DNA版本，缺少本次采集不能借旧报告称完整。
+
 ## 为谁服务
 
 三层职责见[安全spec](../../specs/safety-module.md)，精确提交格式见[Trace参考](../../snapgene-dna-design/references/evidence-trace.md)：数据层形成完整 design_process，另有 report_plan 在下述固定格式内提供阶段分组、摘要、短标签和展开建议。报告不能首次发明研究逻辑。AI／人确实参与编排，可与数据组织同次输出；固定渲染、导出和交互不再次调用模型。

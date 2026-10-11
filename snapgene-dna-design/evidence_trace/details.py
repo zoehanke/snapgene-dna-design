@@ -2,10 +2,15 @@
 from pathlib import Path
 
 ROLES = {'authoritative': '正式产物', 'intermediate-or-candidate': '中间或候选产物',
-         'derived': '衍生文件', 'document': '说明文档', 'qc': '验证设计', 'preview': '预览文件'}
+         'derived': '衍生文件', 'document': '说明文档', 'qc': '验证设计', 'preview': '预览文件',
+         'supporting-file': '配套记录文件'}
 CHECKS = {'artifact_valid': '文件可读取且符合文件契约', 'computation_valid': '计算过程一致性',
           'biological_sanity': '序列与注释检查', 'requested_components': '请求的元件检查', 'goal_valid': '用户目标检查',
-          'goal_satisfied': '用户目标检查', 'goal_check': '用户目标检查', 'sanity': '序列与注释检查'}
+          'goal_satisfied': '用户目标检查', 'goal_check': '用户目标检查', 'sanity': '序列与注释检查',
+          'sequence_model': '产物序列与实际输入一致', 'preparation_model': '实际计算制备链检查',
+          'file': '当前交付文件回读检查', 'user_goal': '已声明目标核对',
+          'primer_amplification': '完整引物PCR计算检查', 'junction_pcr_design': '构建接口PCR方案检查',
+          'verification_design': '给定模板的验证方案检查'}
 STAGES = {'inspect': '检查材料', 'recipe_execute': '执行构建方案', 'preparation': '导出制备材料与引物',
           'annotate_primers': '标注引物', 'convert': '转换格式', 'finalize': '正式交付',
           'execute': '执行设计', 'validate': '检查设计', 'plan': '生成执行方案',
@@ -82,14 +87,16 @@ def readable_details(records):
         elif kind == 'validation':
             title = CHECKS.get(record.get('check'), record.get('check', '程序检查'))
             field('结果', result_text(record.get('result')))
-            field('范围', record.get('scope') or '仅对应原程序本项检查；同次运行不等于逐项验证每个设计选择')
+            scope = record.get('scope')
+            field('范围', CHECKS.get(scope, scope) or '仅对应原程序本项检查；同次运行不等于逐项验证每个设计选择')
             details = record.get('details', {})
             if isinstance(details, dict):
                 table = details.get('guardrail_status_table', {})
                 for row in table.values() if isinstance(table, dict) else table:
                     field(row.get('title', '检查项'), result_text(row.get('status')) + '；' + str(row.get('details', '')))
                 for key, label in [('message', '检查说明'), ('scope', '检查范围'), ('path', '检查对象')]:
-                    field(label, details.get(key))
+                    value = details.get(key)
+                    field(label, CHECKS.get(value, value) if key == 'scope' and isinstance(value, str) else value)
                 for key in ('errors', 'warnings'):
                     values = details.get(key, [])
                     for value in values if isinstance(values, list) else [values]:
@@ -101,6 +108,7 @@ def readable_details(records):
                 field('文件身份', ROLES.get(record['role'], record['role']))
             field('用途', record.get('purpose'))
             field('生成记录', {'created': '调用期间新建', 'modified': '调用期间修改',
+                             'rewritten_same_content': '本次受观察的写入已返回，文件内容同原版本；不是新DNA序列',
                              'presence_only': '只观察到文件存在，没有证明生成过程'}.get(record.get('generation_observation')))
             for item in record.get('input_files', []):
                 field('输入材料', filename(item.get('path')))

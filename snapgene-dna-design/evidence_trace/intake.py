@@ -34,11 +34,15 @@ def observe_material(recorder, item, actor="host-assistant"):
     return recorder.append("material_observed", protected, actor)["event_id"]
 
 
-def record_handoff(recorder, items, actor="host-assistant"):
+def record_handoff(recorder, items, actor="host-assistant", *, run_id=None):
     if not isinstance(items, list) or not items:
         raise ValueError("handoff requires a nonempty files list")
     with recorder.writing():
         artifacts = [n for n in project(recorder.events)["nodes"] if n["kind"] == "artifact"]
+        if run_id is not None:
+            if run_id not in {run['id'] for run in project(recorder.events)['runs']}:
+                raise ValueError('Handoff run_id must identify an actual recorded run.')
+            artifacts = [node for node in artifacts if node.get('run_id') == run_id]
         files = []
         for item in items:
             path = pathlib.Path(item["path"]).resolve()
@@ -51,4 +55,5 @@ def record_handoff(recorder, items, actor="host-assistant"):
             status = "missing" if sha is None else "linked" if len(matches) == 1 else "ambiguous" if len(matches) > 1 else "changed" if any(a["sha256"] != sha for a in by_path) else "untraced"
             files.append({"path": str(path), "sha256": sha, "purpose": item.get("purpose", ""),
                           "status": status, "artifact_refs": [a["key"] for a in matches]})
-        return recorder.append("handoff_recorded", {"files": files, "scope": "Explicit supplied file list only"}, actor)["payload"]
+        return recorder.append("handoff_recorded", {"files": files, "run_id": run_id,
+            "scope": "Explicit supplied file list and recorded run when selected"}, actor)["payload"]
