@@ -1,0 +1,30 @@
+{
+  "case": "public-construction-task",
+  "bases": 3000,
+  "seed": 221,
+  "repeats": 3,
+  "seconds": [
+    1.141217999975197,
+    1.194941700086929,
+    1.1358381999889389
+  ],
+  "median_seconds": 1.141217999975197,
+  "independent_checks": [
+    {
+      "goal_verified": true,
+      "sequence_correct": true,
+      "annotated_cds_preserved": true
+    },
+    {
+      "goal_verified": true,
+      "sequence_correct": true,
+      "annotated_cds_preserved": true
+    },
+    {
+      "goal_verified": true,
+      "sequence_correct": true,
+      "annotated_cds_preserved": true
+    }
+  ],
+  "scope": "Computational annotated-file editing, not PCR or wet-lab validation."
+}

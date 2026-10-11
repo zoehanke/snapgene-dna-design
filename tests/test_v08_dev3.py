@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 """v0.8.0-dev3 regression tests for P0/P1 fixes and real backends."""
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import json
 import os
 import pathlib
@@ -15,7 +17,7 @@ from Bio.SeqFeature import FeatureLocation, SeqFeature
 from Bio.SeqRecord import SeqRecord
 
 HERE = pathlib.Path(__file__).resolve().parent
-ROOT = HERE.parent
+ROOT = SKILL_ROOT
 SCRIPTS = ROOT / "scripts"
 SCHEMAS = ROOT / "schemas"
 sys.path.insert(0, str(SCRIPTS))
@@ -256,7 +258,7 @@ class CasOffinderAdapterTests(unittest.TestCase):
         self.assertNotIn(
             str(cas_offinder_adapter.ROOT).lower(),
             str(default).lower())
-        self.assertIn("SnapGeneDNADesign", str(default))
+        self.assertTrue("snapgenednadesign" in str(default).lower() or "snapgene-dna-design" in str(default).lower())
 
     def test_build_input_contract(self):
         text = cas_offinder_adapter.build_input_text(
@@ -323,7 +325,7 @@ class CasOffinderAdapterTests(unittest.TestCase):
                 self.assertEqual(len(cmd), 4)
                 self.assertEqual(cmd[2], "G0")
                 cwd = pathlib.Path(kwargs.get("cwd"))
-                self.assertEqual(cwd, tmp)
+                self.assertTrue(os.path.samefile(cwd, tmp))
                 self.assertIn("in.txt", str(cmd[1]))
                 self.assertIn("out.txt", str(cmd[3]))
                 input_text = (cwd / str(cmd[1])).read_text(encoding="utf-8")

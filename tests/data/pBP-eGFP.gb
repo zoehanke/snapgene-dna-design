@@ -1,0 +1,107 @@
+LOCUS       Exported                2808 bp ds-DNA     circular SYN 07-APR-2016
+DEFINITION  synthetic circular DNA
+ACCESSION   .
+VERSION     .
+KEYWORDS    pBP-eGFP
+SOURCE      synthetic DNA construct
+  ORGANISM  synthetic DNA construct
+REFERENCE   1  (bases 1 to 2808)
+  AUTHORS   Karen Polizzi's Lab
+  TITLE     Direct Submission
+  JOURNAL   Exported Tuesday, Jun 21, 2016 from SnapGene 3.1.2
+            http://www.snapgene.com
+FEATURES             Location/Qualifiers
+     source          1..2808
+                     /organism="synthetic DNA construct"
+                     /mol_type="other DNA"
+     CDS             4..720
+                     /codon_start=1
+                     /product="Aequoria victoria green fluorescent protein"
+                     /note="GFP"
+                     /translation="MRKGEELFTGVVPILVELDGDVNGHKFSVSGEGEGDATYGKLTLK
+                     FICTTGKLPVPWPTLVTTFGYGVQCFARYPDHMKQHDFFKSAMPEGYVQERTIFFKDDG
+                     NYKTRAEVKFEGDTLVNRIELKGIDFKEDGNILGHKLEYNYNSHNVYIMADKQKNGIKV
+                     NFKIRHNIEDGSVQLADHYQQNTPIGDGPVLLPDNHYLSTQSALSKDPNEKRDHMVLLE
+                     FVTAAGITHGMDELYK"
+     misc_feature    747..753
+                     /note="BioBrick suffix"
+                     /note="universal suffix for all parts"
+     terminator      754..811
+                     /note="his operon terminator"
+                     /note="This putative transcriptin terminator from the E. 
+                     coli his operon has a 2-bp deletion introduced during 
+                     synthesis. Its efficiency has not been determined."
+     rep_origin      complement(1006..1594)
+                     /direction=LEFT
+                     /note="ori"
+                     /note="high-copy-number ColE1/pMB1/pBR322/pUC origin of 
+                     replication"
+     terminator      1777..1871
+                     /note="lambda t0 terminator"
+                     /note="transcription terminator from phage lambda"
+     CDS             complement(1892..2551)
+                     /codon_start=1
+                     /gene="cat"
+                     /product="chloramphenicol acetyltransferase"
+                     /note="CmR"
+                     /note="confers resistance to chloramphenicol"
+                     /translation="MEKKITGYTTVDISQWHRKEHFEAFQSVAQCTYNQTVQLDITAFL
+                     KTVKKNKHKFYPAFIHILARLMNAHPEFRMAMKDGELVIWDSVHPCYTVFHEQTETFSS
+                     LWSEYHDDFRQFLHIYSQDVACYGENLAYFPKGFIENMFFVSANPWVSFTSFDLNVANM
+                     DNFFAPVFTMGKYYTQGDKVLMPLAIQVHHAVCDGFHVGRMLNELQQYCDEWQGGA"
+     terminator      2735..2778
+                     /note="bacterial terminator"
+                     /note="putative bacterial transcription terminator"
+     misc_feature    2781..2802
+                     /note="BioBrick prefix"
+                     /note="BioBrick prefix for parts that do not start with 
+                     ""ATG"""
+ORIGIN
+        1 catatgcgta aaggagaaga acttttcact ggagttgtcc caattcttgt tgaattagat
+       61 ggtgatgtta atgggcacaa attttctgtc agtggagagg gtgaaggtga tgcaacatac
+      121 ggaaaactta cccttaaatt tatttgcact actggaaaac tacctgttcc atggccaaca
+      181 cttgtcacta ctttcggtta tggtgttcaa tgctttgcga gatacccaga tcatatgaaa
+      241 cagcatgact ttttcaagag tgccatgccc gaaggttatg tacaggaaag aactatattt
+      301 ttcaaagatg acgggaacta caagacacgt gctgaagtca agtttgaagg tgataccctt
+      361 gttaatagaa tcgagttaaa aggtattgat tttaaagaag atggaaacat tcttggacac
+      421 aaattggaat acaactataa ctcacacaat gtatacatca tggcagacaa acaaaagaat
+      481 ggaatcaaag ttaacttcaa aattagacac aacattgaag atggaagcgt tcaactagca
+      541 gaccattatc aacaaaatac tccaattggc gatggccctg tccttttacc agacaaccat
+      601 tacctgtcca cacaatctgc cctttcgaaa gatcccaacg aaaagagaga tcacatggtc
+      661 cttcttgagt ttgtaacagc tgctgggatt acacatggca tggatgaact atacaaataa
+      721 tcgaagagac ccatgccgtc tcattagctg cagtccggca aaaaagggca aggtgtcacc
+      781 accctgccct ttttctttaa aaccgaaaag attacttcgc gttatgcagg cttcctcgct
+      841 cactgactcg ctgcgctcgg tcgttcggct gcggcgagcg gtatcagctc actcaaaggc
+      901 ggtaatacgg ttatccacag aatcagggga taacgcagga aagaacatgt gagcaaaagg
+      961 ccagcaaaag gccaggaacc gtaaaaaggc cgcgttgctg gcgtttttcc acaggctccg
+     1021 cccccctgac gagcatcaca aaaatcgacg ctcaagtcag aggtggcgaa acccgacagg
+     1081 actataaaga taccaggcgt ttccccctgg aagctccctc gtgcgctctc ctgttccgac
+     1141 cctgccgctt accggatacc tgtccgcctt tctcccttcg ggaagcgtgg cgctttctca
+     1201 tagctcacgc tgtaggtatc tcagttcggt gtaggtcgtt cgctccaagc tgggctgtgt
+     1261 gcacgaaccc cccgttcagc ccgaccgctg cgccttatcc ggtaactatc gtcttgagtc
+     1321 caacccggta agacacgact tatcgccact ggcagcagcc actggtaaca ggattagcag
+     1381 agcgaggtat gtaggcggtg ctacagagtt cttgaagtgg tggcctaact acggctacac
+     1441 tagaagaaca gtatttggta tctgcgctct gctgaagcca gttaccttcg gaaaaagagt
+     1501 tggtagctct tgatccggca aacaaaccac cgctggtagc ggtggttttt ttgtttgcaa
+     1561 gcagcagatt acgcgcagaa aaaaaggatc tcaagaagat cctttgatct tttctacggg
+     1621 gtctgacgct cagtggaacg aaaactcacg ttaagggatt ttggtcatga gattatcaaa
+     1681 aaggatcttc acctagatcc ttttaaatta aaaatgaagt tttaaatcaa tctaaagtat
+     1741 atatgagtaa acttggtctg acagctcgag gcttggattc tcaccaataa aaaacgcccg
+     1801 gcggcaaccg agcgttctga acaaatccag atggagttct gaggtcatta ctggatctat
+     1861 caacaggagt ccaagcgagc tcgatatcaa attacgcccc gccctgccac tcatcgcagt
+     1921 actgttgtaa ttcattaagc attctgccga catggaagcc atcacaaacg gcatgatgaa
+     1981 cctgaatcgc cagcggcatc agcaccttgt cgccttgcgt ataatatttg cccatggtga
+     2041 aaacgggggc gaagaagttg tccatattgg ccacgtttaa atcaaaactg gtgaaactca
+     2101 cccagggatt ggctgacacg aaaaacatat tctcaataaa ccctttaggg aaataggcca
+     2161 ggttttcacc gtaacacgcc acatcttgcg aatatatgtg tagaaactgc cggaaatcgt
+     2221 cgtggtattc actccagagc gatgaaaacg tttcagtttg ctcatggaaa acggtgtaac
+     2281 aagggtgaac actatcccat atcaccagct caccgtcttt cattgccata cgaaattccg
+     2341 gatgagcatt catcaggcgg gcaagaatgt gaataaaggc cggataaaac ttgtgcttat
+     2401 ttttctttac ggtctttaaa aaggccgtaa tatccagctg aacggtctgg ttataggtac
+     2461 attgagcaac tgactgaaat gcctcaaaat gttctttacg atgccattgg gatatatcaa
+     2521 cggtggtata tccagtgatt tttttctcca ttttagcttc cttagctcct gaaaatctcg
+     2581 ataactcaaa aaatacgccc ggtagtgatc ttatttcatt atggtgaaag ttggaacctc
+     2641 ttacgtgccc gatcaactcg agtgccacct gacgtctaag aaaccattat tatcatgaca
+     2701 ttaacctata aaaataggcg tatcacgagg cagaatttca gataaaaaaa atccttagct
+     2761 ttcgctaagg atgatttctg gaattcgcgg ccgcttctag aggtctca
+//

@@ -1,3 +1,5 @@
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 # -*- coding: utf-8 -*-
 import json
 import pathlib
@@ -17,7 +19,7 @@ from rules.experience import (
 )
 
 
-ROOT = pathlib.Path(__file__).resolve().parents[1]
+ROOT = SKILL_ROOT
 
 
 class SafeConditionTests(unittest.TestCase):

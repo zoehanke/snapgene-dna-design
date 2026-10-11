@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 """Coverage-gap tests for the v0.8 CRISPR design modules."""
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import contextlib
 import io
 import json
@@ -16,7 +18,7 @@ from Bio.SeqFeature import CompoundLocation, FeatureLocation, SeqFeature
 from Bio.SeqRecord import SeqRecord
 
 HERE = pathlib.Path(__file__).resolve().parent
-ROOT = HERE.parent
+ROOT = SKILL_ROOT
 SCRIPTS = ROOT / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
@@ -619,6 +621,10 @@ class AdditionalCoverageTests(unittest.TestCase):
         deep_model._SEQ_NET = old_net
 
     def test_azimuth_error_branches(self):
+        try:
+            import pandas  # noqa: F401
+        except ImportError:
+            self.skipTest("pandas is not installed; skipping azimuth backend tests")
         import azimuth_backend
         predictor = azimuth_backend.AzimuthPredictor.__new__(
             azimuth_backend.AzimuthPredictor)

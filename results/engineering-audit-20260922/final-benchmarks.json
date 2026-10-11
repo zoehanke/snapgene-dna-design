@@ -1,0 +1,121 @@
+{
+  "python": "3.12.4 (tags/v3.12.4:8e8a4ba, Jun  6 2024, 19:30:16) [MSC v.1940 64 bit (AMD64)]",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "processor": "Intel64 Family 6 Model 183 Stepping 1, GenuineIntel",
+  "cpu_count": 32,
+  "versions": {
+    "biopython": "1.88",
+    "sgffp": "0.21.0",
+    "jsonschema": "4.26.0",
+    "primer3-py": "2.3.0"
+  },
+  "commit": "b87a1d833f9a218618beaf64bd226265412b6506",
+  "working_tree_dirty": true,
+  "memory_scope": "tracemalloc in this Python process; excludes child-process/native allocations",
+  "rows": [
+    {
+      "case": "extract-export-readback",
+      "bases": 5000,
+      "features": 5,
+      "seconds": [
+        0.08345140004530549,
+        0.00690869998652488,
+        0.006802499992772937
+      ],
+      "median_seconds": 0.00690869998652488,
+      "max_python_allocated_bytes": 1531649,
+      "repeats": 3
+    },
+    {
+      "case": "inspect-cli-including-startup",
+      "bases": 5000,
+      "features": 5,
+      "seconds": [
+        0.6761077999835834,
+        0.6524684999603778,
+        0.6266622000839561
+      ],
+      "median_seconds": 0.6524684999603778,
+      "max_python_allocated_bytes": 42966,
+      "repeats": 3
+    },
+    {
+      "case": "extract-export-readback",
+      "bases": 50000,
+      "features": 50,
+      "seconds": [
+        0.038855899940244853,
+        0.037813999922946095,
+        0.039279700024053454
+      ],
+      "median_seconds": 0.038855899940244853,
+      "max_python_allocated_bytes": 417567,
+      "repeats": 3
+    },
+    {
+      "case": "inspect-cli-including-startup",
+      "bases": 50000,
+      "features": 50,
+      "seconds": [
+        1.0641877999296412,
+        1.0787974999984726,
+        1.0914090999867767
+      ],
+      "median_seconds": 1.0787974999984726,
+      "max_python_allocated_bytes": 41972,
+      "repeats": 3
+    },
+    {
+      "case": "extract-export-readback",
+      "bases": 500000,
+      "features": 500,
+      "seconds": [
+        0.5109633000101894,
+        0.5104952999390662,
+        0.5229745000833645
+      ],
+      "median_seconds": 0.5109633000101894,
+      "max_python_allocated_bytes": 3649717,
+      "repeats": 3
+    },
+    {
+      "case": "inspect-cli-including-startup",
+      "bases": 500000,
+      "features": 500,
+      "seconds": [
+        13.371911199996248,
+        13.346649500075728,
+        13.038061400060542
+      ],
+      "median_seconds": 13.346649500075728,
+      "max_python_allocated_bytes": 41950,
+      "repeats": 3
+    },
+    {
+      "case": "trace-rebuild",
+      "events": 100,
+      "seconds": [
+        0.15900119999423623,
+        0.16645630006678402,
+        0.15675299998838454
+      ],
+      "median_seconds": 0.15900119999423623,
+      "max_python_allocated_bytes": 3074853,
+      "repeats": 3,
+      "html_bytes": 178110
+    },
+    {
+      "case": "trace-rebuild",
+      "events": 1000,
+      "seconds": [
+        1.621086600003764,
+        1.6157960999989882,
+        1.639894700027071
+      ],
+      "median_seconds": 1.621086600003764,
+      "max_python_allocated_bytes": 30618364,
+      "repeats": 3,
+      "html_bytes": 1524514
+    }
+  ]
+}
