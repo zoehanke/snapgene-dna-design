@@ -2,7 +2,7 @@
 'use strict';
 const graph=JSON.parse(document.getElementById('trace-data').textContent);
 const data=graph.report;
-const state={mode:'document',selected:data.steps[0]?.id,expanded:new Set(data.default_expanded_refs||[]),pane:'map'};
+const state={mode:'document',focus:false,selected:data.steps[0]?.id,expanded:new Set(data.default_expanded_refs||[]),pane:'map'};
 const escape=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const h=escape;
 const sources=data.sources;
@@ -17,7 +17,7 @@ function icon(name){return '<svg viewBox="0 0 24 24" aria-hidden="true">'+icons[
 function button(ref,label){return '<button class="source-link" data-source="'+h(ref)+'">'+h(label||sources[ref]?.label||ref)+'</button>';}
 function refList(refs){return [...new Set(refs||[])].filter(r=>sources[r]).map(r=>button(r)).join(' ');}
 function chapter(id,title,body,extra=''){return '<section id="'+id+'" class="chapter"><header><h2>'+h(title)+'</h2>'+extra+'</header><div class="chapter-body">'+body+'</div></section>';}
-function classification(step){return step.kind==='choice'?'ai':step.kind==='program_result'?'program':'neutral';}
+function classification(step){return step.kind==='choice'?'ai':step.kind==='program_result'||step.kind==='program'?'program':'neutral';}
 function sourceValue(ref){return sources[ref]||{};}
 function relationLinks(step){return data.relations.filter(r=>r.from===step.id||r.to===step.id).map(r=>'<p class="relation">'+h(r.meaning)+' · '+h(stepById[r.from]?.title||r.from)+' → '+h(stepById[r.to]?.title||r.to)+'</p>').join('');}
 function inputs(step){const rows=[['输入',step.input_refs],['输出 / 检查对象',step.outcome_refs]].filter(([,refs])=>refs?.length);return rows.length?'<dl class="io">'+rows.map(([label,refs])=>'<dt>'+h(label)+'</dt><dd>'+refList(refs)+'</dd>').join('')+'</dl>':'';}
@@ -25,15 +25,40 @@ function check(c){return '<div class="check '+h(c.status)+'"><strong>'+h(c.displ
 function artifact(a){return '<div class="artifact"><strong>'+h(a.display_role||a.role)+'</strong><span>'+h(a.name||a.path)+'</span>'+button(a.ref,'文件与来源')+'</div>';}
 const originLabels={original_statement:'原始公开说明',organized_summary:'根据记录整理',later_interpretation:'后来补充解释',unknown:'原始理由未记录'};
 function evidenceBody(e){return '<section class="evidence-entry"><p>'+h(e.label||e.relation)+'：'+h(e.statement)+'</p><p>对应判断：'+h(e.claim)+'</p>'+(e.aspect?'<p>适用方面：'+h(e.aspect)+'</p>':'')+(e.assessment?'<p>'+h(e.assessment.reason)+'</p>':'')+(e.conditions||[]).map(v=>'<p>条件：'+h(v)+'</p>').join('')+(e.limitations||[]).map(v=>'<p class="limit">'+h(v)+'</p>').join('')+refList(e.record_refs)+'</section>';}
-function changeBody(c){return '<section class="change-entry"><h3>'+h(c.field)+'</h3><p>'+h(c.before)+' → '+h(c.after)+'</p>'+c.impacts.map(i=>'<div class="evidence-entry"><p><strong>'+h(i.target_title)+'</strong>：'+h(i.judgment)+'</p><p>'+h(i.actions.join('；'))+'</p><p class="note">'+h(i.reason)+'</p>'+refList([i.target_ref])+'</div>').join('')+'</section>';}
+function impactGroups(c){
+ const groups=new Map();
+ (c.impacts||[]).forEach(i=>{const key=i.code+'|'+i.actions.join('；');if(!groups.has(key))groups.set(key,{code:i.code,judgment:i.judgment,actions:i.actions,reason:i.reason,items:[]});groups.get(key).items.push(i);});
+ return [...groups.values()];
+}
+function changeBody(c){
+ // Impacts sharing one judgment are listed once; "unknown" ones are folded because they carry no finding.
+ const rows=impactGroups(c).map(g=>{
+  const list=g.items.map(i=>sources[i.target_ref]?button(i.target_ref,i.target_title):'<span>'+h(i.target_title)+'</span>').join(' ');
+  const head='<strong>'+h(g.judgment)+'</strong>'+(g.actions.length?'（'+h(g.actions.join('；'))+'）':'')+' · '+g.items.length+' 项';
+  if(g.code==='UNKNOWN')return '<details class="impact-group"><summary>'+head+'</summary><p class="note">'+h(g.reason)+'</p><div>'+list+'</div></details>';
+  return '<div class="impact-group"><p>'+head+'</p><p class="note">'+h(g.reason)+'</p><div>'+list+'</div></div>';}).join('');
+ return '<section class="change-entry"><h3>'+h(c.field)+'</h3><p class="change-diff"><span>'+h(c.before)+'</span><b>→</b><span>'+h(c.after)+'</span></p>'+rows+'</section>';
+}
 function stepBody(step,detail=false){
  const reason=step.reason?'<p class="reason"><small>'+h(originLabels[step.reason.origin]||'说明来源未知')+'</small>'+h(step.reason.text)+'</p>':'';
  const limits=(step.limitations||[]).map(l=>'<p class="limit">'+h(l.text)+'</p>').join('');
  const evidence=(step.evidence||[]).map(evidenceBody).join('');
  const expansions=(step.recorded_explanations||[]).map(e=>'<p>事后补充：'+h(e.text)+'</p>').join('');
- const body='<p>'+h(step.content===step.title?'':step.content)+'</p>'+reason+limits+(step.changes||[]).map(changeBody).join('')+(step.checks||[]).map(check).join('')+(step.artifacts||[]).map(artifact).join('')+(step.program_records||[]).map(r=>button(r,'查看实际程序返回')).join('');
- return '<article class="step '+classification(step)+'" data-step="'+h(step.id)+'"><div class="step-title"><span>'+h(step.label)+'</span><h3>'+h(step.title)+'</h3></div>'+inputs(step)+body+
- '<details data-expand="'+h(step.id)+'" '+(state.expanded.has(step.id)?'open':'')+'><summary>查看依据与完整记录</summary><div class="evidence">'+refList(step.source_refs)+evidence+expansions+relationLinks(step)+'</div></details></article>';
+ const checks=step.checks||[],changes=step.changes||[],files=step.artifacts||[];
+ // Keep what needs a decision in view (statements, limits, failed/unknown checks); fold routine support behind counts.
+ const loud=c=>c.status==='failed'||c.status==='unknown';
+ const shown=detail?checks:checks.filter(loud),folded=detail?[]:checks.filter(c=>!loud(c));
+ const records=(step.program_records||[]).map(r=>button(r,'查看实际程序返回')).join('');
+ const foldedHtml=detail?'':inputs(step)+folded.map(check).join('')+files.map(artifact).join('')+changes.map(changeBody).join('')+records;
+ const summaryParts=[];
+ if(folded.length)summaryParts.push('检查 '+folded.length);
+ if(files.length&&!detail)summaryParts.push('文件 '+files.length);
+ if(changes.length&&!detail)summaryParts.push('变化 '+changes.length);
+ const summary=detail?'查看依据与完整记录':(summaryParts.length?'展开：'+summaryParts.join(' · ')+' · 依据与完整记录':'查看依据与完整记录');
+ const body='<p>'+h(step.content===step.title?'':step.content)+'</p>'+reason+limits+(detail?changes.map(changeBody).join(''):'')+shown.map(check).join('')+(detail?files.map(artifact).join('')+records:'');
+ const badges=detail?'':'<div class="step-badges">'+stepBadges(step)+(changes.length?'<i class="b-change">变化 '+changes.length+'</i>':'')+'</div>';
+ return '<article class="step '+classification(step)+'" data-step="'+h(step.id)+'"><div class="step-title"><span>'+h(step.label)+'</span><h3>'+h(step.title)+'</h3></div>'+(detail?inputs(step):'')+body+badges+
+ '<details data-expand="'+h(step.id)+'" '+(state.expanded.has(step.id)?'open':'')+'><summary>'+summary+'</summary><div class="evidence">'+foldedHtml+refList(step.source_refs)+evidence+expansions+relationLinks(step)+'</div></details></article>';
 }
 function requirement(r){return '<div class="requirement"><p>'+h(r.text)+'</p>'+button(r.key,'查看请求来源')+'</div>';}
 const status=data.snapshot.organization_status;
@@ -70,23 +95,105 @@ function renderDocument(){
  for(const s of data.steps)if(!used.has(s.id))html+=stepBody(s);
  document.getElementById('document-view').innerHTML=html||'<p>尚无可显示的步骤。</p>';
 }
+const LANES=[{key:'requirement',label:'用户要求'},{key:'choice',label:'AI 选择'},{key:'program',label:'程序结果'},{key:'artifact',label:'产物与文件'}];
+function laneOf(step){return step.kind==='requirement'?'requirement':step.kind==='choice'?'choice':step.kind==='artifact'?'artifact':'program';}
+function flowOrder(){
+ const staged=data.stages.length>1?data.stages.flatMap(s=>s.step_ids):[];
+ return [...new Set([...staged,...(data.diagram.reading_order||[]),...data.steps.map(s=>s.id)])].filter(id=>stepById[id]);
+}
+function stepBadges(step){
+ const count=v=>(step.checks||[]).filter(c=>c.status===v).length;
+ const parts=[];
+ if(count('passed'))parts.push('<i class="b-pass">✓ '+count('passed')+' 项检查通过</i>');
+ if(count('failed'))parts.push('<i class="b-fail">✗ '+count('failed')+' 项未通过</i>');
+ if(count('unknown'))parts.push('<i class="b-unknown">? '+count('unknown')+' 项未知</i>');
+ if((step.artifacts||[]).length)parts.push('<i class="b-file">文件 '+step.artifacts.length+'</i>');
+ const pending=data.review.filter(r=>(r.step_refs||[]).includes(step.id)).length;
+ if(pending)parts.push('<i class="b-open">待处理 '+pending+'</i>');
+ return parts.join('');
+}
+function flowGraph(){
+ const order=flowOrder();
+ const titleCount={};const seen={};
+ order.forEach(id=>{const t=data.diagram.short_labels?.[id]||stepById[id].title;titleCount[t]=(titleCount[t]||0)+1;});
+ const nodes=order.map(id=>{const step=stepById[id];const base=data.diagram.short_labels?.[id]||step.title;seen[base]=(seen[base]||0)+1;
+  return {id,step,lane:laneOf(step),title:titleCount[base]>1?base+'（第'+seen[base]+'次）':base};});
+ const known=new Set(order);
+ const edges=data.relations.filter(r=>known.has(r.from)&&known.has(r.to)&&r.from!==r.to);
+ // Declared "responds to" records connect a choice to the request it answers even when no step relation was authored.
+ const byRef={};data.steps.forEach(st=>(st.source_refs||[]).forEach(ref=>{(byRef[ref]=byRef[ref]||[]).push(st.id);}));
+ const pair=new Set(edges.map(e=>e.from+'>'+e.to));
+ (data.fact_relations||[]).filter(r=>r.kind==='responds_to'&&r.origin==='declared').forEach(r=>{
+  const a=(byRef[String(r.from).replace(/^record:/,'')]||[])[0],b=(byRef[String(r.to).replace(/^record:/,'')]||[])[0];
+  if(a&&b&&a!==b&&known.has(a)&&known.has(b)&&!pair.has(a+'>'+b)&&!pair.has(b+'>'+a)){pair.add(a+'>'+b);edges.push({from:a,to:b,kind:'responds_to',meaning:'已声明：回应该要求'});}});
+ return {nodes,edges};
+}
 function renderChain(){
- const order=[...new Set([...(data.diagram.reading_order||[]),...data.steps.map(s=>s.id)])];
- const html=order.filter(id=>stepById[id]).map((id,i)=>{const s=stepById[id];const groups=data.stages.flatMap(stage=>(stage.branches||[]).filter(b=>b.step_ids.includes(id)).map(b=>b.label));const outgoing=data.relations.filter(r=>r.from===id).map(r=>'<p class="relation">'+h(r.meaning)+' → <button data-select="'+h(r.to)+'">'+h(stepById[r.to]?.title||r.to)+'</button></p>').join('');return '<article class="trace-node '+classification(s)+'" data-node="'+h(id)+'">'+(groups.length?'<p class="branch-label">'+groups.map(h).join(' / ')+'</p>':'')+'<button class="node-select" data-select="'+h(id)+'" aria-pressed="'+(id===state.selected)+'"><span>'+h(i+1)+' · '+h(s.label)+'</span><strong>'+h(data.diagram.short_labels?.[id]||s.title)+'</strong></button>'+inputs(s)+'<div class="node-sources">'+refList(s.source_refs)+'</div>'+outgoing+'</article>';}).join('');
- // Relations appear by their recorded meaning, not inferred from vertical proximity.
- document.getElementById('chain').innerHTML=html;
+ const host=document.getElementById('chain');
+ const width=Math.floor(host.clientWidth||host.parentElement.clientWidth||0);
+ if(!width)return;
+ const {nodes,edges}=flowGraph();flowEdges=edges;
+ const used=LANES.filter(l=>nodes.some(n=>n.lane===l.key));
+ const L=used.length||1,laneIndex=Object.fromEntries(used.map((l,i)=>[l.key,i]));
+ const wide=width>=Math.max(620,L*190+(L-1)*70);
+ const gutter=wide?0:48,nodeH=80,pitch=92,bandH=40;
+ let nw,gap,indent=0;
+ if(wide){nw=Math.min(260,Math.floor((width-(L-1)*64)/L));gap=L>1?Math.min(110,(width-L*nw)/(L-1)):0;if(L===1){nw=Math.min(420,width);}}
+ else{indent=L>1?Math.min(22,Math.floor((width-gutter-210)/(L-1))):0;nw=width-gutter-indent*(L-1);gap=0;}
+ const xOf=n=>{const i=laneIndex[n.lane];return wide?(L===1?0:i*(nw+gap)):i*indent;};
+ let y=wide&&L>1?40:8,lastStage=null;const place={},bands=[];
+ const stageOf={};data.stages.forEach(s=>s.step_ids.forEach(id=>{if(!(id in stageOf))stageOf[id]=s;}));
+ nodes.forEach(n=>{const st=data.stages.length>1?stageOf[n.id]:null;
+  if(st&&st!==lastStage){bands.push({title:st.title,purpose:st.purpose,y});y+=bandH;lastStage=st;}
+  place[n.id]={x:xOf(n),y,n};y+=pitch;});
+ const gaps=[...(data.unverified_scope||[]),...data.recording_gaps.map(g=>g.text)];
+ const gapY=y+6;const total=y+(gaps.length?24+gaps.length*34+38:0);
+ const connected=new Set();edges.forEach(e=>{connected.add(e.from);connected.add(e.to);});
+ const lanesHead=wide&&L>1?used.map((l,i)=>'<span class="lane-head lane-'+l.key+'" style="left:'+(i*(nw+gap))+'px;width:'+nw+'px">'+l.label+'</span>').join(''):'';
+ const track={};
+ const paths=edges.map((e,i)=>{
+  const a=place[e.from],b=place[e.to];const ya=a.y+nodeH/2,yb=b.y+nodeH/2;
+  const la=laneIndex[a.n.lane],lb=laneIndex[b.n.lane];let d;
+  if(wide&&la!==lb){const right=la<lb;const x1=right?a.x+nw:a.x,x2=right?b.x:b.x+nw;const dx=Math.max(24,Math.abs(x2-x1)/2);
+   d='M'+x1+' '+ya+' C'+(x1+(right?dx:-dx))+' '+ya+' '+(x2-(right?dx:-dx))+' '+yb+' '+x2+' '+yb;}
+  else{const k=Math.min(a.y,b.y)+'|'+Math.max(a.y,b.y);track[k]=(track[k]||0)+1;
+   const edge=Math.max(a.x,b.x)+nw;const out=18+Math.min(5,Math.floor(Math.abs(b.y-a.y)/pitch))*5+(track[k]-1)*7;
+   d='M'+(a.x+nw)+' '+ya+' C'+(edge+out)+' '+ya+' '+(edge+out)+' '+yb+' '+(b.x+nw+2)+' '+yb;}
+  return '<path class="flow-edge" id="edge-'+i+'" data-from="'+h(e.from)+'" data-to="'+h(e.to)+'" d="'+d+'" marker-end="url(#arrow)"><title>'+h(e.meaning||'')+'</title></path>';}).join('');
+ const bandHtml=bands.map(b=>'<div class="flow-band" style="top:'+b.y+'px" title="'+h(b.purpose||'')+'"><span>'+h(b.title)+'</span></div>').join('');
+ const nodeHtml=nodes.map(n=>{const p=place[n.id];const idx=data.steps.indexOf(n.step)+1;const failed=(n.step.checks||[]).some(c=>c.status==='failed');
+  return '<button class="flow-node k-'+n.lane+(failed?' is-failed':'')+(connected.has(n.id)?' has-edge':'')+'" data-select="'+h(n.id)+'" data-node="'+h(n.id)+'" aria-pressed="false" style="left:'+p.x+'px;top:'+p.y+'px;width:'+nw+'px;height:'+nodeH+'px"><span class="fn-type">'+idx+' · '+h(n.step.label)+'</span><strong class="fn-title">'+h(n.title)+'</strong><span class="fn-badges">'+stepBadges(n.step)+'</span></button>';}).join('');
+ const gapHtml=gaps.length?'<aside class="flow-gaps" style="top:'+gapY+'px"><strong>没有覆盖的范围</strong>'+gaps.map(g=>'<p>'+h(g)+'</p>').join('')+'</aside>':'';
+ const legend='<div class="flow-legend">'+LANES.filter(l=>used.some(u=>u.key===l.key)).map(l=>'<span class="lg lg-'+l.key+'">'+l.label+'</span>').join('')+'<span class="lg-note">纵向是实际记录顺序，不表示因果；连线只画记录中明确声明的依据关系。点击一步，高亮它的上下游。</span></div>';
+ const none=edges.length?'':'<p class="flow-none">本次记录没有声明步骤之间的依据关系，所以图中没有连线。每一步的来源见“查看依据与完整记录”。</p>';
+ host.innerHTML=legend+none+'<div class="flow" style="height:'+total+'px">'+lanesHead+bandHtml+'<svg class="flow-edges" width="'+width+'" height="'+total+'" aria-hidden="true"><defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z"/></marker></defs>'+paths+'</svg>'+nodeHtml+gapHtml+'</div>';
+ host.dataset.width=String(width);
+ selected();
+}
+let flowEdges=[];
+function chainClosure(id){
+ const up=new Set([id]),down=new Set([id]);
+ for(let changed=true;changed;){changed=false;for(const e of flowEdges){
+  if(up.has(e.to)&&!up.has(e.from)){up.add(e.from);changed=true;}
+  if(down.has(e.from)&&!down.has(e.to)){down.add(e.to);changed=true;}}}
+ return new Set([...up,...down]);
 }
 function selected(){
- document.querySelectorAll('.node-select').forEach(b=>{const active=b.dataset.select===state.selected;b.setAttribute('aria-pressed',String(active));b.closest('.trace-node').dataset.selected=String(active);});
+ const chain=state.selected?chainClosure(state.selected):new Set();
+ const focus=state.focus&&chain.size>1;
+ document.querySelectorAll('.flow-node').forEach(b=>{const id=b.dataset.select;const active=id===state.selected;b.setAttribute('aria-pressed',String(active));
+  b.classList.toggle('is-linked',chain.has(id)&&!active&&focus);b.classList.toggle('is-dim',focus&&!chain.has(id));});
+ document.querySelectorAll('.flow-edge').forEach(p=>{const on=chain.has(p.dataset.from)&&chain.has(p.dataset.to);p.classList.toggle('is-on',focus&&on);p.classList.toggle('is-dim',focus&&!on);});
  const s=stepById[state.selected];document.getElementById('detail-pane').innerHTML=s?'<header class="selection '+classification(s)+'"><span>'+h(data.steps.indexOf(s)+1)+' · '+h(s.label)+'</span><h3>'+h(s.title)+'</h3></header>'+stepBody(s,true):'<p>没有步骤。</p>';
 }
 function mode(value){
  state.mode=value;document.getElementById('document-view').hidden=value!=='document';
  const visual=document.getElementById('visual-view');visual.hidden=value==='document';visual.className='mode-'+value;visual.dataset.pane=state.pane;
  document.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode===value)));
- selected();if(value==='document'&&state.selected){const target=[...document.querySelectorAll('#document-view [data-step]')].find(e=>e.dataset.step===state.selected);target?.scrollIntoView({block:'center'});}
+ if(value!=='document')renderChain();else selected();if(value==='document'&&state.selected){const target=[...document.querySelectorAll('#document-view [data-step]')].find(e=>e.dataset.step===state.selected);target?.scrollIntoView({block:'center'});}
 }
 const drawer=document.getElementById('drawer');
+function openStep(id){const s=stepById[id];if(!s)return;document.getElementById('drawer-body').innerHTML='<p class="note">'+h(s.label)+'</p><h2>'+h(s.title)+'</h2><div class="drawer-step">'+stepBody(s,true)+'</div>';if(!drawer.open)drawer.show();}
 function openSource(ref){
  const source=sources[ref];if(!source)return;
  const fields=source.fields.map(f=>'<section class="detail-section"><h3>'+h(f.label)+'</h3><p>'+h(f.text)+'</p></section>').join('');
@@ -106,7 +213,7 @@ function special(name){
 document.addEventListener('click',e=>{
  const m=e.target.closest('[data-mode]');if(m){mode(m.dataset.mode);return;}
  const p=e.target.closest('button[data-pane]');if(p){state.pane=p.dataset.pane;document.getElementById('visual-view').dataset.pane=state.pane;document.querySelectorAll('button[data-pane]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.pane===state.pane)));return;}
- const b=e.target.closest('[data-select]');if(b){state.selected=b.dataset.select;state.pane='detail';selected();document.getElementById('visual-view').dataset.pane='detail';return;}
+ const b=e.target.closest('[data-select]');if(b){state.selected=b.dataset.select;state.focus=!!b.closest('.flow');state.pane='detail';selected();document.getElementById('visual-view').dataset.pane='detail';if(state.mode==='map')openStep(state.selected);return;}
  const ref=e.target.closest('[data-source]');if(ref){openSource(ref.dataset.source);return;}
  const sp=e.target.closest('[data-special]');if(sp){special(sp.dataset.special);return;}
  const step=e.target.closest('#document-view [data-step]');if(step)state.selected=step.dataset.step;
@@ -125,4 +232,5 @@ function locate(){let current='goal';document.querySelectorAll('main>.chapter').
  document.querySelectorAll('#chapters a').forEach(a=>{const on=a.hash==='#'+current;a.classList.toggle('active',on);on?a.setAttribute('aria-current','location'):a.removeAttribute('aria-current');});
 }
 let ticking=false;addEventListener('scroll',()=>{if(!ticking){ticking=true;requestAnimationFrame(()=>{locate();ticking=false;});}},{passive:true});
-renderDocument();renderChain();selected();locate();
+renderDocument();selected();locate();
+let chainWidth=0;if(window.ResizeObserver)new ResizeObserver(()=>{const w=Math.floor(document.getElementById('chain').clientWidth);if(w&&w!==chainWidth&&state.mode!=='document'){chainWidth=w;renderChain();}}).observe(document.getElementById('chain'));

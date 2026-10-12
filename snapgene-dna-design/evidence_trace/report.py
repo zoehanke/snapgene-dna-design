@@ -206,7 +206,8 @@ def build_report(graph):
 
 def readable_changes(graph, sources):
     fields = {'host': '宿主', 'organism': '物种', 'strain': '菌株', 'temperature': '温度',
-              'sequence': '序列', 'method': '方法', 'intended_use': '用途', 'medium': '培养基'}
+              'sequence': '序列', 'method': '方法', 'intended_use': '用途', 'medium': '培养基',
+              'path': '材料文件', 'template': '模板文件', 'start': '起点', 'end': '终点', 'text': '说明文字'}
     actions = {'REASSESS':'重新判断', 'RECHECK':'重新检查依据', 'RERUN':'建议重新运行检查',
                'STALE':'属于旧上下文', 'NEEDS REVIEW':'需要人工复核'}
     judgments = {'AFFECTED':'明确受到影响', 'NEEDS REVIEW':'可能受到影响',
@@ -214,12 +215,25 @@ def readable_changes(graph, sources):
     def value(v):
         if v is None:
             return '未记录'
-        if isinstance(v, (str, int, float, bool)):
+        if isinstance(v, str):
+            return v if len(v) <= 160 else v[:120] + '…（共 %d 字符）' % len(v)
+        if isinstance(v, (int, float, bool)):
             return str(v)
         if isinstance(v, list) and all(isinstance(x, (str, int, float)) for x in v):
-            return ', '.join(str(x) for x in v)
+            text = ', '.join(str(x) for x in v)
+            return text if len(text) <= 160 else text[:120] + '…（共 %d 项）' % len(v)
         if isinstance(v, dict) and 'value' in v and 'unit' in v:
             return value(v['value']) + ' ' + str(v['unit'])
+        if isinstance(v, dict) and 'source_path' in v:
+            # A replaced material file is identified by name and content hash, not by its local directory.
+            return filename(str(v['source_path'])) + ' · sha256 ' + str(v.get('source_sha256', ''))[:8]
+        if isinstance(v, dict) and 'omitted' in v and 'length' in v:
+            unit = ' bp' if v['omitted'] == 'sequence' else ''
+            label = '序列 ' if v['omitted'] == 'sequence' else str(v['omitted']) + ' '
+            return label + str(v['length']) + unit + ' · sha256 ' + str(v.get('sha256', ''))[:8]
+        if isinstance(v, dict) and all(isinstance(x, (str, int, float, bool)) or x is None for x in v.values()):
+            text = '；'.join(str(k) + '=' + str(x) for k, x in v.items())
+            return text if len(text) <= 160 else text[:120] + '…'
         return '结构化内容已变更，完整值见技术记录'
     result = []
     for c in graph.get('changes', []):
@@ -230,7 +244,7 @@ def readable_changes(graph, sources):
                 continue
             target = impact['target']
             impacts.append({'target_ref': target, 'target_title': sources.get(target, {}).get('title', '相关依据的适用性'),
-                            'judgment': judgments.get(impact['judgment'], '影响尚未分类'),
+                            'judgment': judgments.get(impact['judgment'], '影响尚未分类'), 'code': impact['judgment'],
                             'reason': applicability_text({'reason': impact.get('reason', '')}),
                             'actions': [actions.get(a, a) for a in impact['actions']]})
         result.append({'id': c['id'], 'field': fields.get(field, field), 'before': '未提供此条件' if c.get('old_present') is False else '明确留空' if c.get('old_present') is True and c.get('old_value') is None else value(c.get('old_value')),
@@ -298,8 +312,11 @@ def markdown(report):
         lines += ['## 变化与影响', '', '以下为重查建议，不修改原来的科学判断或程序结果。', '']
         for change in report['change_details']:
             lines += ['### ' + safe(change['field']), '', safe(change['before']) + ' → ' + safe(change['after']), '']
+            groups = {}
             for impact in change['impacts']:
-                lines += [safe(impact['target_title']) + '：' + safe(impact['judgment']) + '；' + safe(', '.join(impact['actions'])), '']
+                groups.setdefault((impact['judgment'], ', '.join(impact['actions'])), []).append(impact['target_title'])
+            for (judgment, action), titles in groups.items():
+                lines += [safe(judgment) + '（' + safe(action) + '）· ' + str(len(titles)) + ' 项：' + safe('；'.join(titles)), '']
     lines += ["## 查看详细记录", "", "完整原记录、条件、关系和历史见同目录 graph.json。", ""]
     for ref, source in report["sources"].items():
         lines += ["### " + safe(source['title']), ""]
