@@ -12,6 +12,7 @@
 | 接续工作或建立计划 | [当前状态与未关闭事项](development-plans/README.md) |
 | 查设计为何改变 | [项目历史](history.md) |
 | 处理比赛材料、题库或许可 | [iGEM入口](igem/README.md)、[题库入口](question-bank/README.md)、[许可归属](attribution.md) |
+| 查看2026-10-13 Best Software证据与公开历史风险 | [日期自查报告](igem-best-software-self-audit-2026-10-13.md)，仅记录核查快照，不替代规则或安装指南 |
 
 默认不读[历史档案](archive/README.md)。旧审查、已结束计划及旧手册用于追溯特定问题，不是当前规则或自动待办。历史测试数量也不是当前验证。
 
