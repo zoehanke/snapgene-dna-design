@@ -240,7 +240,7 @@ def check_grna(
     """Check transcribed 20 nt DNA against both target strands and a 3-prime PAM.
 
     'strand' identifies target DNA identical to spacer; RNA binds its opposite.
-    Default NGG is wild-type SpCas9. Retain all exact and reverse-insert hits;
+    Default NGG is wild-type SpCas9. Separate actual hits from reverse-insert hypotheses;
     this does not predict mismatch/genome-wide effects or validate full scaffold.
     """
     pam = str(pam_pattern).strip().upper()
@@ -252,12 +252,23 @@ def check_grna(
     spacer = cassette['spacer']
     warnings = _annotation_warnings(vector, location, cassette['transcription_strand'])
     matches = _target_matches(target, spacer, pam, 'transcribed_spacer')
-    reverse_hits = _target_matches(target, str(Seq(spacer).reverse_complement()), pam, 'reverse_complement_spacer')
+    reverse_spacer = str(Seq(spacer).reverse_complement())
+    distinguishable = reverse_spacer != spacer
+    reverse_hits = _target_matches(target, reverse_spacer, pam, 'reverse_insert_hypothesis') if distinguishable else []
+    for hit in matches + reverse_hits:
+        hit['locus_id'] = ';'.join(f'{start}:{end}' for start, end in sorted(hit['protospacer_parts_0based']))
+    actual_loci = {hit['locus_id'] for hit in matches}
+    for hit in reverse_hits:
+        hit['same_physical_locus_as_transcribed_match'] = hit['locus_id'] in actual_loci
+        hit['interpretation'] = 'Reverse-insert hypothesis, not an additional match of the current transcribed spacer'
+    if not distinguishable:
+        warnings.append({'code': 'PALINDROMIC_SPACER',
+            'message': 'Spacer equals its reverse complement; sequence cannot distinguish insert orientations. Strand rows may describe one physical locus.'})
     valid = [m for m in matches if m['pam_valid']]
     reverse_valid = [m for m in reverse_hits if m['pam_valid']]
     if valid:
         direction, correct, status = 'CORRECT', True, 'PASSED'
-        if len(valid) > 1:
+        if len({hit['locus_id'] for hit in valid}) > 1:
             warnings.append({'code': 'MULTIPLE_VALID_TARGETS', 'message': 'Multiple exact PAM-compatible loci occur in supplied target.'})
         if reverse_valid:
             warnings.append({'code': 'BOTH_ORIENTATIONS_HAVE_TARGETS', 'message': 'Both orientations have PAM-compatible targets; intended locus is not inferred.'})
@@ -268,7 +279,13 @@ def check_grna(
     else:
         direction, correct, status = 'NO_TARGET_MATCH', None, 'INCOMPLETE'
     analysis = {**cassette, 'result_kind': 'verification', 'subject': vector, 'target_version': target.record_version,
-        'target_matches': matches + reverse_hits, 'pam_pattern': pam,
+        'target_matches': matches, 'target_locus_count': len(actual_loci),
+        'valid_target_locus_count': len({hit['locus_id'] for hit in valid}),
+        'reverse_insert_hypotheses': reverse_hits, 'orientation_distinguishable': distinguishable,
+        'match_reporting': {'target_matches': 'Current transcribed spacer, both target strands',
+            'reverse_insert_hypotheses': 'Alternative insert orientation; not extra guide matches',
+            'locus_id': 'Physical reference intervals; shared ID means one duplex locus'},
+        'pam_pattern': pam,
         'direction_status': direction, 'direction_correct': correct, 'warnings': warnings,
         'scope_note': 'Exact matching in supplied target with a 3-prime PAM; scaffold anchor is not full scaffold/function validation.'}
     return ToolResult(analysis=analysis, checks=[check_result('existing_grna', subject=vector,

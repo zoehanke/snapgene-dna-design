@@ -37,6 +37,8 @@ Coverage读取真实模块的行/分支及套件退出码，目标和阈值以[�
 
 候选因素与载体筛查回归在`tests/test_grna_evaluation.py`：字面构造两种不同正/负向模板，独立坐标、GC算术、0/1/4错配、无NGG、环形跨起点、目标重复但无PAM、真并列、条件U6、未知碱基及Cas12a边界；公共registry与run_step读取独立原生packet并检查实际steps文件。它们是独立输入的工程验证；原A/D材料回放单列，不是隔离陌生题评测或实测自切。
 
+位点报告回归在`tests/test_grna_match_reporting.py`：独立单个位点、无效PAM、真正正负链双位点、插反及回文序列；保留原cassette/制备检查，并检查公共CLI实际文件中当前命中与反向插入假设分开。原E公共回放与独立直接读文件/逐碱基搜索另存仓库外，仍是已知题开发回归。
+
 CRISPR cassette工程回归在`tests/test_grna_cassette.py`：独立拼接输入、原生packet日期、正反转录、跨原点、双靶链/PAM、反插/无PAM/无匹配、多cassette选择、注释冲突、假抗性CDS、实际run_step及中文GenBank读回。模板QC使用同名但不同序列feature，验证继承与新增诊断不混淆，ERR仍退出1。真实用户材料和原失败日志只留仓库外；开发者重放和这些独立构造输入均是工程回归，不计陌生题或自主成功。
 
 gRNA制备回归在`tests/test_grna_preparation.py`：两组独立模板与不同新spacer，目标由原材料直接拼接而非被测工具生成；生成路线后再公开PCR/连接/旋转，验证逐位相等及公共交付文件。Tm用独立公开Biopython API与手写Allawi/SantaLucia NN算术、盐修正交叉核查。正反转录、跨原点、重复spacer/结合核心、poly-T、高GC/重复不可行、sequence_only无制备分别核查；计划与模拟/湿实验状态进入Trace。原2.2.3注释用例显式sequence_only保持其职责，默认制备另测，不删除原失败输入或放宽门禁。
