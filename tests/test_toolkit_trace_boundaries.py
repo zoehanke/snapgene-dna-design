@@ -54,7 +54,8 @@ class ToolkitTraceBoundaryTests(unittest.TestCase):
             files = [n for n in graph['nodes'] if n['kind'] == 'artifact' and n['role'] == 'authoritative']
             self.assertEqual({pathlib.Path(n['path']).suffix for n in files}, {'.gb', '.dna', '.fasta'})
             self.assertTrue(all(n['result_event_ref'] for n in files))
-            plain = [n for n in graph['nodes'] if n['kind'] == 'artifact' and pathlib.Path(n['path']).parent == out / 'authoritative']
+            # Trace records canonical paths; Windows TEMP can use an 8.3 alias.
+            plain = [n for n in graph['nodes'] if n['kind'] == 'artifact' and pathlib.Path(n['path']).parent == (out / 'authoritative').resolve()]
             self.assertTrue(plain)
             self.assertTrue(all(n['role'] != 'authoritative' for n in plain))
 
