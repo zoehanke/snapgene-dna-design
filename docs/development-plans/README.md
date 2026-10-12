@@ -61,6 +61,8 @@
 
 ## 未关闭事项
 
+CRISPR Core2.2.3的实现、原材料/独立输入及本地工程验收已关闭并推送独立开发分支；Windows CI的旧8.3路径测试已修正并独立复现通过。最终六环境CI尚未验收：GitHub账号付款/spending limit阻止runner启动，需账号处理后重跑最终提交。[证据与处置](../archive/plans/crispr-cassette-repairs-v2.2.3.md)。原工作区改动、main和正式发布边界保持。
+
 | 事项 | 当前事实与处理边界 | 原记录 |
 |---|---|---|
 | 完整任务与宿主边界 | r6共同机制已实施并验收；T2自主计算交付成立，T3原交付缺项及说明错误已由开发者修订，原自主评分不变；T8最新版仍漏目标。程序核查明确约束，不控制任意宿主表述或认证全部自然语言 | [收尾记录](../archive/plans/actual-execution-closure-v2.2.1.md)、[Core spec](../../specs/core-skill.md) |
