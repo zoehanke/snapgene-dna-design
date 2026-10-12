@@ -35,6 +35,8 @@ Coverage读取真实模块的行/分支及套件退出码，目标和阈值以[�
 
 ## 真正检查最终结果
 
+CRISPR cassette工程回归在`tests/test_grna_cassette.py`：独立拼接输入、原生packet日期、正反转录、跨原点、双靶链/PAM、反插/无PAM/无匹配、多cassette选择、注释冲突、假抗性CDS、实际run_step及中文GenBank读回。模板QC使用同名但不同序列feature，验证继承与新增诊断不混淆，ERR仍退出1。真实用户材料和原失败日志只留仓库外；开发者重放和这些独立构造输入均是工程回归，不计陌生题或自主成功。
+
 从原材料、要求和实际操作独立核验，不能采信宿主自报PASS或仅对照参考序列。允许不同正确路线与环形起点。多轮必须使用上轮真实产物；检查制备、接口、读框、注释、文件和结论。
 
 Core API例子：`python -X utf8 -B snapgene-dna-design/examples/core_workflow.py --out-dir output/api-example`，属于序列文件编辑。实际准备链演示：`python -X utf8 -B snapgene-dna-design/scripts/demo_engineering_cycle.py --out-dir output/demo`，属于预设方案回归，两者都不是宿主陌生任务或湿实验。

@@ -205,6 +205,38 @@ Default arm lengths are 50 bp for `ssODN` and short `dsDNA`, and 600 bp for a pl
 
 The result contains the actual sequence, `pcr`, `design`, complete primers and ordered `preparation` rows. If a tail would exceed the complete-oligo length limit, each successive PCR uses the preceding real product as its template and records the product and `annealing_temperature_hint_C`. A design failure remains a failure.
 
+## Existing guide cassettes
+
+**Callables:** `core.tools.grna.replace_grna_spacer`, `core.tools.grna.check_grna`. Both are registered atomic tools, discoverable with `describe_tools.py` and executable through `run_step`/Pipeline.
+
+```python
+replace_grna_spacer(vector_record_or_seq, spacer_seq,
+    promoter_name=None, promoter_end_0based=None, transcription_strand=None,
+    scaffold_seq="GTTTTAGAGCTAGAAATAGCAAGTTAAAATAAGGC")
+check_grna(vector_record_or_seq, target_seq_or_file,
+    promoter_name=None, promoter_end_0based=None, transcription_strand=None,
+    scaffold_seq="GTTTTAGAGCTAGAAATAGCAAGTTAAAATAAGGC", pam_pattern="NGG")
+```
+
+Vector/target accept complete Molecules, records or files including `.dna`. `spacer_seq` is exactly 20 A/C/G/T bases in transcription orientation. Automatic location requires a directed promoter followed by exactly 20 bases and an actual scaffold anchor. Default anchor is the SpCas9 prefix shared with the published [pML104 method](https://pmc.ncbi.nlm.nih.gov/articles/PMC5868978/); scaffold suffix and vector name are not fixed. `scaffold_seq` accepts another anchor of at least 20 nt. Anchor matching does not certify full scaffold or promoter function.
+
+`promoter_name` selects an exact annotation label/gene/product; multiple cassettes require a selector. For an unannotated source, `promoter_end_0based` is the promoter's 3-prime reference boundary: exclusive end on `+1`, start on `-1`. Supply `transcription_strand` with that boundary. Fuzzy/remote promoter positions are not accepted. Circular origin crossings retain ordered `spacer_parts_0based` and `scaffold_parts_0based`. Guide annotations do not determine transcription direction.
+
+Replacement returns one same-length Molecule. `analysis.replacement` records before/after, strand and parts; `annotation_changes` retains every retired overlapping annotation with original coordinates/qualifiers. Nonoverlapping features and broad source metadata remain. Per-base values at replaced positions become unknown (`None`); other positions remain unchanged. New `misc_RNA` guide annotation records both spacer sequences. This is a sequence-model edit; physical preparation needs an actual supported PCR/assembly route.
+
+Check returns analysis and a scoped check on original vector (`analysis.subject`), without a new product. `target_matches` retains every exact hit for transcribed spacer and its reverse complement, including invalid/incomplete PAMs. `strand` is reference strand **identical** to spacer; RNA binds `rna_binding_strand`, its opposite. PAM is read 5-prime to 3-prime on identical strand, immediately after 20 nt. `pam_pattern` is a 3-prime IUPAC motif; default `NGG` is for [wild-type SpCas9](https://www.addgene.org/guides/crispr/).
+
+| `direction_status` | Meaning |
+|---|---|
+| `CORRECT` | Transcribed spacer has an exact PAM-compatible target |
+| `REVERSED` | Only its reverse complement has a PAM-compatible target |
+| `INVALID_PAM` | Exact hit exists, neither orientation has a compatible complete PAM |
+| `NO_TARGET_MATCH` | Neither orientation has an exact hit; direction remains unknown |
+
+Multiple valid loci and targets in both orientations remain explicit warnings; intended locus and uniqueness are not inferred. Guide annotation strand conflict says "Annotation may be incorrect (注释可能有误)" and does not reverse a sequence-supported conclusion. Results establish exact-match/PAM evidence only, not cutting efficiency or genome-wide/mismatch specificity.
+
+Use `validate_construct.py product.gb --template original.dna --json` for QC origin. Inherited findings require identical extracted feature DNA, annotation metadata, location shape and diagnosis; pure coordinate shift is allowed. Same names alone do not establish inheritance. New/changed issues are `INTRODUCED_OR_CHANGED`; no template gives `UNDETERMINED`. Inherited ERR remains ERR with exit code 1 and `summary.pass=false`.
+
 ## Core tool: `prepare_pml104_guide`
 
 **Callable:** `core.tools.crispr.prepare_pml104_guide`

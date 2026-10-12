@@ -89,6 +89,7 @@ def inspect_dna(file_path_or_record: str | pathlib.Path | SeqRecord) -> ToolResu
             "qualifiers": {k: v for k, v in f.qualifiers.items() if k != "translation"},
         })
 
+    marker_evidence = selection_marker_evidence(rec)
     return ToolResult(analysis={
         "name": getattr(rec, "name", "") or getattr(rec, "id", "") or "unnamed",
         "sequence_length": n,
@@ -97,6 +98,7 @@ def inspect_dna(file_path_or_record: str | pathlib.Path | SeqRecord) -> ToolResu
         "sequence_sha256": hashlib.sha256(seq_str.encode("utf-8")).hexdigest().upper(),
         "feature_count": len(features),
         "features": features,
+        **marker_evidence,
     })
 
 
@@ -121,11 +123,43 @@ def annotated_selection_marker(name: str) -> str | None:
     return None
 
 
+def selection_marker_evidence(record: SeqRecord) -> dict[str, Any]:
+    """Keep named markers only when an actual complete CDS supports the label.
+
+    CDS structure supports an annotation, not experimental antibiotic resistance.
+    A short guide mislabeled as a gene remains visible as an annotation conflict.
+    """
+    from core.tools.sequence_ops import validate_cds_feature
+    markers, warnings = [], []
+    for index, feature in enumerate(record.features):
+        if feature.type not in ('CDS', 'gene') or feature.location is None:
+            continue
+        name = feature.type
+        for key in ('label', 'gene', 'product', 'note', 'locus_tag'):
+            values = feature.qualifiers.get(key)
+            if values:
+                name = str(values[0] if isinstance(values, list) else values)
+                break
+        marker = annotated_selection_marker(name)
+        if not marker:
+            continue
+        audit = validate_cds_feature(feature, record.seq)
+        entry = {'name': name, 'marker_type': marker, 'feature_index': index,
+                 'interval_0based': [int(feature.location.start), int(feature.location.end)],
+                 'strand': feature.location.strand}
+        if audit['valid'] and not audit['partial']:
+            markers.append({**entry, 'annotation_status': 'CDS_SUPPORTED', 'functional_status': 'NOT_TESTED'})
+        else:
+            warnings.append({'code': 'SELECTION_MARKER_ANNOTATION_CONFLICT', **entry,
+                'message': 'Annotation may be incorrect (注释可能有误): marker label lacks a complete valid CDS; do not infer selection from this feature.',
+                'cds_errors': audit['errors'], 'partial': audit['partial']})
+    return {'selection_markers': markers, 'warnings': warnings}
+
+
 def summarize_backbone(file_path_or_record: str | pathlib.Path | SeqRecord) -> ToolResult:
     """Identify key vector backbone components: origins, resistance markers, promoters."""
     ins = inspect_dna(file_path_or_record).analysis
     origins = []
-    resistances = []
     promoters = []
 
     for f in ins.get("features", []):
@@ -144,20 +178,14 @@ def summarize_backbone(file_path_or_record: str | pathlib.Path | SeqRecord) -> T
                 "interval_0based": f["interval_0based"],
                 "strand": f["strand"],
             })
-        elif ft in ("cds", "gene"):
-            marker = annotated_selection_marker(f["name"])
-            if marker:
-                resistances.append({
-                    "name": f["name"], "marker_type": marker,
-                    "interval_0based": f["interval_0based"], "strand": f["strand"],
-                })
 
     return ToolResult(analysis={
         "name": ins["name"],
         "topology": ins["topology"],
         "sequence_length": ins["sequence_length"],
         "origins_of_replication": origins,
-        "selection_markers": resistances,
+        "selection_markers": ins["selection_markers"],
+        "warnings": ins["warnings"],
         "promoters": promoters,
     })
 

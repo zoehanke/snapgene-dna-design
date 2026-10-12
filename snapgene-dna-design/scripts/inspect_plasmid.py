@@ -22,7 +22,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from core.tools.inspection import _load_record, inspect_dna, annotated_selection_marker
+from core.tools.inspection import _load_record, selection_marker_evidence
 from core.tools.restriction import find_restriction_sites
 from evidence_trace.runtime import add_trace_arguments, trace_options, trace_file_call
 
@@ -66,8 +66,10 @@ def inspect_single_file(file_path: str | pathlib.Path, enzymes: list[str] | None
     promoters = []
     cds_list = []
     other_features = []
+    marker_evidence = selection_marker_evidence(rec)
+    supported_markers = {entry['feature_index'] for entry in marker_evidence['selection_markers']}
 
-    for f in getattr(rec, "features", []):
+    for index, f in enumerate(getattr(rec, "features", [])):
         ftype = f.type
         if ftype == "source" or f.location is None:
             continue
@@ -99,7 +101,9 @@ def inspect_single_file(file_path: str | pathlib.Path, enzymes: list[str] | None
         name_lower = name.lower()
         if ftype in ("rep_origin", "origin"):
             oris.append(feat_dict)
-        elif ftype in ("CDS", "gene") and annotated_selection_marker(name):
+        elif index in supported_markers:
+            feat_dict['annotation_status'] = 'CDS_SUPPORTED'
+            feat_dict['functional_status'] = 'NOT_TESTED'
             markers.append(feat_dict)
         elif ftype == "promoter" or (ftype in ("misc_feature", "regulatory") and "promoter" in name_lower):
             promoters.append(feat_dict)
@@ -122,6 +126,7 @@ def inspect_single_file(file_path: str | pathlib.Path, enzymes: list[str] | None
         "cds_features": cds_list,
         "unique_restriction_cutters": unique_cutter_details,
         "total_features": len(rec.features),
+        "warnings": marker_evidence['warnings'],
     }
 
 
@@ -135,6 +140,8 @@ def format_markdown_report(data: dict[str, Any]) -> str:
     marker_str = ", ".join(f"{m['name']} ({m['start_0based']}-{m['end_0based']})" for m in data["selection_markers"]) or "None annotated"
     lines.append(f"- **Replication Origin**: {ori_str}")
     lines.append(f"- **Selection Markers**: {marker_str}")
+    for warning in data.get('warnings', []):
+        lines.append(f"- **Annotation warning**: {warning['name']}: {warning['message']}")
 
     # Promoters
     if data["promoters"]:

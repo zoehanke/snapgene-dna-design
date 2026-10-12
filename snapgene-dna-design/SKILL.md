@@ -94,6 +94,14 @@ If preparation is required, submit `validation_requirements: ["sequence_model", 
 
 The resolver accepts references inside nested dictionaries and lists. A reference must point to a source or an earlier step. The selected output step must produce a sequence.
 
+## Existing guide cassettes
+
+For an existing guide plasmid, call `check_grna(vector_record_or_seq, target_seq_or_file)` through `run_step` or Python. It reads the actual 20 nt downstream of a directed promoter and before a scaffold sequence anchor, searches both target strands and checks the 3-prime PAM (default wild-type SpCas9 `NGG`). Use `direction_status`, actual matching strands and PAMs for the conclusion. A conflicting guide annotation produces an annotation warning, independently of sequence correctness. Marker annotations lacking a complete valid CDS appear as warnings; use the supported marker list when reasoning about selection.
+
+To replace an existing 20 nt spacer, use `replace_grna_spacer(vector_record_or_seq, spacer_seq)`. It preserves other DNA, records before/after and retires overlapping old guide/primer/CDS annotations into the operation log. Select an ambiguous cassette by `promoter_name`; an unannotated template requires `promoter_end_0based` plus `transcription_strand`. Supply `scaffold_seq` for a different scaffold anchor. Read [cassette parameters and result scope](references/recipes.md#existing-guide-cassettes) before resolving an uncertain layout. For physical preparation, use an actual supported PCR/assembly route on the original template and check the resulting product against this edited design.
+
+Read `.dna` directly; conversion is not required to handle date metadata. Compare template QC with `python scripts/validate_construct.py product.gb --template source.dna --json`: inherited errors retain severity and still fail QC. Preserve originals and explain any annotation correction separately. Exported GenBank is UTF-8; external Python readers must open it with `encoding="utf-8"`.
+
 ## pML104 guide preparation
 
 The dedicated atomic tool is:

@@ -231,6 +231,15 @@ class HostWorkflowContractTests(unittest.TestCase):
         labels = ['mNeonGreen', 'AMPK', 'catalase', 'NeoR/KanR', 'hphNT1']
         record.features = [SeqFeature(FeatureLocation(i*30, i*30+24), type='CDS',
                                       qualifiers={'label': [name]}) for i,name in enumerate(labels)]
+        # Keep original random 24 nt CDS annotations as negative evidence.
+        invalid = summarize_backbone(record).analysis
+        self.assertFalse(invalid['selection_markers'])
+        self.assertEqual({w['name'] for w in invalid['warnings']}, {'NeoR/KanR', 'hphNT1'})
+        # Complete toy ORFs test name classification, not actual drug resistance.
+        coding = 'ATG' + 'GCT'*40 + 'TAA'
+        record.seq = Seq((coding + 'TTTT') * len(labels))
+        record.features = [SeqFeature(FeatureLocation(i*130, i*130+126, strand=1), type='CDS',
+                                      qualifiers={'label': [name]}) for i,name in enumerate(labels)]
         with tempfile.TemporaryDirectory() as temp:
             source = pathlib.Path(temp) / 'source.gb'
             SeqIO.write(record, source, 'genbank')

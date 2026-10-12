@@ -13,6 +13,8 @@
 
 本次于 2026-09-20 根据仓库材料与项目负责人在本任务中的讨论首次归纳。以下日期表示可核对的阶段，不为无时间戳的讨论补造精确日期。当前规范入口：[主 Skill](../specs/core-skill.md)、[Evidence Trace](../specs/safety-module.md)、[阅读设计](trace-report/design.md)。
 
+2026-10-12负责人提供三次真实CRISPR宿主记录并授权修复。本轮从特定pML104制备分出通用20 nt cassette序列编辑和已有guide检查：用启动子出口及实际scaffold anchor定义窗口，方向由转录序列与靶标双链/PAM决定；旧guide链向只作注释冲突证据。抗性名称须有完整CDS结构支持，模板已有QC错误须实证区分来源且保留ERR。2.2.2已有typed日期修复，本轮补入口证据；用户DNA与原失败保留仓库外，重放不重算原自主成绩。[修复记录](archive/plans/crispr-cassette-repairs-v2.2.3.md)
+
 ## 1. 早期审查：先修真实构建通路，收缩元框架
 
 **来源与背景**：2026-09-05 至 09-06 的[首轮审计](archive/reviews/IGEM-2026-SOFTWARE-AND-SAFETY-AUDIT.md)发现，已有大量工具和通过的测试，仍存在酶切、复合特征、注释传递及空验证凭据放行问题。部分目标验证只证明“产物符合计划”，没有证明“计划符合用户要求”。

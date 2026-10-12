@@ -1,6 +1,6 @@
 # Core skill
 
-Updated: 2026-10-11. This spec defines the current DNA product contract. Developer documents have a [single router](../docs/README.md); closed plans are historical references, while unresolved handoffs stay in the plan index. [History](../docs/history.md) explains its evolution; [development plans](../docs/development-plans/README.md) own implementation scope, validation and handoff. [Safety spec](safety-module.md) owns Evidence Trace; [SKILL.md](../snapgene-dna-design/SKILL.md) and [Recipe reference](../snapgene-dna-design/references/recipes.md) own usage and signatures.
+Updated: 2026-10-12. This spec defines the current DNA product contract. Developer documents have a [single router](../docs/README.md); closed plans are historical references, while unresolved handoffs stay in the plan index. [History](../docs/history.md) explains its evolution; [development plans](../docs/development-plans/README.md) own implementation scope, validation and handoff. [Safety spec](safety-module.md) owns Evidence Trace; [SKILL.md](../snapgene-dna-design/SKILL.md) and [Recipe reference](../snapgene-dna-design/references/recipes.md) own usage and signatures.
 
 ## Goal and current functionality
 
@@ -31,6 +31,10 @@ Inputs include full sequence records/files and raw DNA. Routes differ in support
 Lead the answer with the material conclusion, whether new design is needed and the shortest next action. Place consequential conditions at the step they affect; do not bury an established result under generic cautions. Include existing main artifacts, explanatory material and generated Trace links in the first handoff. Supplied design files are not physical DNA, but this distinction is not grounds to invent an unnecessary design step.
 
 ## Product contracts
+
+- Existing 20 nt guide cassettes are located from a directed promoter outlet and an actual scaffold sequence anchor, not a plasmid identity or guide annotation strand. Ambiguous layouts require a selector. Replacement preserves every outside base and the reference origin, records before/after, retains nonoverlapping annotations, and records retirement of overlapping sequence-specific annotations. It is a sequence-model operation, not physical preparation evidence.
+- Existing-guide checking reports the actual transcribed spacer, reference coordinates, identical target strand, RNA binding strand, 3-prime PAM and all exact/reverse-complement hits. Default PAM is wild-type SpCas9 NGG. A conflicting guide annotation is an annotation warning, not proof of reversed DNA. Missing/invalid PAM, no target and multiple targets remain explicit. A scaffold prefix match is not full scaffold or functional validation.
+- An annotated antibiotic name alone does not establish a selection marker. Inspection separates complete-CDS-supported marker annotations from structural conflicts and makes no experimental resistance claim. Template QC comparison uses actual feature DNA and metadata plus the same diagnosis; inherited errors retain severity, pass/fail and exit code. Without a supplied template, error origin remains undetermined. GenBank text export/import uses explicit UTF-8, including Chinese labels and Windows paths.
 
 - Practical task completion and correct artifacts take priority over tool counts, test counts or review frameworks.
 - Host AI handles intent and strategy; executable tools compute sequences and reactions. A desired sequence is not proof of PCR amplification from the supplied template and delivered primers.

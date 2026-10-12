@@ -196,6 +196,12 @@ class AtomicToolsTests(unittest.TestCase):
         f_ori = SeqFeature(FeatureLocation(10, 50, strand=1), type="rep_origin", qualifiers={"label": ["pUC_ori"]})
         f_amp = SeqFeature(FeatureLocation(60, 150, strand=1), type="CDS", qualifiers={"label": ["AmpR"]})
         rec = _make_record("A" * 200, "pUC19_mock", "circular", features=(f_ori, f_amp))
+        # Retain original false-positive input: A*90 is not an AmpR CDS.
+        invalid = summarize_backbone(rec).analysis
+        self.assertEqual(invalid['selection_markers'], [])
+        self.assertTrue(any(w['code'] == 'SELECTION_MARKER_ANNOTATION_CONFLICT' for w in invalid['warnings']))
+        # Independent complete toy ORF supports coding annotation, not phenotype.
+        rec.seq = Seq('A'*60 + 'ATG' + 'GCT'*28 + 'TAA' + 'A'*50)
         p = self._write_gb(rec, "pUC19_mock.gb")
 
         summary = summarize_backbone(p)

@@ -232,6 +232,7 @@ def init_default_registry() -> None:
         prepare_grna_oligos,
         prepare_pml104_guide,
     )
+    from core.tools.grna import replace_grna_spacer, check_grna
     from core.tools.experience_helper import (
         get_experience_categories,
         get_experience_rule_by_id,
@@ -741,6 +742,20 @@ def init_default_registry() -> None:
                 "required": ["spacer_seq"],
             },
 
+        ),
+        ToolSpec(
+            name="replace_grna_spacer",
+            callable=replace_grna_spacer,
+            category="compute",
+            description="Replace exactly 20 nt between a directed promoter and an actual scaffold anchor; preserve other DNA and record retired overlapping annotations.",
+            parameters_schema={"type": "object", "properties": {}},
+        ),
+        ToolSpec(
+            name="check_grna",
+            callable=check_grna,
+            category="inspect",
+            description="Check actual transcribed 20 nt spacer against both target strands and a 3-prime PAM; report reversed inserts and annotation conflicts.",
+            parameters_schema={"type": "object", "properties": {}},
         ),
         ToolSpec(
             name="prepare_pml104_guide",
