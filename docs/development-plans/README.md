@@ -63,7 +63,7 @@
 
 ## 未关闭事项
 
-CRISPR Core2.2.3的实现、原材料/独立输入及本地工程验收已关闭并推送独立开发分支；Windows CI的旧8.3路径测试已修正并独立复现通过。最终六环境CI尚未验收：GitHub账号付款/spending limit阻止runner启动，需账号处理后重跑最终提交。[证据与处置](../archive/plans/crispr-cassette-repairs-v2.2.3.md)。原工作区改动、main和正式发布边界保持。
+CRISPR Core2.2.3的实现、原材料/独立输入、本地工程和CI验收已关闭：Windows旧8.3路径测试修正；账单阻断原失败保留，4897f2f随后重跑六环境成功。本轮2.2.4需检查自己的精确提交CI，当前已实际启动六项。[证据与处置](../archive/plans/crispr-cassette-repairs-v2.2.3.md)。原工作区改动、main和正式发布边界保持。
 
 | 事项 | 当前事实与处理边界 | 原记录 |
 |---|---|---|

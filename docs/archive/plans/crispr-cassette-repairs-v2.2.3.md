@@ -44,3 +44,5 @@ Core2.2.3：`core/tools/grna.py`的`replace_grna_spacer`与`check_grna`已注册
 CI处置先复现：Windows `GetShortPathNameW`把同一临时目录变成8.3别名，独立`Path.samefile`确认同一目录；原公开路径用例实跑复现`plain=[]`，Trace图里实际两个plain文件已存在且为candidate。测试把canonical Trace路径与未归一化别名字符串相比，违反真实文件身份比较；修正仅对期望目录调用标准库`resolve()`，不改程序、不删产物/角色/数量要求。短名、长名都必须保持正式交付与普通导出的区分。
 
 2026-10-13收尾：短路径修正8b27ae7已推送，本地原文件3项通过、独立8.3别名用例1项通过。该提交的[CI 38274437585](https://github.com/zoehanke/snapgene-dna-design/actions/runs/38274437585)六项在约2秒内结束，`steps=[]`/runner为空，GitHub annotation明确"The job was not started because recent account payments have failed or your spending limit needs to be increased." 因此最终六环境未验收，不能称CI通过。账号Billing & plans处理后须对最终开发分支提交重新运行；本轮不改账单/额度或main。实现、原材料回放、本地冻结全量与包验收已关闭，远端六环境验收作为明确未关闭项交接。
+
+2026-10-13后续核查：前序账单阻断解除后，最终2.2.3文档提交4897f2f的[同run重跑](https://github.com/zoehanke/snapgene-dna-design/actions/runs/38275226154)Ubuntu/Windows × Python3.10/3.11/3.12六项成功，精确headSha匹配。该未关闭项现已关闭；原未启动失败和Windows路径断言失败记录保留，不改写为原轮通过。
