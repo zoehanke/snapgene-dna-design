@@ -40,6 +40,8 @@ Coverage读取真实模块的行/分支及套件退出码，目标和阈值以[�
 
 ## 真正检查最终结果
 
+Toolkit文件关系回归在`tests/test_toolkit_file_relations.py`：实际文件写入/读取、改名但同字节的输入、改后哈希不匹配、较晚记录的artifact，以及真实多步Construct公共CLI。供体640 bp预期由原target/cargo直接切片拼接；关系逐条绑定实际哈希事实，负例不补关系。现有公共Off/Observed/Full和normal/strict故障测试继续核查DNA、质量与文件语义；不改阅读界面。
+
 固定种子CRISPR夹具由`tests/crispr_synthetic_fixture.py`独立构造，无Core导入或私有材料读取。两种种子生成随机质粒/靶标/定位anchor，明确插反、左移一位后PAM末尾CG、注释链冲突、20 nt假CDS、重复靶标与PCR双核心复制，均配正确对照。`tests/test_crispr_synthetic_fixture.py`真实读取独立生成的native packet，经公共run_step保存文件并检查；PCR预期为原模板的已知环形区间加指定5-prime尾。只入库生成器和构造说明，DNA/结果在临时目录。随机promoter/scaffold仅作定位符，不认证其实验功能；这些是工程回归，不是陌生题或湿实验。
 
 候选因素与载体筛查回归在`tests/test_grna_evaluation.py`：字面构造两种不同正/负向模板，独立坐标、GC算术、0/1/4错配、无NGG、环形跨起点、目标重复但无PAM、真并列、条件U6、未知碱基及Cas12a边界；公共registry与run_step读取独立原生packet并检查实际steps文件。它们是独立输入的工程验证；原A/D材料回放单列，不是隔离陌生题评测或实测自切。

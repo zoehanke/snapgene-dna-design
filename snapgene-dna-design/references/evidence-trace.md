@@ -238,6 +238,8 @@ The report profile is fixed. `context` may supply `text` and `source_refs`. `sec
 
 ## v0.3.2 capture and machine export
 
+Toolkit file-content links reuse `input_reference` facts and `grouped_with` process relations. Only an observed output's SHA-256 equal to a declared input's SHA-256 provides `fact_relation_ids`. Artifact capture may occur later than use; the producing operation's recorded event binds the output. Unchanged presence-only files, missing hashes and mismatches provide no automatic relationship. Scope is byte-content equality, not scientific support or causal/physical lineage. Report context labels verified file links separately from declared relationships, using the existing interface.
+
 For custom scripts and direct tool calls, use [capture instructions](trace-capture.md). `trace_run.py` observes explicit input/output versions before/after a command; return code zero is not Validation. Reusing an unchanged existing file does not manufacture generation history.
 
 `graph.json` and `reader` output now use `design-process-v2`: `source_records` holds full payloads; `audit_events` and repeated `runs[].stages[]` input/result/before/after/choice fields use local JSON Pointer objects, e.g. `{"$ref":"#/source_records/<event>/payload/result"}`. Resolve only these documented fields. Python callers needing the old expanded layout call `evidence_trace.storage.expand_machine(graph)`. Journal events and organization submission format remain compatible. HTML embeds only `report`, with typed `sources` details; those entries no longer have `data`. Full raw content is in graph/journal, not default drawers. The renderer accepts old and new machine views without a model call.

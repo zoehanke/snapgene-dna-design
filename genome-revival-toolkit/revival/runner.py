@@ -176,7 +176,9 @@ def execute(request, context, out_dir, invocation, request_path):
         items.append({'path': str(Path(out_dir).resolve() / 'identity-primers.tsv'), 'purpose': '检测候选及完整质量状态；失败候选不可当作已通过订单'})
     result['present_files'] = items
     export = observe_files('toolkit.export', save_result_files,
-        args=(result, context_snapshot, request, Path(out_dir)), output_paths=lambda value: value['paths'],
+        args=(result, context_snapshot, request, Path(out_dir)),
+        input_paths=[row['path'] for row in result.get('delivery',{}).get('present_files',[])],
+        output_paths=lambda value: value['paths'],
         output_directories=[Path(out_dir)], artifact_role='supporting-file')
     result['result_files'] = export['paths']
     return result

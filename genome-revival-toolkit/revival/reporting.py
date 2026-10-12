@@ -128,6 +128,22 @@ def _workflow_packet(graph, request_title=None):
             'input_refs': [event['payload']['stage_ref']] if event['payload'].get('stage_ref') else [], 'outcome_refs': outcomes}
     if not steps:
         return None
+    owners={ref:key for key,step in steps.items() for ref in [*step['source_refs'],*step['input_refs'],*step['outcome_refs']]}
+    matched={}
+    for fact in graph['fact_relations']:
+        if fact.get('kind')!='input_reference' or fact.get('verification_method')!='sha256_equality':
+            continue
+        artifact=records.get(fact['from'],{})
+        producer=owners.get(artifact.get('result_event_ref')); consumer=owners.get(fact['to'])
+        if not producer or not consumer or producer==consumer:
+            continue
+        link=matched.setdefault((producer,consumer),{'id':'file-match-'+str(len(matched)+1),
+            'from':producer,'to':consumer,'kind':'grouped_with',
+            'meaning':'程序验证的关系：输出文件与声明输入文件的SHA-256相等。仅文件内容关联，不推断科学支持、物理使用或因果。',
+            'source_refs':[],'fact_relation_ids':[]})
+        link['fact_relation_ids'].append(fact['id'])
+        link['source_refs']=list(dict.fromkeys([*link['source_refs'],*fact['source_refs']]))
+    relations=list(matched.values())
     order = list(steps)
     refs = list(dict.fromkeys(ref for step in steps.values() for ref in step['source_refs']))
     title = request_title or 'Genome Revival：任务过程与证据'
@@ -135,13 +151,14 @@ def _workflow_packet(graph, request_title=None):
             'basis': {k: graph['snapshot'][k] for k in ('trace_id', 'through_sequence')},
             'design_process': {'stages': [{'id': 'workflow-stage', 'title': '实际任务过程',
                 'purpose': '按记录展示用户要求、已提交的选择和程序执行。顺序不自动证明科学因果。',
-                'step_ids': order, 'source_refs': refs}], 'steps': steps, 'relations': [],
+                'step_ids': order, 'source_refs': refs}], 'steps': steps, 'relations': relations,
                 'paths': [{'id': 'recorded-path', 'label': '实际记录顺序', 'step_ids': order, 'source_refs': refs, 'order_kind': 'recorded_order'}],
                 'unresolved': [], 'detail_refs': [key for key, row in records.items() if row.get('event_type') != 'node_recorded']},
             'report_plan': {'profile': 'research-report-v1', 'title': title,
-                'context': {'text': '本报告记录明确提交的任务、真实材料、程序步骤及检查范围。公开理由只来自已提交说明；未观察的宿主行为不补写成事实。', 'source_refs': refs[:1]},
+                'context': {'text': f'程序验证的文件关系{len(relations)}条；本次自动组织的声明关系0条。其他声明关系只有提交记录，不能借此认证科学含义。'
+                    '本报告记录明确提交的任务、真实材料、程序步骤及检查范围。公开理由只来自已提交说明；未观察的宿主行为不补写成事实。', 'source_refs': refs[:1]},
                 'sections': [{'id': 'workflow-section', 'title': '任务怎样形成实际结果？', 'step_refs': order, 'source_refs': refs}],
-                'diagram': {'reading_order': order, 'relation_refs': [], 'short_labels': {k: steps[k]['title'] for k in order}},
+                'diagram': {'reading_order': order, 'relation_refs': [link['id'] for link in relations], 'short_labels': {k: steps[k]['title'] for k in order}},
                 'default_expanded_refs': [], 'detail_refs': []}}
 
 

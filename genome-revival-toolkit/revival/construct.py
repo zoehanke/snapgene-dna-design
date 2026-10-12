@@ -14,7 +14,7 @@ from core.tools import export_snapgene
 from core.tools.result import to_wire
 from core.workflow import run_step
 from core.workflow_delivery import deliver_result
-from evidence_trace.runtime import observe, observe_value, TraceStopped
+from evidence_trace.runtime import observe, observe_value, observe_files, TraceStopped
 
 
 def _interval(value, length, name, *, allow_empty=False):
@@ -182,11 +182,17 @@ def run_construct(request: dict, context: ProjectContext, out_dir: Path) -> dict
              '测序覆盖采用800 bp读长、前段裁去30 bp的计算假设，不是实测。'
              '本流程仅针对所提供的选定参考，不证明全基因组唯一性、实际菌株基因型或复活成功；未自动指定SY14的URA3插入位点。')
     try:
-        delivery = observe('construct.delivery', deliver_result, requirements, sources, steps, candidate,
-                           run_dir / 'delivery', output_step='donor_preparation', result_kind='construct',
-                           report_notes=notes, provenance={'kit': 'construct', 'references': provenance})
-        receipt = observe('construct.delivery_receipt', verify_delivery_files, delivery['directory'],
-                          presented_files=delivery['present_files'], expected_manifest_sha256=delivery['manifest_sha256'])
+        delivery = observe_files('construct.delivery', deliver_result,
+            args=(requirements,sources,steps,candidate,run_dir/'delivery'),
+            kwargs={'output_step':'donor_preparation','result_kind':'construct','report_notes':notes,
+                    'provenance':{'kit':'construct','references':provenance}},
+            output_paths=lambda value:[str(Path(value['directory'])/name) for name in
+                ('construct.gb','construct.dna','construct.fasta')],
+            output_directories=[run_dir/'delivery'],artifact_role='authoritative')
+        receipt = observe_files('construct.delivery_receipt', verify_delivery_files,
+            args=(delivery['directory'],),
+            kwargs={'presented_files':delivery['present_files'],'expected_manifest_sha256':delivery['manifest_sha256']},
+            input_paths=[row['path'] for row in delivery['present_files']],output_paths=lambda _: ())
     except TraceStopped:
         raise
     except Exception as exc:

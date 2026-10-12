@@ -2,12 +2,45 @@
 from __future__ import annotations
 
 import copy
+import re
 
 from evidence_trace.recorder import project
 from evidence_trace.chain import build_chains
 
 AUTHORED_EVENTS = {"organization_recorded", "report_plan_recorded"}
 TECHNICAL_EVENTS = {"run_started", "run_finished"}
+
+
+def _file_hash_relations(records):
+    """Match observed outputs to declared input bytes, independent of path/order of artifact recording."""
+    from evidence_trace.reader import file_inputs
+    def digest(value):
+        return value.lower() if isinstance(value,str) and re.fullmatch(r'[0-9a-fA-F]{64}',value) else None
+    outputs = {}
+    for key,node in records.items():
+        if node.get('kind') != 'artifact' or node.get('generation_observation') not in ('created','modified','rewritten_same_content'):
+            continue
+        value=digest(node.get('sha256')); producer=records.get(node.get('result_event_ref'),{})
+        if value and producer.get('event_type') in ('stage_completed','file_operation_completed'):
+            outputs.setdefault(value,[]).append((key,producer))
+    result=[]
+    for key,event in records.items():
+        if event.get('event_type') != 'stage_started':
+            continue
+        payload=event['payload']
+        inputs=list(file_inputs(payload.get('input',{})))
+        inputs.extend((row.get('path'),row.get('sha256')) for row in payload.get('input_files',[]) if isinstance(row,dict))
+        for value in dict.fromkeys(digest(value) for _,value in inputs):
+            if value is None:
+                continue
+            for artifact,producer in outputs.get(value,[]):
+                if producer['sequence'] >= event['sequence']:
+                    continue
+                result.append({'id':'file-input:'+artifact+':'+key,'from':artifact,'to':key,
+                    'kind':'input_reference','origin':'program_derived','scope':'same_file_content',
+                    'verification_method':'sha256_equality','sha256':value,
+                    'source_refs':[artifact,producer['event_id'],key]})
+    return result
 
 
 def build_facts(events, errors=(), *, through_sequence=None):
@@ -65,6 +98,7 @@ def build_facts(events, errors=(), *, through_sequence=None):
                                       "from": decision, "to": observed, "kind": "target_matches_input",
                                       "source_refs": [decision, observed], "origin": "program_derived",
                                       "scope": "Declared target value matches observed input; not proof of rationale or success"})
+    relations.extend(_file_hash_relations(records))
     requirements = [n for n in graph["nodes"] if n["kind"] == "requirement"
                     and graph["latest"].get(n["id"]) == n["key"]]
     handoffs = [e for e in design if e["event_type"] == "handoff_recorded"]
