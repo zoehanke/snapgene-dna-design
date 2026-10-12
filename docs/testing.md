@@ -22,12 +22,17 @@
 $env:SNAPGENE_RUN_PRIMER3='1'
 python -X utf8 -B -m unittest discover -s tests -p test_preparation_primer_locations.py -v
 python -X utf8 -B tools/run_test_suite.py
+python -X utf8 -B tools/run_test_suite.py --report-json output/test-results.json
 python -X utf8 -B tools/smoke_core.py
 python -X utf8 -B tools/property_tests.py --quick --out-dir output/property
 python -X utf8 -B tools/coverage_gate.py --out-dir output/coverage
 ```
 
 bash使用`export SNAPGENE_RUN_PRIMER3=1`。真实Primer3跳过会使正式runner失败；`--allow-primer3-skip`仅用于明确的非发布诊断。可选模型、Cas-OFFinder、参考基因组或桌面程序另需实际资源，flag不能代替后端。
+
+完整runner终端及可选`--report-json`分别写实际通过、skip及原因、失败、错误；UTF-8文件不把skip或部分执行的方法算通过。passed由unittest实际成功事件计数，子测试失败和class setup错误单列，计数单位写入文件。原21项逐项处置见[2026-10-13审计](archive/reviews/crispr-skip-audit-2026-10-13.md)。
+
+三个真实模型回归在依赖/权重齐全时自动执行；缺模块/权重明确列出，加载错误或参考数值不符仍失败，不以捕获后端错误作为skip。旧`SNAPGENE_RUN_REAL_MODELS=1`可强制运行资源不足时的失败。普通Cas-OFFinder集成可用`CAS_OFFINDER_EXE`或PATH，3.x bulge仍需明确`CAS_OFFINDER_EXE_V3`及OpenCL。Live NCBI默认离线隔离，使用`SNAPGENE_RUN_ONLINE=1`另做真实集成，失败不能降为skip。academic原素材不随源码分发，须合法单独提供；定位在Skill fixtures目录，不能用合成输入代替原案例。
 
 mutation、rich fixtures和scenario分别由`tools/mutation_tests.py`、`tools/validate_rich_fixtures.py`、`tools/run_scenario_suite.py`提供，参数以`--help`为准。场景需按executed/partial/blocked记录，不能将总场景数说成构建成功数。
 

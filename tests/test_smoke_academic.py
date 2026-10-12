@@ -9,7 +9,7 @@ import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SCRIPTS = str(TOOLS_ROOT)
-FIXTURE = os.path.abspath(os.path.join(HERE, "..", "fixtures", "pDONR201.dna"))
+FIXTURE = str(SKILL_ROOT / 'fixtures' / 'pDONR201.dna')
 
 
 @unittest.skipUnless(os.path.exists(FIXTURE),

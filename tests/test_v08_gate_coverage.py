@@ -12,6 +12,7 @@ import sys
 import tempfile
 import unittest
 from unittest import mock
+from model_test_requirements import requires_real_models
 
 from Bio.Seq import Seq
 from Bio.SeqFeature import CompoundLocation, FeatureLocation, SeqFeature
@@ -637,8 +638,7 @@ class AdditionalCoverageTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             azimuth_backend.AzimuthPredictor.predict(predictor, ["N" * 30])
 
-    @unittest.skipUnless(os.environ.get("SNAPGENE_RUN_REAL_MODELS") == "1",
-                         "set SNAPGENE_RUN_REAL_MODELS=1")
+    @requires_real_models('azimuth', 'deepcpf1')
     def test_guide_scoring_real_available_branch(self):
         payload, error = guide_scoring._run_azimuth(
             "ACGT" + "ACGT" * 5 + "GGG" + "AAA")

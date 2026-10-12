@@ -167,7 +167,7 @@ def main():
           str(reverse_orfs))
 
     # --- round 2: check_env, validate_construct, edit_plasmid ---
-    FIXTURE = os.path.abspath(os.path.join(HERE, "..", "fixtures", "pDONR201.dna"))
+    FIXTURE = str(SKILL_ROOT / 'fixtures' / 'pDONR201.dna')
 
     # Native .dna export of a real plasmid preserves basics and emits fidelity warning
     real_dna = os.path.join(tmp, "pDONR201-export.dna")

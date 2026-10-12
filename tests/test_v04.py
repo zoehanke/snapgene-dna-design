@@ -26,6 +26,11 @@ ROOT = SKILL_ROOT
 SCRIPTS = ROOT / "scripts"
 FIXTURES = ROOT / "fixtures"
 GOLDEN = FIXTURES / "golden"
+
+
+def _requires_external_files(*paths):
+    missing = [str(path) for path in paths if not path.is_file()]
+    return unittest.skipIf(bool(missing), 'Academic golden files unavailable: ' + ', '.join(missing))
 sys.path.insert(0, str(SCRIPTS))
 
 from validate_roundtrip import compare_records, validate  # noqa: E402
@@ -247,12 +252,11 @@ class FailureContractTests(unittest.TestCase):
 
 class GoldenGatewayTests(unittest.TestCase):
     def setUp(self):
-        if not (FIXTURES / "pDONR201.dna").exists() or not (GOLDEN / "attB-EmGFP.gb").exists():
-            self.skipTest("Academic golden fixtures not present")
         self.tmp = tempfile.TemporaryDirectory(prefix="v04-gw-")
         self.addCleanup(self.tmp.cleanup)
         self.tmp_path = pathlib.Path(self.tmp.name)
 
+    @_requires_external_files(FIXTURES/'pDONR201.dna', GOLDEN/'attB-EmGFP.gb', GOLDEN/'pENTR-EmGFP.gb')
     def test_bp_matches_committed_pENTR_EmGFP_fixture(self):
         out = self.tmp_path / "bp.gb"
         completed = run_script(
@@ -270,6 +274,7 @@ class GoldenGatewayTests(unittest.TestCase):
         self.assertTrue(comparison["passed"], comparison)
         self.assertTrue(comparison["qualifiers_equal"])
 
+    @_requires_external_files(GOLDEN/'pENTR-EmGFP.gb', GOLDEN/'pDEST40.dna', GOLDEN/'pDEST-EmGFP.gb')
     def test_lr_matches_committed_pDEST_EmGFP_fixture(self):
         out = self.tmp_path / "lr.gb"
         completed = run_script(
@@ -284,6 +289,7 @@ class GoldenGatewayTests(unittest.TestCase):
         self.assertTrue(comparison["passed"], comparison)
         self.assertTrue(comparison["qualifiers_equal"])
 
+    @_requires_external_files(GOLDEN/'attB-EmGFP.gb', GOLDEN/'pENTR-D-TOPO.dna', GOLDEN/'pDEST40.dna')
     def test_gateway_requires_explicit_topology(self):
         donor = self.tmp_path / "donor.fa"
         donor.write_text(">donor\nAAAACCCCGGGG\n")
@@ -302,6 +308,7 @@ class GoldenGatewayTests(unittest.TestCase):
         error = error_of(self, completed)
         self.assertEqual(error["code"], "INVALID_TOPOLOGY")
 
+    @_requires_external_files(GOLDEN/'pENTR-D-TOPO.dna', GOLDEN/'pDEST40.dna')
     def test_gateway_rejects_misordered_att_pair_instead_of_find_first(self):
         # pENTR-D-TOPO is linear with attL1 near the end and attL2 near the
         # start. Re-annotating it circular must not make .find() silently
@@ -318,6 +325,7 @@ class GoldenGatewayTests(unittest.TestCase):
         error = error_of(self, completed)
         self.assertEqual(error["code"], "ATT_SITE_ORDER")
 
+    @_requires_external_files(GOLDEN/'pENTR-EmGFP.gb', GOLDEN/'pDEST40.dna')
     def test_gateway_duplicate_att_site_is_rejected(self):
         entry = SeqIO.read(str(GOLDEN / "pENTR-EmGFP.gb"), "genbank")
         # duplicate the attL1 feature sequence once, then shrink it so the
@@ -393,12 +401,11 @@ def enzyme_site(enzyme):
 
 class GoldenTATests(unittest.TestCase):
     def setUp(self):
-        if not (GOLDEN / "pGEM-T-linearized.dna").exists() or not (GOLDEN / "ta-insert.fa").exists():
-            self.skipTest("Academic golden fixtures not present")
         self.tmp = tempfile.TemporaryDirectory(prefix="v04-ta-")
         self.addCleanup(self.tmp.cleanup)
         self.tmp_path = pathlib.Path(self.tmp.name)
 
+    @_requires_external_files(GOLDEN/'pGEM-T-linearized.dna', GOLDEN/'ta-insert.fa', GOLDEN/'pGEM-T-insert.gb')
     def test_ta_matches_committed_pGEM_T_fixture_with_explicit_premises(self):
         out = self.tmp_path / "ta.gb"
         completed = run_script(
@@ -426,6 +433,7 @@ class GoldenTATests(unittest.TestCase):
         self.assertTrue(comparison["passed"], comparison)
         self.assertTrue(comparison["qualifiers_equal"])
 
+    @_requires_external_files(GOLDEN/'pGEM-T-linearized.dna', GOLDEN/'ta-insert.fa')
     def test_ta_requires_explicit_end_premises(self):
         completed = run_script(
             "simulate_advanced.py", "--method", "ta",
@@ -435,6 +443,7 @@ class GoldenTATests(unittest.TestCase):
         error = error_of(self, completed)
         self.assertEqual(error["code"], "END_TYPE_MISMATCH")
 
+    @_requires_external_files(GOLDEN/'pGEM-T-linearized.dna', GOLDEN/'ta-insert.fa')
     def test_ta_requires_vector_cut(self):
         completed = run_script(
             "simulate_advanced.py", "--method", "ta",

@@ -122,6 +122,8 @@ It requires the complete circular pML104 template and an explicit 20 nt `A/C/G/T
 
 ## Pointers
 
+When describing validation, separate actually executed checks, skipped/unavailable backends and failures. A model or external-service test that did not run provides no verification evidence. Optional model resource absence must remain explicit; existing resources do not justify a silent opt-in skip. Keep software predictions, sequence simulation and wet-lab evidence distinct.
+
 - Read [references/recipes.md](references/recipes.md) for all seven Recipe signatures, defaults, aliases, and method-specific checks.
 - Read [references/guardrails.md](references/guardrails.md) when a biological check or warning needs its rule and applicability.
 - Read [references/source-policy.md](references/source-policy.md) when provenance or source evidence is unclear.

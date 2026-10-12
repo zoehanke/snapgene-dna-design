@@ -715,7 +715,7 @@ class AdditionalV09CoverageTests(unittest.TestCase):
 
 class M6OnlineSourceTests(unittest.TestCase):
     @unittest.skipUnless(os.environ.get("SNAPGENE_RUN_ONLINE") == "1",
-                         "set SNAPGENE_RUN_ONLINE=1 for live NCBI queries")
+                         "Live NCBI integration is opt-in to keep default suite offline; SNAPGENE_RUN_ONLINE=1 requires network/service availability")
     def test_live_ncbi_search(self):
         result = online_sources.ncbi_search("EGFP", retmax=2, timeout=30)
         self.assertEqual(result["status"], "verified-online")
