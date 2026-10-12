@@ -44,6 +44,8 @@ def _parameter_schema(annotation):
     from pathlib import Path
     origin, args = get_origin(annotation), get_args(annotation)
     if annotation in (SeqRecord, Seq) or any(a in (SeqRecord, Seq) for a in args):
+        if type(None) in args:
+            return {'anyOf': [*MOLECULE_INPUT_SCHEMA['anyOf'], {'type': 'null'}]}
         return MOLECULE_INPUT_SCHEMA.copy()
     if origin in (list, tuple):
         return {'type': 'array', 'items': _parameter_schema(args[0]) if args else {}}
@@ -233,6 +235,7 @@ def init_default_registry() -> None:
         prepare_pml104_guide,
     )
     from core.tools.grna import replace_grna_spacer, check_grna
+    from core.tools.grna_evaluation import check_grna_vector
     from core.tools.experience_helper import (
         get_experience_categories,
         get_experience_rule_by_id,
@@ -714,7 +717,7 @@ def init_default_registry() -> None:
             name="design_crispr_grna",
             callable=design_crispr_grna,
             category="compute",
-            description="Scan target gene or locus for candidate CRISPR sgRNA target sites.",
+            description="Scan unchanged CRISPR coordinates; report sourced GC/Pol III/5-prime/uniqueness/secondary-site factors and explicit screening ranks. Optional supplied-vector SpCas9 self-target check; no calibrated activity score.",
             parameters_schema={
                 "type": "object",
                 "properties": {
@@ -727,6 +730,13 @@ def init_default_registry() -> None:
             },
             param_aliases={"target": "target_seq_or_file"},
 
+        ),
+        ToolSpec(
+            name="check_grna_vector",
+            callable=check_grna_vector,
+            category="inspect",
+            description="Screen caller-supplied vector on both strands for 20 nt SpCas9 exact/0–3 substitution sites with NGG; report predicted self-cutting, not measured cleavage.",
+            parameters_schema={"type": "object", "properties": {}},
         ),
         ToolSpec(
             name="prepare_grna_oligos",

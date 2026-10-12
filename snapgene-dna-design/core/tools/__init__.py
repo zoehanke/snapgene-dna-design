@@ -31,6 +31,7 @@ from core.tools.crispr import (
     prepare_pml104_guide,
 )
 from core.tools.grna import replace_grna_spacer, check_grna
+from core.tools.grna_evaluation import check_grna_vector
 from core.tools.experience_helper import (
     get_experience_categories,
     get_experience_rule_by_id,
@@ -103,6 +104,7 @@ __all__ = [
     "prepare_pml104_guide",
     "replace_grna_spacer",
     "check_grna",
+    "check_grna_vector",
     "design_hdr_donor",
     "extract_homology_arms",
     "get_feature",

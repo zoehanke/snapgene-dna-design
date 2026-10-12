@@ -212,7 +212,7 @@ def run_scenario_b(out_dir: pathlib.Path) -> dict:
     print("[2/6] Designing candidate sgRNAs & preparing U6 cloning oligos (BbsI)...")
     guides = design_crispr_grna(target_seq_or_file=target_genomic_locus, nuclease="SpCas9")
     oligos = prepare_grna_oligos(spacer_seq=spacer, vector_type="BbsI")
-    print(f"      Selected Guide: {guides[0]['spacer']} (Quality Score: {guides[0]['quality_score']})")
+    print(f"      Selected Guide: {guides[0]['spacer']} (Screening rank: {guides[0]['screening_rank']}; not activity prediction)")
     print(f"      Top oligo (5' CACC overhang): {oligos['forward_oligo']['sequence']}")
     print(f"      Bottom oligo (5' AAAC overhang): {oligos['reverse_oligo']['sequence']}")
 

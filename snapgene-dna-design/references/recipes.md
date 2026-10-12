@@ -207,6 +207,23 @@ The result contains the actual sequence, `pcr`, `design`, complete primers and o
 
 ## Existing guide cassettes
 
+### Guide candidate screening
+
+```python
+design_crispr_grna(target_seq_or_file, nuclease="SpCas9", start=None, end=None,
+    circular=False, vector_seq_or_file=None, max_mismatches=3,
+    transcription_promoter="unspecified")
+check_grna_vector(spacer_seq, vector_seq_or_file, max_mismatches=3)
+```
+
+Existing candidate interval/strand/cut conventions stay unchanged. `evaluation` reports separate factors; `screening_key` and dense `screening_rank` use lexicographic software policy: supplied-vector exact match, near match, target non-uniqueness, exact secondary count, near secondary count, Pol III poly-T, extreme GC, then explicitly human U6 non-G start. Lower is preferred; true ties remain. No numerical efficacy weights are claimed; former `quality_score` is null. GC percentage and literal 5-prime base remain visible even when risk ranks tie.
+
+Factor basis: [official crisprDesign vignette](https://bioconductor.org/packages/release/bioc/vignettes/crisprDesign/inst/doc/intro.html), sections 4.4–4.5, reports GC preference 20–80%, >=4 T potential U6 termination and exact/0–3 substitution alignments with PAM filtering. [Bio-protocol e2059](https://www.bio-protocol.org/en/bpdetail?id=2059&pos=q&type=0), 2016 procedure B1, prefers first G for human U6. This preference is not universal for SNR52 or other Pol III promoters. Context values: `unspecified`, `human_U6`, `other_pol_III`, `non_pol_III`. No spacer is changed by screening.
+
+Target uniqueness counts physical 20/23 nt loci on both strands across the entire supplied target, even outside the candidate scan region and without PAM. Secondary-site evidence independently requires canonical nuclease PAM; the candidate's own site is excluded. Supplied-vector screening supports SpCas9 only, exact and up to three substitutions with NGG, both strands and circular origin crossings. Mismatch positions are 1-based in guide orientation; site/parts coordinates are 0-based reference order with strand explicit. Circularity comes from the vector file/Molecule; raw sequences are linear.
+
+Exact vector matches report predicted self-cutting; near matches are potential risk, not measured cleavage. Missing vector is NOT_SUPPLIED. Unknown bases make negative claims INCOMPLETE. No bulges, non-NGG vector PAMs, unprovided genome or experimental efficacy is assessed. AsCas12a target candidates remain available, but supplying a vector for the NGG check is rejected. Structured sources include revision, URL, retrieval date and verification status.
+
 **Callables:** `core.tools.grna.replace_grna_spacer`, `core.tools.grna.check_grna`. Both are registered atomic tools, discoverable with `describe_tools.py` and executable through `run_step`/Pipeline.
 
 ```python

@@ -27,6 +27,9 @@ def design_crispr_grna(
     start: int | None = None,
     end: int | None = None,
     circular: bool = False,
+    vector_seq_or_file: MoleculeInput | None = None,
+    max_mismatches: int = 3,
+    transcription_promoter: str = 'unspecified',
 ) -> ToolResult:
     """Scan DNA sequence for CRISPR sgRNA candidate target sites.
 
@@ -38,7 +41,8 @@ def design_crispr_grna(
         circular: Whether sequence is circular.
 
     Returns:
-        List of candidate sgRNA dictionaries sorted by objective quality score.
+        Candidate evidence profiles and transparent screening ranks. No calibrated
+        activity score. Optional supplied-vector NGG check supports SpCas9 only.
     """
     from core.io.input_resolution import resolve_sequence_input
     rec, seq = resolve_sequence_input(target_seq_or_file)
@@ -115,9 +119,9 @@ def design_crispr_grna(
             if (scan_start <= pos and (pos + 27) <= scan_end) or (circular and pos < n):
                 candidates.append(_evaluate_grna_candidate(spacer, pam, pos, (pos + 27) % n, -1, cut_pos, n))
 
-    # Sort candidates by objective quality score descending
-    candidates.sort(key=lambda c: c["quality_score"], reverse=True)
-    return ToolResult(analysis={'candidates': candidates})
+    from core.tools.grna_evaluation import evaluate_candidates
+    return ToolResult(analysis=evaluate_candidates(candidates, seq, circular, is_cas12,
+        vector_seq_or_file, max_mismatches, transcription_promoter))
 
 
 def _evaluate_grna_candidate(
@@ -133,30 +137,7 @@ def _evaluate_grna_candidate(
     gc_count = spacer.count("G") + spacer.count("C")
     gc_pct = round((gc_count / n) * 100.0, 1)
 
-    warnings = []
-    # Pol III U6 transcription termination check: >= 4 T's in a row aborts transcription!
     has_poly_t = ("TTTT" in spacer)
-    if has_poly_t:
-        warnings.append("Poly-T motif (TTTT) present: causes premature termination by RNA Pol III (U6 promoter)")
-
-    if gc_pct < 40.0:
-        warnings.append(f"Low GC content ({gc_pct}%); ideal range is 40-70%")
-    elif gc_pct > 70.0:
-        warnings.append(f"High GC content ({gc_pct}%); risk of off-target or secondary structure")
-
-    # Objective heuristic score (0 - 100)
-    score = 80.0
-    if 45.0 <= gc_pct <= 65.0:
-        score += 10.0
-    elif gc_pct < 35.0 or gc_pct > 75.0:
-        score -= 20.0
-
-    if has_poly_t:
-        score -= 40.0
-
-    # SpCas9 favors G at 5' end for U6 promoter transcription initiation
-    if spacer.startswith("G"):
-        score += 10.0
 
     return {
         "spacer": spacer,
@@ -166,8 +147,8 @@ def _evaluate_grna_candidate(
         "cut_position_0based": cut_pos,
         "gc_percent": gc_pct,
         "has_poly_t": has_poly_t,
-        "quality_score": max(0.0, min(100.0, round(score, 1))),
-        "warnings": warnings,
+        "quality_score": None,
+        "warnings": [],
     }
 
 
