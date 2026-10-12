@@ -747,7 +747,7 @@ def init_default_registry() -> None:
             name="replace_grna_spacer",
             callable=replace_grna_spacer,
             category="compute",
-            description="Replace exactly 20 nt between a directed promoter and an actual scaffold anchor; preserve other DNA and record retired overlapping annotations.",
+            description="Replace exactly 20 nt between promoter and scaffold; default designs variable-Tm inverse-PCR/DpnI/KLD route, independently simulates it and preserves other DNA. Lab work remains planned; sequence_only opts out.",
             parameters_schema={"type": "object", "properties": {}},
         ),
         ToolSpec(

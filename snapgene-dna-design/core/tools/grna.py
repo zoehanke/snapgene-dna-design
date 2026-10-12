@@ -134,18 +134,24 @@ def replace_grna_spacer(
     promoter_name: str | None = None, promoter_end_0based: int | None = None,
     transcription_strand: int | None = None,
     scaffold_seq: str = SPCAS9_SCAFFOLD_PREFIX,
+    preparation_mode: str = 'inverse_pcr', target_tm: float = 60.0,
 ) -> ToolResult:
     """Replace only the existing 20 nt promoter-to-scaffold spacer.
 
     Auto-select a uniquely directed annotated promoter with the actual scaffold
     anchor 20 bases downstream. Unannotated templates need an explicit promoter
     3-prime boundary and transcription strand. Coordinates are 0-based half-open.
-    This edits a sequence model; it does not establish physical preparation.
+    Default designs a planned inverse-PCR/KLD route and separately simulates it.
+    Physical experiments remain unperformed; sequence_only explicitly opts out.
     """
     spacer = str(spacer_seq).strip().upper()
     if len(spacer) != 20 or set(spacer) - set('ACGT'):
         raise ValueError('Replacement spacer requires exactly 20 nt of A/C/G/T')
     source = as_molecule(vector_record_or_seq)
+    if preparation_mode not in ('inverse_pcr', 'sequence_only'):
+        raise ValueError('preparation_mode must be inverse_pcr or sequence_only')
+    if not 52 <= target_tm <= 72:
+        raise ValueError('target_tm must lie within supported 52-72 C core-design window')
     cassette = _locate(source, promoter_name, promoter_end_0based, transcription_strand, scaffold_seq)
     location = cassette.pop('_location')
     strand = cassette['transcription_strand']
@@ -174,17 +180,31 @@ def replace_grna_spacer(
         for pos in location:
             updated[pos] = None
         product.letter_annotations[key] = updated
-    material = derived_molecule(product, [source], operation='replace_grna_spacer',
-        strandedness=source.strandedness, left_end=source.left_end, right_end=source.right_end,
-        mappings=[{'source_interval_0based': [0, len(source)], 'product_interval_0based': [0, len(source)],
-                   'strand': 1, 'replaced_parts_0based': _parts(location)}])
+    from core.tools.grna_preparation import preparation_warnings, plan_and_simulate, protocol_steps
+    warnings.extend(preparation_warnings(source, location, spacer))
+    route = {'status': 'NOT_REQUESTED', 'simulation_status': 'NOT_RUN', 'wet_lab': 'NOT_PERFORMED'}
+    preparation, prepared, reaction_checks = [], None, []
+    if preparation_mode == 'inverse_pcr':
+        route, preparation, prepared, reaction_checks = plan_and_simulate(
+            source, location, spacer, str(product.seq), target_tm)
+        if route['status'] == 'UNAVAILABLE':
+            warnings.append({'code': 'GRNA_PREPARATION_UNAVAILABLE', 'message': route['reason']})
+    material = derived_molecule(product, [prepared or source], operation='replace_grna_spacer',
+        strandedness=prepared.strandedness if prepared is not None else source.strandedness,
+        left_end=source.left_end, right_end=source.right_end,
+        mappings=None if prepared is not None else [{'source_interval_0based': [0, len(source)],
+            'product_interval_0based': [0, len(source)], 'strand': 1, 'replaced_parts_0based': _parts(location)}])
     replacement = {'before': cassette['spacer'], 'after': spacer, 'parts_0based': _parts(location),
         'transcription_strand': strand, 'length_delta': 0, 'outside_window_unchanged': True}
     return ToolResult(products=[material], analysis={**cassette, 'spacer': spacer,
         'replacement': replacement, 'annotation_changes': changes, 'warnings': warnings,
-        'scope_note': 'Sequence replacement; physical preparation is not established.'},
+        'preparation_route': route, 'preparation': preparation,
+        'primers': route.get('primers', []) if preparation else [], 'protocol_steps': protocol_steps(route, len(source)),
+        'scope_note': 'Sequence design and separately simulated preparation chain when available; wet experiments NOT_PERFORMED.'},
         checks=[check_result('spacer_replacement', subject=material, status='PASSED', scope='sequence_model',
-            conditions={'source_version': source.record_version}, details=replacement)])
+            conditions={'source_version': source.record_version}, details=replacement), *reaction_checks,
+            *([check_result('grna_preparation', subject=material, status='INCOMPLETE', scope='preparation_model',
+                details={'reason': route['reason'], 'wet_lab': 'NOT_PERFORMED'})] if route['status']=='UNAVAILABLE' else [])])
 
 
 def _target_matches(target, spacer, pam_pattern, query_role):

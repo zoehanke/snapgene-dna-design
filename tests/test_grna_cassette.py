@@ -48,6 +48,10 @@ def cassette():
 
 
 def invoke(name, **kwargs):
+    # These original v2.2.3 tests own sequence/annotation behavior; physical
+    # preparation defaults are tested independently in test_grna_preparation.
+    if name == 'replace_grna_spacer':
+        kwargs.setdefault('preparation_mode','sequence_only')
     if name not in TOOL_REGISTRY:
         raise AssertionError('Missing public tool: ' + name)
     return TOOL_REGISTRY[name].execute(**kwargs)
@@ -190,7 +194,7 @@ class GuideCassetteTests(unittest.TestCase):
             source = folder / '中文模板.gb'
             with source.open('w', encoding='utf-8') as handle:
                 SeqIO.write(rec, handle, 'genbank')
-            config = {'method':'replace_grna_spacer', 'params':{'vector_record_or_seq':str(source), 'spacer_seq':NEW}}
+            config = {'method':'replace_grna_spacer', 'params':{'vector_record_or_seq':str(source), 'spacer_seq':NEW, 'preparation_mode':'sequence_only'}}
             cfg = folder / 'step.json'
             cfg.write_text(json.dumps(config, ensure_ascii=False), encoding='utf-8')
             run = subprocess.run([sys.executable, '-B', str(ROOT/'scripts/run_step.py'), '--input', str(cfg),

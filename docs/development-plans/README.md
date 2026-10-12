@@ -4,6 +4,8 @@
 
 ## 当前授权与已结束工作
 
+2026-10-13授权[gRNA构建路线2.2.4](../archive/plans/grna-preparation-v2.2.4.md)：Core2.2.4本地实现/验收结束：默认逆向PCR/DpnI/KLD计划、实际Tm/纯化说明、独立模拟与公共交付通过；1223项1202通过/21跳过，烟雾95通过，独立包与三档字节一致；保留原材料/模板QC失败，更新spec/SKILL并推送现有独立开发分支。只承接此项；旧CI账单阻断复查，main及原工作区改动保留。
+
 2026-10-12授权[CRISPR cassette修复](../archive/plans/crispr-cassette-repairs-v2.2.3.md)：Core2.2.3本地实现/验收结束，原Native日期入口已有修复；通用20 nt替换、已有guide双链/PAM核对、注释/抗性/QC来源/UTF-8回归成立。1217项1196通过/21跳过，烟雾95通过，独立包与原材料回放通过；CI另记。使用隔离开发工作树，保留原材料和原工作区改动；本轮明确授权验证后推送开发分支并检查精确CI，main和正式发布不在范围。
 
 [Genome Revival Toolkit v0.1](../archive/plans/genome-revival-toolkit-v0.1.md)本轮本地实施与验收结束：Toolkit0.1.0/Core2.2.2/Trace0.3.3，代码9bc9aa3，完整1202项中1194通过、8跳过，烟雾95通过；冻结独立包三Kit/三档/实际文件成立。真实DSH Flash/max自主完成526/250 bp主检测候选，经独立核算；未绑定的补充文稿有错误，不称全部呈现已验证。审核源目录原套件1179通过、23外源/可选跳过、零失败，builder可用。英文Wiki/官方核对和上传源包已准备，本地证据不代替正式提交。

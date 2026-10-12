@@ -37,6 +37,8 @@ Coverage读取真实模块的行/分支及套件退出码，目标和阈值以[�
 
 CRISPR cassette工程回归在`tests/test_grna_cassette.py`：独立拼接输入、原生packet日期、正反转录、跨原点、双靶链/PAM、反插/无PAM/无匹配、多cassette选择、注释冲突、假抗性CDS、实际run_step及中文GenBank读回。模板QC使用同名但不同序列feature，验证继承与新增诊断不混淆，ERR仍退出1。真实用户材料和原失败日志只留仓库外；开发者重放和这些独立构造输入均是工程回归，不计陌生题或自主成功。
 
+gRNA制备回归在`tests/test_grna_preparation.py`：两组独立模板与不同新spacer，目标由原材料直接拼接而非被测工具生成；生成路线后再公开PCR/连接/旋转，验证逐位相等及公共交付文件。Tm用独立公开Biopython API与手写Allawi/SantaLucia NN算术、盐修正交叉核查。正反转录、跨原点、重复spacer/结合核心、poly-T、高GC/重复不可行、sequence_only无制备分别核查；计划与模拟/湿实验状态进入Trace。原2.2.3注释用例显式sequence_only保持其职责，默认制备另测，不删除原失败输入或放宽门禁。
+
 从原材料、要求和实际操作独立核验，不能采信宿主自报PASS或仅对照参考序列。允许不同正确路线与环形起点。多轮必须使用上轮真实产物；检查制备、接口、读框、注释、文件和结论。
 
 Core API例子：`python -X utf8 -B snapgene-dna-design/examples/core_workflow.py --out-dir output/api-example`，属于序列文件编辑。实际准备链演示：`python -X utf8 -B snapgene-dna-design/scripts/demo_engineering_cycle.py --out-dir output/demo`，属于预设方案回归，两者都不是宿主陌生任务或湿实验。

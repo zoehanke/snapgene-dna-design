@@ -2,7 +2,7 @@
 
 把自然语言需求和真实序列材料转成可检查的DNA设计、制备链、引物及GenBank/SnapGene文件。宿主AI选择路线，程序计算实际反应；文件检查不代表实验成功。
 
-当前版本2.2.3。Recipe与原子操作共用实际产物、当前质量检查和正式交付；工作目录支持逐步继续，原材料及失败记录保留。AI选择路线，程序不把正确序列或局部PASS自动当作完整任务完成。
+当前版本2.2.4。Recipe与原子操作共用实际产物、当前质量检查和正式交付；工作目录支持逐步继续，原材料及失败记录保留。AI选择路线，程序不把正确序列或局部PASS自动当作完整任务完成。
 
 ## 安装
 
@@ -47,7 +47,7 @@ python scripts/finalize_workflow.py --workspace work --candidate-ref "$final.pro
 
 目标格式查询`describe_tools.py workflow_requirements`。原文放`original_request`，元件放可执行的`expected_components`/`forbidden_components`；未支持字段明确拒绝，`goal_coverage`列出实际检查范围。序列/编码差异用`compare_sequences`检查真实边界和蛋白差异，结果不建立实验功能。
 
-已有20 nt guide用`check_grna`核对实际转录序列、靶标双链和PAM；换guide用`replace_grna_spacer`，只替换启动子和骨架之间的20 nt并记录旧注释处置。[签名与选择边界](references/recipes.md#existing-guide-cassettes)。这一步是序列编辑，制备需另走实际PCR/连接。`validate_construct.py product.gb --template source.dna`区分继承与本次新增/改变的QC问题，保留ERR与退出码。GenBank导出、读取使用显式UTF-8。
+已有20 nt guide用`check_grna`核对实际转录序列、靶标双链和PAM；换guide用`replace_grna_spacer`，只替换启动子和骨架之间的20 nt并记录旧注释处置。[签名与选择边界](references/recipes.md#existing-guide-cassettes)。默认生成计划中的反向PCR/DpnI/KLD路线并独立模拟；Tm、盐参数、完整引物及纯化建议随结果保存。wet_lab仍为NOT_PERFORMED，显式sequence_only不提供制备链。`validate_construct.py product.gb --template source.dna`区分继承与本次新增/改变的QC问题，保留ERR与退出码。GenBank导出、读取使用显式UTF-8。
 
 ## 看交付
 

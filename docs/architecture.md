@@ -266,7 +266,7 @@ flowchart TD
 
 ## 实际Python接口
 
-`core/tools/grna.py`共用cassette定位：启动子3-prime出口、转录方向、20 nt间隔和实际scaffold anchor。`replace_grna_spacer`返回完整Molecule与替换/注释处置记录；`check_grna`返回原vector subject上的sequence_model检查、靶标双链/PAM匹配及注释冲突，注册后与现有run_step/Pipeline共用派发。`inspection.selection_marker_evidence`供Core与inspect CLI共享完整CDS支持判据；`validate_construct --template`按实际feature内容和诊断标来源，仍保留错误等级。
+`core/tools/grna.py`共用cassette定位：启动子3-prime出口、转录方向、20 nt间隔和实际scaffold anchor。`replace_grna_spacer`返回完整Molecule与替换/注释处置记录；2.2.4的`core/tools/grna_preparation.py`复用原引物搜索和PCR/连接/旋转公共工具，先计划后独立模拟；最终分子引用实际反应产物，原preparation_rows/门禁/Trace共用此链，不另建执行器；`check_grna`返回原vector subject上的sequence_model检查、靶标双链/PAM匹配及注释冲突，注册后与现有run_step/Pipeline共用派发。`inspection.selection_marker_evidence`供Core与inspect CLI共享完整CDS支持判据；`validate_construct --template`按实际feature内容和诊断标来源，仍保留错误等级。
 
 精确签名以[Core源码](../snapgene-dna-design/core/__init__.py)和[完整示例](../snapgene-dna-design/examples/core_workflow.py)为准。
 
