@@ -7,6 +7,8 @@ and critical P1 biological edge cases.
 """
 from __future__ import annotations
 
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
+
 import hashlib
 import json
 import pathlib
@@ -34,7 +36,7 @@ from core.errors import (
     TaskValidationError,
 )
 
-ROOT = pathlib.Path(__file__).resolve().parents[1]
+ROOT = SKILL_ROOT
 sys.path.insert(0, str(ROOT / "scripts"))
 from simulate_advanced import ATTL1, ATTL2, ATTR1, ATTR2  # noqa: E402
 

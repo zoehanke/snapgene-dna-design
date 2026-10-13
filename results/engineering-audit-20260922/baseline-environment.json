@@ -1,0 +1,121 @@
+{
+  "python": "3.12.4",
+  "required": [
+    {
+      "module": "Bio",
+      "dist": "biopython",
+      "status": "ok",
+      "version": "1.88"
+    },
+    {
+      "module": "snapgene_reader",
+      "dist": "snapgene_reader",
+      "status": "ok",
+      "version": "0.1.23"
+    },
+    {
+      "module": "sgffp",
+      "dist": "sgffp",
+      "status": "ok",
+      "version": "0.21.0"
+    },
+    {
+      "module": "jsonschema",
+      "dist": "jsonschema",
+      "status": "ok",
+      "version": "4.26.0"
+    }
+  ],
+  "optional": [
+    {
+      "module": "numpy",
+      "dist": "numpy",
+      "status": "ok",
+      "version": "2.0.2"
+    },
+    {
+      "module": "pandas",
+      "dist": "pandas",
+      "status": "ok",
+      "version": "3.0.3"
+    },
+    {
+      "module": "matplotlib",
+      "dist": "matplotlib",
+      "status": "ok",
+      "version": "3.11.1"
+    },
+    {
+      "module": "sklearn",
+      "dist": "scikit-learn",
+      "status": "ok",
+      "version": "1.9.0"
+    },
+    {
+      "module": "torch",
+      "dist": "torch",
+      "status": "ok",
+      "version": "2.13.0"
+    },
+    {
+      "module": "h5py",
+      "dist": "h5py",
+      "status": "ok",
+      "version": "3.16.0"
+    }
+  ],
+  "model_artifacts": [
+    {
+      "path": "third_party/azimuth/saved_models/V3_model_nopos.pickle",
+      "label": "Azimuth V3 model",
+      "status": "ok",
+      "expected_sha256": "AF933634BE494336BC95BF657B07F7599AF842A2E9601797C88A49158D040214",
+      "actual_sha256": "AF933634BE494336BC95BF657B07F7599AF842A2E9601797C88A49158D040214"
+    },
+    {
+      "path": "third_party/deepcpf1/Seq_deepCpf1_weights.h5",
+      "label": "DeepCpf1 sequence weights",
+      "status": "ok",
+      "expected_sha256": "DD79C3B349E409745624DB009CD8845A3991217BD8FF3A744860C4ACF696BDA3",
+      "actual_sha256": "DD79C3B349E409745624DB009CD8845A3991217BD8FF3A744860C4ACF696BDA3"
+    },
+    {
+      "path": "third_party/deepcpf1/DeepCpf1_weights.h5",
+      "label": "DeepCpf1 chromatin weights",
+      "status": "ok",
+      "expected_sha256": "946E84A2D30CEEBC57E01F00E9D4CFD396CC9B4C0B8B4A55364B0246F7343E77",
+      "actual_sha256": "946E84A2D30CEEBC57E01F00E9D4CFD396CC9B4C0B8B4A55364B0246F7343E77"
+    }
+  ],
+  "primer3_core": {
+    "status": "available",
+    "backend": "primer3-core",
+    "path": "primer3_core.exe",
+    "version": "2.6.1",
+    "detail": null
+  },
+  "cas_offinder_v2": {
+    "installed": false,
+    "executable": null,
+    "version": null,
+    "opencl_detected": null
+  },
+  "cas_offinder_v3": {
+    "installed": false,
+    "executable": null,
+    "version": null,
+    "opencl_detected": null
+  },
+  "snapgene": {
+    "status": "available",
+    "path": "SnapGene.exe"
+  },
+  "online": {
+    "status": "available",
+    "url": "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=nucleotide&term=EGFP&retmax=1&retmode=json"
+  },
+  "core_ok": true,
+  "release_real_ok": false,
+  "missing_required": [],
+  "missing_optional": []
+}

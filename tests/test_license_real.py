@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 """Academic-only real-fixture license checker tests."""
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import json
 import pathlib
 import subprocess
@@ -9,7 +11,7 @@ import unittest
 import zipfile
 
 HERE = pathlib.Path(__file__).resolve().parent
-ROOT = HERE.parent
+ROOT = SKILL_ROOT
 SCRIPTS = ROOT / "scripts"
 
 
@@ -25,7 +27,7 @@ class RealLicenseHashCheckerTests(unittest.TestCase):
     def _run_checker(self, target, *extra):
         completed = subprocess.run(
             [sys.executable, "-X", "utf8",
-             str(SCRIPTS / "check_redistributable.py"), str(target)] + list(extra),
+             str(TOOLS_ROOT / 'check_redistributable.py'), str(target)] + list(extra),
             capture_output=True, text=True, encoding="utf-8", errors="replace")
         return completed.returncode, json.loads(completed.stdout)
 

@@ -3,8 +3,8 @@
 ## 1. 审计对象与结论
 
 - 版本：`0.9.0`（RC1 审计历史见升级日志；本文件当前指向正式版）
-- 源码：`D:\codex_project\snapgene-dna-design-v0.9.0-work`
-- 本机 SnapGene：`D:\SnapGene\SnapGene.exe`
+- 源码：`<workspace>`
+- 本机 SnapGene：`<workspace>`
 - 性质：开发快照；本轮热修后达到 RC 验收候选，不自动标记正式版。
 
 本轮没有把“测试通过”写成“湿实验一定成功”。审计确认的是：坐标、拓扑、
@@ -53,7 +53,7 @@
 
 ## 5. SnapGene 官方核验的诚实边界
 
-rc1 关闭 SnapGene GUI 后使用 `D:\SnapGene\SnapGene.exe` 执行官方 rich-fixture 门禁：
+rc1 关闭 SnapGene GUI 后使用 `<workspace>` 执行官方 rich-fixture 门禁：
 `rich declared compatibility gate: PASS`；`snapgene-gb` 官方往返通过；`.dna`
 的第三方规范化差异按已声明分类接受。证据：`reports/rc1-rich-official/` 与
 `reports/rc1-rich-official.log`。

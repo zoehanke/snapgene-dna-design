@@ -1,0 +1,122 @@
+{
+  "python": "3.12.4 (tags/v3.12.4:8e8a4ba, Jun  6 2024, 19:30:16) [MSC v.1940 64 bit (AMD64)]",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "processor": "Intel64 Family 6 Model 183 Stepping 1, GenuineIntel",
+  "cpu_count": 32,
+  "versions": {
+    "biopython": "1.88",
+    "sgffp": "0.21.0",
+    "jsonschema": "4.26.0",
+    "primer3-py": "2.3.0"
+  },
+  "commit": "b87a1d833f9a218618beaf64bd226265412b6506",
+  "memory_scope": "tracemalloc in this Python process; excludes child-process/native allocations",
+  "rows": [
+    {
+      "case": "extract-export-readback",
+      "bases": 5000,
+      "features": 5,
+      "seconds": [
+        0.07784679997712374,
+        0.0068561999360099435,
+        0.006553100072778761
+      ],
+      "median_seconds": 0.0068561999360099435,
+      "max_python_allocated_bytes": 1527005,
+      "repeats": 3
+    },
+    {
+      "case": "inspect-cli-including-startup",
+      "bases": 5000,
+      "features": 5,
+      "seconds": [
+        0.6098280999576673,
+        0.5979511000914499,
+        0.6100319999968633
+      ],
+      "median_seconds": 0.6098280999576673,
+      "max_python_allocated_bytes": 42910,
+      "repeats": 3
+    },
+    {
+      "case": "extract-export-readback",
+      "bases": 50000,
+      "features": 50,
+      "seconds": [
+        0.03781889996025711,
+        0.036495800013653934,
+        0.03761749994009733
+      ],
+      "median_seconds": 0.03761749994009733,
+      "max_python_allocated_bytes": 417508,
+      "repeats": 3
+    },
+    {
+      "case": "inspect-cli-including-startup",
+      "bases": 50000,
+      "features": 50,
+      "seconds": [
+        0.9746148999547586,
+        0.996139399940148,
+        1.0082042999565601
+      ],
+      "median_seconds": 0.996139399940148,
+      "max_python_allocated_bytes": 41972,
+      "repeats": 3
+    },
+    {
+      "case": "extract-export-readback",
+      "bases": 500000,
+      "features": 500,
+      "seconds": [
+        0.47696879995055497,
+        0.47722000000067055,
+        0.4731527999974787
+      ],
+      "median_seconds": 0.47696879995055497,
+      "max_python_allocated_bytes": 3649717,
+      "repeats": 3
+    },
+    {
+      "case": "inspect-cli-including-startup",
+      "bases": 500000,
+      "features": 500,
+      "seconds": [
+        12.776980299968272,
+        12.71458510006778,
+        12.844728900003247
+      ],
+      "median_seconds": 12.776980299968272,
+      "max_python_allocated_bytes": 42134,
+      "repeats": 3
+    },
+    {
+      "case": "trace-rebuild",
+      "events": 100,
+      "seconds": [
+        0.15716850000899285,
+        0.16185639996547252,
+        0.1545820999890566
+      ],
+      "median_seconds": 0.15716850000899285,
+      "max_python_allocated_bytes": 3074853,
+      "repeats": 3,
+      "html_bytes": 178110
+    },
+    {
+      "case": "trace-rebuild",
+      "events": 1000,
+      "seconds": [
+        1.7214445999125019,
+        1.7561778000090271,
+        1.731042500003241
+      ],
+      "median_seconds": 1.731042500003241,
+      "max_python_allocated_bytes": 30618364,
+      "repeats": 3,
+      "html_bytes": 1524514
+    }
+  ],
+  "working_tree_dirty": true,
+  "measurement_state": "Runtime code at b87a1d8; user Reader Demo whitespace edit and diagnostics only."
+}

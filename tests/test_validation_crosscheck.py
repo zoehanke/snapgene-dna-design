@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 """Independent numerical cross-validation tests."""
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import pathlib
 import sys
 import unittest
@@ -8,7 +10,7 @@ from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
 HERE = pathlib.Path(__file__).resolve().parent
-ROOT = HERE.parent
+ROOT = SKILL_ROOT
 sys.path.insert(0, str(ROOT / "scripts"))
 
 import validation_crosscheck as vc  # noqa: E402

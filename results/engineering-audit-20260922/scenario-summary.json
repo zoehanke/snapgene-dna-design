@@ -1,0 +1,12 @@
+{
+  "total": 90,
+  "execution_contracts": {
+    "PASS": 90
+  },
+  "outcomes": {
+    "blocked-as-designed": 39,
+    "executed": 40,
+    "partial-analysis": 11
+  },
+  "scope": "Literature-inspired execution contracts; blocked cases are not constructed products."
+}

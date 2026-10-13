@@ -1,0 +1,70 @@
+LOCUS       pSynthetic-GFP          2500 bp    DNA     circular UNK 01-JAN-1980
+DEFINITION  Synthetic 2500 bp GFP cloning vector.
+ACCESSION   pSynthetic-GFP
+VERSION     pSynthetic-GFP
+KEYWORDS    .
+SOURCE      .
+  ORGANISM  .
+            .
+FEATURES             Location/Qualifiers
+     promoter        1..122
+                     /label="lac promoter"
+     misc_feature    123..171
+                     /label="MCS"
+     CDS             172..888
+                     /label="GFP"
+                     /gene="gfp"
+                     /product="green fluorescent protein"
+     terminator      889..1038
+                     /label="terminator"
+     rep_origin      1039..1639
+                     /label="ColE1"
+                     /note="ColE1 replication origin"
+     CDS             1640..2500
+                     /label="AmpR"
+                     /gene="bla"
+                     /product="beta-lactamase"
+ORIGIN
+        1 gcgcaacgca attaatgtga gttagctcac tcattaggca ccccaggctt tacactttat
+       61 gcttccggct cgtatgttgt gtggaattgt gagcggataa caatttcaca caggaaacag
+      121 ctgaattcga gctcggtacc cggggatcct ctagagtcga cctgcaggca tatgagtaaa
+      181 ggagaagaac ttttcactgg agttgtccca attcttgttg aattagatgg tgatgttaat
+      241 gggcacaaat tttctgtcag tggagagggt gaaggtgatg caacatacgg aaaacttacc
+      301 cttaaattta tttgcactac tggaaaacta cctgttccat ggccaacact tgtcactact
+      361 ttctcttatg gtgttcaatg cttttcaaga tacccagatc atatgaaacg gcatgacttt
+      421 ttcaagagtg ccatgcccga aggttatgta caggaaagaa ctatattttt caaagatgac
+      481 gggaactaca agacacgtgc tgaagtcaag tttgaaggtg atacccttgt taatagaatc
+      541 gagttaaaag gtattgattt taaagaagat ggaaacattc ttggacacaa attggaatac
+      601 aactataact cacacaatgt atacatcatg gcagacaaac aaaagaatgg aatcaaagtt
+      661 aacttcaaaa ttagacacaa cattgaagat ggaagcgttc aactagcaga ccattatcaa
+      721 caaaatactc caattggcga tggccctgtc cttttaccag acaaccatta cctgtccaca
+      781 caatctgccc tttcgaaaga tcccaacgaa aagagagacc acatggtcct tcttgagttt
+      841 gtaacagctg ctgggattac acatggcatg gatgaactat acaaataact aagaaaccat
+      901 tattatcatg acattaacct ataaaaatag gcgtatcacg aggccctttc gtctcgcgcg
+      961 tttcggtgat gacggtgaaa acctctgaca catgcagctc ccggagacgg tcacagcttg
+     1021 tctgtaagcg gatgccggtt gagatccttt ttttctgcgc gtaatctgct gcttgcaaac
+     1081 aaaaaaacca ccgctaccag cggtggtttg tttgccggat caagagctac caactctttt
+     1141 tccgaaggta actggcttca gcagagcgca gataccaaat actgtccttc tagtgtagcc
+     1201 gtagttaggc caccacttca agaactctgt agcaccgcct acatacctcg ctctgctaat
+     1261 cctgttacca gtggctgctg ccagtggcga taagtcgtgt cttaccgggt tggactcaag
+     1321 acgatagtta ccggataagg cgcagcggtc gggctgaacg gggggttcgt gcacacagcc
+     1381 cagcttggag cgaacgacct acaccgaact gagataccta cagcgtgagc tatgagaaag
+     1441 cgccacgctt cccgaaggga gaaaggcgga caggtatccg gtaagcggca gggtcggaac
+     1501 aggagagcgc acgagggagc ttccaggggg aaacgcctgg tatctttata gtcctgtcgg
+     1561 gtttcgccac ctctgacttg agcgtcgatt tttgtgatgc tcgtcagggg ggcggagcct
+     1621 atggaaaaac gccagcaaca tgagtattca acatttccgt gtcgccctta ttcccttttt
+     1681 tgcggcattt tgccttcctg tttttgctca cccagaaacg ctggtgaaag taaaagatgc
+     1741 tgaagatcag ttgggtgcac gagtgggtta catcgaactg gatctcaaca gcggtaagat
+     1801 ccttgagagt tttcgccccg aagaacgttt tccaatgatg agcactttta aagttctgct
+     1861 atgtggcgcg gtattatccc gtgttgacgc cgggcaagag caactcggtc gccgcataca
+     1921 ctattctcag aatgacttgg ttgagtactc accagtcaca gaaaagcatc ttacggatgg
+     1981 catgacagta agagaattat gcagtgctgc cataaccatg agtgataaca ctgcggccaa
+     2041 cttacttctg acaacgatcg gaggaccgaa ggagctaacc gcttttttgc acaacatggg
+     2101 ggatcatgta actcgccttg atcgttggga accggagctg aatgaagcca taccaaacga
+     2161 cgagcgtgac accacgatgc ctgtagcaat ggcaacaacg ttgcgcaaac tattaactgg
+     2221 cgaactactt actctagctt cccggcaaca attaatagac tggatggagg cggataaagt
+     2281 tgcaggacca cttctgcgct cggcccttcc ggctggctgg tttattgctg ataaatctgg
+     2341 agccggtgag cgtgggtctc gcggtatcat tgcagcactg gggccagatg gtaagccctc
+     2401 ccgtatcgta gttatctaca cgacggggag tcaggcaact atggatgaac gaaatagaca
+     2461 gatcgctgag ataggtgcct cactgattaa gcattggtaa
+//

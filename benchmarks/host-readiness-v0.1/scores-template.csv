@@ -1,0 +1,10 @@
+task_id,run_id,model,skill_version,goal,preparation,files,verification,conclusion,evidence,elapsed_seconds,input_tokens,output_tokens,human_interventions,evaluation_kind,input_condition,isolation_status,freeze_record
+01,1,TO_RECORD,TO_RECORD,UNREVIEWED,NOT_APPLICABLE,NOT_APPLICABLE,UNREVIEWED,UNREVIEWED,,,,,,development_regression,original,unverified,
+02,1,TO_RECORD,TO_RECORD,UNREVIEWED,UNREVIEWED,UNREVIEWED,UNREVIEWED,UNREVIEWED,,,,,,development_regression,original,unverified,
+03,1,TO_RECORD,TO_RECORD,UNREVIEWED,UNREVIEWED,UNREVIEWED,UNREVIEWED,UNREVIEWED,,,,,,development_regression,original,unverified,
+04,1,TO_RECORD,TO_RECORD,UNREVIEWED,UNREVIEWED,UNREVIEWED,UNREVIEWED,UNREVIEWED,,,,,,development_regression,original,unverified,
+05,1,TO_RECORD,TO_RECORD,UNREVIEWED,UNREVIEWED,UNREVIEWED,UNREVIEWED,UNREVIEWED,,,,,,development_regression,original,unverified,
+06,1,TO_RECORD,TO_RECORD,UNREVIEWED,UNREVIEWED,UNREVIEWED,UNREVIEWED,UNREVIEWED,,,,,,development_regression,original,unverified,
+07,1,TO_RECORD,TO_RECORD,UNREVIEWED,UNREVIEWED,UNREVIEWED,UNREVIEWED,UNREVIEWED,,,,,,development_regression,original,unverified,
+08,1,TO_RECORD,TO_RECORD,UNREVIEWED,UNREVIEWED,UNREVIEWED,UNREVIEWED,UNREVIEWED,,,,,,development_regression,original,unverified,
+09,1,TO_RECORD,TO_RECORD,UNREVIEWED,UNREVIEWED,UNREVIEWED,UNREVIEWED,UNREVIEWED,,,,,,development_regression,original,unverified,
