@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 """Proves smoke failure reporting is real, not only happy-path output."""
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import os
 import subprocess
 import sys
@@ -8,7 +10,7 @@ import tempfile
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-SCRIPTS = os.path.abspath(os.path.join(HERE, "..", "scripts"))
+SCRIPTS = str(TOOLS_ROOT)
 
 
 class SmokeFailureSelfTests(unittest.TestCase):

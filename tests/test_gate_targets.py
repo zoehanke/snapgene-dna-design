@@ -10,12 +10,15 @@ Exercises the core modules systematically so the coverage gate
 
 These tests are synthetic and run in both release packages.
 """
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import json
 import pathlib
 import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 from Bio import SeqIO
 from Bio.Seq import Seq
@@ -23,7 +26,7 @@ from Bio.SeqFeature import CompoundLocation, FeatureLocation, Reference, SeqFeat
 from Bio.SeqRecord import SeqRecord
 
 HERE = pathlib.Path(__file__).resolve().parent
-ROOT = HERE.parent
+ROOT = SKILL_ROOT
 SCRIPTS = ROOT / "scripts"
 FIXTURES = ROOT / "fixtures" / "rich"
 sys.path.insert(0, str(SCRIPTS))
@@ -194,8 +197,11 @@ class ConstructModelTests(unittest.TestCase):
         rec.letter_annotations["phred_quality"] = [30] * 8
         model = ConstructModel(rec)
         out = model.insert(2, "T").to_record()
-        self.assertEqual(out.letter_annotations, {})
-        self.assertIn("per-letter annotations removed", model.warnings[0])
+        # Old expectation cleared all values. Only the new base is unknown;
+        # the original eight measured positions remain individually traceable.
+        self.assertEqual(out.letter_annotations['phred_quality'],[30,30,None,30,30,30,30,30,30])
+        self.assertEqual(rec.letter_annotations['phred_quality'],[30]*8)
+        self.assertIn("unknown per-letter metadata", model.warnings[0])
 
     def test_set_topology_and_to_dict(self):
         rec = record("AAAACCCC")
@@ -812,9 +818,12 @@ class RoundTripEdgeTests(unittest.TestCase):
         if not FIXTURES.is_dir():
             self.skipTest("rich fixtures not present")
         fixture = FIXTURES / "rich_fwd_cds.gb"
-        result = validate_roundtrip.validate(
-            str(fixture), "snapgene-gb", snapgene_exe=None,
-            require_snapgene=True, strict=True)
+        # The product finder also checks the real D: installation. Mock the
+        # imported finder seam to exercise the missing-executable contract.
+        with mock.patch("validate_roundtrip.find_snapgene_executable", return_value=None):
+            result = validate_roundtrip.validate(
+                str(fixture), "snapgene-gb", snapgene_exe=None,
+                require_snapgene=True, strict=True)
         self.assertFalse(result["passed"])
         self.assertEqual(
             result["official_snapgene_roundtrip"]["status"],

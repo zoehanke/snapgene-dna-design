@@ -1,0 +1,2999 @@
+[
+  {
+    "name": "anneal_oligos",
+    "category": "compute",
+    "signature": "(top_oligo: 'MoleculeInput', bottom_oligo: 'MoleculeInput') -> 'ToolResult'",
+    "module": "core.tools.amplification",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "top_oligo": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "required": [
+                "sequence"
+              ],
+              "properties": {
+                "sequence": {
+                  "type": "string"
+                },
+                "topology": {
+                  "enum": [
+                    "linear",
+                    "circular",
+                    null
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "bottom_oligo": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "required": [
+                "sequence"
+              ],
+              "properties": {
+                "sequence": {
+                  "type": "string"
+                },
+                "topology": {
+                  "enum": [
+                    "linear",
+                    "circular",
+                    null
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      },
+      "required": [
+        "top_oligo",
+        "bottom_oligo"
+      ],
+      "additionalProperties": false
+    },
+    "result": {
+      "products": "Molecule[]",
+      "analysis": "object",
+      "checks": "ScopedCheck[]"
+    },
+    "static_call_sites": []
+  },
+  {
+    "name": "annotate_feature",
+    "category": "compute",
+    "signature": "(record: 'MoleculeInput', name: 'str', feature_type: 'str' = 'misc_feature', start: 'int' = 0, end: 'int' = 0, strand: 'int' = 1, color: 'str' = '', qualifiers: 'dict[str, Any] | None' = None) -> 'ToolResult'",
+    "module": "core.tools.feature_ops",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "record": {
+          "description": "Sequence record, file path, or DNA sequence.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "required": [
+                "sequence"
+              ],
+              "properties": {
+                "sequence": {
+                  "type": "string"
+                },
+                "topology": {
+                  "enum": [
+                    "linear",
+                    "circular",
+                    null
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "name": {
+          "type": "string",
+          "description": "Feature label/name."
+        },
+        "feature_type": {
+          "type": "string",
+          "default": "misc_feature"
+        },
+        "start": {
+          "type": "integer",
+          "default": 0
+        },
+        "end": {
+          "type": "integer",
+          "default": 0
+        },
+        "strand": {
+          "type": "integer",
+          "default": 1
+        },
+        "color": {
+          "type": "string",
+          "default": ""
+        },
+        "qualifiers": {
+          "anyOf": [
+            {
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "record",
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "result": {
+      "products": "Molecule[]",
+      "analysis": "object",
+      "checks": "ScopedCheck[]"
+    },
+    "static_call_sites": [
+      "tools\\run_e2e_benchmarks.py:134"
+    ]
+  },
+  {
+    "name": "calc_primer_tm",
+    "category": "compute",
+    "signature": "(primer_seq: 'MoleculeInput', salt_conc_mM: 'float' = 50.0, primer_conc_nM: 'float' = 200.0, mg_conc_mM: 'float' = 0.0, dntp_conc_mM: 'float' = 0.0) -> 'ToolResult'",
+    "module": "core.tools.amplification",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "primer_seq": {
+          "description": "Primer sequence.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "required": [
+                "sequence"
+              ],
+              "properties": {
+                "sequence": {
+                  "type": "string"
+                },
+                "topology": {
+                  "enum": [
+                    "linear",
+                    "circular",
+                    null
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "salt_conc_mM": {
+          "type": "number",
+          "default": 50.0
+        },
+        "primer_conc_nM": {
+          "type": "number",
+          "default": 200.0
+        },
+        "mg_conc_mM": {
+          "type": "number",
+          "default": 0.0
+        },
+        "dntp_conc_mM": {
+          "type": "number",
+          "default": 0.0
+        }
+      },
+      "required": [
+        "primer_seq"
+      ],
+      "additionalProperties": false
+    },
+    "result": {
+      "products": "Molecule[]",
+      "analysis": "object",
+      "checks": "ScopedCheck[]"
+    },
+    "static_call_sites": [
+      "snapgene-dna-design\\core\\recipes\\mutagenesis.py:285",
+      "snapgene-dna-design\\core\\recipes\\mutagenesis.py:366",
+      "snapgene-dna-design\\core\\recipes\\mutagenesis.py:367",
+      "snapgene-dna-design\\core\\recipes\\mutagenesis.py:315",
+      "snapgene-dna-design\\core\\recipes\\verification.py:97",
+      "snapgene-dna-design\\core\\tools\\amplification.py:654",
+      "snapgene-dna-design\\core\\tools\\amplification.py:666",
+      "snapgene-dna-design\\core\\tools\\amplification.py:515",
+      "snapgene-dna-design\\core\\tools\\amplification.py:516"
+    ]
+  },
+  {
+    "name": "check_overhang_compatibility",
+    "category": "compute",
+    "signature": "(overhang1: 'str', overhang2: 'str', type1: 'str' = '5prime', type2: 'str' = '5prime') -> 'ToolResult'",
+    "module": "core.tools.restriction",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "overhang1": {
+          "type": "string"
+        },
+        "overhang2": {
+          "type": "string"
+        },
+        "type1": {
+          "type": "string",
+          "enum": [
+            "5prime",
+            "3prime",
+            "blunt"
+          ],
+          "default": "5prime"
+        },
+        "type2": {
+          "type": "string",
+          "enum": [
+            "5prime",
+            "3prime",
+            "blunt"
+          ],
+          "default": "5prime"
+        }
+      },
+      "required": [
+        "overhang1",
+        "overhang2"
+      ],
+      "additionalProperties": false
+    },
+    "result": {
+      "products": "Molecule[]",
+      "analysis": "object",
+      "checks": "ScopedCheck[]"
+    },
+    "static_call_sites": []
+  },
+  {
+    "name": "check_primer_dimers",
+    "category": "compute",
+    "signature": "(primer1: 'MoleculeInput', primer2: 'MoleculeInput | None' = None) -> 'ToolResult'",
+    "module": "core.tools.amplification",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "primer1": {
+          "description": "Forward primer sequence.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "required": [
+                "sequence"
+              ],
+              "properties": {
+                "sequence": {
+                  "type": "string"
+                },
+                "topology": {
+                  "enum": [
+                    "linear",
+                    "circular",
+                    null
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "primer2": {
+          "description": "Reverse primer sequence (optional).",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "required": [
+                "sequence"
+              ],
+              "properties": {
+                "sequence": {
+                  "type": "string"
+                },
+                "topology": {
+                  "enum": [
+                    "linear",
+                    "circular",
+                    null
+                  ]
+                }
+              }
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "primer1"
+      ],
+      "additionalProperties": false
+    },
+    "result": {
+      "products": "Molecule[]",
+      "analysis": "object",
+      "checks": "ScopedCheck[]"
+    },
+    "static_call_sites": [
+      "snapgene-dna-design\\core\\guardrails\\checklist.py:524",
+      "snapgene-dna-design\\core\\guardrails\\checklist.py:519",
+      "snapgene-dna-design\\core\\guardrails\\checklist.py:519",
+      "snapgene-dna-design\\core\\recipes\\gibson.py:501",
+      "snapgene-dna-design\\core\\recipes\\gibson.py:396",
+      "snapgene-dna-design\\core\\recipes\\verification.py:296",
+      "snapgene-dna-design\\core\\recipes\\verification.py:161",
+      "snapgene-dna-design\\core\\tools\\amplification.py:517"
+    ]
+  },
+  {
+    "name": "check_reading_frame",
+    "category": "compute",
+    "signature": "(dna_seq: 'MoleculeInput', start_offset: 'int' = 0, transl_table: 'int' = 1) -> 'ToolResult'",
+    "module": "core.tools.sequence_ops",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "dna_seq": {
+          "description": "DNA sequence or record.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "required": [
+                "sequence"
+              ],
+              "properties": {
+                "sequence": {
+                  "type": "string"
+                },
+                "topology": {
+                  "enum": [
+                    "linear",
+                    "circular",
+                    null
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "start_offset": {
+          "type": "integer",
+          "default": 0
+        },
+        "transl_table": {
+          "type": "integer",
+          "default": 1
+        }
+      },
+      "required": [
+        "dna_seq"
+      ],
+      "additionalProperties": false
+    },
+    "result": {
+      "products": "Molecule[]",
+      "analysis": "object",
+      "checks": "ScopedCheck[]"
+    },
+    "static_call_sites": [
+      "snapgene-dna-design\\core\\guardrails\\checklist.py:483",
+      "snapgene-dna-design\\core\\tools\\fusion.py:66",
+      "tools\\run_10_acceptance_benchmarks.py:476"
+    ]
+  },
+  {
+    "name": "design_crispr_grna",
+    "category": "compute",
+    "signature": "(target_seq_or_file: 'str | pathlib.Path | SeqRecord', nuclease: 'str' = 'SpCas9', start: 'int | None' = None, end: 'int | None' = None, circular: 'bool' = False) -> 'ToolResult'",
+    "module": "core.tools.crispr",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "target_seq_or_file": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "required": [
+                "sequence"
+              ],
+              "properties": {
+                "sequence": {
+                  "type": "string"
+                },
+                "topology": {
+                  "enum": [
+                    "linear",
+                    "circular",
+                    null
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "nuclease": {
+          "type": "string",
+          "enum": [
+            "SpCas9",
+            "AsCas12a"
+          ],
+          "default": "SpCas9"
+        },
+        "start": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "end": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "circular": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "required": [
+        "target_seq_or_file"
+      ],
+      "additionalProperties": false
+    },
+    "result": {
+      "products": "Molecule[]",
+      "analysis": "object",
+      "checks": "ScopedCheck[]"
+    },
+    "static_call_sites": [
+      "tools\\run_e2e_benchmarks.py:213"
+    ]
+  },
+  {
+    "name": "design_hdr_donor",
+    "category": "compute",
+    "signature": "(target_seq_or_file: 'str | pathlib.Path | SeqRecord', cut_position_0based: 'int', edit_dna: 'str', left_arm_length: 'int' = 50, right_arm_length: 'int' = 50, grna_seq: 'str' = '', grna_strand: 'int' = 1, edit_start_0based: 'int | None' = None, edit_end_0based: 'int | None' = None, donor_type: 'str | None' = None, target_is_cds: 'bool' = False, cds_frame_offset: 'int' = 0, require_pam_disruption: 'bool' = False) -> 'ToolResult'",
+    "module": "core.tools.crispr",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "target_seq_or_file": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "required": [
+                "sequence"
+              ],
+              "properties": {
+                "sequence": {
+                  "type": "string"
+                },
+                "topology": {
+                  "enum": [
+                    "linear",
+                    "circular",
+                    null
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "cut_position_0based": {
+          "type": "integer"
+        },
+        "edit_dna": {
+          "type": "string"
+        },
+        "left_arm_length": {
+          "type": "integer",
+          "default": 50
+        },
+        "right_arm_length": {
+          "type": "integer",
+          "default": 50
+        },
+        "grna_seq": {
+          "type": "string",
+          "default": ""
+        },
+        "grna_strand": {
+          "type": "integer",
+          "enum": [
+            1,
+            -1
+          ],
+          "default": 1
+        },
+        "edit_start_0based": {
+          "minimum": 0,
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "edit_end_0based": {
+          "minimum": 0,
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "donor_type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "target_is_cds": {
+          "type": "boolean",
+          "default": false
+        },
+        "cds_frame_offset": {
+          "type": "integer",
+          "default": 0
+        },
+        "require_pam_disruption": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "required": [
+        "target_seq_or_file",
+        "cut_position_0based",
+        "edit_dna"
+      ],
+      "additionalProperties": false
+    },
+    "result": {
+      "products": "Molecule[]",
+      "analysis": "object",
+      "checks": "ScopedCheck[]"
+    },
+    "static_call_sites": [
+      "snapgene-dna-design\\core\\recipes\\crispr_hdr.py:75"
+    ]
+  },
+  {
+    "name": "design_overhang_primers",
+    "category": "compute",
+    "signature": "(template_record_or_seq: 'MoleculeInput', start: 'int', end: 'int', fwd_5prime_overhang: 'str' = '', rev_5prime_overhang: 'str' = '', target_tm: 'float' = 60.0, min_core_len: 'int' = 18, max_core_len: 'int' = 40, prefer_primer3: 'bool' = True, circular: 'bool | None' = None, topology: 'str | None' = None) -> 'ToolResult'",
+    "module": "core.tools.amplification",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "template_record_or_seq": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "required": [
+                "sequence"
+              ],
+              "properties": {
+                "sequence": {
+                  "type": "string"
+                },
+                "topology": {
+                  "enum": [
+                    "linear",
+                    "circular",
+                    null
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "start": {
+          "type": "integer"
+        },
+        "end": {
+          "type": "integer"
+        },
+        "fwd_5prime_overhang": {
+          "type": "string",
+          "default": ""
+        },
+        "rev_5prime_overhang": {
+          "type": "string",
+          "default": ""
+        },
+        "target_tm": {
+          "type": "number",
+          "default": 60.0
+        },
+        "min_core_len": {
+          "type": "integer",
+          "default": 18
+        },
+        "max_core_len": {
+          "type": "integer",
+          "default": 40
+        },
+        "prefer_primer3": {
+          "type": "boolean",
+          "default": true
+        },
+        "circular": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "topology": {
+          "enum": [
+            "circular",
+            "linear",
+            null
+          ],
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "template_record_or_seq",
+        "start",
+        "end"
+      ],
+      "additionalProperties": false
+    },
+    "result": {
+      "products": "Molecule[]",
+      "analysis": "object",
+      "checks": "ScopedCheck[]"
+    },
+    "static_call_sites": [
+      "snapgene-dna-design\\planning\\planner.py:398",
+      "snapgene-dna-design\\core\\recipes\\gibson.py:484",
+      "snapgene-dna-design\\core\\tools\\amplification.py:831"
+    ]
+  },
+  {
+    "name": "digest_sequence",
+    "category": "compute",
+    "signature": "(seq: 'MoleculeInput', enzyme: 'str', circular: 'bool | None' = None) -> 'ToolResult'",
+    "module": "core.tools.restriction",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "seq": {
+          "description": "DNA sequence.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "required": [
+                "sequence"
+              ],
+              "properties": {
+                "sequence": {
+                  "type": "string"
+                },
+                "topology": {
+                  "enum": [
+                    "linear",
+                    "circular",
+                    null
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "enzyme": {
+          "type": "string",
+          "description": "Enzyme name."
+        },
+        "circular": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "seq",
+        "enzyme"
+      ],
+      "additionalProperties": false
+    },
+    "result": {
+      "products": "Molecule[]",
+      "analysis": "object",
+      "checks": "ScopedCheck[]"
+    },
+    "static_call_sites": [
+      "snapgene-dna-design\\core\\recipes\\verification.py:306",
+      "tools\\run_10_acceptance_benchmarks.py:458"
+    ]
+  },
+  {
+    "name": "digest_type_iis",
+    "category": "compute",
+    "signature": "(fragment_seq: 'MoleculeInput', enzyme: 'str' = 'BsaI') -> 'ToolResult'",
+    "module": "core.tools.restriction",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "fragment_seq": {
+          "description": "Fragment flanked by Type IIS sites.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "required": [
+                "sequence"
+              ],
+              "properties": {
+                "sequence": {
+                  "type": "string"
+                },
+                "topology": {
+                  "enum": [
+                    "linear",
+                    "circular",
+                    null
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "enzyme": {
+          "type": "string",
+          "default": "BsaI"
+        }
+      },
+      "required": [
+        "fragment_seq"
+      ],
+      "additionalProperties": false
+    },
+    "result": {
+      "products": "Molecule[]",
+      "analysis": "object",
+      "checks": "ScopedCheck[]"
+    },
+    "static_call_sites": [
+      "snapgene-dna-design\\core\\tools\\assembly.py:894"
+    ]
+  },
+  {
+    "name": "export_snapgene",
+    "category": "write",
+    "signature": "(record_or_seq: 'MoleculeInput', out_dir: 'str | pathlib.Path', filename_base: 'str' = 'construct', topology: 'str | None' = None, features: 'list[dict[str, Any]] | None' = None) -> 'ToolResult'",
+    "module": "core.tools.snapgene_io",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "record_or_seq": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "required": [
+                "sequence"
+              ],
+              "properties": {
+                "sequence": {
+                  "type": "string"
+                },
+                "topology": {
+                  "enum": [
+                    "linear",
+                    "circular",
+                    null
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "out_dir": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
+        "filename_base": {
+          "type": "string",
+          "default": "construct"
+        },
+        "topology": {
+          "enum": [
+            "circular",
+            "linear",
+            null
+          ],
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "features": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "object"
+              }
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "record_or_seq",
+        "out_dir"
+      ],
+      "additionalProperties": false
+    },
+    "result": {
+      "products": "Molecule[]",
+      "analysis": "object",
+      "checks": "ScopedCheck[]"
+    },
+    "static_call_sites": [
+      "snapgene-dna-design\\core\\handlers\\composite_pipeline.py:270",
+      "tools\\run_10_acceptance_benchmarks.py:502",
+      "tools\\run_e2e_benchmarks.py:175",
+      "tools\\run_e2e_benchmarks.py:276"
+    ]
+  },
+  {
+    "name": "extract_homology_arms",
+    "category": "compute",
+    "signature": "(target_seq_or_file: 'str | pathlib.Path | SeqRecord', cut_position_0based: 'int', left_arm_length: 'int' = 50, right_arm_length: 'int' = 50, circular: 'bool | None' = None, edit_dna: 'str | None' = None, edit_start_0based: 'int | None' = None, edit_end_0based: 'int | None' = None) -> 'ToolResult'",
+    "module": "core.tools.crispr",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "target_seq_or_file": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "required": [
+                "sequence"
+              ],
+              "properties": {
+                "sequence": {
+                  "type": "string"
+                },
+                "topology": {
+                  "enum": [
+                    "linear",
+                    "circular",
+                    null
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "cut_position_0based": {
+          "type": "integer"
+        },
+        "left_arm_length": {
+          "type": "integer",
+          "default": 50
+        },
+        "right_arm_length": {
+          "type": "integer",
+          "default": 50
+        },
+        "circular": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "edit_dna": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "edit_start_0based": {
+          "minimum": 0,
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "edit_end_0based": {
+          "minimum": 0,
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "target_seq_or_file",
+        "cut_position_0based"
+      ],
+      "additionalProperties": false
+    },
+    "result": {
+      "products": "Molecule[]",
+      "analysis": "object",
+      "checks": "ScopedCheck[]"
+    },
+    "static_call_sites": []
+  },
+  {
+    "name": "extract_subsequence",
+    "category": "compute",
+    "signature": "(file_path_or_record: 'MoleculeInput', start: 'int', end: 'int', strand: 'int' = 1, topology: 'str | None' = None, wraps_origin: 'bool' = True, whole_record_approved: 'bool' = True) -> 'ToolResult'",
+    "module": "core.tools.sequence_ops",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "file_path_or_record": {
+          "description": "File path or sequence record.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "required": [
+                "sequence"
+              ],
+              "properties": {
+                "sequence": {
+                  "type": "string"
+                },
+                "topology": {
+                  "enum": [
+                    "linear",
+                    "circular",
+                    null
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "start": {
+          "type": "integer",
+          "description": "0-based start coordinate."
+        },
+        "end": {
+          "type": "integer",
+          "description": "0-based end coordinate."
+        },
+        "strand": {
+          "type": "integer",
+          "enum": [
+            1,
+            -1
+          ],
+          "default": 1
+        },
+        "topology": {
+          "enum": [
+            "circular",
+            "linear",
+            null
+          ],
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "wraps_origin": {
+          "type": "boolean",
+          "default": true
+        },
+        "whole_record_approved": {
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "required": [
+        "file_path_or_record",
+        "start",
+        "end"
+      ],
+      "additionalProperties": false
+    },
+    "result": {
+      "products": "Molecule[]",
+      "analysis": "object",
+      "checks": "ScopedCheck[]"
+    },
+    "static_call_sites": [
+      "snapgene-dna-design\\planning\\executor.py:26",
+      "snapgene-dna-design\\core\\tools\\assembly.py:510"
+    ]
+  },
+  {
+    "name": "fill_or_chew_overhang",
+    "category": "compute",
+    "signature": "(seq: 'MoleculeInput', left_overhang: 'str | None' = None, right_overhang: 'str | None' = None, overhang_type: 'str | None' = None, action: 'str' = 'fill_in') -> 'ToolResult'",
+    "module": "core.tools.restriction",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "seq": {
+          "description": "Double-stranded sequence core.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "required": [
+                "sequence"
+              ],
+              "properties": {
+                "sequence": {
+                  "type": "string"
+                },
+                "topology": {
+                  "enum": [
+                    "linear",
+                    "circular",
+                    null
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "left_overhang": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "right_overhang": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "overhang_type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "action": {
+          "type": "string",
+          "enum": [
+            "fill_in",
+            "chew_back"
+          ],
+          "default": "fill_in"
+        }
+      },
+      "required": [
+        "seq"
+      ],
+      "additionalProperties": false
+    },
+    "result": {
+      "products": "Molecule[]",
+      "analysis": "object",
+      "checks": "ScopedCheck[]"
+    },
+    "static_call_sites": []
+  },
+  {
+    "name": "find_open_reading_frames",
+    "category": "compute",
+    "signature": "(file_path_or_seq: 'str | pathlib.Path | SeqRecord', min_length_aa: 'int' = 30, transl_table: 'int' = 1) -> 'ToolResult'",
+    "module": "core.tools.inspection",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "file_path_or_seq": {
+          "description": "DNA sequence or path to sequence file.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "required": [
+                "sequence"
+              ],
+              "properties": {
+                "sequence": {
+                  "type": "string"
+                },
+                "topology": {
+                  "enum": [
+                    "linear",
+                    "circular",
+                    null
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "min_length_aa": {
+          "type": "integer",
+          "default": 30
+        },
+        "transl_table": {
+          "type": "integer",
+          "default": 1
+        }
+      },
+      "required": [
+        "file_path_or_seq"
+      ],
+      "additionalProperties": false
+    },
+    "result": {
+      "products": "Molecule[]",
+      "analysis": "object",
+      "checks": "ScopedCheck[]"
+    },
+    "static_call_sites": []
+  },
+  {
+    "name": "find_restriction_sites",
+    "category": "compute",
+    "signature": "(file_path_or_seq: 'str | pathlib.Path | SeqRecord', enzymes: 'list[str] | None' = None, topology: 'str | None' = None) -> 'ToolResult'",
+    "module": "core.tools.restriction",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "file_path_or_seq": {
+          "description": "File path or DNA sequence.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "required": [
+                "sequence"
+              ],
+              "properties": {
+                "sequence": {
+                  "type": "string"
+                },
+                "topology": {
+                  "enum": [
+                    "linear",
+                    "circular",
+                    null
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "enzymes": {
+          "description": "Enzyme names.",
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "topology": {
+          "enum": [
+            "circular",
+            "linear",
+            null
+          ],
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "file_path_or_seq"
+      ],
+      "additionalProperties": false
+    },
+    "result": {
+      "products": "Molecule[]",
+      "analysis": "object",
+      "checks": "ScopedCheck[]"
+    },
+    "static_call_sites": [
+      "snapgene-dna-design\\scripts\\inspect_plasmid.py:48",
+      "snapgene-dna-design\\core\\guardrails\\checklist.py:280",
+      "snapgene-dna-design\\core\\guardrails\\checklist.py:488",
+      "snapgene-dna-design\\core\\recipes\\restriction_cloning.py:177"
+    ]
+  },
+  {
+    "name": "fuse_in_frame",
+    "category": "compute",
+    "signature": "(partner5_seq: 'MoleculeInput', partner3_seq: 'MoleculeInput', linker_seq: 'MoleculeInput' = '', strip_p5_stop: 'bool' = True, add_terminal_stop: 'bool' = True) -> 'ToolResult'",
+    "module": "core.tools.fusion",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "partner5_seq": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "required": [
+                "sequence"
+              ],
+              "properties": {
+                "sequence": {
+                  "type": "string"
+                },
+                "topology": {
+                  "enum": [
+                    "linear",
+                    "circular",
+                    null
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "partner3_seq": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "required": [
+                "sequence"
+              ],
+              "properties": {
+                "sequence": {
+                  "type": "string"
+                },
+                "topology": {
+                  "enum": [
+                    "linear",
+                    "circular",
+                    null
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "linker_seq": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "required": [
+                "sequence"
+              ],
+              "properties": {
+                "sequence": {
+                  "type": "string"
+                },
+                "topology": {
+                  "enum": [
+                    "linear",
+                    "circular",
+                    null
+                  ]
+                }
+              }
+            }
+          ],
+          "default": ""
+        },
+        "strip_p5_stop": {
+          "type": "boolean",
+          "default": true
+        },
+        "add_terminal_stop": {
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "required": [
+        "partner5_seq",
+        "partner3_seq"
+      ],
+      "additionalProperties": false
+    },
+    "result": {
+      "products": "Molecule[]",
+      "analysis": "object",
+      "checks": "ScopedCheck[]"
+    },
+    "static_call_sites": []
+  },
+  {
+    "name": "get_codon_synonyms",
+    "category": "compute",
+    "signature": "(codon: 'str', table: 'int' = 1) -> 'ToolResult'",
+    "module": "core.tools.translation",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "codon": {
+          "type": "string"
+        },
+        "table": {
+          "type": "integer",
+          "default": 1
+        }
+      },
+      "required": [
+        "codon"
+      ],
+      "additionalProperties": false
+    },
+    "result": {
+      "products": "Molecule[]",
+      "analysis": "object",
+      "checks": "ScopedCheck[]"
+    },
+    "static_call_sites": [
+      "snapgene-dna-design\\core\\tools\\crispr.py:737",
+      "snapgene-dna-design\\core\\tools\\crispr.py:660",
+      "snapgene-dna-design\\core\\tools\\crispr.py:785",
+      "snapgene-dna-design\\core\\tools\\crispr.py:692"
+    ]
+  },
+  {
+    "name": "get_experience_categories",
+    "category": "compute",
+    "signature": "() -> 'ToolResult'",
+    "module": "core.tools.experience_helper",
+    "parameters": {
+      "type": "object",
+      "properties": {},
+      "required": [],
+      "additionalProperties": false
+    },
+    "result": {
+      "products": "Molecule[]",
+      "analysis": "object",
+      "checks": "ScopedCheck[]"
+    },
+    "static_call_sites": []
+  },
+  {
+    "name": "get_experience_rule_by_id",
+    "category": "compute",
+    "signature": "(rule_id: 'str') -> 'ToolResult'",
+    "module": "core.tools.experience_helper",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "rule_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "rule_id"
+      ],
+      "additionalProperties": false
+    },
+    "result": {
+      "products": "Molecule[]",
+      "analysis": "object",
+      "checks": "ScopedCheck[]"
+    },
+    "static_call_sites": []
+  },
+  {
+    "name": "get_feature",
+    "category": "inspect",
+    "signature": "(file_path_or_record: 'MoleculeInput', name_or_type: 'str', return_all: 'bool' = False) -> 'ToolResult'",
+    "module": "core.tools.feature_ops",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "file_path_or_record": {
+          "description": "Path to sequence file.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "required": [
+                "sequence"
+              ],
+              "properties": {
+                "sequence": {
+                  "type": "string"
+                },
+                "topology": {
+                  "enum": [
+                    "linear",
+                    "circular",
+                    null
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "name_or_type": {
+          "type": "string",
+          "description": "Name or type of feature."
+        },
+        "return_all": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "required": [
+        "file_path_or_record",
+        "name_or_type"
+      ],
+      "additionalProperties": false
+    },
+    "result": {
+      "products": "Molecule[]",
+      "analysis": "object",
+      "checks": "ScopedCheck[]"
+    },
+    "static_call_sites": [
+      "snapgene-dna-design\\core\\handlers\\component_amplification.py:120",
+      "snapgene-dna-design\\core\\handlers\\component_amplification.py:248"
+    ]
+  },
+  {
+    "name": "get_standard_element",
+    "category": "compute",
+    "signature": "(name: 'str') -> 'ToolResult'",
+    "module": "core.tools.fusion",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Element name ('6xHis', 'FLAG', 'HA', 'TEV', '(G4S)3')."
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "result": {
+      "products": "Molecule[]",
+      "analysis": "object",
+      "checks": "ScopedCheck[]"
+    },
+    "static_call_sites": [
+      "snapgene-dna-design\\core\\recipes\\protein_tagging.py:118",
+      "snapgene-dna-design\\core\\recipes\\protein_tagging.py:128"
+    ]
+  },
+  {
+    "name": "inspect_dna",
+    "category": "inspect",
+    "signature": "(file_path_or_record: 'str | pathlib.Path | SeqRecord') -> 'ToolResult'",
+    "module": "core.tools.inspection",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "file_path_or_record": {
+          "description": "Path to the GenBank, FASTA, or SnapGene .dna file, or SeqRecord.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "required": [
+                "sequence"
+              ],
+              "properties": {
+                "sequence": {
+                  "type": "string"
+                },
+                "topology": {
+                  "enum": [
+                    "linear",
+                    "circular",
+                    null
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      },
+      "required": [
+        "file_path_or_record"
+      ],
+      "additionalProperties": false
+    },
+    "result": {
+      "products": "Molecule[]",
+      "analysis": "object",
+      "checks": "ScopedCheck[]"
+    },
+    "static_call_sites": [
+      "snapgene-dna-design\\agent\\pipeline_agent.py:33",
+      "snapgene-dna-design\\core\\tools\\inspection.py:126",
+      "tools\\run_e2e_benchmarks.py:184"
+    ]
+  },
+  {
+    "name": "ligate_fragments",
+    "category": "compute",
+    "signature": "(fragments: 'list[MoleculeInput]', circular: 'bool' = False) -> 'ToolResult'",
+    "module": "core.tools.assembly",
+    "parameters": {
+      "properties": {
+        "fragments": {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "sequence"
+                ],
+                "properties": {
+                  "sequence": {
+                    "type": "string"
+                  },
+                  "topology": {
+                    "enum": [
+                      "linear",
+                      "circular",
+                      null
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "circular": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "type": "object",
+      "required": [
+        "fragments"
+      ],
+      "additionalProperties": false
+    },
+    "result": {
+      "products": "Molecule[]",
+      "analysis": "object",
+      "checks": "ScopedCheck[]"
+    },
+    "static_call_sites": [
+      "snapgene-dna-design\\core\\tools\\assembly.py:896"
+    ]
+  },
+  {
+    "name": "list_all_experience_rules",
+    "category": "compute",
+    "signature": "(category: 'str' = '') -> 'ToolResult'",
+    "module": "core.tools.experience_helper",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "category": {
+          "type": "string",
+          "default": ""
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "result": {
+      "products": "Molecule[]",
+      "analysis": "object",
+      "checks": "ScopedCheck[]"
+    },
+    "static_call_sites": []
+  },
+  {
+    "name": "migrate_features_after_assembly",
+    "category": "compute",
+    "signature": "(fragments: 'list[dict[str, Any]]', total_length: 'int', circular: 'bool' = True) -> 'ToolResult'",
+    "module": "core.tools.feature_ops",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "fragments": {
+          "description": "Fragments with offset_in_product, length, features, strand.",
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "total_length": {
+          "type": "integer",
+          "description": "Total length of assembled product."
+        },
+        "circular": {
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "required": [
+        "fragments",
+        "total_length"
+      ],
+      "additionalProperties": false
+    },
+    "result": {
+      "products": "Molecule[]",
+      "analysis": "object",
+      "checks": "ScopedCheck[]"
+    },
+    "static_call_sites": [
+      "snapgene-dna-design\\scripts\\golden_gate.py:310",
+      "snapgene-dna-design\\core\\handlers\\base.py:92",
+      "snapgene-dna-design\\core\\tools\\assembly.py:159"
+    ]
+  },
+  {
+    "name": "mutate_sequence",
+    "category": "compute",
+    "signature": "(dna_seq: 'MoleculeInput', mutations: 'list[dict[str, Any]]') -> 'ToolResult'",
+    "module": "core.tools.sequence_ops",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "dna_seq": {
+          "description": "Base DNA sequence.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "required": [
+                "sequence"
+              ],
+              "properties": {
+                "sequence": {
+                  "type": "string"
+                },
+                "topology": {
+                  "enum": [
+                    "linear",
+                    "circular",
+                    null
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "mutations": {
+          "description": "Mutations list.",
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        }
+      },
+      "required": [
+        "dna_seq",
+        "mutations"
+      ],
+      "additionalProperties": false
+    },
+    "result": {
+      "products": "Molecule[]",
+      "analysis": "object",
+      "checks": "ScopedCheck[]"
+    },
+    "static_call_sites": []
+  },
+  {
+    "name": "open_in_snapgene",
+    "category": "external",
+    "signature": "(file_path: 'str | pathlib.Path') -> 'ToolResult'",
+    "module": "core.tools.snapgene_io",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "file_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "required": [
+        "file_path"
+      ],
+      "additionalProperties": false
+    },
+    "result": {
+      "products": "Molecule[]",
+      "analysis": "object",
+      "checks": "ScopedCheck[]"
+    },
+    "static_call_sites": [
+      "snapgene-dna-design\\agent\\pipeline_agent.py:204",
+      "tools\\run_e2e_benchmarks.py:326"
+    ]
+  },
+  {
+    "name": "prepare_grna_oligos",
+    "category": "compute",
+    "signature": "(spacer_seq: 'str', vector_type: 'str' = 'BbsI') -> 'ToolResult'",
+    "module": "core.tools.crispr",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "spacer_seq": {
+          "type": "string"
+        },
+        "vector_type": {
+          "type": "string",
+          "default": "BbsI"
+        }
+      },
+      "required": [
+        "spacer_seq"
+      ],
+      "additionalProperties": false
+    },
+    "result": {
+      "products": "Molecule[]",
+      "analysis": "object",
+      "checks": "ScopedCheck[]"
+    },
+    "static_call_sites": [
+      "tools\\run_e2e_benchmarks.py:214"
+    ]
+  },
+  {
+    "name": "prepare_pcr_fragment",
+    "category": "compute",
+    "signature": "(template: 'MoleculeInput', start: 'int', end: 'int', fwd_tail: 'str' = '', rev_tail: 'str' = '', name: 'str' = 'fragment', target_tm: 'float' = 60.0) -> 'ToolResult'",
+    "module": "core.tools.amplification",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "template": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "required": [
+                "sequence"
+              ],
+              "properties": {
+                "sequence": {
+                  "type": "string"
+                },
+                "topology": {
+                  "enum": [
+                    "linear",
+                    "circular",
+                    null
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "start": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "end": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "fwd_tail": {
+          "type": "string",
+          "default": ""
+        },
+        "rev_tail": {
+          "type": "string",
+          "default": ""
+        },
+        "name": {
+          "type": "string",
+          "default": "fragment"
+        },
+        "target_tm": {
+          "type": "number",
+          "default": 60.0
+        }
+      },
+      "required": [
+        "template",
+        "start",
+        "end"
+      ],
+      "additionalProperties": false
+    },
+    "result": {
+      "products": "Molecule[]",
+      "analysis": "object",
+      "checks": "ScopedCheck[]"
+    },
+    "static_call_sites": [
+      "snapgene-dna-design\\core\\recipes\\gibson.py:58",
+      "snapgene-dna-design\\core\\recipes\\restriction_cloning.py:167"
+    ]
+  },
+  {
+    "name": "prepare_pml104_guide",
+    "category": "compute",
+    "signature": "(vector_record_or_seq: 'str | pathlib.Path | SeqRecord', spacer_seq: 'str') -> 'ToolResult'",
+    "module": "core.tools.crispr",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "vector_record_or_seq": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "required": [
+                "sequence"
+              ],
+              "properties": {
+                "sequence": {
+                  "type": "string"
+                },
+                "topology": {
+                  "enum": [
+                    "linear",
+                    "circular",
+                    null
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "spacer_seq": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "vector_record_or_seq",
+        "spacer_seq"
+      ],
+      "additionalProperties": false
+    },
+    "result": {
+      "products": "Molecule[]",
+      "analysis": "object",
+      "checks": "ScopedCheck[]"
+    },
+    "static_call_sites": []
+  },
+  {
+    "name": "query_lab_experience",
+    "category": "compute",
+    "signature": "(query: 'str' = '', category: 'str' = '', max_results: 'int' = 5) -> 'ToolResult'",
+    "module": "core.tools.experience_helper",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string",
+          "default": ""
+        },
+        "category": {
+          "type": "string",
+          "default": ""
+        },
+        "max_results": {
+          "type": "integer",
+          "default": 5
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "result": {
+      "products": "Molecule[]",
+      "analysis": "object",
+      "checks": "ScopedCheck[]"
+    },
+    "static_call_sites": []
+  },
+  {
+    "name": "reverse_complement",
+    "category": "compute",
+    "signature": "(seq: 'MoleculeInput') -> 'ToolResult'",
+    "module": "core.tools.translation",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "seq": {
+          "description": "DNA sequence.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "required": [
+                "sequence"
+              ],
+              "properties": {
+                "sequence": {
+                  "type": "string"
+                },
+                "topology": {
+                  "enum": [
+                    "linear",
+                    "circular",
+                    null
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      },
+      "required": [
+        "seq"
+      ],
+      "additionalProperties": false
+    },
+    "result": {
+      "products": "Molecule[]",
+      "analysis": "object",
+      "checks": "ScopedCheck[]"
+    },
+    "static_call_sites": [
+      "snapgene-dna-design\\core\\evidence_chain.py:252",
+      "snapgene-dna-design\\core\\interval.py:167",
+      "snapgene-dna-design\\core\\runtime_validate.py:98",
+      "snapgene-dna-design\\planning\\executor.py:365",
+      "snapgene-dna-design\\planning\\planner.py:322",
+      "snapgene-dna-design\\planning\\planner.py:268",
+      "snapgene-dna-design\\planning\\planner.py:183",
+      "snapgene-dna-design\\planning\\planner.py:373",
+      "snapgene-dna-design\\planning\\planner.py:279",
+      "snapgene-dna-design\\planning\\planner.py:638",
+      "snapgene-dna-design\\scripts\\align_sanger.py:32",
+      "snapgene-dna-design\\scripts\\analyze_seq.py:49",
+      "snapgene-dna-design\\scripts\\analyze_seq.py:75",
+      "snapgene-dna-design\\scripts\\annotate.py:87",
+      "snapgene-dna-design\\scripts\\annotate.py:33",
+      "snapgene-dna-design\\scripts\\annotate_primers.py:89",
+      "snapgene-dna-design\\scripts\\annotate_primers.py:64",
+      "snapgene-dna-design\\scripts\\design_gene_replacement.py:228",
+      "snapgene-dna-design\\scripts\\design_gene_replacement.py:218",
+      "snapgene-dna-design\\scripts\\design_gene_replacement.py:277",
+      "snapgene-dna-design\\scripts\\design_gene_replacement.py:220",
+      "snapgene-dna-design\\scripts\\design_guides.py:266",
+      "snapgene-dna-design\\scripts\\design_primers.py:527",
+      "snapgene-dna-design\\scripts\\design_primers.py:482",
+      "snapgene-dna-design\\scripts\\golden_gate.py:89",
+      "snapgene-dna-design\\scripts\\golden_gate.py:163",
+      "snapgene-dna-design\\scripts\\golden_gate.py:165",
+      "snapgene-dna-design\\scripts\\golden_gate.py:166",
+      "snapgene-dna-design\\scripts\\golden_gate.py:209",
+      "snapgene-dna-design\\scripts\\primer_design_engine.py:373",
+      "snapgene-dna-design\\scripts\\protein_tools.py:36",
+      "snapgene-dna-design\\scripts\\protein_tools.py:44",
+      "snapgene-dna-design\\scripts\\run_recipe.py:104",
+      "snapgene-dna-design\\scripts\\run_recipe.py:53",
+      "snapgene-dna-design\\scripts\\simulate_cloning.py:249",
+      "snapgene-dna-design\\scripts\\simulate_cloning.py:247",
+      "snapgene-dna-design\\scripts\\simulate_cloning.py:303",
+      "snapgene-dna-design\\scripts\\simulate_pcr.py:28",
+      "snapgene-dna-design\\scripts\\validate_construct.py:28",
+      "snapgene-dna-design\\scripts\\validation_crosscheck.py:156",
+      "snapgene-dna-design\\core\\guardrails\\checklist.py:141",
+      "snapgene-dna-design\\core\\guardrails\\checklist.py:142",
+      "snapgene-dna-design\\core\\guardrails\\checklist.py:353",
+      "snapgene-dna-design\\core\\guardrails\\checklist.py:359",
+      "snapgene-dna-design\\core\\guardrails\\checklist.py:516",
+      "snapgene-dna-design\\core\\handlers\\base.py:44",
+      "snapgene-dna-design\\core\\handlers\\component_amplification.py:125",
+      "snapgene-dna-design\\core\\handlers\\component_amplification.py:251",
+      "snapgene-dna-design\\core\\handlers\\hierarchical_assembly.py:218",
+      "snapgene-dna-design\\core\\handlers\\integration_donor.py:91",
+      "snapgene-dna-design\\core\\handlers\\integration_donor.py:92",
+      "snapgene-dna-design\\core\\handlers\\restriction_ligation.py:234",
+      "snapgene-dna-design\\core\\handlers\\restriction_ligation.py:110",
+      "snapgene-dna-design\\core\\models\\assembly_model.py:302",
+      "snapgene-dna-design\\core\\recipes\\gibson.py:482",
+      "snapgene-dna-design\\core\\recipes\\gibson.py:53",
+      "snapgene-dna-design\\core\\recipes\\gibson.py:227",
+      "snapgene-dna-design\\core\\recipes\\golden_gate.py:72",
+      "snapgene-dna-design\\core\\recipes\\mutagenesis.py:263",
+      "snapgene-dna-design\\core\\recipes\\mutagenesis.py:332",
+      "snapgene-dna-design\\core\\recipes\\mutagenesis.py:275",
+      "snapgene-dna-design\\core\\recipes\\mutagenesis.py:309",
+      "snapgene-dna-design\\core\\recipes\\mutagenesis.py:301",
+      "snapgene-dna-design\\core\\recipes\\mutagenesis.py:302",
+      "snapgene-dna-design\\core\\recipes\\restriction_cloning.py:160",
+      "snapgene-dna-design\\core\\recipes\\restriction_cloning.py:222",
+      "snapgene-dna-design\\core\\recipes\\verification.py:94",
+      "snapgene-dna-design\\core\\tools\\amplification.py:1000",
+      "snapgene-dna-design\\core\\tools\\amplification.py:970",
+      "snapgene-dna-design\\core\\tools\\amplification.py:665",
+      "snapgene-dna-design\\core\\tools\\amplification.py:994",
+      "snapgene-dna-design\\core\\tools\\amplification.py:64",
+      "snapgene-dna-design\\core\\tools\\amplification.py:211",
+      "snapgene-dna-design\\core\\tools\\amplification.py:828",
+      "snapgene-dna-design\\core\\tools\\assembly.py:524",
+      "snapgene-dna-design\\core\\tools\\assembly.py:743",
+      "snapgene-dna-design\\core\\tools\\assembly.py:404",
+      "snapgene-dna-design\\core\\tools\\assembly.py:555",
+      "snapgene-dna-design\\core\\tools\\assembly.py:648",
+      "snapgene-dna-design\\core\\tools\\assembly.py:250",
+      "snapgene-dna-design\\core\\tools\\assembly.py:402",
+      "snapgene-dna-design\\core\\tools\\assembly.py:448",
+      "snapgene-dna-design\\core\\tools\\assembly.py:717",
+      "snapgene-dna-design\\core\\tools\\assembly.py:718",
+      "snapgene-dna-design\\core\\tools\\assembly.py:902",
+      "snapgene-dna-design\\core\\tools\\assembly.py:910",
+      "snapgene-dna-design\\core\\tools\\crispr.py:255",
+      "snapgene-dna-design\\core\\tools\\crispr.py:193",
+      "snapgene-dna-design\\core\\tools\\crispr.py:258",
+      "snapgene-dna-design\\core\\tools\\crispr.py:531",
+      "snapgene-dna-design\\core\\tools\\crispr.py:532",
+      "snapgene-dna-design\\core\\tools\\crispr.py:1013",
+      "snapgene-dna-design\\core\\tools\\crispr.py:81",
+      "snapgene-dna-design\\core\\tools\\crispr.py:82",
+      "snapgene-dna-design\\core\\tools\\crispr.py:111",
+      "snapgene-dna-design\\core\\tools\\crispr.py:112",
+      "snapgene-dna-design\\core\\tools\\crispr.py:635",
+      "snapgene-dna-design\\core\\tools\\crispr.py:650",
+      "snapgene-dna-design\\core\\tools\\crispr.py:747",
+      "snapgene-dna-design\\core\\tools\\crispr.py:775",
+      "snapgene-dna-design\\core\\tools\\crispr.py:463",
+      "snapgene-dna-design\\core\\tools\\crispr.py:480",
+      "snapgene-dna-design\\core\\tools\\crispr.py:683",
+      "snapgene-dna-design\\core\\tools\\crispr.py:771",
+      "snapgene-dna-design\\core\\tools\\feature_ops.py:201",
+      "snapgene-dna-design\\core\\tools\\inspection.py:176",
+      "snapgene-dna-design\\core\\tools\\recombination.py:86",
+      "snapgene-dna-design\\core\\tools\\recombination.py:88",
+      "snapgene-dna-design\\core\\tools\\recombination.py:91",
+      "snapgene-dna-design\\core\\tools\\recombination.py:221",
+      "snapgene-dna-design\\core\\tools\\recombination.py:276",
+      "snapgene-dna-design\\core\\tools\\restriction.py:80",
+      "snapgene-dna-design\\core\\tools\\restriction.py:280",
+      "snapgene-dna-design\\core\\tools\\restriction.py:390",
+      "snapgene-dna-design\\core\\tools\\restriction.py:396",
+      "snapgene-dna-design\\core\\tools\\restriction.py:444",
+      "snapgene-dna-design\\core\\tools\\restriction.py:326",
+      "snapgene-dna-design\\core\\tools\\sequence_ops.py:528",
+      "snapgene-dna-design\\core\\tools\\snapgene_io.py:127",
+      "snapgene-dna-design\\core\\tools\\snapgene_io.py:159",
+      "snapgene-dna-design\\core\\tools\\snapgene_io.py:319",
+      "snapgene-dna-design\\core\\tools\\snapgene_io.py:328",
+      "snapgene-dna-design\\core\\tools\\snapgene_io.py:636",
+      "snapgene-dna-design\\core\\tools\\snapgene_io.py:305",
+      "snapgene-dna-design\\core\\tools\\translation.py:21",
+      "snapgene-dna-design\\core\\tools\\translation.py:41",
+      "snapgene-dna-design\\third_party\\azimuth\\util.py:289",
+      "snapgene-dna-design\\third_party\\azimuth\\util.py:308",
+      "snapgene-dna-design\\third_party\\azimuth\\util.py:291",
+      "snapgene-dna-design\\third_party\\azimuth\\util.py:310",
+      "snapgene-dna-design\\third_party\\azimuth\\util.py:319",
+      "snapgene-dna-design\\third_party\\azimuth\\features\\featurization.py:276",
+      "snapgene-dna-design\\third_party\\azimuth\\features\\featurization.py:216",
+      "snapgene-dna-design\\third_party\\azimuth\\features\\featurization.py:281",
+      "snapgene-dna-design\\third_party\\azimuth\\features\\featurization.py:296",
+      "snapgene-dna-design\\third_party\\azimuth\\features\\featurization.py:297",
+      "snapgene-dna-design\\third_party\\azimuth\\features\\featurization.py:223",
+      "snapgene-dna-design\\third_party\\azimuth\\features\\featurization.py:227",
+      "tools\\build_rich_fixtures.py:81",
+      "tools\\property_tests.py:557",
+      "tools\\property_tests.py:577",
+      "tools\\property_tests.py:587",
+      "tools\\property_tests.py:554",
+      "tools\\property_tests.py:555",
+      "tools\\property_tests.py:565",
+      "tools\\property_tests.py:566",
+      "tools\\property_tests.py:574",
+      "tools\\property_tests.py:575",
+      "tools\\property_tests.py:584",
+      "tools\\property_tests.py:585",
+      "tools\\property_tests.py:606",
+      "tools\\property_tests.py:622",
+      "tools\\property_tests.py:370",
+      "tools\\property_tests.py:617",
+      "tools\\property_tests.py:598",
+      "tools\\property_tests.py:599",
+      "tools\\property_tests.py:613",
+      "tools\\property_tests.py:614",
+      "tools\\property_tests.py:661",
+      "tools\\run_scenario_suite.py:764",
+      "tools\\run_scenario_suite.py:189",
+      "tools\\run_scenario_suite.py:194",
+      "tools\\run_scenario_suite.py:196",
+      "tools\\smoke_academic.py:551",
+      "tools\\smoke_academic.py:449",
+      "tools\\smoke_academic.py:469",
+      "tools\\smoke_academic.py:473",
+      "tools\\smoke_academic.py:487",
+      "tools\\smoke_core.py:419",
+      "tools\\smoke_core.py:337",
+      "tools\\smoke_core.py:341",
+      "tools\\smoke_core.py:355"
+    ]
+  },
+  {
+    "name": "rotate_sequence",
+    "category": "compute",
+    "signature": "(dna_seq: 'MoleculeInput', origin_0based: 'int') -> 'ToolResult'",
+    "module": "core.tools.sequence_ops",
+    "parameters": {
+      "properties": {
+        "dna_seq": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "required": [
+                "sequence"
+              ],
+              "properties": {
+                "sequence": {
+                  "type": "string"
+                },
+                "topology": {
+                  "enum": [
+                    "linear",
+                    "circular",
+                    null
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "origin_0based": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "type": "object",
+      "required": [
+        "dna_seq",
+        "origin_0based"
+      ],
+      "additionalProperties": false
+    },
+    "result": {
+      "products": "Molecule[]",
+      "analysis": "object",
+      "checks": "ScopedCheck[]"
+    },
+    "static_call_sites": []
+  },
+  {
+    "name": "silent_mutation_remove_site",
+    "category": "compute",
+    "signature": "(cds_seq: 'MoleculeInput', enzyme_name: 'str', frame_offset: 'int' = 0, table: 'int' = 1) -> 'ToolResult'",
+    "module": "core.tools.translation",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "cds_seq": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "required": [
+                "sequence"
+              ],
+              "properties": {
+                "sequence": {
+                  "type": "string"
+                },
+                "topology": {
+                  "enum": [
+                    "linear",
+                    "circular",
+                    null
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "enzyme_name": {
+          "type": "string"
+        },
+        "frame_offset": {
+          "type": "integer",
+          "default": 0
+        },
+        "table": {
+          "type": "integer",
+          "default": 1
+        }
+      },
+      "required": [
+        "cds_seq",
+        "enzyme_name"
+      ],
+      "additionalProperties": false
+    },
+    "result": {
+      "products": "Molecule[]",
+      "analysis": "object",
+      "checks": "ScopedCheck[]"
+    },
+    "static_call_sites": []
+  },
+  {
+    "name": "simulate_digest_ligation",
+    "category": "compute",
+    "signature": "(vector_source: 'str | pathlib.Path | SeqRecord', insert_source: 'str | pathlib.Path | SeqRecord', vector_enzymes: 'list[str]', insert_enzymes: 'list[str] | None' = None, orientation: 'str' = 'auto') -> 'ToolResult'",
+    "module": "core.tools.assembly",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "vector_source": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "required": [
+                "sequence"
+              ],
+              "properties": {
+                "sequence": {
+                  "type": "string"
+                },
+                "topology": {
+                  "enum": [
+                    "linear",
+                    "circular",
+                    null
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "insert_source": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "required": [
+                "sequence"
+              ],
+              "properties": {
+                "sequence": {
+                  "type": "string"
+                },
+                "topology": {
+                  "enum": [
+                    "linear",
+                    "circular",
+                    null
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "vector_enzymes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "insert_enzymes": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "orientation": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "forward",
+            "reverse"
+          ],
+          "default": "auto"
+        }
+      },
+      "required": [
+        "vector_source",
+        "insert_source",
+        "vector_enzymes"
+      ],
+      "additionalProperties": false
+    },
+    "result": {
+      "products": "Molecule[]",
+      "analysis": "object",
+      "checks": "ScopedCheck[]"
+    },
+    "static_call_sites": [
+      "snapgene-dna-design\\planning\\executor.py:371",
+      "snapgene-dna-design\\core\\recipes\\restriction_cloning.py:201"
+    ]
+  },
+  {
+    "name": "simulate_golden_gate",
+    "category": "compute",
+    "signature": "(fragments: 'list[MoleculeInput]', enzyme: 'str' = 'BsaI', circular: 'bool' = True) -> 'ToolResult'",
+    "module": "core.tools.assembly",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "fragments": {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "sequence"
+                ],
+                "properties": {
+                  "sequence": {
+                    "type": "string"
+                  },
+                  "topology": {
+                    "enum": [
+                      "linear",
+                      "circular",
+                      null
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "enzyme": {
+          "type": "string",
+          "default": "BsaI"
+        },
+        "circular": {
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "required": [
+        "fragments"
+      ],
+      "additionalProperties": false
+    },
+    "result": {
+      "products": "Molecule[]",
+      "analysis": "object",
+      "checks": "ScopedCheck[]"
+    },
+    "static_call_sites": [
+      "snapgene-dna-design\\planning\\executor.py:326",
+      "snapgene-dna-design\\core\\recipes\\golden_gate.py:65"
+    ]
+  },
+  {
+    "name": "simulate_overlap_assembly",
+    "category": "compute",
+    "signature": "(fragments: 'list[MoleculeInput]', min_overlap: 'int' = 15, circular: 'bool' = True, fragment_labels: 'list[str] | None' = None) -> 'ToolResult'",
+    "module": "core.tools.assembly",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "fragments": {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "sequence"
+                ],
+                "properties": {
+                  "sequence": {
+                    "type": "string"
+                  },
+                  "topology": {
+                    "enum": [
+                      "linear",
+                      "circular",
+                      null
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "min_overlap": {
+          "type": "integer",
+          "default": 15
+        },
+        "circular": {
+          "type": "boolean",
+          "default": true
+        },
+        "fragment_labels": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "fragments"
+      ],
+      "additionalProperties": false
+    },
+    "result": {
+      "products": "Molecule[]",
+      "analysis": "object",
+      "checks": "ScopedCheck[]"
+    },
+    "static_call_sites": [
+      "snapgene-dna-design\\planning\\executor.py:258",
+      "snapgene-dna-design\\core\\recipes\\gibson.py:513",
+      "snapgene-dna-design\\core\\recipes\\gibson.py:401",
+      "tools\\run_10_acceptance_benchmarks.py:471"
+    ]
+  },
+  {
+    "name": "simulate_pcr",
+    "category": "compute",
+    "signature": "(template_path_or_seq: 'MoleculeInput', f_primer: 'MoleculeInput', r_primer: 'MoleculeInput', topology: 'str | None' = None, forward_binding_core_length: 'int | None' = None, reverse_binding_core_length: 'int | None' = None, forward_binding_start_0based: 'int | None' = None, reverse_binding_start_0based: 'int | None' = None, min_binding_len: 'int' = 15) -> 'ToolResult'",
+    "module": "core.tools.amplification",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "template_path_or_seq": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "required": [
+                "sequence"
+              ],
+              "properties": {
+                "sequence": {
+                  "type": "string"
+                },
+                "topology": {
+                  "enum": [
+                    "linear",
+                    "circular",
+                    null
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "f_primer": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "required": [
+                "sequence"
+              ],
+              "properties": {
+                "sequence": {
+                  "type": "string"
+                },
+                "topology": {
+                  "enum": [
+                    "linear",
+                    "circular",
+                    null
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "r_primer": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "required": [
+                "sequence"
+              ],
+              "properties": {
+                "sequence": {
+                  "type": "string"
+                },
+                "topology": {
+                  "enum": [
+                    "linear",
+                    "circular",
+                    null
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "topology": {
+          "enum": [
+            "circular",
+            "linear",
+            null
+          ],
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "forward_binding_core_length": {
+          "minimum": 1,
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "reverse_binding_core_length": {
+          "minimum": 1,
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "forward_binding_start_0based": {
+          "minimum": 0,
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "reverse_binding_start_0based": {
+          "minimum": 0,
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "min_binding_len": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 15
+        }
+      },
+      "required": [
+        "template_path_or_seq",
+        "f_primer",
+        "r_primer"
+      ],
+      "additionalProperties": false
+    },
+    "result": {
+      "products": "Molecule[]",
+      "analysis": "object",
+      "checks": "ScopedCheck[]"
+    },
+    "static_call_sites": [
+      "snapgene-dna-design\\planning\\planner.py:360",
+      "snapgene-dna-design\\scripts\\run_recipe.py:110",
+      "snapgene-dna-design\\scripts\\simulate_pcr.py:58",
+      "snapgene-dna-design\\core\\recipes\\gibson.py:502",
+      "snapgene-dna-design\\core\\recipes\\mutagenesis.py:336",
+      "snapgene-dna-design\\core\\recipes\\verification.py:282",
+      "snapgene-dna-design\\core\\tools\\amplification.py:835",
+      "snapgene-dna-design\\core\\tools\\crispr.py:259",
+      "tools\\run_10_acceptance_benchmarks.py:465"
+    ]
+  },
+  {
+    "name": "strip_terminal_codons",
+    "category": "compute",
+    "signature": "(cds_seq: 'MoleculeInput', strip_start: 'bool' = False, strip_stop: 'bool' = False) -> 'ToolResult'",
+    "module": "core.tools.sequence_ops",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "cds_seq": {
+          "description": "CDS nucleotide sequence.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "required": [
+                "sequence"
+              ],
+              "properties": {
+                "sequence": {
+                  "type": "string"
+                },
+                "topology": {
+                  "enum": [
+                    "linear",
+                    "circular",
+                    null
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "strip_start": {
+          "type": "boolean",
+          "default": false
+        },
+        "strip_stop": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "required": [
+        "cds_seq"
+      ],
+      "additionalProperties": false
+    },
+    "result": {
+      "products": "Molecule[]",
+      "analysis": "object",
+      "checks": "ScopedCheck[]"
+    },
+    "static_call_sites": [
+      "snapgene-dna-design\\core\\recipes\\protein_tagging.py:155",
+      "snapgene-dna-design\\core\\recipes\\protein_tagging.py:180",
+      "snapgene-dna-design\\core\\recipes\\protein_tagging.py:240",
+      "snapgene-dna-design\\core\\recipes\\protein_tagging.py:186"
+    ]
+  },
+  {
+    "name": "summarize_backbone",
+    "category": "inspect",
+    "signature": "(file_path_or_record: 'str | pathlib.Path | SeqRecord') -> 'ToolResult'",
+    "module": "core.tools.inspection",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "file_path_or_record": {
+          "description": "Path to plasmid file or SeqRecord.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "required": [
+                "sequence"
+              ],
+              "properties": {
+                "sequence": {
+                  "type": "string"
+                },
+                "topology": {
+                  "enum": [
+                    "linear",
+                    "circular",
+                    null
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      },
+      "required": [
+        "file_path_or_record"
+      ],
+      "additionalProperties": false
+    },
+    "result": {
+      "products": "Molecule[]",
+      "analysis": "object",
+      "checks": "ScopedCheck[]"
+    },
+    "static_call_sites": []
+  },
+  {
+    "name": "translate_dna",
+    "category": "compute",
+    "signature": "(seq: 'MoleculeInput', frame: 'int' = 1, table: 'int' = 1) -> 'ToolResult'",
+    "module": "core.tools.translation",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "seq": {
+          "description": "DNA sequence.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "required": [
+                "sequence"
+              ],
+              "properties": {
+                "sequence": {
+                  "type": "string"
+                },
+                "topology": {
+                  "enum": [
+                    "linear",
+                    "circular",
+                    null
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "frame": {
+          "type": "integer",
+          "default": 1
+        },
+        "table": {
+          "type": "integer",
+          "default": 1
+        }
+      },
+      "required": [
+        "seq"
+      ],
+      "additionalProperties": false
+    },
+    "result": {
+      "products": "Molecule[]",
+      "analysis": "object",
+      "checks": "ScopedCheck[]"
+    },
+    "static_call_sites": [
+      "snapgene-dna-design\\core\\recipes\\protein_tagging.py:203",
+      "snapgene-dna-design\\core\\tools\\translation.py:71",
+      "snapgene-dna-design\\core\\tools\\translation.py:143",
+      "tools\\run_10_acceptance_benchmarks.py:218",
+      "tools\\run_10_acceptance_benchmarks.py:444"
+    ]
+  }
+]

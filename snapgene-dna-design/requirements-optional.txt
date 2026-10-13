@@ -1,0 +1,19 @@
+# Optional prediction dependencies. Install requirements.txt first.
+# Primer3 is a core design requirement supplied by primer3-py there.
+# Its GPL license remains separate; an external-process interface is not a
+# blanket statement about legal redistribution of every combined package.
+
+# v0.8.0-dev3 real on-target models
+# Azimuth V3 (Doench-2016): converted featurization code + saved pickles are
+# bundled under third_party/azimuth (BSD).
+numpy>=1.24
+pandas>=2.0
+matplotlib>=3.7
+scikit-learn>=1.2
+# DeepCpf1 (Kim 2018): published Keras weights are bundled under
+# third_party/deepcpf1 (Artistic-2.0) and evaluated with PyTorch.
+torch>=2.0
+h5py>=3.8
+
+# Cas-OFFinder is an external BSD-3-Clause binary; install it separately and
+# pass --cas-offinder or put cas-offinder on PATH.

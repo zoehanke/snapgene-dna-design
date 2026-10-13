@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 """v0.9.0-dev2 regression tests for biological fail-closed gates."""
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import argparse
 import pathlib
 import sys
@@ -7,13 +9,14 @@ import tempfile
 import unittest
 from unittest import mock
 
-ROOT = pathlib.Path(__file__).resolve().parents[1]
+ROOT = SKILL_ROOT
 SCRIPTS = ROOT / "scripts"
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(SCRIPTS))
 
 from Bio.Seq import Seq  # noqa: E402
-from Bio.SeqFeature import FeatureLocation, SeqFeature  # noqa: E402
+from Bio.SeqFeature import (AfterPosition, BeforePosition, ExactPosition,
+                            FeatureLocation, SeqFeature)  # noqa: E402
 from Bio.SeqRecord import SeqRecord  # noqa: E402
 
 import codon_optimize  # noqa: E402
@@ -95,17 +98,32 @@ class AssemblyExecutorTests(unittest.TestCase):
         fragments = [
             {"name": "a", "sequence": str(a.seq), "length": len(a.seq),
              "role": "backbone", "source_path": "a.gb",
-             "source_interval": [0, len(a.seq)], "_source_record": a},
+             "source_interval": [0, len(a.seq)], "_source_record": a,
+             "_pcr_product": {"amplicon": str(a.seq),
+                              "amplicon_length": len(a.seq)}},
             {"name": "b", "sequence": str(b.seq), "length": len(b.seq),
              "role": "insert", "source_path": "b.gb",
-             "source_interval": [0, len(b.seq)], "_source_record": b},
+             "source_interval": [0, len(b.seq)], "_source_record": b,
+             "_pcr_product": {"amplicon": overlap + str(b.seq),
+                              "amplicon_length": len(overlap) + len(b.seq)}},
         ]
+        # Retain the old injected dictionaries: they are not evidence of PCR.
+        with self.assertRaisesRegex(ValueError,'actual molecular products'):
+            execute_assembly(fragments,'gibson','linear',junctions=[{'sequence':overlap,'length':len(overlap)}])
+        from core.tools.result import ToolResult
+        from core.models.molecule import as_molecule
+        for fragment in fragments:
+            old=fragment['_pcr_product']
+            # Declared synthetic substrates for this assembly-only unit test.
+            # No PCR preparation or task success is asserted by this fixture.
+            fragment['_pcr_product']=ToolResult(products=[as_molecule({'sequence':old['amplicon'],'topology':'linear'})],
+                analysis={'amplicon_length':old['amplicon_length']})
         result = execute_assembly(
             fragments, "gibson", "linear",
             junctions=[{"sequence": overlap, "length": len(overlap)}])
         self.assertEqual(result["status"], "validated")
         self.assertEqual(result["sequence"], "AAAA" + overlap + "GGGG")
-        self.assertEqual(result["executor"], "scripts.simulate_cloning.gibson")
+        self.assertEqual(result["executor"], "core.tools.assembly.simulate_overlap_assembly")
 
     def test_short_overlap_is_blocked_before_execution(self):
         with self.assertRaises(Exception) as ctx:
@@ -181,6 +199,61 @@ class BoundaryAndReportTests(unittest.TestCase):
         self.assertTrue(any(
             item["check"] == "cds_translation_mismatch" and
             item["status"] == "error" for item in result["checks"]))
+
+    def test_complete_boundary_cds_with_self_consistent_translation_stays_strict(self):
+        feature = SeqFeature(
+            FeatureLocation(0, 9, strand=1), type="CDS",
+            qualifiers={"label": ["whole_record_bad"],
+                        "translation": ["KPG"]})
+        result = validate_construct.validate(rec("AAACCCGGG", features=[feature]))
+        errors = {item["check"] for item in result["checks"]
+                  if item["status"] == "error"}
+        self.assertIn("cds_start_codon", errors)
+        self.assertIn("cds_stop_codon", errors)
+
+    def test_terminal_stop_qualifier_may_omit_standard_genbank_star(self):
+        feature = SeqFeature(
+            FeatureLocation(0, 12, strand=1), type="CDS",
+            qualifiers={"label": ["complete"], "translation": ["MAK"]})
+        result = validate_construct.validate(rec("ATGGCTAAATAA", features=[feature]))
+        self.assertFalse(any(
+            item["check"] == "cds_translation_mismatch" and
+            item["status"] == "error" for item in result["checks"]))
+
+    def test_fuzzy_partial_translation_compares_boundary_fragment(self):
+        feature = SeqFeature(
+            FeatureLocation(BeforePosition(0), ExactPosition(9), strand=1),
+            type="CDS",
+            qualifiers={"label": ["partial"], "translation": ["MKPG"]})
+        result = validate_construct.validate(rec("AAACCCGGG", features=[feature]))
+        errors = {item["check"] for item in result["checks"]
+                  if item["status"] == "error"}
+        self.assertNotIn("cds_translation_mismatch", errors)
+        self.assertNotIn("cds_start_codon", errors)
+
+    def test_feature_serialization_preserves_fuzzy_cds_partial_evidence(self):
+        from core.models.construct_model import feature_to_dict
+        feature = SeqFeature(
+            FeatureLocation(BeforePosition(0), ExactPosition(9), strand=1),
+            type="CDS", qualifiers={"label": ["partial"]})
+        payload = feature_to_dict(feature, 9)
+        self.assertEqual(payload["qualifiers"]["partial"], ["true"])
+        self.assertTrue(any("source fuzzy location" in note
+                            for note in payload["qualifiers"]["note"]))
+
+    def test_segmented_pml104_protein_annotations_use_product_evidence(self):
+        features = [
+            SeqFeature(
+                FeatureLocation(0, 9), type="CDS",
+                qualifiers={"label": ["Cas9(N)"],
+                            "product": ["N-terminal portion of Cas9"]}),
+            SeqFeature(
+                FeatureLocation(9, 18), type="CDS",
+                qualifiers={"label": ["SV40 NLS"],
+                            "product": ["nuclear localization signal"]}),
+        ]
+        result = validate_construct.validate(rec("AAACCCGGGCCCAAATTT", features=features))
+        self.assertTrue(result["summary"]["pass"], result["checks"])
 
     def test_explicit_fragment_annotation_waives_complete_orf_gate(self):
         feature = SeqFeature(

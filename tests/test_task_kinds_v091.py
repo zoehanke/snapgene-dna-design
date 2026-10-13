@@ -8,6 +8,8 @@ Each kind has: a positive case through the public seams, closed-fail
 negative cases, and boundary cases.  Experimental-maturity kinds must
 produce ``experimental-preview`` and be refused by the authoritative gate.
 """
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import json
 import pathlib
 import sys
@@ -19,7 +21,7 @@ from Bio.Seq import Seq
 from Bio.SeqFeature import FeatureLocation, SeqFeature
 from Bio.SeqRecord import SeqRecord
 
-ROOT = pathlib.Path(__file__).resolve().parents[1]
+ROOT = SKILL_ROOT
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scripts"))
 
