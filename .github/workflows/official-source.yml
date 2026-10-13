@@ -2,7 +2,7 @@ name: Official source verification
 
 on:
   push:
-    branches: ["codex/crispr-skill-fixes-20261012"]
+    branches: ["codex/crispr-skill-fixes-20261012", "codex/wiki-evidence-20261014"]
     paths:
       - .github/workflows/official-source.yml
       - tools/check_official_source.py
@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 env:
-  OFFICIAL_SHA: 42590dbe27757fc377c6c256e161964a76dfb7ec
+  OFFICIAL_SHA: ac80369d5e77465d102a8b21ec607d40d04deaaa
   PYTHONUTF8: "1"
   PYTHONDONTWRITEBYTECODE: "1"
   SNAPGENE_RUN_PRIMER3: "1"
