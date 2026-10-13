@@ -1,0 +1,63 @@
+{
+  "elapsed_seconds": 1.71,
+  "gate": "property-tests",
+  "methods": {
+    "digest-ligate": {
+      "detail": "ok",
+      "elapsed_seconds": 0.2,
+      "failure_passed": 300,
+      "failure_target": 300,
+      "ok": true,
+      "success_passed": 1000,
+      "success_target": 1000
+    },
+    "gateway": {
+      "detail": "ok",
+      "elapsed_seconds": 0.1,
+      "failure_passed": 200,
+      "failure_target": 200,
+      "ok": true,
+      "success_passed": 500,
+      "success_target": 500
+    },
+    "gibson": {
+      "detail": "ok",
+      "elapsed_seconds": 0.47,
+      "failure_passed": 300,
+      "failure_target": 300,
+      "ok": true,
+      "success_passed": 1000,
+      "success_target": 1000
+    },
+    "golden-gate": {
+      "detail": "ok",
+      "elapsed_seconds": 0.43,
+      "failure_passed": 300,
+      "failure_target": 300,
+      "ok": true,
+      "success_passed": 1000,
+      "success_target": 1000
+    },
+    "infusion": {
+      "detail": "ok",
+      "elapsed_seconds": 0.47,
+      "failure_passed": 300,
+      "failure_target": 300,
+      "ok": true,
+      "success_passed": 1000,
+      "success_target": 1000
+    },
+    "ta": {
+      "detail": "ok",
+      "elapsed_seconds": 0.04,
+      "failure_passed": 200,
+      "failure_target": 200,
+      "ok": true,
+      "success_passed": 500,
+      "success_target": 500
+    }
+  },
+  "ok": true,
+  "scale_factor": 1.0,
+  "seed": 20260816
+}

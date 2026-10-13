@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="710" viewBox="0 0 1100 710" role="img" aria-labelledby="title desc">
+<title id="title">DNA computation and Evidence Trace boundaries</title><desc id="desc">The host selects a route. Recipes and pipelines perform preparation; specialized tasks model sequence changes. Files pass scoped checks before delivery. Trace records observed results and submitted organization without changing DNA.</desc>
+<defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8" fill="none" stroke="#607789"/></marker></defs>
+<rect width="1100" height="710" fill="#f5f7f9"/><style>text{font-family:Arial,sans-serif;fill:#192c3b} .label{font-size:17px;font-weight:bold}.sub{font-size:13px;fill:#536675}.line{stroke:#607789;stroke-width:1.5;fill:none;marker-end:url(#arrow)}</style>
+<text x="40" y="42" font-size="25" font-weight="bold">From available materials to checked files</text>
+<text x="40" y="67" class="sub">Implemented boundaries, September 2026. Computational checks do not establish experimental performance.</text>
+<rect x="40" y="100" width="250" height="72" rx="4" fill="#ffffff" stroke="#cbd5dd"/>
+<text x="56" y="130" class="label">User and source materials</text><text x="56" y="153" class="sub">Requirements, files, constraints</text>
+<rect x="360" y="100" width="290" height="72" rx="4" fill="#eaf1f8" stroke="#cbd5dd"/>
+<text x="376" y="130" class="label">Host model + SKILL</text><text x="376" y="153" class="sub">Interpret intent; choose a route</text>
+<rect x="40" y="225" width="440" height="78" rx="4" fill="#ffffff" stroke="#cbd5dd"/>
+<text x="56" y="255" class="label">Recipe / explicit Pipeline</text><text x="56" y="278" class="sub">Actual preparation and intermediate products</text>
+<rect x="555" y="225" width="505" height="78" rx="4" fill="#ffffff" stroke="#cbd5dd"/>
+<text x="571" y="255" class="label">Specialized ConstructionTask</text><text x="571" y="278" class="sub">Declared sequence / annotation model; scope_note</text>
+<rect x="280" y="350" width="520" height="78" rx="4" fill="#ffffff" stroke="#cbd5dd"/>
+<text x="296" y="380" class="label">Core sequence tools and records</text><text x="296" y="403" class="sub">Compute DNA; preserve features, topology and primers</text>
+<rect x="40" y="475" width="310" height="78" rx="4" fill="#ffffff" stroke="#cbd5dd"/>
+<text x="56" y="505" class="label">Saved candidate files</text><text x="56" y="528" class="sub">GB / DNA / FASTA / preparation</text>
+<rect x="395" y="475" width="310" height="78" rx="4" fill="#ffffff" stroke="#cbd5dd"/>
+<text x="411" y="505" class="label">Scoped validation</text><text x="411" y="528" class="sub">Check files, recomputation and goal</text>
+<rect x="750" y="475" width="310" height="78" rx="4" fill="#ffffff" stroke="#cbd5dd"/>
+<text x="766" y="505" class="label">Authoritative delivery</text><text x="766" y="528" class="sub">Only after the applicable gate</text>
+<path d="M290 136H360" class="line"/>
+<path d="M460 172V201H260V225" class="line"/>
+<path d="M570 172V201H807V225" class="line"/>
+<path d="M260 303V329H430V350" class="line"/>
+<path d="M807 303V329H650V350" class="line"/>
+<path d="M540 428V450H195V475" class="line"/>
+<path d="M350 514H395" class="line"/>
+<path d="M705 514H750" class="line"/>
+<rect x="40" y="605" width="1020" height="70" rx="4" fill="#edf4f0" stroke="#cbd5dd"/>
+<text x="56" y="635" class="label">Evidence Trace: an observing sidecar</text><text x="56" y="658" class="sub">Observed inputs / returns / failures / file versions + supplied explanations → events → authored process → fixed report</text>
+<path d="M200 553V605" class="line" stroke-dasharray="5 5"/>
+<path d="M550 553V605" class="line" stroke-dasharray="5 5"/>
+<path d="M900 553V605" class="line" stroke-dasharray="5 5"/>
+<text x="40" y="696" class="sub">Dashed arrows: observations. No Trace arrow changes Core parameters, validation semantics or delivered DNA.</text></svg>

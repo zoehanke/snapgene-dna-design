@@ -1,0 +1,19 @@
+{
+  "schema_version": "0.9.1",
+  "parts": [
+    {"name": "pET-28a(+)", "type": "backbone", "source": "MilliporeSigma/Novagen Cat 69864-3 (pET-28a)", "accession": "Novagen 69864-3", "sequence": null, "features": ["T7 promoter", "lacI", "KanR", "pBR322 ori", "6xHis", "thrombin site"], "notes": "下载权威序列后再使用；本记录只做来源索引"},
+    {"name": "pUC19", "type": "backbone", "source": "GenBank M77789 / NEB N3041", "accession": "M77789", "sequence": null, "features": ["lacZ alpha", "AmpR", "pMB1 ori"], "notes": "高拷贝克隆骨架"},
+    {"name": "pDONR201", "type": "backbone", "source": "Invitrogen Gateway donor; local fixture", "accession": "local:fixtures/pDONR201.dna", "sequence": null, "features": ["attP1", "attP2", "KanR", "ccdB"], "notes": "academic fixture, not redistributable"},
+    {"name": "pX330", "type": "backbone", "source": "Addgene 42230", "accession": "Addgene 42230", "sequence": null, "features": ["U6 promoter", "SpCas9", "chimeric guide RNA", "AmpR"], "notes": "CRISPR backbone"},
+    {"name": "T7 promoter", "type": "promoter", "source": "Addgene; bacteriophage T7 consensus", "accession": "Addgene protocol: T7 promoter", "sequence": "TAATACGACTCACTATAG", "features": ["T7 RNA polymerase binding"], "notes": "consensus sequence"},
+    {"name": "CMV promoter", "type": "promoter", "source": "Addgene; mammalian expression consensus", "accession": "Addgene protocol: CMV promoter", "sequence": null, "features": ["CMV enhancer", "CMV promoter"], "notes": "建议从权威质粒提取完整序列"},
+    {"name": "U6 promoter", "type": "promoter", "source": "Addgene; human U6 snRNA promoter", "accession": "Addgene protocol: U6 promoter", "sequence": null, "features": ["U6 promoter"], "notes": "建议从 pX330 等权威质粒提取"},
+    {"name": "6xHis", "type": "tag", "source": "Addgene; common expression tag", "accession": "Addgene protocol: 6xHis", "sequence": "CATCACCATCACCATCAC", "features": ["6xHis"], "notes": "C-terminal or N-terminal tag"},
+    {"name": "HA", "type": "tag", "source": "Addgene; influenza hemagglutinin epitope", "accession": "Addgene protocol: HA tag", "sequence": "TACCCATACGATGTTCCAGATTACGCT", "features": ["HA epitope"], "notes": "9 amino acid epitope"},
+    {"name": "FLAG", "type": "tag", "source": "Addgene; FLAG epitope", "accession": "Addgene protocol: FLAG tag", "sequence": "GATTACAAGGATGACGACGATAAG", "features": ["FLAG epitope"], "notes": "8 amino acid epitope"},
+    {"name": "AmpR", "type": "resistance", "source": "GenBank; beta-lactamase", "accession": "common marker (use authoritative plasmid)", "sequence": null, "features": ["beta-lactamase"], "notes": "从 pUC19 等权威质粒提取完整 ORF"},
+    {"name": "KanR", "type": "resistance", "source": "GenBank; aminoglycoside phosphotransferase", "accession": "common marker (use authoritative plasmid)", "sequence": null, "features": ["KanR"], "notes": "从 pET-28a 等权威质粒提取完整 ORF"},
+    {"name": "pMB1 ori", "type": "origin", "source": "pUC19 derivative; GenBank M77789", "accession": "M77789", "sequence": null, "features": ["pMB1 ori"], "notes": "高拷贝 ori"},
+    {"name": "pBR322 ori", "type": "origin", "source": "GenBank J01749", "accession": "J01749", "sequence": null, "features": ["pBR322 ori"], "notes": "中等拷贝 ori"}
+  ]
+}

@@ -1,0 +1,133 @@
+{
+  "errors": 0,
+  "gate": "mutation-tests",
+  "gate_ok": true,
+  "kill_rate_percent": 100.0,
+  "killed": 12,
+  "min_kill_rate": 90.0,
+  "mutations": [
+    {
+      "file": "core/models/assembly_model.py",
+      "id": "M01",
+      "mutant_behavior_correct": false,
+      "mutant_stderr": "",
+      "pristine_behavior_correct": true,
+      "pristine_stderr": "",
+      "status": "killed",
+      "title": "zero-contribution fragment check removed"
+    },
+    {
+      "file": "core/models/assembly_model.py",
+      "id": "M02",
+      "mutant_behavior_correct": false,
+      "mutant_stderr": "",
+      "pristine_behavior_correct": true,
+      "pristine_stderr": "",
+      "status": "killed",
+      "title": "Gibson overlap mismatch check removed"
+    },
+    {
+      "file": "core/models/assembly_model.py",
+      "id": "M03",
+      "mutant_behavior_correct": false,
+      "mutant_stderr": "",
+      "pristine_behavior_correct": true,
+      "pristine_stderr": "",
+      "status": "killed",
+      "title": "circular closing overlap no longer trimmed"
+    },
+    {
+      "file": "core/models/assembly_model.py",
+      "id": "M04",
+      "mutant_behavior_correct": false,
+      "mutant_stderr": "",
+      "pristine_behavior_correct": true,
+      "pristine_stderr": "",
+      "status": "killed",
+      "title": "sticky ends always compatible"
+    },
+    {
+      "file": "scripts/simulate_cloning.py",
+      "id": "M05",
+      "mutant_behavior_correct": false,
+      "mutant_stderr": "",
+      "pristine_behavior_correct": true,
+      "pristine_stderr": "",
+      "status": "killed",
+      "title": "CompoundLocation parts globally sorted by start"
+    },
+    {
+      "file": "scripts/simulate_cloning.py",
+      "id": "M06",
+      "mutant_behavior_correct": false,
+      "mutant_stderr": "",
+      "pristine_behavior_correct": true,
+      "pristine_stderr": "",
+      "status": "killed",
+      "title": "feature extract() consistency check removed"
+    },
+    {
+      "file": "core/models/assembly_model.py",
+      "id": "M07",
+      "mutant_behavior_correct": false,
+      "mutant_stderr": "",
+      "pristine_behavior_correct": true,
+      "pristine_stderr": "",
+      "status": "killed",
+      "title": "origin coordinate invariants disabled"
+    },
+    {
+      "file": "core/tools/assembly.py",
+      "id": "M08",
+      "mutant_behavior_correct": false,
+      "mutant_stderr": "",
+      "pristine_behavior_correct": true,
+      "pristine_stderr": "",
+      "status": "killed",
+      "title": "Golden Gate accepts fragments containing recognition sites"
+    },
+    {
+      "file": "scripts/golden_gate.py",
+      "id": "M09",
+      "mutant_behavior_correct": false,
+      "mutant_stderr": "",
+      "pristine_behavior_correct": true,
+      "pristine_stderr": "",
+      "status": "killed",
+      "title": "Golden Gate overhang mismatch tolerated"
+    },
+    {
+      "file": "core/tools/recombination.py",
+      "id": "M10",
+      "mutant_behavior_correct": false,
+      "mutant_stderr": "",
+      "pristine_behavior_correct": true,
+      "pristine_stderr": "",
+      "status": "killed",
+      "title": "Gateway att-site uniqueness check removed"
+    },
+    {
+      "file": "scripts/sg_common.py",
+      "id": "M11",
+      "mutant_behavior_correct": false,
+      "mutant_stderr": "",
+      "pristine_behavior_correct": true,
+      "pristine_stderr": "",
+      "status": "killed",
+      "title": "failure envelope reports ok:true"
+    },
+    {
+      "file": "core/models/construct_model.py",
+      "id": "M12",
+      "mutant_behavior_correct": false,
+      "mutant_stderr": "",
+      "pristine_behavior_correct": true,
+      "pristine_stderr": "",
+      "status": "killed",
+      "title": "ConstructModel.insert boundary off-by-one"
+    }
+  ],
+  "required_kills_of_12": 11,
+  "survived": 0,
+  "total": 12
+}

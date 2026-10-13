@@ -6,6 +6,8 @@ Scenario B: Gateway entry clone -> LR expression vector -> validate.
 Scenario C: 4-fragment Golden Gate simulation -> validate.
 Scenario D: high-GC template PCR strategy + primer design.
 """
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import json
 import os
 import pathlib
@@ -21,7 +23,7 @@ from Bio.SeqFeature import FeatureLocation, SeqFeature
 from Bio.SeqRecord import SeqRecord
 
 HERE = pathlib.Path(__file__).resolve().parent
-ROOT = HERE.parent
+ROOT = SKILL_ROOT
 SCRIPTS = ROOT / "scripts"
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(SCRIPTS))
@@ -111,6 +113,8 @@ class ScenarioA_GibsonPlan(unittest.TestCase):
             self.assertTrue(plan["primers"][0]["forward"]["sequence"])
             construct = SeqIO.read(str(tmp / "construct.gb"), "genbank")
             self.assertEqual(len(construct.seq), 2200 + 648)
+            self.assertEqual(str(construct.seq), rnd(2200, 11) + cds)
+            self.assertTrue(all(p['complete_oligo_structure']['passed'] for p in plan['primers']))
             # The full backbone contributes its promoter and existing feature;
             # the selected donor CDS is migrated as a third feature.
             self.assertEqual(len(construct.features), 3)
