@@ -25,6 +25,22 @@
 整合完整套件实际1280项：1260通过、20跳过、0失败/错误；原首轮setup错误保留。诊断源树442文件、441条清单逐项大小/软件摘要一致(清单自身不入表)，无禁用类型/目录、实际profile/所供材料身份或指纹、未知窗口及auth文件命中；一个变量名测试误报不算凭据。38条Windows文本候选均经角色核查为安装发现、示例、程序转义或独立构造回归，保留理由。两个官方模板文件按main原字节继承。仍需最终冻结/clean clone与精确CI，不能把诊断包或payload大小当官方接收/容量证明。
 
 
-## 候选准备状态，尚未远端完成
+## 首次候选准备记录
+
+以下保留当时的认证阻断与未完成状态；最新远端事实见下一节，不把旧失败或旧计数改成通过。
 
 代码冻结[3c401b4](https://github.com/zoehanke/snapgene-dna-design/commit/3c401b4dcd9e07a24c62ea0a4d759634506f67ed)；本地官方候选`28c45d6`。443个精选文件、442条清单原字节/size/SHA全部相符；含Git元数据的clean clone总容量8241375字节，source 5931202字节、pack 1793891字节，低于50MB。服务端quota仍为UNVERIFIED。 默认git archive构包256个payload软件摘要、ZIP CRC、单一Skill入口及当前树敏感内容核查通过，公共640bp示例经真实construct、verify与独立最终文件读回。官方推送因本机认证配置阻断，候选尚未远端，自己的GitLab流水线尚不存在。首轮clean clone全套遗漏`SNAPGENE_RUN_PRIMER3=1`，真实Primer3因此6项跳过且发布门槛失败；旧本地候选b6d967e首次为1271项、1245通过/26跳过/0失败错误，但runner总状态FAILED，原失败保留。最终候选28c45d6按规定环境重跑中，不能预先写全套通过。已向用户请求完成本机登录；这是身份验证配置问题，候选发布授权已提供，不是再次请求发布批准。计划保持进行中，不借旧main或GitHub CI称官方候选已通过。真人配置后继续原授权候选分支与精确CI核查，不索取或在报告中提供token。两个main、远端历史、正式表单/Wiki及原工作区改动保持。
+
+## 官方候选与最新验证
+
+经用户指定的 Edge 网页提交，官方候选分支为 `codex/candidate-core-2.2.4-toolkit-0.1.1-trace-0.3.4-20261013`，最新提交为 [42590dbe](https://gitlab.igem.org/2026/software/tianjin/igem-tianjin2026/-/commit/42590dbe27757fc377c6c256e161964a76dfb7ec)。未使用 Git 远程推送；官方 main 仍是 `0c764c6`。
+
+首次网页提交 `0aaaef2a` 的独立回读发现 11 项字节差异：10 个原文件仍保留 CRLF，CI 文件多一个 LF。编辑器正文相同不足以证明保存后的原始字节相同。保留该提交、失败克隆与回执，正常新增修正提交；未 amend、force 或改验收答案。第二次独立源码 ZIP 和实际服务器干净 clone 均核对 443 文件、442 条清单，原始字节、大小和软件摘要全部匹配冻结版本。clone 总容量 7,993,922 字节，源树 5,931,202 字节，Git 元数据 2,062,720 字节；实际低于 50MB。服务端 quota 仍未核实。两次 Git 连接重置保留，成功克隆不替换那些失败记录。
+
+冻结本地候选 `28c45d6` 的完整精选套件实跑 1271 项：1251 通过、20 跳过、0 失败/错误，真实 Primer3 门槛通过。这份本地结果仍绑定自己的提交；最新官方源树的逐文件一致性另行证明，不改写原测试来源。开发代码 `3c401b4` 的[六环境 CI 成功](https://github.com/zoehanke/snapgene-dna-design/actions/runs/38351252852)独立记录，不代称 GitLab CI。
+
+最新[GitLab 流水线 752345](https://gitlab.igem.org/2026/software/tianjin/igem-tianjin2026/-/pipelines/752345)绑定 `42590dbe`，状态 pending；[预备任务](https://gitlab.igem.org/2026/software/tianjin/igem-tianjin2026/-/jobs/1817129)没有开始。页面确认项目没有在线执行器。因此官方 CI 尚未通过，计划继续开放，不能把 pending 或本地测试当作官方通过。
+
+已从实际官方提交重新构建 Toolkit 0.1.1/Core 2.2.4/Trace 0.3.4 独立包：256 个 payload、257 个 ZIP 条目、CRC 通过；包软件摘要 `BA354FB8F274831B304FEF24EAE882C8FEE68586B58A92ADA86905F5284001CA`。其 256 个软件 payload 与冻结 GitHub 包逐项相同，来源 manifest 单列；两份完整交接文档各按实际字节分别记录摘要。精选纳入/排除理由见[迁移清单](gitlab-migration.md)。私有交接仅供审阅，未发布 Wiki、正式表单或正式 Release。
+
+未做湿实验、独立陌生评测或真人理解验证。现有执行器恢复、历史取舍、Attributions、Best Software 表单、素材权属、Wiki 发布及 AI 披露終审仍需真人处理；不新增执行器权限或替用户决定历史重写。

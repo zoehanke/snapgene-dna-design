@@ -1,10 +1,10 @@
 # 当前状态与开发交接
 
-2026-10-11更新。这里管理当前任务和未关闭事项，不把所有历史阶段列作“当前计划”。开发入口见[docs](../README.md)，产品契约见相关spec，改变原因见[history](../history.md)。
+2026-10-13更新。这里管理当前任务和未关闭事项，不把所有历史阶段列作“当前计划”。开发入口见[docs](../README.md)，产品契约见相关spec，改变原因见[history](../history.md)。
 
 ## 当前授权与已结束工作
 
-2026-10-13本轮[公开风险与官方候选整合](public-risk-and-candidate-integration-2026-10-13.md)已完成授权内本地修复、版本整合、包与干净clone验证，官方候选28c45d6尚未推送。源代码3c401b4，443文件/442哈希核查成立；认证配置阻断正在等待本机登录，不是缺少发布批准。计划继续开放，自己的GitLab CI尚不存在。原1280项1260通过/20跳过绑定7abb033，新增publisher第10项独立通过；不把旧全量改为1281实跑，不把跳过计为通过。main、历史、正式提交和原工作区边界保留。
+2026-10-13本轮[公开风险与官方候选整合](public-risk-and-candidate-integration-2026-10-13.md)已完成授权内风险修复、版本整合与冻结包。官方候选经 Edge 网页提交42590dbe，最新服务器443文件/442清单及7.99MB真实干净clone核查成立；首次网页字节失败和两次连接重置保留。本地冻结候选28c45d6实跑1271项1251通过/20跳过，仍绑定自己的来源；开发代码3c401b4六环境CI成功，不能代称GitLab。官方流水线752345 pending，缺在线执行器；计划保持开放。main、远端历史、正式表单/Wiki与原工作区边界保留，详见[日期处置表](../igem/public-risk-disposition-2026-10-13.md)。
 
 2026-10-13续授权[任务4至6](../archive/plans/queued-fixtures-and-trace-2026-10-13.md)：固定种子合成回归已推送794d3c7并六环境CI成功；最小Toolkit文件哈希关系实施/本地验收结束，真实13步流程2条程序关联/6条文件事实，完整1245项1227通过/18跳过/0失败。每项提交后的精确CI单独核查。task6仅日期报告与路由，阅读界面/main/原材料和原工作区改动保留；未验证外源素材/二进制、湿实验和陌生评测不升级为成功。
 
@@ -78,7 +78,7 @@ CRISPR Core2.2.3及前置2.2.4构建路线的精确CI已核查：4897f2f/e5c16f4
 | 长链复算与环境 | 同次CLI前缀双重重放已移除，长链逐项注释仍反复计算，优先用现有Pipeline批次；选择性复算、桌面并发根因及未知方向注释延期。外部Primer3实际可用，DSH primer3-py原生API探针崩溃保留 | [收尾记录](../archive/plans/actual-execution-closure-v2.2.1.md)、[testing](../testing.md) |
 | 原九题同宿主重测及独立整体验收 | 已知九题开发回放及本轮真实Flash T2/T3/T8，不是陌生评测。新版只另重测受影响T8，不混成全新版成绩。受控对照、更强模型、陌生用户及独立整体验收未完成；换路、校订分列 | [收尾记录](../archive/plans/actual-execution-closure-v2.2.1.md)、[v2.0.2](../archive/plans/real-task-usability-v2.0.2.md)、[评分](../question-bank/scoring-v0.1.md) |
 | 宿主提示干扰、成本及实际用户价值 | 未做受控无Skill/旧版/新版或模式对照；代码三档一致性不能代替 | [v0.3.2交接](../archive/plans/workflow-phase-3-usability-repair-v0.3.2.md) |
-| 新版报告的独立真人理解 | 浏览器工程证据已有，陌生读者回答尚未验证；未提交Reader Demo保留原文件，其三条旧产物链接已不可达，待稿件接续时核对。2026-10-12“过程图”已改为泳道关系图（仅`view.js`/`view.css`，未提交、未重新打包、未入运行包；66个Trace测试通过，新图尚无自动化测试），详见[阅读设计](../trace-report/design.md)；步骤间依据关系在采集端缺失，图在仅程序记录的trace上退化为列表，未处理。同日另修`report.py`变化值显示与影响分组、正文步骤折叠（103个Trace测试通过，仍无针对性回归测试），未提交 | [阅读规则](../trace-report/design.md)、Demo（原稿曾公开，现已移出当前树并完整私有备份；历史仍可见） |
+| 新版报告的独立真人理解 | Trace0.3.4泳道图、变化值与影响分组已整合到冻结代码3c401b4和官方候选42590dbe，并重新打包；实际合成流程和10张新图完成浏览器工程核查，针对性回归保留。实线只表示程序文件哈希支撑，声明/结构关系保持虚线，不能解释为科学因果。官方CI仍pending；陌生读者理解未验证。原Reader Demo和三条旧产物链接缺口留在仓库外完整稿件，后续写Wiki时另核对 | [阅读规则](../trace-report/design.md)、[本轮处置](../igem/public-risk-disposition-2026-10-13.md)、Demo（原稿曾公开，现已移出当前树并完整私有备份；历史仍可见） |
 | 复杂源注释及制备/QC限制 | pET/Chr1完整表达边界仍需逐件检查；不自动校订源文件、不豁免失败；候选搜索失败如实报告 | [v0.3.2](../archive/plans/workflow-phase-3-usability-repair-v0.3.2.md)、[v1.0.3](../archive/plans/workflow-host-readiness-v1.0.3.md) |
 | 外部试用、专家/实验与真实后端泛化 | 负责人确认外部试用及湿实验未安排；公开合成/本机证据不能补成实验或全基因组保证 | [团队任务](../igem/best-software-task-table.md)、[外部证据](../igem/external-evidence-needed.md) |
 | 正式iGEM提交与完整教学交接 | 权属、账号发布和提交回执仍需团队；原14节教学未整体完成，文档存在不等于讲解完成 | [iGEM](../igem/README.md)、[工程交接](../archive/reviews/final-remediation-report.md) |
