@@ -49,10 +49,13 @@ class ReportLocalizationTests(unittest.TestCase):
             self.assertEqual(english['requirements'][0]['text'],original)
             self.assertIn(original,(trace/'details.md').read_text(encoding='utf-8'))
             self.assertIn('## Detailed records',(trace/'report.md').read_text(encoding='utf-8'))
+            self.assertIn('Solid: program-verified file SHA-256 equality',(trace/'report.md').read_text(encoding='utf-8'))
+            self.assertIn('Dashed: declared/structural relationship',(trace/'report.md').read_text(encoding='utf-8'))
             self.assertIn('lang="en"',(trace/'index.html').read_text(encoding='utf-8'))
             chinese=export('zh')
             self.assertEqual([step['label'] for step in chinese['steps']],['用户要求','AI 选择'])
             self.assertEqual(chinese['requirements'][0]['text'],original)
+            self.assertIn('虚线：声明或结构性关系，程序未验证其含义',(trace/'report.md').read_text(encoding='utf-8'))
 
     def test_reader_literal_translation_keeps_html_escaping(self):
         node=shutil.which('node')

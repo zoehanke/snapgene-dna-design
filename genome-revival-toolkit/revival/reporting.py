@@ -17,7 +17,7 @@ LABELS = {
     'crispr.candidates': 'Evaluate candidate factors and supplied-vector matches',
     'crispr.initial_check': 'Check the original spacer, direction and PAM',
     'crispr.replace': 'Replace the spacer and simulate the planned preparation',
-    'crispr.final_check': 'Recheck the corrected spacer, direction and PAM',
+    'crispr.final_check': 'Check the selected spacer, direction and PAM',
     'crispr.self_target': 'Screen the supplied vector for self-target sites',
     'crispr.selection': 'Check conditional selection against declared genotype',
     'crispr.selection_table': 'Save source-labelled selection table',

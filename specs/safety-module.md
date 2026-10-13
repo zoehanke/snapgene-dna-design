@@ -110,3 +110,5 @@ A path-only match cannot certify a source version. When both records supply hash
 Capture known credential arguments and failures in redacted copies while leaving the executed command unchanged. This is bounded minimization, not a guarantee that arbitrary free text contains no secrets. Validate externally submitted context shapes before append so one malformed event cannot poison all future report rebuilds.
 
 English export in Trace 0.3.5 localizes code-owned UI/labels through a per-call language context. Default zh remains compatible; captured requests, rationale, source excerpts, event bytes, status codes and relationship criteria are preserved. Mixed observed output bundles register the actual hash-bound Core manifest before caching stamps, so final molecular files remain authoritative and orders/reports remain supporting. This adds no relationship type, causal inference or runtime dependency.
+
+报告契约补充：HTML与Markdown均须说明文件哈希实线与声明/结构虚线；历史发现保留原作用范围，当前交付另行标明。报告文字不能把检查操作称为已执行替换。试读前冻结报告、包与标准；原答案和重复预演保留，关键词计分不能代替语义理解或真人验证。

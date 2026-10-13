@@ -8,6 +8,7 @@ _LANGUAGE = ContextVar('trace_report_language', default='zh')
 # it to a report recursively: that would rewrite original statements/evidence.
 ENGLISH = dict(line.split('\t', 1) for line in '''用户要求	User requirement
 状态：	Status:\x20
+这些发现保留各自输入与版本的范围，可能包括先前被拒绝的尝试；当前交付另行标明。	These findings retain their recorded input/version scopes and may include earlier rejected attempts; the current handoff is identified separately.
 程序检查未通过	A program check failed on its recorded input/version
 程序检查结果待确认	A program check remains unresolved
 条；本次自动组织的声明关系0条。其他声明关系只有提交记录，不能借此认证科学含义。本报告记录明确提交的任务、真实材料、程序步骤及检查范围。公开理由只来自已提交说明；未观察的宿主行为不补写成事实。	 links; this automatic projection adds zero declared scientific relationships. Other declarations remain submitted statements. Requirements, supplied materials, program steps and scopes are recorded. Missing host activity or rationale is not invented.

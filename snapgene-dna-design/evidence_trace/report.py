@@ -272,6 +272,8 @@ def markdown(report):
     if report["context"]:
         lines += [safe(report["context"]["text"]), ""]
     lines += [safe(r["text"]) + "\n" for r in report["requirements"]] or [tr("未记录任务要求。")]
+    lines += ['', tr('实线：程序核验文件SHA-256相等'), '',
+              tr('虚线：声明或结构性关系，程序未验证其含义'), '']
     lines += ["", tr("## 设计形成过程"), ""]
     for stage in report["stages"]:
         lines += [safe(stage["title"]) + "：" + safe(stage["purpose"]), ""]
@@ -306,7 +308,7 @@ def markdown(report):
     if report.get('unverified_scope'):
         lines += [tr('程序未验证的范围：'), ''] + ['- ' + safe(value) for value in report['unverified_scope']] + ['']
     if report["review"]:
-        lines += [tr("## 需要处理"), ""] + [safe(r["text"]) + "\n" for r in report["review"]]
+        lines += [tr("## 需要处理"), "", tr('这些发现保留各自输入与版本的范围，可能包括先前被拒绝的尝试；当前交付另行标明。'), ""] + [safe(r["text"]) + "\n" for r in report["review"]]
     if report.get("handoff"):
         lines += [tr("交付清单核对："), ""] + [safe(filename(f['path'])) + "：" + safe(handoff_text(f)) + "\n" for f in report["handoff"]["files"]]
     if report['recording_gaps']:

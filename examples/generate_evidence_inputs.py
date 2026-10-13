@@ -79,6 +79,7 @@ def generate(directory):
         'preparation_method':'pcr','donor_template_reference':'donor','donor_interval':{'start0':0,'end0':637}}
     write_json(case_dir/'request.json',request)
     request['donor_interval']['end0']=640
+    request['original_request']+=' Correction: donor_interval changes from [0,637) to [0,640); the expected donor remains 640 bp.'
     request['decisions']=[{'text':'Use the supplied complete donor as PCR template',
         'rationale':'Scripted choice: the complete 640 bp template is supplied. The requested interval must cover it; PCR and both junction designs need actual checks.',
         'actor':'ai','origin':'ai_concurrent','kind':'other','basis_references':['donor','target','cargo']}]
