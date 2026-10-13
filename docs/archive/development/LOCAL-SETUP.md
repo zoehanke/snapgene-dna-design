@@ -2,7 +2,7 @@
 
 ## 只使用这个目录
 
-`D:\codex_project\github\snapgene-dna-design`
+`<workspace>`
 
 这里是唯一开发目录。不要在 `archive`、`output` 或 `audit` 中修改代码。
 

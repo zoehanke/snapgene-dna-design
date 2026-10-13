@@ -8,14 +8,14 @@
 | 比较两种参考的指定区域，评估PCR能否区分 | Genome Identity | 当前比对、逐参考扩增预测、候选质量和鉴别条件 |
 | 整理实验组/对照、菌落及遗传检测 | Revival Evidence | 观察比较、证据支持范围、反证和未检测项目 |
 
-Toolkit v0.1.0复用DNA Design Core 2.2.2，由2.2.1底座加本轮有证据的必要修复形成；Evidence Trace为0.3.3。没有训练新的模型权重，也没有另一套DNA算法。开发源码共用底座，独立包携带同版运行代码。
+Toolkit v0.1.1复用DNA Design Core 2.2.4，Evidence Trace为0.3.4。没有训练新的模型权重，也没有另一套DNA算法。开发源码共用底座，独立包携带同版运行代码。
 
 ## 安装和开始使用
 
 解压完整包，将整个`genome-revival-toolkit`目录安装到宿主的Skills目录。只需一个Skill，内部包含三个Kit。先在Skill目录安装受测依赖：
 
 ```text
-python -m pip install -r requirements.txt
+python -X utf8 -m pip install -r requirements.txt
 python -X utf8 -B scripts/run_toolkit.py --help
 ```
 
@@ -38,7 +38,7 @@ python -X utf8 -B scripts/run_toolkit.py verify --out-dir results --receipt-sha2
 
 先看`summary.md`及返回的实际文件入口。`result.json`保留完整计算结果，`context-snapshot.json`保留本次来源和范围。Construct正式DNA与订单使用同一次Core回执；Toolkit的文件回执只补核报告及输入版本，不增加DNA正确性裁判。
 
-Trace开启时，`evidence-trace/index.html`和`report.md`展示实际过程。来源、理由、检查和文件保持对应，技术记录在独立文件中。记录完整性、程序检查和实验科学结论分别表达。报告可从日志重建：
+Trace开启时，`evidence-trace/index.html`和`report.md`展示实际过程。来源、理由、检查和文件保持对应，技术记录在独立文件中。泳道图记录执行顺序与声明；实线只表示程序核验输出与声明输入文件的SHA-256相等，其他关系用虚线，不认证科学支持、物理使用或因果。记录完整性、程序检查和实验科学结论分别表达。报告可从日志重建：
 
 ```text
 python -X utf8 -B scripts/run_toolkit.py rebuild-report --trace-dir results/evidence-trace

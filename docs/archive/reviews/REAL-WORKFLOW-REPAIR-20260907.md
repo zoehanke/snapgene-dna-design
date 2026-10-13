@@ -37,9 +37,9 @@ root 生成的复测参考 pML104 GenBank 已更正为 `output/retest-materials-
 3. **方法检查互相冲突。** QuikChange 的互补引物被通用二聚体规则拒绝；突变 Tm 把替换区长度当作实际错配数；qc_only 结果被当成无复制子的质粒。
 4. **结构化数据在交接时降级。** Pipeline 不能取步骤输出字段；Recipe 序列化把 `primers` 列表覆盖成字典；新构建的制备引物、中间体和源文件标注没有统一交付。
 5. **引物标注损坏。** 标注器把完整 oligo 长度当成退火区长度；Native 导出器又从该区间提取模板序列替代完整 oligo。序列回读自洽，订购序列却已被改掉。部分 GenBank 路径读取还依赖 Windows 默认编码。
-6. **安装和发现路径不完整。** 测试包缺 `schemas/construction-task-v1.json`；部分检查入口找不到实际安装在 `D:/SnapGene` 的官方程序。根代理已经用该程序成功读取真实交付文件。
+6. **安装和发现路径不完整。** 测试包缺 `schemas/construction-task-v1.json`；部分检查入口找不到实际安装在 `<workspace>` 的官方程序。根代理已经用该程序成功读取真实交付文件。
 
-此前集中核查已确认的 PCR 多匹配遗漏、环状突变起点依赖、Golden Gate 只取最外侧切点、旧规划器忽略交付引物，也纳入同一主通路修复。保留 [原核查记录](../../../snapgene-dna-design/output/main-path-review-20260906/MAIN-PATH-REVIEW.md)，不重新设计审查框架。
+此前集中核查已确认的 PCR 多匹配遗漏、环状突变起点依赖、Golden Gate 只取最外侧切点、旧规划器忽略交付引物，也纳入同一主通路修复。保留 原核查记录（原内部定位，未随当前公开树分发；不是可点击文件），不重新设计审查框架。
 
 ## 实施内容
 
@@ -107,9 +107,9 @@ root 生成的复测参考 pML104 GenBank 已更正为 `output/retest-materials-
 
 实际反应独立复算见 `output/retest-20260907/examiner/final-assessment.json`、`paper-exact-assessment.json` 与 `q3-final/q3-final-review.json`。官方 SnapGene 6.0.2 读取实际提交文件的证据在 `examiner/official/`、`examiner/official-native/`。文件没有先按答案重写，再替代提交物验收。
 
-桌面图谱已实际查看 7,895 bp 产物，AmpR、ori、两个完整表达 ORF 与原生引物标注可见：[桌面检查截图](../../../snapgene-dna-design/output/retest-20260907/examiner/snapgene-desktop-q5.png)。数字序列、特征与引物正确性由独立复算和官方回读支持，截图仅证明桌面打开与显示。
+桌面图谱已实际查看 7,895 bp 产物，AmpR、ori、两个完整表达 ORF 与原生引物标注可见：桌面检查截图（原内部定位，未随当前公开树分发；不是可点击文件）。数字序列、特征与引物正确性由独立复算和官方回读支持，截图仅证明桌面打开与显示。
 
 题 4 仍缺原始供体，未冒充测试通过。此版本的验收覆盖本轮五类计算设计及交付，不等于湿实验成功率、表达效果或任意未知任务的保证。`order` 注释无法在 Native 中保真时明确拒绝；标准 GB、Native 和论文源文件的细节差异均保留记录。
 
-安装包：`dist/snapgene-dna-design-v0.9.2-redistributable.zip`。本地安装版已更新为 0.9.2，225 个文件与安装包逐一一致；旧版备份在 `C:/Users/祝浩淇/.codex/backups/skills/snapgene-dna-design-v0.9.1-dev2-20260907-112853/`。解压包入口及安装后入口均成功生成 11,258 bp guide 载体。没有提交或推送 Git 变更。
+安装包：`dist/snapgene-dna-design-v0.9.2-redistributable.zip`。本地安装版已更新为 0.9.2，225 个文件与安装包逐一一致；旧版备份在 `<workspace>`。解压包入口及安装后入口均成功生成 11,258 bp guide 载体。没有提交或推送 Git 变更。
 

@@ -25,6 +25,8 @@ EXCLUDE_ALL = (
     "RELEASE-MANIFEST.json",
     "DEVELOPMENT-MANIFEST.json",
     ".coverage",
+    "AGENTS.md",
+    "CLAUDE.md",
 )
 EXCLUDE_PREFIXES = (
     "reports/",
@@ -35,6 +37,7 @@ EXCLUDE_PREFIXES = (
     "docs/REAL-WORKFLOW-REPAIR-",
     ".venv/",
     ".codex/",
+    ".claude/",
     "__pycache__/",
     "tmp_",
     ".git/",

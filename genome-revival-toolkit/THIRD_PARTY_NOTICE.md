@@ -1,6 +1,6 @@
 # Sources and licences
 
-Genome Revival Toolkit uses the repository's SnapGene DNA Design Core, originating from Core 2.2.1 and the documented 2.2.2 corrections. The bundled runtime is built from the same reviewed source commit, not an independently maintained implementation. Its MIT licence and third-party notices are retained under `vendor/dna-design-core/`.
+Genome Revival Toolkit uses the repository's SnapGene DNA Design Core, originating from Core 2.2.1 and subsequent documented corrections. The current 0.1.1 candidate bundles Core 2.2.4 and Evidence Trace 0.3.4 from the same reviewed source commit, not an independently maintained implementation. Its MIT licence and third-party notices are retained under `vendor/dna-design-core/`.
 
 Biopython, Primer3 and other runtime dependencies retain their own licences. Exact dependency versions are in the bundled `requirements-tested.txt`; any copied third-party code retains its upstream licence files and notices. `TOOLKIT-MANIFEST.json` records every included file's source and hash.
 

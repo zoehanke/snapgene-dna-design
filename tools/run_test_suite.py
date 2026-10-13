@@ -32,6 +32,39 @@ class OutcomeResult(unittest.TextTestResult):
         super().addSuccess(test)
         self.passed_count += 1
 
+    def _write_details(self, entries):
+        for test, details in entries:
+            self.stream.writeln("\nFailure details: %s" % test)
+            self.stream.writeln(details)
+        self.stream.flush()
+
+    def addFailure(self, test, err):
+        super().addFailure(test, err)
+        self._write_details(self.failures[-1:])
+
+    def addError(self, test, err):
+        super().addError(test, err)
+        self._write_details(self.errors[-1:])
+
+    def addSubTest(self, test, subtest, err):
+        failures, errors = len(self.failures), len(self.errors)
+        super().addSubTest(test, subtest, err)
+        self._write_details(self.failures[failures:] + self.errors[errors:])
+
+
+def partition_suite(suite, count, index):
+    """Stable disjoint case shards; subtests remain with their parent case."""
+    if count < 1 or not 1 <= index <= count:
+        raise ValueError("shard count must be positive and index within count")
+    def cases(items):
+        for item in items:
+            if isinstance(item, unittest.TestSuite):
+                yield from cases(item)
+            else:
+                yield item
+    tests = sorted(cases(suite), key=lambda test: test.id())
+    return unittest.TestSuite(tests[index - 1::count]), len(tests)
+
 
 def main():
     for stream in (sys.stdout, sys.stderr):
@@ -42,12 +75,23 @@ def main():
                         help="allow real-primer3 tests to skip (not release evidence)")
     parser.add_argument("--report-json", type=pathlib.Path,
                         help="write UTF-8 per-test skips/reasons and separate outcome counts")
+    parser.add_argument("--shard-count", type=int, default=1)
+    parser.add_argument("--shard-index", type=int, default=1,
+                        help="one-based index; disjoint shards together run the full suite")
+    parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args()
+    if args.shard_count < 1 or not 1 <= args.shard_index <= args.shard_count:
+        parser.error("shard count must be positive and index must be within the shard count")
     sys.path.insert(0, str(ROOT))
     sys.path.insert(0, str(HERE))
     loader = unittest.TestLoader()
     suite = loader.discover(str(TESTS_ROOT))
-    runner = unittest.TextTestRunner(verbosity=1, resultclass=OutcomeResult)
+    discovered_total = suite.countTestCases()
+    if args.shard_count > 1:
+        suite, discovered_total = partition_suite(suite, args.shard_count, args.shard_index)
+        print("CI shard %d/%d: %d of %d tests" %
+              (args.shard_index, args.shard_count, suite.countTestCases(), discovered_total), flush=True)
+    runner = unittest.TextTestRunner(verbosity=2 if args.verbose else 1, resultclass=OutcomeResult)
     result = runner.run(suite)
     primer3_skips = []
     for skipped in result.skipped:
@@ -62,6 +106,8 @@ def main():
               'expected_failures': len(result.expectedFailures), 'unexpected_successes': len(result.unexpectedSuccesses)}
     successful = result.wasSuccessful() and not gate_failed
     report = {'status': ('PASSED_WITH_SKIPS' if result.skipped else 'PASSED') if successful else 'FAILED',
+              'selection': {'shard_count': args.shard_count, 'shard_index': args.shard_index,
+                            'discovered_total': discovered_total},
               'counts': counts, 'primer3_gate_enforced': not args.allow_primer3_skip,
               'counting': 'run/passed count test cases; other counts are unittest outcome records, including subtests/class setup errors',
               'primer3_skips': primer3_skips,

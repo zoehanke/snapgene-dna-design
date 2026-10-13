@@ -5,7 +5,7 @@
 | 项目 | 说明 |
 |---|---|
 | 项目 | SnapGene DNA Design |
-| 审计对象 | `D:\codex_project\github\snapgene-dna-design` |
+| 审计对象 | `<workspace>` |
 | 证据快照 | 2026-09-05 审计期间的工作树，HEAD `1d7ec2c` |
 | 文档生成 | 2026-09-06 |
 | 本轮性质 | 将已完成审计整理为文档，没有重新运行审计 |
@@ -102,7 +102,7 @@ flowchart TD
 
 **重算不等于独立验证。** Pipeline 的规划与重算调用同一套工具逻辑，共同错误可以同时通过。
 
-证据：[组合 Pipeline](D:/codex_project/github/snapgene-dna-design/core/handlers/composite_pipeline.py:46)、[任务适配入口](D:/codex_project/github/snapgene-dna-design/agent/pipeline_agent.py:100)、[旧入口禁用逻辑](D:/codex_project/github/snapgene-dna-design/agent/orchestrator.py:49)。
+证据：组合 Pipeline（原内部定位，未随当前公开树分发；不是可点击文件）、任务适配入口（原内部定位，未随当前公开树分发；不是可点击文件）、旧入口禁用逻辑（原内部定位，未随当前公开树分发；不是可点击文件）。
 
 ## 4. Repository health
 
@@ -132,7 +132,7 @@ flowchart TD
 
 因此不能把后一次通过描述为“默认安装后全部测试稳定通过”。
 
-运行记录：[默认测试](C:/Users/祝浩淇/AppData/Local/Temp/snapgene-readonly-audit-0s77snap/full-tests.log)、[UTF-8 模块入口测试](C:/Users/祝浩淇/AppData/Local/Temp/snapgene-readonly-audit-0s77snap/tests-module-utf8.log)、[最小反例](C:/Users/祝浩淇/AppData/Local/Temp/snapgene-readonly-audit-0s77snap/targeted-probes.json)、[额外反例](C:/Users/祝浩淇/AppData/Local/Temp/snapgene-readonly-audit-0s77snap/additional-probes.json)、[Pipeline 结果](C:/Users/祝浩淇/AppData/Local/Temp/snapgene-readonly-audit-0s77snap/pipeline-result.json)。临时目录链接用于本机追溯，不能代替公开发布证据。
+运行记录：默认测试（原内部定位，未随当前公开树分发；不是可点击文件）、UTF-8 模块入口测试（原内部定位，未随当前公开树分发；不是可点击文件）、最小反例（原内部定位，未随当前公开树分发；不是可点击文件）、额外反例（原内部定位，未随当前公开树分发；不是可点击文件）、Pipeline 结果（原内部定位，未随当前公开树分发；不是可点击文件）。临时目录链接用于本机追溯，不能代替公开发布证据。
 
 ### 4.2 P0：候选交付入口对缺失检查报告默认放行
 
@@ -146,7 +146,7 @@ if not sanity_check.get("all_applicable_pass", True):
 
 这是 API 层反例，不代表普通 CLI 用户会自动传入空报告。但它否定“只有经过验证的构建才能交付”的全局保证。该路径也没有执行正式任务路径的完整 task/plan/execution/validation 链验证。
 
-证据：[候选交付准入](D:/codex_project/github/snapgene-dna-design/core/runtime_gate.py:358)。
+证据：候选交付准入（原内部定位，未随当前公开树分发；不是可点击文件）。
 
 ### 4.3 P0：复合 feature 被展开成外包区间
 
@@ -160,7 +160,7 @@ get_feature() 使用 location.start/end 提取连续区间，没有按 CompoundL
 
 Sanity checker 使用类似切片方式。错误会改变后续设计实际使用的序列，不只是图谱显示问题。
 
-证据：[feature 提取](D:/codex_project/github/snapgene-dna-design/core/tools/feature_ops.py:73)、[CDS 审查提取](D:/codex_project/github/snapgene-dna-design/core/guardrails/checklist.py:437)。
+证据：feature 提取（原内部定位，未随当前公开树分发；不是可点击文件）、CDS 审查提取（原内部定位，未随当前公开树分发；不是可点击文件）。
 
 ### 4.4 P0：上下文和注释在主要路径丢失
 
@@ -168,7 +168,7 @@ Recipe CLI 将 prod_seq 字符串传给 sanity checker，没有传 res.features�
 
 本次从带注释质粒提取 GFP，输出 717 bp、0 features，同时三层验证均为 true。这不证明该序列错误，但证明 verified 不包含完整注释保留保证。
 
-证据：[Recipe 审查调用](D:/codex_project/github/snapgene-dna-design/scripts/run_recipe.py:82)、[Pipeline 字符串环境](D:/codex_project/github/snapgene-dna-design/core/handlers/composite_pipeline.py:74)、[Gibson 配方](D:/codex_project/github/snapgene-dna-design/core/recipes/gibson.py)。
+证据：Recipe 审查调用（原内部定位，未随当前公开树分发；不是可点击文件）、Pipeline 字符串环境（原内部定位，未随当前公开树分发；不是可点击文件）、Gibson 配方（原内部定位，未随当前公开树分发；不是可点击文件）。
 
 ### 4.5 P0：酶切查询与模拟互相矛盾
 
@@ -176,7 +176,7 @@ Recipe CLI 将 prod_seq 字符串传给 sanity checker，没有传 res.features�
 
 原因：restriction_hits() 不提供 overhang 字段，上层默认回退到 blunt。默认 inspect 直接展示该结果，宿主 LLM 可能据此选策略。
 
-证据：[错误默认值](D:/codex_project/github/snapgene-dna-design/core/tools/restriction.py:185)；切割几何对照 [NEB 官方识别与切割表](https://www.neb.com/en-us/tools-and-resources/selection-charts/alphabetized-list-of-recognition-specificities)。
+证据：错误默认值（原内部定位，未随当前公开树分发；不是可点击文件）；切割几何对照 [NEB 官方识别与切割表](https://www.neb.com/en-us/tools-and-resources/selection-charts/alphabetized-list-of-recognition-specificities)。
 
 ### 4.6 P0：Pipeline 的目标验证不够独立
 
@@ -184,7 +184,7 @@ Recipe CLI 将 prod_seq 字符串传给 sanity checker，没有传 res.features�
 
 执行错误计划，也可能得到符合计划的正确输出。
 
-证据：[空目标构建](D:/codex_project/github/snapgene-dna-design/agent/pipeline_agent.py:131)、[目标验证](D:/codex_project/github/snapgene-dna-design/core/handlers/composite_pipeline.py:190)。
+证据：空目标构建（原内部定位，未随当前公开树分发；不是可点击文件）、目标验证（原内部定位，未随当前公开树分发；不是可点击文件）。
 
 ### 4.7 P1：规划和重算执行有副作用工具
 
@@ -203,7 +203,7 @@ Registry 已区分 write、external，但 Pipeline dispatch 不按类别限制�
 - 引物检查只取前两条。
 - 反向重复扫描起点上限为 8000，不能据此声称覆盖整条大型序列。
 
-这些主要属于设计质量或适用性检查，不能直接升级为 biosafety 判断。证据：[checklist 实现](D:/codex_project/github/snapgene-dna-design/core/guardrails/checklist.py)。
+这些主要属于设计质量或适用性检查，不能直接升级为 biosafety 判断。证据：checklist 实现（原内部定位，未随当前公开树分发；不是可点击文件）。
 
 ### 4.9 P1：文件一致性被描述成签署与强正确性保证
 
@@ -211,7 +211,7 @@ Gate 默认比较三种文件的序列一致性；官方 SnapGene 往返可选�
 
 两次 DNA 往返显示 note、gene 等 qualifier 丢失。现有比较器将部分 note 丢失归为 safe difference；若未来 Safety 信息写在 note，这个分类将不再可靠。
 
-证据：[三格式检查](D:/codex_project/github/snapgene-dna-design/core/runtime_gate.py:275)、[语义比较器](D:/codex_project/github/snapgene-dna-design/scripts/validate_roundtrip.py)。
+证据：三格式检查（原内部定位，未随当前公开树分发；不是可点击文件）、语义比较器（原内部定位，未随当前公开树分发；不是可点击文件）。
 
 ### 4.10 整体健康度
 
@@ -602,15 +602,15 @@ Confidence 用证据状态与匹配方式表达，例如 exact identifier match�
 
 | 当前模块 | 接入方式 |
 |---|---|
-| [ConstructModel](D:/codex_project/github/snapgene-dna-design/core/models/construct_model.py) | 完整 record/feature 语义基础，先修使用方错误展开 |
-| [任务 schema](D:/codex_project/github/snapgene-dna-design/schemas/construction-task-v1.json) | 显式关联上下文与审查要求，宿主信息不藏在自由文本 |
-| [Registry](D:/codex_project/github/snapgene-dna-design/core/tools/registry.py) | 注册无副作用 review 工具，完整输入输出 schema |
-| [Recipe CLI](D:/codex_project/github/snapgene-dna-design/scripts/run_recipe.py) | 审查完整 record；与 Pipeline 共用 review 服务 |
-| [Runtime validation](D:/codex_project/github/snapgene-dna-design/core/runtime_validate.py) | 引用 ReviewResult，分开工程正确性与审查充分性 |
-| [Runtime gate](D:/codex_project/github/snapgene-dna-design/core/runtime_gate.py) | 核验报告绑定内容、上下文和规则版本；缺失不得默认通过 |
-| [Provenance](D:/codex_project/github/snapgene-dna-design/scripts/provenance.py) | 复用来源与版本结构，不复制另一套系统 |
-| [Roundtrip validator](D:/codex_project/github/snapgene-dna-design/scripts/validate_roundtrip.py) | 将审查相关字段列入关键保真集合 |
-| [上传许可](D:/codex_project/github/snapgene-dna-design/scripts/sequence_upload_consent.py) | 保持独立，在线解析或外发时使用 |
+| ConstructModel（原内部定位，未随当前公开树分发；不是可点击文件） | 完整 record/feature 语义基础，先修使用方错误展开 |
+| 任务 schema（原内部定位，未随当前公开树分发；不是可点击文件） | 显式关联上下文与审查要求，宿主信息不藏在自由文本 |
+| Registry（原内部定位，未随当前公开树分发；不是可点击文件） | 注册无副作用 review 工具，完整输入输出 schema |
+| Recipe CLI（原内部定位，未随当前公开树分发；不是可点击文件） | 审查完整 record；与 Pipeline 共用 review 服务 |
+| Runtime validation（原内部定位，未随当前公开树分发；不是可点击文件） | 引用 ReviewResult，分开工程正确性与审查充分性 |
+| Runtime gate（原内部定位，未随当前公开树分发；不是可点击文件） | 核验报告绑定内容、上下文和规则版本；缺失不得默认通过 |
+| Provenance（原内部定位，未随当前公开树分发；不是可点击文件） | 复用来源与版本结构，不复制另一套系统 |
+| Roundtrip validator（原内部定位，未随当前公开树分发；不是可点击文件） | 将审查相关字段列入关键保真集合 |
+| 上传许可（原内部定位，未随当前公开树分发；不是可点击文件） | 保持独立，在线解析或外发时使用 |
 
 ### 已有资产中的机会
 

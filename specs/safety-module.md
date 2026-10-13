@@ -1,6 +1,6 @@
 # Safety module: Evidence Trace
 
-Updated: 2026-10-11. This spec owns current Trace behavior and evidence boundaries. Use the [developer router](../docs/README.md) for task-specific reading; completed plans are not default prerequisites. [History](../docs/history.md) records why they changed; [development plans](../docs/development-plans/README.md) own phase scope and results; [usage](../snapgene-dna-design/references/evidence-trace.md) owns CLI/Schema details; [design.md](../docs/trace-report/design.md) owns reading rules and links the optional framework and visual reference.
+Updated: 2026-10-13. This spec owns current Trace behavior and evidence boundaries. Use the [developer router](../docs/README.md) for task-specific reading; completed plans are not default prerequisites. [History](../docs/history.md) records why they changed; [development plans](../docs/development-plans/README.md) own phase scope and results; [usage](../snapgene-dna-design/references/evidence-trace.md) owns CLI/Schema details; [design.md](../docs/trace-report/design.md) owns reading rules and the optional framework.
 
 ## Purpose and present scope
 
@@ -23,6 +23,8 @@ The complete machine result includes design_process, its exact report-plan versi
 For a defined Toolkit workflow, program code may project its known executed stages, explicit inputs/returns and supplied statements into a sourced process skeleton, attributed to `workflow-program`. It cannot supply missing AI decisions, scientific reasons, paper support or causality. User/AI/researcher scientific organization remains distinct and may add sourced interpretation. An observed call now retains its actual callable and molecular wire/version rather than only a molecule count.
 
 Full data retention does not require copying full records into each derived section or embedding the whole machine result in HTML. Reading projections use references and explicit record locations; large-payload changes must preserve evidence, compatibility and offline reading rather than truncate history.
+
+Trace 0.3.4 may reuse an already-assembled current event snapshot and serialize a read-only reference view. Public mutable machine exports remain independent of their inputs. Load/parse errors, changed-file observations and original events survive rebuilding; faster export does not authorize stale facts.
 
 ## DNA boundary and collection levels
 
@@ -62,7 +64,9 @@ events.jsonl is the append-only single-writer fact source. Machine export v2 use
 
 Explicit context_refs freeze selected records and their dependencies; omitted context retains labeled legacy latest-record selection. Stage references pair real inputs and returns/failures. Same-run associations remain distinct from Claim-specific checks. Append time alone is not occurrence time or causality; missing old anchors are not reconstructed.
 
-Observed output-file SHA-256 may support an existing `input_reference` fact when it equals a later step's declared input-file SHA-256. Output production is bound to its actual completed operation, not the artifact journal-entry position; presence-only files and missing/mismatched hashes supply no such fact. Different paths with identical bytes may match. This proves file-content equality, not physical consumption, source authenticity, scientific support or causality. Toolkit may group corresponding visible steps with existing `grouped_with` relations and exact `fact_relation_ids`; unmatched steps retain no relation. Existing reader UI and relation enums stay unchanged, and report text separates program-verified file links from declared scientific relationships.
+Observed output-file SHA-256 may support an existing `input_reference` fact when it equals a later step's declared input-file SHA-256. Output production is bound to its actual completed operation, not the artifact journal-entry position; presence-only files and missing/mismatched hashes supply no such fact. Different paths with identical bytes may match. This proves file-content equality, not physical consumption, source authenticity, scientific support or causality. Toolkit may group corresponding visible steps with existing `grouped_with` relations and exact `fact_relation_ids`; unmatched steps retain no relation. Relation enums stay unchanged, and report text separates program-verified file links from declared scientific relationships.
+
+In the integrated 0.3.4 reader, a solid line requires a `grouped_with` relation referencing an actual `program_derived` input fact with `scope=same_file_content`, `verification_method=sha256_equality` and a valid SHA-256 digest. A referenced declared or structural fact, missing ID or malformed digest remains dashed. The legend, relation details and tooltip state that the program supports only file-content equality, not the scientific meaning of the relationship. No relationship is inferred from order or shared paths.
 
 New facts make old organization stale; organization/report-only edits do not. Report plans bind an exact process version. Run/file focus preserves the supporting process; historical cutoff excludes later facts. A later-authored organization of old facts remains labeled by its actual recorded author/time.
 

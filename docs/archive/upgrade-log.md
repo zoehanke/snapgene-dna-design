@@ -210,7 +210,7 @@
 - 新增 `scripts/run_test_suite.py`（coverage 门禁用，`coverage run -m unittest` 在 zip 解释器下不可用）。
 - `fixtures/rich/*.gb` 为合成数据，两个发行包均包含。
 
-### 官方 SnapGene 核验（本机 D:\SnapGene\SnapGene.exe，2026-08-16 补充）
+### 官方 SnapGene 核验（本机 <workspace>，2026-08-16 补充）
 
 - `scripts/validate_rich_fixtures.py --snapgene-exe` 已在本机执行（16 次官方转换），`rich strict round trip gate: FAIL`（strict 口径），结果如实记录于 `reports/rich/rich-roundtrip.json`。
 - **snapgene-gb（优先交付格式）**：5/8 fixture 官方往返 lossless（`rich_rev_cds`、`rich_join`、`rich_cross_origin`、`rich_unicode`、`rich_kitchen_sink`）；`rich_fwd_cds` / `rich_multivalue` core 通过、strict 因 SnapGene 固有规范化失败（`db_xref` 前缀剥除、多值 `note` 截断、`synonym` 丢失，safe 级）；**`rich_order` core 失败——SnapGene 不保留 `order` 复合位置语义**。
@@ -232,7 +232,7 @@
 - **反例测试**：改名、子目录、单字节修改、同名自建文件。
 - **JSON schema 0.5.0**：`common-envelope-v0.5.json`、`assembly-result-v0.5.json`、`roundtrip-result-v0.5.json` 使用 `$defs`，核心对象 `additionalProperties:false`；新增 schema 反向测试（缺字段、类型错误、非法坐标、未知字段）。
 - **可复现构建**：`scripts/build_release.py` 同时生成 academic-full 与 redistributable 两个 ZIP，写入 `RELEASE-MANIFEST.json`。
-- **真实任务前向验证**：使用用户提供的 `S_eubayanus_Chr1.dna` 与 `Hyg换Se CDC15.dna` 完成解析、CDC15/Hyg 定位、同源臂映射、QC、引物风险复核，并明确 CDC15 必需基因存活风险与残余 CDS 片段风险。
+- **真实任务前向验证**：使用用户提供的 `S_eubayanus_Chr1.dna` 与 `<material-file>` 完成解析、CDC15/Hyg 定位、同源臂映射、QC、引物风险复核，并明确 CDC15 必需基因存活风险与残余 CDS 片段风险。
 
 ### 未完成（因此保持 RC）
 

@@ -1,6 +1,6 @@
 # GitLab源码与版本交接
 
-2026-10-11。**本轮只准备本地候选，不推送、合并main、部署Wiki或发布Release。** 官方规则及日期见[官方核对](official-requirements.md)。正式账号和最终提交由负责人亲自操作。
+2026-10-13续授权：安全风险修复与整合后的精选源码可推官方新候选分支。**不推或合并main、不部署Wiki、不发布正式Release。** 以下旧准备记录保留其日期和范围。 官方规则及日期见[官方核对](official-requirements.md)。正式账号和最终提交由负责人亲自操作。
 
 ## 已核实状态
 
@@ -9,8 +9,8 @@
 | 开发仓库 | GitHub `zoehanke/snapgene-dna-design`，分支 `codex/real-workflow-readiness-20260907` |
 | 本轮基线/冻结 | Core2.2.1实施`7ebd0cc`、文档`fa0f3cb`；本轮实施冻结`9bc9aa3`，Toolkit0.1.0/Core2.2.2/Trace0.3.3。ZIP SHA `90F4BD9B9664CAF0C36FD3DBD8051A6DDA3DC37EA7975CC8C1D9D0A52547AF5F`，252 payload |
 | 软件GitLab | [专属仓库](https://gitlab.igem.org/2026/software/tianjin/igem-tianjin2026)，本地remote名`gitlab`；匿名团队API已确认关联 |
-| 官方源码 | main/HEAD为`241b12fcad038e9f56fac563438f717f38e40644`，树仅`.claude/`、`CLAUDE.md`、`LICENSE`、`README.md`，未包含当前软件 |
-| CI准备 | 根`.gitlab-ci.yml`已准备：Python3.12.4、现有固定requirements-tested、共同测试入口及`tools/build_toolkit.py --out-dir dist`；本地YAML及实际CLI形状核对通过，远端GitLab CI未运行 |
+| 官方源码 | main为`0c764c6`，已有Toolkit0.1.0/Core2.2.2/Trace0.3.3候选源码；[精确流水线748177成功](https://gitlab.igem.org/2026/software/tianjin/igem-tianjin2026/-/pipelines/748177)。本轮版本尚未在main，不能借旧CI认证新版 |
+| CI准备 | 官方CI已有Python3.12.4、wheel预备、八个互斥分片及构包。新版保留分片并合入准确通过/skip计数、JSON回执及即时失败详情；Node用于查看器真实JS语义检查。每个新候选提交必须核对自己的流水线 |
 | Wiki | [独立Wiki源码](https://gitlab.igem.org/2026/tianjin)，不与软件仓库混用 |
 | 未核实 | 写权限、Release完整列表、正式表单与上传回执；无tag响应不等于已查完所有Release |
 
@@ -46,3 +46,17 @@ git ls-remote gitlab HEAD refs/heads/main refs/tags/*
 ```
 
 已有历史扫描仅覆盖有限秘密模式，不证明所有权属和隐私均合规。旧扫描记录保留在[工程审查归档](../archive/reviews/final-remediation-report.md)，当前外部资产边界见[归属](../attribution.md)。正式操作前由负责人审阅候选纳入内容。
+
+## 2026-10-13精选新候选
+
+范围为Core2.2.4、Toolkit0.1.1和Trace0.3.4，开发分支为`codex/crispr-skill-fixes-20261012`。官方候选分支为`codex/candidate-core-2.2.4-toolkit-0.1.1-trace-0.3.4-20261013`。按明确Git提交构造，不直接把开发工作树推到官方。
+
+两内层程序、公共测试/必要tools闭包、CI、固定依赖、LICENSE与README为主体。AGENTS、开发CLAUDE、specs、开发计划/归档、results、题库、用户DNA、个人路径、稿件和大媒体排除。官方main原有CLAUDE/.claude模板按原字节继承，不用开发副本覆盖；许可文本保留来源。
+
+外层额外项逐项说明：LICENSES和THIRD_PARTY_NOTICE保留上游/模板许可；SOURCE/VERSION/VERSIONS/FILE-LIST及选择回执绑定软件版本、源码及逐文件哈希；自包含examples/run_demo.py让README的完整640 bp合成流程可复现，不复制outer DNA或开发稿。其余工具按实际测试调用闭包选择，publisher自身开发测试不进入官方运行测试树，并记排除理由；既有运行要求、阈值与资源skip条件不降低。
+
+工具`tools/build_official_candidate.py --source-commit <commit> --official-base-dir <clean-official-clone> --candidate-branch <new-candidate-branch> --out-dir <new-export-dir>`输出逐文件纳入/排除与变换理由。`--working-tree`仅诊断，不能称冻结。clean clone核查当前树、软件清单、固定依赖/许可、实际入口及物理Git对象大小；源树payload大小与仓库quota分开，不能用前者冒充后者。不得覆盖既有输出或混入符号链接。
+
+Wiki默认口径：记录执行顺序与作者声明；程序支撑关系仅限真实输出文件与另一步骤声明输入文件的SHA-256相等。它不证明实际物理使用、科学支持或因果。新截图用独立合成公共流程和真实离线浏览器，不复用未批准图或私人材料；两份handoff稿各自记录实际软件文档哈希与路径差异。
+
+GitHub历史只做私有备份和隔离clone演练，绝不执行远端重写、force push或删分支。稿件当前树取舍已获明确移出授权，历史是否改写仍由用户另行决定；缓存/fork不能保证撤回。Attributions、Best Software表单、Wiki发布、权属和AI披露终审保持真人责任。精确候选提交和流水线结果以本次实际回执为准，不借旧main或开发仓库CI。

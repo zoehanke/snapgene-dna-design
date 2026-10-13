@@ -65,13 +65,13 @@ Pipeline属于Task的一种Handler，不是与Task完全并列的运行系统。
 
 PCR探针一次测得约1.34 s、stdout 11102 bytes；不是重复计时基准，不承诺任何加速比例。另检查既有已知回放文件尺寸：4722 bp构建stdout为202065 bytes。实际token和AI用户成本未测，不能据字节直接宣称成本降低。
 
-本地原始记录位于 `C:\Users\祝浩淇\AppData\Local\Temp\dna-architecture-audit-20261006-gvo7fhsf`，包括源码快照、输入、全部stdout/失败和以下摘要。它们不入源码提交；临时目录保留期取决于本机，本文保留结论所需的条件和结果。
+本地原始记录位于 `<workspace>`，包括源码快照、输入、全部stdout/失败和以下摘要。它们不入源码提交；临时目录保留期取决于本机，本文保留结论所需的条件和结果。
 
-- [盘点](C:/Users/祝浩淇/AppData/Local/Temp/dna-architecture-audit-20261006-gvo7fhsf/inventory.json)
-- [初始调用与负例](C:/Users/祝浩淇/AppData/Local/Temp/dna-architecture-audit-20261006-gvo7fhsf/public-entry-probes.json)
-- [成功线性调用与规范Recipe负例](C:/Users/祝浩淇/AppData/Local/Temp/dna-architecture-audit-20261006-gvo7fhsf/public-entry-probes-linear.json)
-- [Python混合调用、声明及正式文件回读](C:/Users/祝浩淇/AppData/Local/Temp/dna-architecture-audit-20261006-gvo7fhsf/composition-discovery-final-files.json)
-- [真实Primer3制备](C:/Users/祝浩淇/AppData/Local/Temp/dna-architecture-audit-20261006-gvo7fhsf/actual-pcr-probe.json)
+- 盘点（原内部定位，未随当前公开树分发；不是可点击文件）
+- 初始调用与负例（原内部定位，未随当前公开树分发；不是可点击文件）
+- 成功线性调用与规范Recipe负例（原内部定位，未随当前公开树分发；不是可点击文件）
+- Python混合调用、声明及正式文件回读（原内部定位，未随当前公开树分发；不是可点击文件）
+- 真实Primer3制备（原内部定位，未随当前公开树分发；不是可点击文件）
 
 ### 全面审查矩阵
 

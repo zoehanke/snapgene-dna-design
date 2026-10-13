@@ -1,6 +1,11 @@
 
 from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import random
+import os
+import tempfile
+import json
+import subprocess
+import sys
 import unittest
 from pathlib import Path
 from Bio import SeqIO
@@ -8,6 +13,9 @@ from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
 from core.tools.amplification import design_overhang_primers
+from scripts.synthetic_trace_template import CASES, PCR_INTERVAL, write_template
+
+EXTERNAL_TEMPLATE = os.environ.get('SNAPGENE_EXTERNAL_REGRESSION_TEMPLATE')
 
 
 class FinalPrimerDesignTests(unittest.TestCase):
@@ -29,21 +37,41 @@ class FinalPrimerDesignTests(unittest.TestCase):
                              annotations={'molecule_type': 'DNA', 'topology': 'circular'})
         self._assert_successive_pcr(original)
 
-    @unittest.skipUnless((Path(__file__).parent/'data/pBP-eGFP.gb').is_file(),
-                         'external pBP regression material is not in the redistributable package')
+    def test_generated_full_templates_keep_real_successive_pcr(self):
+        for seed, length in CASES:
+            with self.subTest(seed=seed), tempfile.TemporaryDirectory(prefix='synthetic-full-pcr-') as folder:
+                path = Path(folder) / 'input.gb'
+                original = write_template(path, seed, length)
+                expected = self._assert_successive_pcr(path, start=PCR_INTERVAL[0], end=PCR_INTERVAL[1], source=original)
+                config = Path(folder) / 'step.json'
+                config.write_text(json.dumps({'method': 'prepare_pcr_fragment', 'params': {
+                    'template': str(path), 'start': PCR_INTERVAL[0], 'end': PCR_INTERVAL[1],
+                    'fwd_tail': expected['forward_tail'], 'rev_tail': expected['reverse_tail']}}), encoding='utf-8')
+                out = Path(folder) / 'public-output'
+                done = subprocess.run([sys.executable, '-X', 'utf8', '-B', str(SKILL_ROOT/'scripts/run_step.py'),
+                    '--input', str(config), '--out-dir', str(out)], capture_output=True, text=True, encoding='utf-8')
+                self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+                files = list(out.rglob('*.gb'))
+                self.assertTrue(files, 'Public long-tail PCR did not write GenBank')
+                with files[0].open(encoding='utf-8') as handle:
+                    self.assertEqual(str(SeqIO.read(handle, 'genbank').seq), expected['sequence'])
+
+    @unittest.skipUnless(EXTERNAL_TEMPLATE,
+                         'private external integration requires SNAPGENE_EXTERNAL_REGRESSION_TEMPLATE')
     def test_long_tail_original_external_material(self):
-        source = Path(__file__).parent/'data/pBP-eGFP.gb'
+        source = Path(EXTERNAL_TEMPLATE)
+        self.assertTrue(source.is_file(), 'Explicit external integration input is missing')
         with source.open(encoding='utf-8') as handle:
             original = SeqIO.read(handle, 'genbank')
         self._assert_successive_pcr(original)
 
-    def _assert_successive_pcr(self, original):
-        from core.tools.amplification import prepare_pcr_fragment
+    def _assert_successive_pcr(self, original, start=3, end=720, source=None):
+        from core.tools import get_tool
         left = 'CATGTCATGA'+'TG'+'CAT'*5+'CAC'+'GAAAACCTGTATTTTCAGGGC'
         right = 'CCGCTCGAG'
-        result = prepare_pcr_fragment(original, 3, 720, left, right)
+        result = get_tool('prepare_pcr_fragment').execute(template=original, start=start, end=end, fwd_tail=left, rev_tail=right)
         self.assertEqual(len(result.analysis['preparation']), 2)
-        known_template = str(original.seq)
+        known_template = str((source if source is not None else original).seq)
         for step in result.analysis['preparation']:
             self.assertEqual(str(step['template'].seq), known_template)
             f, r = step['primers']
@@ -60,8 +88,10 @@ class FinalPrimerDesignTests(unittest.TestCase):
             qc = step['primer_design']['primer3_metrics']['selected_pair_quality']['complete_oligo_structure']
             self.assertTrue(qc['passed'])
             self.assertTrue(all(v < qc['annealing_temperature_C']-5 for metrics in qc['metrics'].values() for v in metrics.values()))
-        expected = left + str(original.seq[3:720]) + str(Seq(right).reverse_complement())
+        expected = left + str((source if source is not None else original).seq[start:end]) + str(Seq(right).reverse_complement())
         self.assertEqual(str(result.only_product().seq),expected)
+        # Return construction inputs/oracle only, never the tool's product.
+        return {'sequence': expected, 'forward_tail': left, 'reverse_tail': right}
 
     def test_same_template_without_the_bad_tail_has_a_valid_complete_pair(self):
         from core.tools import get_tool

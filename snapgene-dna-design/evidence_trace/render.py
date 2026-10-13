@@ -5,7 +5,7 @@ import pathlib
 from evidence_trace import __version__
 from evidence_trace.process import assemble
 from evidence_trace.report import build_report, markdown
-from evidence_trace.storage import machine_export, expand_machine
+from evidence_trace.storage import machine_json, expand_machine
 
 
 def render(directory, graph, formats="both"):
@@ -19,7 +19,7 @@ def render(directory, graph, formats="both"):
     graph["report"]["available_formats"] = ["html", "markdown"] if formats == "both" else [formats]
     # Keep the complete compatibility machine view outside the offline reader.
     # The HTML needs readable details, not duplicate run inputs and event payloads.
-    (directory / "graph.json").write_text(json.dumps(machine_export(graph), ensure_ascii=False, separators=(',', ':')), encoding="utf-8")
+    (directory / "graph.json").write_text(machine_json(graph), encoding="utf-8")
     payload = json.dumps({'report': graph['report']}, ensure_ascii=False, separators=(',', ':'))
     manifest = {"schema_version": 'design-process-v2', "trace_version": __version__,
                 "projection_version": graph["projection_version"], "integrity": graph["integrity"],
@@ -54,5 +54,5 @@ PAGE = '''<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
 <footer>记录范围与来源可回查</footer></aside>
 <div class="mobile-nav"><button id="directory" aria-expanded="false" aria-controls="chapters"><span id="current">任务与要求</span><span>目录 ▾</span></button></div>
 <main id="report"></main>
-<dialog id="drawer" aria-label="来源与详细记录"><button id="close-drawer" aria-label="关闭详情">×</button><div id="drawer-body"></div></dialog>
+<dialog id="drawer" aria-label="来源与详细记录"><header class="drawer-toolbar"><button id="back-source" hidden>返回上一条记录</button><button id="close-drawer" aria-label="关闭详情">×</button></header><div id="drawer-body"></div></dialog>
 <script id="trace-data" type="application/json">__TRACE_DATA__</script><script>__SCRIPT__</script></body></html>'''

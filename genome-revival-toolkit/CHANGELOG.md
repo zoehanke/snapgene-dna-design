@@ -1,5 +1,13 @@
 # Changes
 
+## 0.1.1
+
+- Bundle DNA Design Core 2.2.4 and Evidence Trace 0.3.4 from the same reviewed source snapshot.
+- Preserve current public result titles, readable changes and source attribution through report rebuilding.
+- Display workflow lanes and distinguish declared links from program-derived output/input file SHA-256 equality; neither line type proves scientific causality.
+- Replace default external-template regressions and demonstrations with independently constructed synthetic inputs. Private original cases remain optional integrations with explicit resource conditions.
+- Candidate publication and exact CI remain separate from a formal release, wet-lab evidence or iGEM submission.
+
 ## 0.1.0
 
 - One project Skill with Construct, given-region Genome Identity and lightweight Revival Evidence.

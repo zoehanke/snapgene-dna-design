@@ -11,8 +11,8 @@
 | DeepCpf1权重 | CRISPRseek来源，Artistic-2.0 | 保留对应license和来源 |
 | Primer3/primer3-py | GPL-2.0-or-later | 用户环境安装；通过外部进程调用，不把它重新标MIT |
 | SnapGene集合及派生真实fixtures | SnapGene条款 | 不进redistributable；哈希检查只识别已知集合 |
-| tests/data/pBP-eGFP.gb | Polizzi实验室/EcoFlex/Addgene来源 | 外部来源许可待核实，不进redistributable |
-| docs/archive/plans/assets参考图 | 用户提供设计参考 | 发布权属待确认，不进redistributable |
+| 原tests/data外源完整模板 | Polizzi实验室/EcoFlex/Addgene来源 | 官方资源来源确认，但未取得该记录不限用途再分发许可；已移出当前树并私有备份，默认回归改为独立合成输入；历史仍可见 |
+| 原docs/archive/plans/assets参考图 | 用户提供设计参考 | 发布权属待确认；已移出当前树并备份，不进入官方候选或发行包；历史仍可见 |
 | 本轮合成反例/性能数据 | 自行生成 | 保留脚本、种子和范围，无湿实验声明 |
 | Genome Revival实验原件和私有DNA | 团队提供，本轮仅在本机审查 | 不入源码或再分发包；公开案例需单独审定 |
 | 公共参考基因组 | 原数据库、accession及版本 | 来源/版本与实际株系身份分开；保留原数据库条款，不重新标MIT |

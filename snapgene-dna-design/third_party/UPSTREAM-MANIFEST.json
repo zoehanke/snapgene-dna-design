@@ -11,10 +11,21 @@
       "license_file": "third_party/azimuth/LICENSE",
       "conversion": "Python 2 source converted with lib2to3; only featurization modules and V3 model pickles are redistributed",
       "files": [
-        {"path": "third_party/azimuth/saved_models/V3_model_nopos.pickle",
-         "sha256": "AF933634BE494336BC95BF657B07F7599AF842A2E9601797C88A49158D040214"},
-        {"path": "third_party/azimuth/saved_models/V3_model_full.pickle",
-         "sha256": "9DAF1FAFE8A3E7FD5C7BB7583F1C67866141A2A141F86DE49212D2221434DE8C"}
+        {
+          "path": "third_party/azimuth/saved_models/V3_model_nopos.pickle",
+          "sha256": "AF933634BE494336BC95BF657B07F7599AF842A2E9601797C88A49158D040214"
+        },
+        {
+          "path": "third_party/azimuth/saved_models/V3_model_full.pickle",
+          "sha256": "9DAF1FAFE8A3E7FD5C7BB7583F1C67866141A2A141F86DE49212D2221434DE8C"
+        }
+      ],
+      "local_modifications": [
+        {
+          "path": "third_party/azimuth/metrics.py",
+          "change": "Replaced a private output-location comment with generic caller-output wording; executable code unchanged.",
+          "model_files": "Original four pinned artifact digests retained and independently matched with case normalization."
+        }
       ]
     },
     {
@@ -26,10 +37,14 @@
       "license_file": "third_party/deepcpf1/LICENSE",
       "model_reference": "Kim et al. 2018, Nat Biotechnol 36:239-241, DOI 10.1038/nbt.4061",
       "files": [
-        {"path": "third_party/deepcpf1/Seq_deepCpf1_weights.h5",
-         "sha256": "DD79C3B349E409745624DB009CD8845A3991217BD8FF3A744860C4ACF696BDA3"},
-        {"path": "third_party/deepcpf1/DeepCpf1_weights.h5",
-         "sha256": "946E84A2D30CEEBC57E01F00E9D4CFD396CC9B4C0B8B4A55364B0246F7343E77"}
+        {
+          "path": "third_party/deepcpf1/Seq_deepCpf1_weights.h5",
+          "sha256": "DD79C3B349E409745624DB009CD8845A3991217BD8FF3A744860C4ACF696BDA3"
+        },
+        {
+          "path": "third_party/deepcpf1/DeepCpf1_weights.h5",
+          "sha256": "946E84A2D30CEEBC57E01F00E9D4CFD396CC9B4C0B8B4A55364B0246F7343E77"
+        }
       ]
     }
   ]

@@ -13,11 +13,11 @@ r3 · 2026-09-21 · 状态：前轮完成判断经独立反例复查收缩；通
 
 | 材料 | 位置与用途 |
 |---|---|
-| 用户测试汇总 | `D:/document/第一次测试skill.docx`，含三组结果与用户反馈 |
-| DSH 案例 | `D:/dshardness_workplace/cdc15-hyg/`，重点复现导出异常与大报告 |
-| Trae 案例 | `D:/trae_file/6aaf6aa27084f97a7648be49/cdc15_hyg/`，方案网页、示意图、Trace |
-| Codex 案例 | `D:/codex_project/skill测试/cdc15_current_review/`，简单核对任务与报告阅读缺陷 |
-| 早期回答偏移 | `D:/codex_project/skill测试/cdc15_design/` 及该任务公开记录；中途已确认供体可用，最终改以停止提醒开头 |
+| 用户测试汇总 | `<workspace>`，含三组结果与用户反馈 |
+| DSH 案例 | `<workspace>`，重点复现导出异常与大报告 |
+| Trae 案例 | `<workspace>`，方案网页、示意图、Trace |
+| Codex 案例 | `<workspace>`，简单核对任务与报告阅读缺陷 |
+| 早期回答偏移 | `<workspace>` 及该任务公开记录；中途已确认供体可用，最终改以停止提醒开头 |
 
 上述是案例来源，不是任意环境都存在的测试依赖。实施时记录各宿主实际包版本、提示词、用户追加信息、模式及本地经验规则。原始用例不能取得时标明未复现；CI 用合成反例补覆盖，不冒充真实材料验收。
 

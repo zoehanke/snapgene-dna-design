@@ -3,6 +3,7 @@
 from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import copy
 import json
+import os
 import pathlib
 import subprocess
 import sys
@@ -16,12 +17,13 @@ from evidence_trace.models import file_digest
 from evidence_trace.recorder import Recorder, load_events, project
 from evidence_trace.runtime import TraceStopped, observe, traced_run
 from scripts.run_recipe import run_recipe_cli
+from scripts.synthetic_trace_template import CASES, EDIT_STARTS, write_template
 
 ROOT = SKILL_ROOT
 # Mandatory sidecar contracts use the redistributable synthetic template.
-# The historical supplied-material reaction remains an explicit integration below.
+# The historical supplied-material reaction is opt-in from a private location.
 TEMPLATE = ROOT / "fixtures/synthetic/pSynthetic-GFP.gb"
-EXTERNAL_TEMPLATE = PROJECT_ROOT / "tests/data/pBP-eGFP.gb"
+EXTERNAL_TEMPLATE = os.environ.get("SNAPGENE_EXTERNAL_REGRESSION_TEMPLATE")
 
 
 def context():
@@ -145,14 +147,30 @@ class TraceRuntimeTests(unittest.TestCase):
     def test_recipe_ab_full_template_actual_pcr(self):
         self.assert_recipe_ab(TEMPLATE)
 
-    @unittest.skipUnless(EXTERNAL_TEMPLATE.is_file(), "External pBP-eGFP integration material is not distributed")
-    def test_external_pbp_original_inverse_pcr_workflow(self):
-        self.assert_recipe_ab(EXTERNAL_TEMPLATE)
+    def test_generated_full_templates_actual_inverse_pcr_and_annotations(self):
+        for seed, length in CASES:
+            with self.subTest(seed=seed):
+                template = self.path / f"synthetic-{seed}.gb"
+                original = write_template(template, seed, length)
+                self.assert_recipe_ab(template, start=EDIT_STARTS[0], run_id=str(seed))
+                with (self.path / f"on-{seed}/authoritative/construct.gb").open(encoding="utf-8") as handle:
+                    product = SeqIO.read(handle, "genbank")
+                self.assertEqual(len(product), length)
+                self.assertEqual(product.annotations["topology"], "circular")
+                expected_features = [(f.type, str(f.location), f.qualifiers) for f in original.features]
+                self.assertEqual([(f.type, str(f.location), f.qualifiers) for f in product.features], expected_features)
 
-    def assert_recipe_ab(self, template):
-        params = {"template_seq_or_file": str(template), "start_0based": 198,
-                  "end_0based": 201, "alt_seq": "CAT", "method": "inverse_pcr", "target_flank_bp": 25}
-        a, b = self.path / "off", self.path / "on"
+    @unittest.skipUnless(EXTERNAL_TEMPLATE, "Private external integration requires SNAPGENE_EXTERNAL_REGRESSION_TEMPLATE")
+    def test_original_external_inverse_pcr_workflow(self):
+        template = pathlib.Path(EXTERNAL_TEMPLATE)
+        self.assertTrue(template.is_file(), "Explicit external integration input is missing")
+        self.assert_recipe_ab(template)
+
+    def assert_recipe_ab(self, template, start=198, run_id=""):
+        params = {"template_seq_or_file": str(template), "start_0based": start,
+                  "end_0based": start + 3, "alt_seq": "CAT", "method": "inverse_pcr", "target_flank_bp": 25}
+        suffix = "-" + run_id if run_id else ""
+        a, b = self.path / ("off" + suffix), self.path / ("on" + suffix)
         original = copy.deepcopy(params)
         with mock.patch("evidence_trace.runtime.get_level", return_value="off"):
             run_recipe_cli("site_directed_mutagenesis", params, a, True, True)
@@ -163,7 +181,7 @@ class TraceRuntimeTests(unittest.TestCase):
         # the only sequence change, for either source material.
         source = str(SeqIO.read(str(template), "genbank").seq)
         product = str(SeqIO.read(str(b / "authoritative/construct.gb"), "genbank").seq)
-        self.assertEqual(product, source[:198] + "CAT" + source[201:])
+        self.assertEqual(product, source[:start] + "CAT" + source[start + 3:])
         self.assertEqual((a / "primer_order_table.tsv").read_bytes(), (b / "primer_order_table.tsv").read_bytes())
         g = read_graph(b / "evidence-trace")
         self.assertEqual(g["runs"][0]["status"], "delivered")

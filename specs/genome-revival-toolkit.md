@@ -1,6 +1,6 @@
 # Genome Revival Toolkit
 
-2026-10-11。本文件拥有项目专用Skill的产品边界；DNA底座契约仍由[Core spec](core-skill.md)管理，证据记录由[Trace spec](safety-module.md)管理。[实施记录](../docs/archive/plans/genome-revival-toolkit-v0.1.md)保存本轮实证，[当前交接](../docs/development-plans/README.md)承接未关闭项，不替代本契约。
+2026-10-11。本文件拥有项目专用Skill的产品边界；DNA底座契约仍由[Core spec](core-skill.md)管理，证据记录由[Trace spec](safety-module.md)管理。实施记录（原稿曾公开，现已移出当前树并完整私有备份；历史仍可见）保存本轮实证，[当前交接](../docs/development-plans/README.md)承接未关闭项，不替代本契约。
 
 ## 目标与当前授权
 

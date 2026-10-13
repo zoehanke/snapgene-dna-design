@@ -181,7 +181,7 @@ def finish_trace(out_dir, directory, result, level, policy='normal'):
             if paths:
                 record_handoff(recorder, paths, actor='workflow-program', run_id=graph['runs'][-1]['id'])
             graph = assemble(recorder.events)
-            packet = _workflow_packet(graph)
+            packet = _workflow_packet(graph, request_title=result.get('report_title'))
             if packet:
                 organize(recorder, packet, actor='workflow-program')
             graph = recorder.render()
@@ -200,14 +200,18 @@ def finish_trace(out_dir, directory, result, level, policy='normal'):
 def rebuild(directory):
     recorder = Recorder(directory, mode_at_capture='observed')
     with recorder.writing():
-        graph = assemble(recorder.events)
+        events, errors = load_events(directory)
+        graph = assemble(events, errors)
         handoff = graph.get('handoff')
         if handoff:
             previous = handoff['files']
             changed = any(not Path(row['path']).is_file() or file_digest(row['path']) != row.get('sha256') for row in previous)
             if changed:
                 record_handoff(recorder, previous, actor='workflow-file-observer', run_id=handoff.get('run_id'))
-        graph = recorder.render()
+                events, errors = load_events(directory)
+                graph = assemble(events, errors)
+        # Reuse the checked snapshot without another molecular-payload projection.
+        graph = render(directory, graph)
     return {'html': str(Path(directory) / 'index.html'), 'markdown': str(Path(directory) / 'report.md'),
             'integrity': graph['integrity'], 'organization_status': graph['snapshot']['organization_status'],
             'scope': 'Rebuilt from saved events; changed files do not inherit old checks.'}

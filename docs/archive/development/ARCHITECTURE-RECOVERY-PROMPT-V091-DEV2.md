@@ -27,7 +27,7 @@
 当前唯一开发目录：
 
 ```text
-D:\codex_project\github\snapgene-dna-design
+<workspace>
 ```
 
 当前基线版本：
@@ -58,43 +58,43 @@ recovery/v0.9.1-dev2
 所有源码、测试、架构和文档修改，只能发生在：
 
 ```text
-D:\codex_project\github\snapgene-dna-design
+<workspace>
 ```
 
 发布包和构建产物：
 
 ```text
-D:\codex_project\output\snapgene-dna-design
+<workspace>
 ```
 
 独立审查报告和失败证据：
 
 ```text
-D:\codex_project\audit\snapgene-dna-design
+<workspace>
 ```
 
 临时测试文件：
 
 ```text
-D:\codex_project\.tmp\snapgene-dna-design
+<workspace>
 ```
 
 真实或受限 DNA 文件：
 
 ```text
-D:\codex_project\private-fixtures\snapgene-dna-design
+<workspace>
 ```
 
 历史版本只读目录：
 
 ```text
-D:\codex_project\archive\snapgene-dna-design
+<workspace>
 ```
 
 全局已安装 Skill：
 
 ```text
-C:\Users\祝浩淇\.codex\skills\snapgene-dna-design
+<workspace>
 ```
 
 全局 Skill 不是开发目标，不得修改它，也不得用它替代当前源码目录。
@@ -102,30 +102,30 @@ C:\Users\祝浩淇\.codex\skills\snapgene-dna-design
 本机 SnapGene：
 
 ```text
-D:\SnapGene\SnapGene.exe
+<workspace>
 ```
 
 开始开发前必须阅读：
 
 ```text
-D:\codex_project\github\snapgene-dna-design\README.md
-D:\codex_project\github\snapgene-dna-design\SKILL.md
-D:\codex_project\github\snapgene-dna-design\docs\development\BASELINE-STATUS.md
-D:\codex_project\github\snapgene-dna-design\docs\development\DEVELOPER-MANUAL.md
-D:\codex_project\github\snapgene-dna-design\docs\architecture\ARCHITECTURE-RECOVERY-DEVELOPMENT-SPEC.md
-D:\codex_project\github\snapgene-dna-design\docs\architecture\ACCEPTANCE-CRITERIA-V091.md
+<workspace>
+<workspace>
+<workspace>
+<workspace>
+<workspace>
+<workspace>
 ```
 
 如果需要查看旧版本报告，只能从以下历史目录读取，不得修改：
 
 ```text
-D:\codex_project\archive\snapgene-dna-design\legacy-worktrees
+<workspace>
 ```
 
 开发前先检查：
 
 ```powershell
-Set-Location 'D:\codex_project\github\snapgene-dna-design'
+Set-Location '<workspace>'
 git status
 Get-Content VERSION
 ```
@@ -135,10 +135,10 @@ Get-Content VERSION
 不得修改：
 
 ```text
-D:\codex_project\archive
-D:\codex_project\output
-D:\codex_project\audit
-D:\codex_project\private-fixtures
+<workspace>
+<workspace>
+<workspace>
+<workspace>
 ```
 
 不得修改历史真值、首次失败证据、旧审计结论或冻结规范。版本必须使用 Git 分支、提交和标签管理，不得通过复制文件夹管理版本。
@@ -342,7 +342,7 @@ validation.overall
 → 分别重新读取
 → 比较序列、拓扑、feature、关键 qualifier
 → 比较三格式语义一致性
-→ 使用 D:\SnapGene\SnapGene.exe 做官方 roundtrip
+→ 使用 <workspace> 做官方 roundtrip
 → 达到声明的 compatibility grade
 → 原子移动到 authoritative
 ```
@@ -545,7 +545,7 @@ SnapGene 官方 roundtrip
 唯一主报告：
 
 ```text
-D:\codex_project\audit\snapgene-dna-design\DEV2-RECOVERY-REPORT.md
+<workspace>
 ```
 
 报告不能只写“已完成”。必须提供具体证据。

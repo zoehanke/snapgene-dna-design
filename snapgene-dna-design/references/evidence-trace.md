@@ -136,10 +136,10 @@ No sequence uploads occur in Trace. Runtime summaries omit long raw DNA strings 
 ## Real demonstration
 
 ```text
-python scripts/demo_evidence_trace.py --template <complete-pBP-eGFP.gb> --out-dir <new-demo-directory>
+python scripts/demo_evidence_trace.py --out-dir <new-demo-directory>
 ```
 
-Uses the existing Q3-derived full-template mutagenesis task: Y66H, a recorded design revision adding Y145F, and a separate actual PCR Pipeline. Generates authoritative artifacts, source primer annotations, a timeline and on/off byte comparisons. Supply the unchanged 2808 bp template described in `tests/data/README.md`; source material is not bundled into the runtime package. Source-verification receipts are historical checks from 2026-09-10, not fresh network verification by the demo. No fluorescence performance or safety benefit is claimed.
+The default demonstration independently generates a complete 3100 bp synthetic circular template, records two explicit edits and runs the actual PCR pipeline. It exports files, retains annotations and compares Trace Off/Full bytes. Edit/PCR positions are caller parameters, not a material identity. `--template` accepts a legally obtained complete input when needed; private originals stay outside source/packages. Independent slicing supplies expected DNA. These are computational and annotation examples, not functional fluorescence or experimental safety evidence.
 
 ## Phase 2: capture coverage and applicability
 
@@ -180,7 +180,7 @@ REASSESS asks to reconsider a Claim/Decision, RECHECK asks to inspect Evidence/A
 To replay the full-template PCR/context revision demonstration:
 
 ```text
-python scripts/demo_evidence_trace_phase3.py --template <complete-pBP-eGFP.gb> --out-dir <new-directory>
+python scripts/demo_evidence_trace_phase3.py --out-dir <new-directory>
 ```
 
 The demo compares Trace on/off native files and primer tables for both PCR boundaries. Its context and purpose are explicitly authored demonstration inputs; it makes no expression or safety claim. Independent 5/15/30-second user timing remains a UX target, not a result inferred from browser tests.

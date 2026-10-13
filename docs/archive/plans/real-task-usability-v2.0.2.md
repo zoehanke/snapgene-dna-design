@@ -23,7 +23,7 @@
 
 前序九题重测事项由本轮承接；外部用户、湿实验、正式评测和iGEM发布仍分别保留，不能用本轮回归替代。受影响代码按现有测试指南验收，提交/推送现开发分支并核查精确CI。
 
-依据：[Core spec](../../../specs/core-skill.md)、[现有评分](../../question-bank/scoring-v0.1.md)、[首轮失败](../../../snapgene-dna-design/output/host-test-review-20261002/summary.md)、[前序修复](workflow-host-readiness-v1.0.3.md)。
+依据：[Core spec](../../../specs/core-skill.md)、[现有评分](../../question-bank/scoring-v0.1.md)、首轮失败（原内部定位，未随当前公开树分发；不是可点击文件）、[前序修复](workflow-host-readiness-v1.0.3.md)。
 
 ## 已证明问题与泛化依据
 
@@ -61,6 +61,6 @@ inverse PCR的旧Tm断言按原始无Mg默认条件计算，改为共享设计�
 
 实施提交`66e2c7c5a67fabe7d0f9876a07fc7573c487545b`已推送开发分支；[六环境CI](https://github.com/zoehanke/snapgene-dna-design/actions/runs/37330663886)全部通过。main和正式iGEM GitLab未推送。
 
-Redistributable包SHA-256为`24D90A9D6810D490079901EA27215C42E0B999D076B812357360567ADB97B1D6`，运行文件与当前源码一致。Codex安装目录`C:\Users\祝浩淇\.codex\skills\snapgene-dna-design`实际为2.0.2；257项清单及核心环境通过，安装内公开示例输出与独立核对通过。`INSTALL-SOURCE.json`绑定该代码提交、包和Python3.12。原完整安装保存在`C:\Users\祝浩淇\.codex\skill-backups\snapgene-dna-design-v102-20261005-1791213145328`。安装证据在`installation-checks.json`。
+Redistributable包SHA-256为`24D90A9D6810D490079901EA27215C42E0B999D076B812357360567ADB97B1D6`，运行文件与当前源码一致。Codex安装目录`<workspace>`实际为2.0.2；257项清单及核心环境通过，安装内公开示例输出与独立核对通过。`INSTALL-SOURCE.json`绑定该代码提交、包和Python3.12。原完整安装保存在`<workspace>`。安装证据在`installation-checks.json`。
 
 本轮关闭：上述7项通用阻断、已知九题主流程回放、受测包及实际Codex安装。原同宿主对照、外部用户、独立真人验收、湿实验与正式比赛发布继续留在交接，不以本轮回放替代。保存文件核对、计算验证设计和相关失败/校订均在本机证据中可追溯；没有隔离保留评测成绩。

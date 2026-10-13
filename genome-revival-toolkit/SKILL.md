@@ -5,7 +5,7 @@ description: Prepare and verify yeast marker donors for Genome Revival, compare 
 
 # Genome Revival Toolkit
 
-Use the three Kits through `scripts/run_toolkit.py`. The package includes the same DNA Design Core used by these workflows. Scientific choices remain yours; use program results for sequence, preparation, quality and file facts.
+Toolkit 0.1.1 uses Core 2.2.4 and Evidence Trace 0.3.4. Use the three Kits through `scripts/run_toolkit.py`. The package includes the same DNA Design Core used by these workflows. Scientific choices remain yours; use program results for sequence, preparation, quality and file facts.
 
 Read `INSTALL-SOURCE.json` in this Skill root when present and use its verified interpreter. Otherwise install the listed dependencies and use the interpreter that passes the local checks. Do not search unrelated parent/test folders for installation records.
 
@@ -24,4 +24,4 @@ Evidence Trace collects these public calls. Global Off/Observed/Full is set by `
 
 Toolkit-defined workflow structure may be projected from actual program records. Add scientific relationships only with explicit sources. Custom host scripts, browsing or presentation outside observed entries remain outside collection. A complete Trace means complete records within that scope, not correct DNA or successful experiments.
 
-Program-verified file links mean an observed output SHA-256 equals a step's declared input SHA-256. Read their `fact_relation_ids` and the scoped report summary separately from declared scientific relationships. Matching bytes do not prove physical use, source identity or causality. Missing or mismatched hashes produce no automatic link; no missing relationship is filled from step order.
+Program-verified file links mean an observed output SHA-256 equals a step's declared input SHA-256. Solid lines require the referenced computed file fact; a declared or structural fact ID still gets a dashed line. Read their `fact_relation_ids` and the scoped report summary separately from declared scientific relationships. Matching bytes do not prove physical use, source identity or causality. Missing or mismatched hashes produce no automatic link; no missing relationship is filled from step order.

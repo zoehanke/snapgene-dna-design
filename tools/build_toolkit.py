@@ -22,8 +22,12 @@ CORE_PREFIXES = ('core/', 'evidence_trace/', 'schemas/', 'scripts/', 'planning/'
 CORE_ROOT_FILES = {'VERSION', 'LICENSE', 'requirements.txt', 'requirements-tested.txt',
                    'requirements-optional.txt', 'THIRD_PARTY_NOTICE.md'}
 DNA_SUFFIXES = {'.dna', '.gb', '.gbk', '.gbff', '.fa', '.fasta', '.fna', '.ab1'}
-PRIVATE_PATH = re.compile(r'(?:[A-Za-z]:[\\/](?:codex_project[^\\/]*|微信聊天记录)[\\/]|'
-                          r'[A-Za-z]:[\\/]Users[\\/]祝浩淇[\\/])', re.IGNORECASE)
+PRIVATE_PATH = re.compile(
+    r"(?:\b[A-Za-z]:[\\/]"
+    r"(?!(?:Program Files(?: \(x86\))?|Windows|Tools|SnapGene[ 0-9*_.-]*|Python[0-9*_.-]*|"
+    r"Anaconda[0-9*_.-]*|Miniconda[0-9*_.-]*)[\\/])"
+    r"(?!Users[\\/](?:\.{3}|<[^>]+>|%[^%]+%|\*)[\\/])"
+    r"[^\s\\/\"'<>`]+[\\/]|/(?:Users|home)/[^/\s]+/)", re.IGNORECASE)
 DEVELOPMENT_SOURCE = {'scripts/run_architecture_recovery_examples.py',
                       'references/architecture-decision-record-v091.md'}
 
@@ -46,13 +50,13 @@ def _sources(root):
 
 def _skip(relative, *, vendor):
     parts = PurePosixPath(relative).parts
-    if any(p in ('__pycache__', 'vendor', '.git', '.venv', 'dist', 'output', 'build', 'tests', 'fixtures') for p in parts):
+    if any(p in ('__pycache__', 'vendor', '.git', '.claude', '.venv', 'dist', 'output', 'build', 'tests', 'fixtures') for p in parts):
         return True
     suffixes = ''.join(Path(relative).suffixes).lower()
     if (relative.endswith(('.pyc', '.log', '.jsonl')) or Path(relative).suffix.lower() in DNA_SUFFIXES
             or suffixes.endswith(('.gz', '.zip', '.tar', '.bz2', '.xz', '.bam', '.fastq', '.fq'))):
         return True
-    if Path(relative).name in ('INSTALL-SOURCE.json', 'TOOLKIT-MANIFEST.json', 'RELEASE-MANIFEST.json', 'AGENTS.md'):
+    if Path(relative).name in ('INSTALL-SOURCE.json', 'TOOLKIT-MANIFEST.json', 'RELEASE-MANIFEST.json', 'AGENTS.md', 'CLAUDE.md'):
         return True
     if vendor:
         if Path(relative).name.lower() == 'skill.md' or any(p in ('agents', 'agent', 'examples', 'docs') for p in parts):
@@ -70,7 +74,8 @@ def _reviewed(root, *, vendor):
     for entry in entries:
         path = root / entry['path']
         if path.suffix.lower() in ('.py', '.md', '.json', '.txt', '.yaml', '.yml'):
-            if PRIVATE_PATH.search(path.read_text(encoding='utf-8', errors='replace')):
+            content = path.read_text(encoding='utf-8', errors='replace')
+            if PRIVATE_PATH.search(content.replace('\\\\', '\\')):
                 raise ValueError('Private absolute development path in package source: ' + entry['path'])
     return entries
 

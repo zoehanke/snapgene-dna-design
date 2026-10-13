@@ -4,6 +4,8 @@
 
 ## 当前授权与已结束工作
 
+2026-10-13新授权[公开风险与官方候选整合](public-risk-and-candidate-integration-2026-10-13.md)：安全修复在CRISPR开发分支，按必要文件整合Toolkit0.1.1/Trace0.3.4与Core2.2.4；精选源码只推官方新候选分支并核对精确CI。用户已明确将三类稿件完整私有备份后移出，远端历史改写仍等待决定；主检出已有改动、两个main、正式表单/Wiki均不动。整合完整1280项1260通过/20跳过/0失败错误，真实Primer3门槛通过；首轮路径guard setup错误保留并按正常安装语法修复。既有未授权推送限制由本次明确候选授权取代，不能扩展为main或正式提交授权。
+
 2026-10-13续授权[任务4至6](../archive/plans/queued-fixtures-and-trace-2026-10-13.md)：固定种子合成回归已推送794d3c7并六环境CI成功；最小Toolkit文件哈希关系实施/本地验收结束，真实13步流程2条程序关联/6条文件事实，完整1245项1227通过/18跳过/0失败。每项提交后的精确CI单独核查。task6仅日期报告与路由，阅读界面/main/原材料和原工作区改动保留；未验证外源素材/二进制、湿实验和陌生评测不升级为成功。
 
 2026-10-13构建路线推送后，[CRISPR三项排队修复](../archive/plans/crispr-queued-fixes-2026-10-13.md)实施/本地验收结束：有来源的因素档案/提供载体自切、实际命中与反向假设分开、原21项逐项处置。最终默认离线1239项中1221通过/18跳过/0失败；模型无flag通过，真实联网另验。每项分别提交、推送并核对自己的精确CI；7bf8e8c/df0f056六环境成功，第三项结果绑定自己提交的checks和仓库外回执，不借前项结果。main、原DNA/日志和原工作区改动保留。缺外部素材/二进制、湿实验、独立陌生题评测仍未完成，不自动启动后续工作。
@@ -12,7 +14,7 @@
 
 2026-10-12授权[CRISPR cassette修复](../archive/plans/crispr-cassette-repairs-v2.2.3.md)：Core2.2.3本地实现/验收结束，原Native日期入口已有修复；通用20 nt替换、已有guide双链/PAM核对、注释/抗性/QC来源/UTF-8回归成立。1217项1196通过/21跳过，烟雾95通过，独立包与原材料回放通过；CI另记。使用隔离开发工作树，保留原材料和原工作区改动；本轮明确授权验证后推送开发分支并检查精确CI，main和正式发布不在范围。
 
-[Genome Revival Toolkit v0.1](../archive/plans/genome-revival-toolkit-v0.1.md)本轮本地实施与验收结束：Toolkit0.1.0/Core2.2.2/Trace0.3.3，代码9bc9aa3，完整1202项中1194通过、8跳过，烟雾95通过；冻结独立包三Kit/三档/实际文件成立。真实DSH Flash/max自主完成526/250 bp主检测候选，经独立核算；未绑定的补充文稿有错误，不称全部呈现已验证。审核源目录原套件1179通过、23外源/可选跳过、零失败，builder可用。英文Wiki/官方核对和上传源包已准备，本地证据不代替正式提交。
+Genome Revival Toolkit v0.1（原稿曾公开，现已移出当前树并完整私有备份；历史仍可见）本轮本地实施与验收结束：Toolkit0.1.0/Core2.2.2/Trace0.3.3，代码9bc9aa3，完整1202项中1194通过、8跳过，烟雾95通过；冻结独立包三Kit/三档/实际文件成立。真实DSH Flash/max自主完成526/250 bp主检测候选，经独立核算；未绑定的补充文稿有错误，不称全部呈现已验证。审核源目录原套件1179通过、23外源/可选跳过、零失败，builder可用。英文Wiki/官方核对和上传源包已准备，本地证据不代替正式提交。
 
 仅本地修改/测试/提交和独立测试安装；仍禁止未经授权的远端push、main/GitLab/Wiki/Release或现用安装覆盖。负责人需审定科学/许可/归属/AI披露并亲自正式提交。SY14位点/实际株系、原实验数据、区域外鉴别、真人理解、陌生评测及省时/token效果未验证；候选窗口探索仍由宿主完成，不自动启动下一轮优化。
 
@@ -76,7 +78,7 @@ CRISPR Core2.2.3及前置2.2.4构建路线的精确CI已核查：4897f2f/e5c16f4
 | 长链复算与环境 | 同次CLI前缀双重重放已移除，长链逐项注释仍反复计算，优先用现有Pipeline批次；选择性复算、桌面并发根因及未知方向注释延期。外部Primer3实际可用，DSH primer3-py原生API探针崩溃保留 | [收尾记录](../archive/plans/actual-execution-closure-v2.2.1.md)、[testing](../testing.md) |
 | 原九题同宿主重测及独立整体验收 | 已知九题开发回放及本轮真实Flash T2/T3/T8，不是陌生评测。新版只另重测受影响T8，不混成全新版成绩。受控对照、更强模型、陌生用户及独立整体验收未完成；换路、校订分列 | [收尾记录](../archive/plans/actual-execution-closure-v2.2.1.md)、[v2.0.2](../archive/plans/real-task-usability-v2.0.2.md)、[评分](../question-bank/scoring-v0.1.md) |
 | 宿主提示干扰、成本及实际用户价值 | 未做受控无Skill/旧版/新版或模式对照；代码三档一致性不能代替 | [v0.3.2交接](../archive/plans/workflow-phase-3-usability-repair-v0.3.2.md) |
-| 新版报告的独立真人理解 | 浏览器工程证据已有，陌生读者回答尚未验证；未提交Reader Demo保留原文件，其三条旧产物链接已不可达，待稿件接续时核对。2026-10-12“过程图”已改为泳道关系图（仅`view.js`/`view.css`，未提交、未重新打包、未入运行包；66个Trace测试通过，新图尚无自动化测试），详见[阅读设计](../trace-report/design.md)；步骤间依据关系在采集端缺失，图在仅程序记录的trace上退化为列表，未处理。同日另修`report.py`变化值显示与影响分组、正文步骤折叠（103个Trace测试通过，仍无针对性回归测试），未提交 | [阅读规则](../trace-report/design.md)、[Demo](safety-phase-3-reading-draft.md) |
+| 新版报告的独立真人理解 | 浏览器工程证据已有，陌生读者回答尚未验证；未提交Reader Demo保留原文件，其三条旧产物链接已不可达，待稿件接续时核对。2026-10-12“过程图”已改为泳道关系图（仅`view.js`/`view.css`，未提交、未重新打包、未入运行包；66个Trace测试通过，新图尚无自动化测试），详见[阅读设计](../trace-report/design.md)；步骤间依据关系在采集端缺失，图在仅程序记录的trace上退化为列表，未处理。同日另修`report.py`变化值显示与影响分组、正文步骤折叠（103个Trace测试通过，仍无针对性回归测试），未提交 | [阅读规则](../trace-report/design.md)、Demo（原稿曾公开，现已移出当前树并完整私有备份；历史仍可见） |
 | 复杂源注释及制备/QC限制 | pET/Chr1完整表达边界仍需逐件检查；不自动校订源文件、不豁免失败；候选搜索失败如实报告 | [v0.3.2](../archive/plans/workflow-phase-3-usability-repair-v0.3.2.md)、[v1.0.3](../archive/plans/workflow-host-readiness-v1.0.3.md) |
 | 外部试用、专家/实验与真实后端泛化 | 负责人确认外部试用及湿实验未安排；公开合成/本机证据不能补成实验或全基因组保证 | [团队任务](../igem/best-software-task-table.md)、[外部证据](../igem/external-evidence-needed.md) |
 | 正式iGEM提交与完整教学交接 | 权属、账号发布和提交回执仍需团队；原14节教学未整体完成，文档存在不等于讲解完成 | [iGEM](../igem/README.md)、[工程交接](../archive/reviews/final-remediation-report.md) |

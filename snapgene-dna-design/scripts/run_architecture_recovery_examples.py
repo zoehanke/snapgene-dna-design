@@ -6,6 +6,7 @@ ConstructionTask JSONs, and records either the authoritative delivery or
 the structured refusal.  Outputs land under
 reports/v0.9.1-architecture-recovery/example-outputs/.
 """
+import argparse
 import json
 import pathlib
 import shutil
@@ -14,13 +15,28 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument(
+    "--audit-root", type=pathlib.Path,
+    default=ROOT / "fixtures" / "architecture-recovery" / "audit",
+    help="Directory containing the original frozen audit records.")
+parser.add_argument(
+    "--inputs-root", type=pathlib.Path,
+    default=ROOT / "fixtures" / "architecture-recovery" / "inputs",
+    help="Directory containing the original per-case input folders.")
+parser.add_argument(
+    "--out-dir", type=pathlib.Path,
+    default=ROOT / "reports" / "v0.9.1-architecture-recovery" / "example-outputs",
+    help="Directory for generated example results.")
+args = parser.parse_args()
+
 from core import (execute, finalize, plan, validate,
                   validate_construction_task)
 from core.errors import CoreError
-OUT = ROOT / "reports" / "v0.9.1-architecture-recovery" / "example-outputs"
+OUT = args.out_dir
 OUT.mkdir(parents=True, exist_ok=True)
-AUDIT = pathlib.Path(r"D:\codex_project\audit\snapgene-dna-design-v0.9.0-real-construction-complex-audit")
-SKILL = pathlib.Path(r"D:\skilltest")
+AUDIT = args.audit_root
+SKILL = args.inputs_root
 
 results = {}
 

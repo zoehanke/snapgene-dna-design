@@ -4,7 +4,7 @@
 
 ## 目标与布局
 
-负责人指出README本身属于Skill，并授权把工作区上移。项目/Git根为`D:/codex_project/github`；原`snapgene-dna-design/`目录作为Skill根，不改名，保留原材料、产物及运行入口的绝对路径。
+负责人指出README本身属于Skill，并授权把工作区上移。项目/Git根为`<workspace>`；原`snapgene-dna-design/`目录作为Skill根，不改名，保留原材料、产物及运行入口的绝对路径。
 
 外层：AGENTS、项目导航README、specs、开发docs、tests、benchmarks、tools、results、Git配置与CI。内层：Skill README、SKILL、core、实际DNA scripts、references、schemas、依赖、模型、示例及运行使用文档。
 
@@ -28,7 +28,7 @@
 
 首轮路径回归979项出现4失败、2错误和14跳过，原因是少数旧入口仍用外层scripts/fixtures且未启用既有Primer3 flag。已按实际布局修正路径，针对这些入口的40项回归通过；没有降低验收标准。最终结果如下，失败记录保留在本机证据目录。
 
-备份：`D:/codex_project/migration-backups/snapgene-layout-20261003-165219/`。本机迁移证据：`snapgene-dna-design/output/layout-migration-20261003/`，不随源码提交。
+备份：`<workspace>`。本机迁移证据：`snapgene-dna-design/output/layout-migration-20261003/`，不随源码提交。
 
 | 检查 | 实际结果与范围 |
 |---|---|

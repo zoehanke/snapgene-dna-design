@@ -21,7 +21,7 @@
 | BS5 易用 | 按任务选Kit，默认报告显示目标、结果、过程、检查与文件 | 正常宿主实际交付、报告链接；真人理解和效率尚未核实 |
 | BS6 维护 | 单一Core来源、轻量Context、公开接口、依赖和限制 | 包清单、安装复现、架构、测试及许可；正式GitLab CI待部署核查 |
 
-完整英文正文、素材和待冻结声明见[Wiki稿](software-wiki-draft.md)。现行实施证据由[Toolkit计划](../archive/plans/genome-revival-toolkit-v0.1.md)管理，不在表单材料另维护成绩表。
+完整英文正文、素材和待冻结声明见Wiki稿（原稿曾公开，现已移出当前树并完整私有备份；历史仍可见）。现行实施证据由Toolkit计划（原稿曾公开，现已移出当前树并完整私有备份；历史仍可见）管理，不在表单材料另维护成绩表。
 
 本轮受限计算证据：实际CHR1公共Construct交付1802 bp及8条完整oligo，三档DNA/注释/订单/质量及四scope一致；开发者辅助Identity650/374 bp，原质量失败保留；无原始实验表的Evidence为incomplete/NOT_TESTED。9bc9aa3完整1202项中1194通过、8跳过、0失败，CLI smoke95通过；冻结包252 payload及独立字段/完整oligo/回执核查成立。
 

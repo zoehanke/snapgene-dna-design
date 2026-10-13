@@ -582,7 +582,7 @@ if __name__ == "__main__":
         ut.qqplotp(allp[i,:], dohist=True, numbins=10, figsize=[6,6], title=mytitle, markersize=5)
         plt.show()
     
-    #save_tmp_results = r'D:\Source\CRISPR\elevation\pickles\tmp.ndcg.stat.calibration.p'
+    # save_tmp_results may be written to a caller-supplied output directory.
     #pickle.dump([theta_range, allp, pval, real_ndcg_diff, perm_ndcg_diff, ndcg1, ndcg2], open(save_tmp_results, "wb" ))
     #[theta_range, allp, pval, real_ndcg_diff, perm_ndcg_diff, ndcg1, ndcg2] = pickle.load(open(save_tmp_results, "rb" ))
 

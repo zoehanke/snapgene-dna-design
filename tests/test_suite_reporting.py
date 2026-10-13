@@ -93,6 +93,41 @@ class SuiteReportingTests(unittest.TestCase):
             self.assertEqual(result.skipped,[])
             self.assertEqual(len(result.failures),1)
 
+    def test_public_shards_cover_each_known_case_once_and_keep_skip_counts(self):
+        body = ''.join('    def test_%s(self):\n        self.assertEqual(2+3,5)\n' % name
+                       for name in ('a','b','c','d','e'))
+        body += '    @unittest.skip("外部资源未提供")\n    def test_f(self):\n        self.fail()\n'
+        expected = [('test_a','test_d'), ('test_b','test_e'), ('test_c','test_f')]
+        selected = []
+        for index, names in enumerate(expected, 1):
+            run, report = self.run_probe(body,'--shard-count','3','--shard-index',str(index),'--verbose')
+            self.assertEqual(run.returncode,0,run.stderr)
+            self.assertEqual(report['selection'],{'shard_count':3,'shard_index':index,'discovered_total':6})
+            self.assertEqual(report['counts']['run'],2)
+            self.assertEqual(report['counts']['passed'],1 if index == 3 else 2)
+            self.assertEqual(report['counts']['skipped'],1 if index == 3 else 0)
+            for name in names:
+                self.assertIn(name+' (',run.stderr)
+                selected.append(name)
+            for other in set(('test_a','test_b','test_c','test_d','test_e','test_f')) - set(names):
+                self.assertNotIn(other+' (',run.stderr)
+        self.assertEqual(sorted(selected),['test_a','test_b','test_c','test_d','test_e','test_f'])
+
+    def test_verbose_subtest_failure_streams_before_final_summary(self):
+        body = '    def test_bad(self):\n        with self.subTest(case=1):\n            self.assertEqual(2+3,6)\n'
+        run, report = self.run_probe(body,'--verbose')
+        self.assertEqual(run.returncode,1)
+        self.assertEqual(report['counts']['passed'],0)
+        self.assertEqual(report['counts']['failures'],1)
+        self.assertLess(run.stderr.index('Failure details:'),run.stderr.index('Ran 1 test'))
+
+    def test_public_cli_rejects_invalid_shard_before_discovery(self):
+        for options in (('--shard-count','0'),('--shard-count','2','--shard-index','3')):
+            run = subprocess.run([sys.executable,'-X','utf8','-B',str(PROJECT/'tools/run_test_suite.py'),*options],
+                                 capture_output=True,text=True,encoding='utf-8')
+            self.assertEqual(run.returncode,2)
+            self.assertIn('shard count must be positive',run.stderr)
+
 
 if __name__ == '__main__':
     unittest.main()

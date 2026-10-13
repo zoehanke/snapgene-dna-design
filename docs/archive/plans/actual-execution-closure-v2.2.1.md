@@ -48,7 +48,7 @@
 
 DSH测试用官方headless、独立profile/cwd/冻结包，原自然请求和必要材料，没有注入正确路线、参考产物或纠正答案。真实权限为danger-full-access/never，Windows ACL探针失败保留；这不是读取隔离或绝对盲测。所有题均为开发者已知回归，未做受控旧版/新版、无Skill或更强模型比较，不宣称一般成功率提高。
 
-证据集中在本机`D:/codex_project/audit-output/final-usability-20261011/`。源DNA不进Git。原末端测试输入保留，旧同标签可物理连接的预期用独立领域规则推翻，另保留显式junction_label解释。新增测试最初两处用了错误mutate参数，保留失败后按真实signature修正，DNA期望不变；质量新正例的错误预期也由独立原始Primer3引擎校正，原材料及负例保留，未降阈值。
+证据集中在本机`<workspace>`。源DNA不进Git。原末端测试输入保留，旧同标签可物理连接的预期用独立领域规则推翻，另保留显式junction_label解释。新增测试最初两处用了错误mutate参数，保留失败后按真实signature修正，DNA期望不变；质量新正例的错误预期也由独立原始Primer3引擎校正，原材料及负例保留，未降阈值。
 
 ### 收尾与未关闭项
 
@@ -76,7 +76,7 @@ DSH测试用官方headless、独立profile/cwd/冻结包，原自然请求和必
 | 同版本交付 | 现有writer从步骤及37条当前订单生成文件；reviewed report_notes一起绑定；对最终真正选择的路径执行verify_delivery |
 | 泛化边界 | 独立合成正反例，原失败保留；验证默认质量失败、标识冲突、旧回执不能授权新文稿/文件；完整回归实际启用Primer3 |
 
-实施不引入新交付框架、Schema平台或依赖。开发者修订记录及真实材料仅保留本机`D:/codex_project/audit-output/t2-release-sprint-20261010/`；不计作陌生任务或宿主自主成功。独立新增圆形随机材料缺ori/marker，保持拒绝；另一有效文件编辑例明确用线性材料和component范围，没有降低原生物学门槛。
+实施不引入新交付框架、Schema平台或依赖。开发者修订记录及真实材料仅保留本机`<workspace>`；不计作陌生任务或宿主自主成功。独立新增圆形随机材料缺ori/marker，保持拒绝；另一有效文件编辑例明确用线性材料和component范围，没有降低原生物学门槛。
 
 收尾发现同类放行缺陷：将无结合位点的QC引物标为preparation，原validator只按序列出现在任何步骤中认可，局部检查返回verified。独立线性材料反例保留；用途现按所属步骤及其内部实际操作核对，未知用途拒绝。没有把全部Recipe内部引物当QC或强制固定路线。第一次1077项完整回归已过，修复该缺陷后重新执行完整回归及同版本实际交付。
 
@@ -113,7 +113,7 @@ DSH测试用官方headless、独立profile/cwd/冻结包，原自然请求和必
 | 七原源材料、已知开发者路线回放 | 实际5283 bp候选，18个元件逐项PASSED，sequence/preparation/file范围PASSED | 路线、选择和QC参数由开发者沿用，不算宿主自主成功 |
 | 原文“相关接口必须能继续使用” | 从原文保留为第19项；没有受支持的充分核查，MISSED，user_goal=INCOMPLETE、task_completion=UNVERIFIED，正式出口拦截 | 本轮未启动用途预检，不能拿模块存在或局部PASS替代此要求 |
 
-本机证据目录：D:/codex_project/audit-output/goal-continuity-20261009/，包含BASELINE.md、T2-final的原请求/实际步骤/候选/验证、旧失败目标检查。完整失败与最终日志分别为同级goal-continuity-20261009-full.log和goal-continuity-20261009-full-final.log。材料及真实DNA不进源码提交。
+本机证据目录：<workspace>，包含BASELINE.md、T2-final的原请求/实际步骤/候选/验证、旧失败目标检查。完整失败与最终日志分别为同级goal-continuity-20261009-full.log和goal-continuity-20261009-full-final.log。材料及真实DNA不进源码提交。
 
 没有修改DNA算法、质量阈值、评分规则或安装，没有新增依赖/调度器/Trace引擎，没有按题号、路径、哈希或参考答案加入运行时特判。完整语义理解与宿主任意脚本/present仍不受程序保证。原目标确需修订时另存上下文；同一上下文只允许补充要求或其关联，路线仍可调整。最重要后续仅为原接口用途预检和受控自然宿主重测，前者有明确MISSED证据；本轮不启动。源码保持2.1.1开发树，本地提交，不推送/发布/替换安装。
 
@@ -286,7 +286,7 @@ code-review两轴独立探针确认并修复：历史续用、裸序列来源表
 
 ### r3：按失效机制修复目标、质量与最终呈现
 
-2026-10-07，原DSH新T2会话171d7b75只读复核后仍未完成：反应/正式注释成立，原连接件/接口遗漏，字符串目标字段未参与元件检查，最后主文件不对应正式受检注释，完整引物质量与说明有缺口。原记录和独立探针在Git工作区外`D:/codex_project/audit-output/host-test-review-20261007-T2-171d7b75/`保留。
+2026-10-07，原DSH新T2会话171d7b75只读复核后仍未完成：反应/正式注释成立，原连接件/接口遗漏，字符串目标字段未参与元件检查，最后主文件不对应正式受检注释，完整引物质量与说明有缺口。原记录和独立探针在Git工作区外`<workspace>`保留。
 
 负责人随后要求沿线索解决同类问题。新授权为通用修复与相关验收，范围按已证明机制收敛，不按题号或参考答案特判：
 
@@ -320,7 +320,7 @@ r3当前实现与证据（2026-10-07）：
 | 独立包 | 从该提交的Git归档生成2.1.1可分发包，268项清单逐文件核对；ZIP CRC、清单及受限材料检查通过。包SHA-256为`5eaeaff92d9b39bcf053bdff8877973e07a8ed14cd72bd681fd13a94c65dc4c5` |
 | 仓库外公共入口 | 中文空格路径，真实`run_step.py`执行PCR→EcoRI酶切→连接，再用`finalize_workflow.py`正式交付370 bp；GB/native/FASTA读回序列、负链注释及逐位来源符合原材料独立预期；四范围和准备质量均PASSED |
 | Trace三档 | Off/Observed/Full上述DNA文件逐字节相同；订单、质量测量/条件和四范围结果一致。`verify_delivery.py`认可正式呈现列表，拒绝字节相同的未受检副本；未知目标字段明确拒绝 |
-| 安装 | DSH根目录已替换为2.1.1，268文件、VERSION、INSTALL-SOURCE及安装后完整公共CLI链重过；原2.1.0完整备份在`C:/Users/祝浩淇/.dsh/skill-backups/snapgene-dna-design-v2.1.0-before-a6fc443`，原2.0.2备份保留。Codex安装未替换 |
+| 安装 | DSH根目录已替换为2.1.1，268文件、VERSION、INSTALL-SOURCE及安装后完整公共CLI链重过；原2.1.0完整备份在`<workspace>`，原2.0.2备份保留。Codex安装未替换 |
 | 环境 | 所用Python3.12及Primer3-core2.6.1可用，`core_ok=true`；Cas-OFFinder未安装，`release_real_ok=false`。不把环境可运行等同于全部可选后端已验证 |
 
 包位于`dist/goal-handoff-v2.1.1-verified/`，包来源文件`PACKAGE-SOURCE.json`绑定实施提交。私有材料、开发证据和未提交并行代码没有打入包。核查日志在项目忽略目录`output/goal-handoff-repair-20261007/`，包括package-verification、installation、installed-public-cli和installed-environment。第一次仓库外核查脚本误用不支持的`feature_label`字段，被程序正确拒绝；失败目录保留，改成已有合法名称选择后通过，未修改产品代码/门限。
@@ -331,7 +331,7 @@ R01至R04已实施并验证，R05包/安装及回归证据已记录，CI按上�
 
 独立可分发包：`snapgene-dna-design/dist/execution-closure-v2.1.0-verified/snapgene-dna-design-v2.1.0-redistributable.zip`，SHA-256 `d6ed500777d02c385b4e70d428f7409421fa39c5917bbb66fbf77f1e2afc45a9`，265清单文件经CRC、逐文件hash和许可检查；新CLI在仓库外完成真实三档链，DNA字节相同。没有开发记录、答案或私有材料入包。
 
-已安装到`C:/Users/祝浩淇/.dsh/skills/snapgene-dna-design`，旧2.0.2完整保留在`C:/Users/祝浩淇/.dsh/skill-backups/snapgene-dna-design-v2.0.2-before-dd293a8`。INSTALL-SOURCE绑定包、实施提交和已验证解释器；实际安装265文件hash、SKILL/VERSION及独立公开链均核对。Codex安装本轮未替换。Primer3-core 2.6.1实际可用；CAS-OFFinder未安装，全基因组特异性不计通过。
+已安装到`<workspace>`，旧2.0.2完整保留在`<workspace>`。INSTALL-SOURCE绑定包、实施提交和已验证解释器；实际安装265文件hash、SKILL/VERSION及独立公开链均核对。Codex安装本轮未替换。Primer3-core 2.6.1实际可用；CAS-OFFinder未安装，全基因组特异性不计通过。
 
 本机SnapGene 6.0.2的native回读确认了原T2正式文件的28个总特征；18个目标功能特征另由原源材料独立核对。完整插桩的rich步骤与另一个桌面转换任务并行时，4个GenBank转换没有生成文件；保留两个失败轮次。同样八个输入、参数、门限串行复测全部通过。并发干扰为当前推测，未完成受控归因；不称已杜绝。桌面转换按串行使用，主DNA交付采用直接native写出。本机可执行文件签名校验为HashMismatch，因此只报告本机版本实测，不作原厂二进制完整性证明。
 

@@ -918,7 +918,7 @@
       },
       "unittest": {
         "returncode": 0,
-        "stderr_tail": "..........................s.................................................................Evidence Trace: C:\\Users\\祝浩淇\\AppData\\Local\\Temp\\tmpusm2ep65\\missing\\evidence-trace\\index.html\nEvidence Trace: C:\\Users\\祝浩淇\\AppData\\Local\\Temp\\tmpusm2ep65\\present\\evidence-trace\\index.html\n....\n----------------------------------------------------------------------\nRan 1007 tests in 1318.886s\n\nOK (skipped=8)\n",
+        "stderr_tail": "..........................s.................................................................Evidence Trace: <workspace> Trace: <workspace> 1007 tests in 1318.886s\n\nOK (skipped=8)\n",
         "stdout_tail": "spcas9-wt: 2 candidate(s)\ngRNA-001 forward TACGTACGTACGTACGTACG PAM=TGG protospacer(ref)=3..23[0bho) pam(ref)=23..26[0bho) \ngRNA-002 forward ACGTACGTACGTACGTACGT PAM=GGG protospacer(ref)=4..24[0bho) pam(ref)=24..27[0bho) \n"
       }
     },
@@ -930,10 +930,10 @@
     "v09_line_threshold": 75.0
   },
   "package_and_ab": {
-    "archive": "D:\\codex_project\\github\\snapgene-dna-design\\output\\unified-molecule-20261004\\packages\\snapgene-dna-design-v2.0.0-redistributable.zip",
+    "archive": "<workspace>",
     "archive_sha256": "52df0080bc3989acb4e2da63278d80c81d29a459b13eaf31a66265f8280c6d11",
-    "skill_root": "C:\\Users\\祝浩淇\\AppData\\Local\\Temp\\分子契约 独立包 20261004-1\\installed\\snapgene-dna-design",
-    "python": "C:\\Users\\祝浩淇\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+    "skill_root": "<workspace> 独立包 20261004-1\\installed\\snapgene-dna-design",
+    "python": "<workspace>",
     "scope": "Extracted-package public CLI reaction chain; generated input, not natural-language host evaluation or wet lab",
     "rows": [
       {

@@ -31,7 +31,7 @@ Software 交付要求还包括陌生读者可用的 README、安装运行及主�
 | 格式及标准兼容，BS1 | [序列元数据编码](../snapgene-dna-design/core/io/molecule_codec.py)、[文件读写](../snapgene-dna-design/core/tools/snapgene_io.py)、[rich 格式夹具](../tools/build_rich_fixtures.py)、[真实文件回读回归](../tests/test_grna_cassette.py) | 有 GenBank、FASTA、SnapGene native 的程序读写证据，含环状坐标、注释和 UTF-8。未找到 SBOL 互操作验收或所有桌面版本完整 round-trip 证明，不将程序解析等同桌面兼容。 |
 | 外部集成，BS4 | [Core 注册工具](../snapgene-dna-design/core/tools/registry.py)、[单步 CLI](../snapgene-dna-design/scripts/run_step.py)、[Toolkit CLI](../genome-revival-toolkit/scripts/run_toolkit.py)、[实际 Primer3 回归](../tests/test_preparation_primer_locations.py)、[网络隐私契约](../snapgene-dna-design/references/privacy-and-consent.md) | 公共 API/CLI 和同源 Core 复用有代码及运行证据。可选服务成功需各自真实环境；不是所有集成都已执行。没有独立团队接入现有系统的效果证据。 |
 | 其他项目价值，BS3 | [Core 用途](../snapgene-dna-design/README.md)、[通用 gRNA spec](../specs/core-skill.md)、[通用合成回归](../tests/test_grna_evaluation.py)、[性能入口](../benchmarks/runtime.py) | 实现不依赖特定质粒名，独立构造输入说明可泛化的机制。缺少未参与开发团队的真实采用，以及冻结条件下与现有解决方案的当前对照。不能据候选数量或单测通过声称普遍可靠。 |
-| 与参赛项目关联 | [Toolkit 三 Kit](../genome-revival-toolkit/README.md)、[Project Context 样式](../genome-revival-toolkit/assets/project-context-template.json)、[科学范围 spec](../specs/genome-revival-toolkit.md)、[Wiki 草稿](igem/software-wiki-draft.md)、[实施证据与未决事项](archive/plans/genome-revival-toolkit-v0.1.md) | Genome Revival 的供体构建、指定区域鉴别和提交观察比较有明确使用场景。计算制备、局部 PCR 及观察整理不证明全基因组消除或复活。缺少本系统产物的湿实验功能验证和独立生物学专家复核。 |
+| 与参赛项目关联 | [Toolkit 三 Kit](../genome-revival-toolkit/README.md)、[Project Context 样式](../genome-revival-toolkit/assets/project-context-template.json)、[科学范围 spec](../specs/genome-revival-toolkit.md)、Wiki 草稿（原稿曾公开，现已移出当前树并完整私有备份；历史仍可见）、实施证据与未决事项（原稿曾公开，现已移出当前树并完整私有备份；历史仍可见） | Genome Revival 的供体构建、指定区域鉴别和提交观察比较有明确使用场景。计算制备、局部 PCR 及观察整理不证明全基因组消除或复活。缺少本系统产物的湿实验功能验证和独立生物学专家复核。 |
 | 可信的验证证据，BS2 | [工程评分边界](question-bank/scoring-v0.1.md)、[本轮实施及原失败处置](archive/plans/queued-fixtures-and-trace-2026-10-13.md)、[预备路线回归](../tests/test_grna_preparation.py)、[文件关系实现](../snapgene-dna-design/evidence_trace/projection.py) | 预期由输入构造决定，实际公共入口和生成文件可核查；Tm 有独立公开方法交叉计算。已知题、独立工程输入、人工辅助及隔离陌生评测分开。本轮没有陌生题成功率、湿实验、科学因果或真人报告理解证据。 |
 
 ## 当前远端和执行证据
@@ -54,12 +54,12 @@ Software 交付要求还包括陌生读者可用的 README、安装运行及主�
 | 类别 | 已核查发现及具体位置 | 结论和未解决事项 |
 |---|---|---|
 | 所提供用户源 DNA | 8 个源文件、4 个唯一指纹的完整字节匹配 0，规范化完整序列匹配 0；[本轮 fixture 生成器](../tests/crispr_synthetic_fixture.py)没有私有文件读取、材料名称或材料哈希依赖 | 未确认原用户源文件入库。片段、变更后的成品、代码/日志嵌入序列及其他用户材料不被这项完整匹配排除。 |
-| 外源 DNA 许可待核实 | 当前跟踪 [tests/data/pBP-eGFP.gb](../tests/data/pBP-eGFP.gb)，其公开来源及待核实权利已记于 [归属清单](attribution.md)；历史首次引入 `16b8fe4`。另有 [synthetic/rich 来源生成器](../tools/build_rich_fixtures.py)及对应夹具 | 已知外源文件仍在公共源码，不能因发行包排除而称没有公开。未把它误报为上述用户 DNA。需要素材权利审定；本轮不删除或代授权。 |
-| 用户提供的参考图 | 当前跟踪 [evidence-trace-report-reference.png](archive/plans/assets/evidence-trace-report-reference.png)，许可状态见 [归属清单](attribution.md)；首次引入 `30b5c9c`，当前路径整理于 `05ff2ee` | “不随发行包”没有解决 Git 公共可见性。发布授权未确认；没有删除、改图或改历史。 |
+| 外源 DNA 许可待核实 | 当前跟踪 tests/data/pBP-eGFP.gb（原内部定位，未随当前公开树分发；不是可点击文件），其公开来源及待核实权利已记于 [归属清单](attribution.md)；历史首次引入 `16b8fe4`。另有 [synthetic/rich 来源生成器](../tools/build_rich_fixtures.py)及对应夹具 | 已知外源文件仍在公共源码，不能因发行包排除而称没有公开。未把它误报为上述用户 DNA。需要素材权利审定；本轮不删除或代授权。 |
+| 用户提供的参考图 | 当前跟踪 evidence-trace-report-reference.png（原公开资料，已移出当前树；历史仍可见），许可状态见 [归属清单](attribution.md)；首次引入 `30b5c9c`，当前路径整理于 `05ff2ee` | “不随发行包”没有解决 Git 公共可见性。发布授权未确认；没有删除、改图或改历史。 |
 | 本地及个人绝对路径 | 291 条候选为 blob 版本与行的命中，涉及 40 个路径，不是 291 个隐私泄露。[旧本地设置](archive/development/LOCAL-SETUP.md)、[旧 reviewer guide](archive/development/REVIEWER-GUIDE.md)、[旧架构草案](archive/architecture/ARCHITECTURE-RECOVERY-DEVELOPMENT-SPEC.md)、[构建闭环记录](archive/plans/actual-execution-closure-v2.2.1.md)有本地目录；历史 `docs/igem/assets/verification-summary.json`、`docs/igem/project-software-handoff.md` 在 `5c6e06f`、`cf50000` 可达 | 用户目录、工作区和测试材料路径需逐项审查。通用 `Program Files` 发现路径或刻意构造的 Windows 测试字符串另属运行逻辑，不一概列为泄露。报告不重复个人用户名和完整路径。 |
 | 凭据 | 9 个规则命中来自历史 SKILL 示例和 [旧可用性计划](archive/plans/real-task-usability-v2.0.2.md)中的 `task-…` 名称，匹配到其中的 `sk-` 子串；已逐项核对上下文 | 这 9 项为误报，未确认真实 API token、私钥或密码。规则覆盖有限，未进行账号有效性测试；不据此保证全部历史无秘密。 |
-| 未发布文稿及项目材料 | [Software Wiki draft](igem/software-wiki-draft.md)、[安全阶段阅读稿](development-plans/safety-phase-3-reading-draft.md)、[项目实施记录](archive/plans/genome-revival-toolkit-v0.1.md)；历史 `docs/igem/project-software-handoff.md` | 草稿明确未发布或需审定，但公共仓库已能阅读。科研内容、发表时间、团队同意和外部贡献须负责人确认；“draft”标签不提供访问隔离。 |
-| 评测答案公开 | [candidate tasks](question-bank/candidate-tasks-v0.1.md)、[human answer key](question-bank/human-answer-key-v0.2.md)当前已跟踪。本轮只核查路径和公开状态，没有据答案评测程序 | 不是凭据或已确认私人 DNA；但这些题目和答案不能再作未接触的 heldout 成绩。未来陌生评测须独立管理。 |
+| 未发布文稿及项目材料 | Software Wiki draft（原稿曾公开，现已移出当前树并完整私有备份；历史仍可见）、安全阶段阅读稿（原稿曾公开，现已移出当前树并完整私有备份；历史仍可见）、项目实施记录（原稿曾公开，现已移出当前树并完整私有备份；历史仍可见）；历史 `docs/igem/project-software-handoff.md` | 草稿明确未发布或需审定，但公共仓库已能阅读。科研内容、发表时间、团队同意和外部贡献须负责人确认；“draft”标签不提供访问隔离。 |
+| 评测答案公开 | candidate tasks（原公开资料，已移出当前树；历史仍可见）、human answer key（原公开资料，已移出当前树；历史仍可见）当前已跟踪。本轮只核查路径和公开状态，没有据答案评测程序 | 不是凭据或已确认私人 DNA；但这些题目和答案不能再作未接触的 heldout 成绩。未来陌生评测须独立管理。 |
 
 发行排除由 [Core builder](../tools/build_release.py)和[归属清单](attribution.md)提供可核查依据；它只管生成的包，不改变 Git 历史。公开风险处置属于后续明确授权事项，本次没有删除素材、替换历史、撤销凭据或更改账号设置。
 

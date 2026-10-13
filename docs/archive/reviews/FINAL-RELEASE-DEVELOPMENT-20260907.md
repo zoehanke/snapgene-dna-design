@@ -32,8 +32,8 @@
 
 - 发布包：`dist/snapgene-dna-design-v0.9.4-redistributable.zip`
 - SHA-256：`0a474ebba815cc9a833a740800f8f05213050d8ff2495ba2a4a2de4745bb0273`
-- 安装位置：`C:\Users\祝浩淇\.codex\skills\snapgene-dna-design`
-- 旧版备份：`C:\Users\祝浩淇\.codex\backups\skills\snapgene-dna-design-v0.9.3-20260908-011641`
+- 安装位置：`<workspace>`
+- 旧版备份：`<workspace>`
 - 回归日志：`output/repair-check-20260907/final-release-regression/`
 - 官方文件检查：`output/final-audit-20260907/official-native-summary.json`
 - 解压与安装入口：`output/final-audit-20260907/unpacked-v094/result.json`、`installed-v094/result.json`

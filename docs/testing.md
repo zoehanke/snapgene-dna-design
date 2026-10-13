@@ -32,6 +32,10 @@ bash使用`export SNAPGENE_RUN_PRIMER3=1`。真实Primer3跳过会使正式runne
 
 完整runner终端及可选`--report-json`分别写实际通过、skip及原因、失败、错误；UTF-8文件不把skip或部分执行的方法算通过。passed由unittest实际成功事件计数，子测试失败和class setup错误单列，计数单位写入文件。原21项逐项处置见[2026-10-13审计](archive/reviews/crispr-skip-audit-2026-10-13.md)。
 
+官方候选沿用八分片及共享wheel预备：`--shard-count 8 --shard-index 1 --verbose --report-json ci-reports/shard-1.json`。排序后按余数分片，每个完整test case恰归一个shard，subtests不拆；全部八份结果才代表完整套件。分片保留准确skip/失败计数和即时失败详情，非法参数在发现前拒绝。独立六case控制检查无遗漏/重复，失败流式与Primer3门槛照常。GitLab安装Node以执行实际查看器线型回归，不新增Python运行依赖。
+
+旧外源模板从当前树移出；原两项已知集成仅在显式`SNAPGENE_EXTERNAL_REGRESSION_TEMPLATE`合法资源下重放并单列。默认两项测试仍实际执行，改为独立固定种子的3100/4200 bp完整环形输入，公共PCR/逐次中间体、导出及Trace一致性职责不减少。直接Primer3 Boulder独立确认的强发卡原失败与复制退火区域歧义为拒绝边界；默认演示不再要求材料身份。没有把合法缺资源skip算通过。
+
 三个真实模型回归在依赖/权重齐全时自动执行；缺模块/权重明确列出，加载错误或参考数值不符仍失败，不以捕获后端错误作为skip。旧`SNAPGENE_RUN_REAL_MODELS=1`可强制运行资源不足时的失败。普通Cas-OFFinder集成可用`CAS_OFFINDER_EXE`或PATH，3.x bulge仍需明确`CAS_OFFINDER_EXE_V3`及OpenCL。Live NCBI默认离线隔离，使用`SNAPGENE_RUN_ONLINE=1`另做真实集成，失败不能降为skip。academic原素材不随源码分发，须合法单独提供；定位在Skill fixtures目录，不能用合成输入代替原案例。
 
 mutation、rich fixtures和scenario分别由`tools/mutation_tests.py`、`tools/validate_rich_fixtures.py`、`tools/run_scenario_suite.py`提供，参数以`--help`为准。场景需按executed/partial/blocked记录，不能将总场景数说成构建成功数。
@@ -74,7 +78,7 @@ python -X utf8 -B tools/build_toolkit.py --out-dir output/toolkit-package
 
 默认从精确Git提交构包，包内只有一个Skill入口，同版Core由源树生成vendor子集。`--working-tree`只产出诊断包，不是冻结候选。最终候选须在仓库外解包，核对TOOLKIT-MANIFEST及SHA，清除PYTHONPATH后实际调用三Kit和verify。正常宿主另用独立测试配置安装此包，只给自然请求与必要原材料，不给预先选好的引物、完整参数或参考答案；现用安装保持不变。
 
-开发者指定路线、改选检测窗口和宿主自主完成分别记录。真实材料例不等于陌生评测；局部PCR预测、来源记录、文件核验和湿实验结论也分别报告。报告浏览器及链接可用不替代真人理解试读。当前阶段及实际证据由[Toolkit计划](archive/plans/genome-revival-toolkit-v0.1.md)拥有。
+开发者指定路线、改选检测窗口和宿主自主完成分别记录。真实材料例不等于陌生评测；局部PCR预测、来源记录、文件核验和湿实验结论也分别报告。报告浏览器及链接可用不替代真人理解试读。当前阶段及实际证据由Toolkit计划（原稿曾公开，现已移出当前树并完整私有备份；历史仍可见）拥有。
 
 记录源码提交、包清单/哈希、解释器、依赖、平台、实际后端、输入条件与人工介入。同平台精确复现可参考Skill内requirements-tested；跨平台或可选后端不沿用未经验证的保证。精确模型token不可得时写未知。
 

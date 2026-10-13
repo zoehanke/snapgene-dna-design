@@ -78,6 +78,8 @@ Use the Recipe or ConstructionTask routes for biological edits. The legacy keywo
 
 ## Evidence Trace: capture during work, organize at handoff
 
+Evidence Trace 0.3.4 reports observed execution and supplied declarations. Solid relations require actual computed output/input file-hash equality; declared and structural references stay dashed. A line does not certify scientific support, physical consumption or causality.
+
 Read the current level once with `python scripts/trace_design.py config`. Keep the user's setting. Use one explicit `--trace-dir` for actual tool calls, including inspection and file operations. Off records nothing; Observed records facts without extra explanations; Full also retains a brief public explanation alongside each consequential choice. Record the user's stated reasons as theirs. Normal capture failures preserve DNA work.
 
 During design, concentrate on the requested result. For a genuine choice, retain what you selected, the short reason, relevant source and any consequential limit in the same public response. Follow requirements without inventing a choice. Capture missing explanations honestly. Read [capture instructions](references/trace-capture.md) only when submitting notes or running a custom script.

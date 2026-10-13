@@ -5,7 +5,7 @@
 - 当前状态：三层采集/组织/报告接口及正式 HTML/Markdown 已实现，真实案例与工程检查通过。双人计时和独立真人页面理解尚未完成；源 pET 注释引起的正式交付阻塞单列为 Core 前序问题，未降低门槛。实现见[三层设计 r4](safety-phase-3-three-layer-design-v0.3.1.md)。
 - 分支：`codex/real-workflow-readiness-20260907`；开始前同步远端，禁止改 main。实施结果验证后 commit/push 并核对对应 CI。
 - 先读：[索引](../../development-plans/README.md)、[core spec](../../../specs/core-skill.md)、[safety spec](../../../specs/safety-module.md)、[前序完成/交接](safety-phase-3-change-impact-v0.3.md)。
-- [design.md](../../trace-report/design.md) 定义阅读/UI 规则；[标准空白框架](../../trace-report/reader-template.md) 是实现前必读的阅读结构契约，定义可选步骤和旁支，不能据此强制填满栏目；[Reader Demo](../../development-plans/safety-phase-3-reading-draft.md) 是案例，不是所有任务的栏目模板。本计划只记录工作、验收和交接，不复制完整 UI 规则。
+- [design.md](../../trace-report/design.md) 定义阅读/UI 规则；[标准空白框架](../../trace-report/reader-template.md) 是实现前必读的阅读结构契约，定义可选步骤和旁支，不能据此强制填满栏目；Reader Demo（原稿曾公开，现已移出当前树并完整私有备份；历史仍可见） 是案例，不是所有任务的栏目模板。本计划只记录工作、验收和交接，不复制完整 UI 规则。
 
 ## 给项目负责人的简要说明
 

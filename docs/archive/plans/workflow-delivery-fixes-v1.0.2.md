@@ -51,8 +51,8 @@ Chr1 的同源转移注释含未知碱基/缺stop，不批量延长或豁免。�
 
 ### 安装交付
 
-Codex安装目录 `C:/Users/祝浩淇/.codex/skills/snapgene-dna-design` 更新为v1.0.2，源码修复提交 `3142405`；文件来自对应已提交快照，452条清单SHA-256核验通过。旧安装完整保存为 `C:/Users/祝浩淇/.codex/backups/snapgene-install-v1.0.2-20260930T162135Z/previous-install`。包及副本位于本机 `output/delivery-fixes-20260930/package/`，个人安装来源与解释器写入INSTALL-SOURCE，未带入公开包。
+Codex安装目录 `<workspace>` 更新为v1.0.2，源码修复提交 `3142405`；文件来自对应已提交快照，452条清单SHA-256核验通过。旧安装完整保存为 `<workspace>`。包及副本位于本机 `output/delivery-fixes-20260930/package/`，个人安装来源与解释器写入INSTALL-SOURCE，未带入公开包。
 
-安装后从 `D:/codex_project/skill测试` 运行已安装绝对入口，实际制备演示成功正式交付，序列、蛋白、源标签及4个交付文件Trace关联均通过；安装目录新增8项故障回归通过。环境使用已验证Python312，默认Anaconda缺依赖这一事实不被忽略，也未擅自修改全局PATH或其他Python环境。DSH未在本轮覆盖。
+安装后从 `<workspace>` 运行已安装绝对入口，实际制备演示成功正式交付，序列、蛋白、源标签及4个交付文件Trace关联均通过；安装目录新增8项故障回归通过。环境使用已验证Python312，默认Anaconda缺依赖这一事实不被忽略，也未擅自修改全局PATH或其他Python环境。DSH未在本轮覆盖。
 
 本次收尾文档提交不修改执行代码，安装的软件快照可由3142405和包哈希准确复现。源码945项全部通过；公开包917项909通过、8跳过。受测代码与最终包274个共有Python文件文本相同，Git仅规范化CRLF/LF；默认Trace级别不变。当前范围内故障修复闭合，保留原失败日志和源注释限制；Benchmark、真人理解、湿实验及整体Chr1注释校订仍不算完成。

@@ -58,8 +58,8 @@ Q5 的原供体只标了蛋白域，缺完整融合 ORF。本轮在源记录副�
 
 - 安装包：`dist/snapgene-dna-design-v0.9.3-redistributable.zip`。
 - SHA-256：`b5729c342a75029826c9ccaf39f95b93ee23ff292ea4baa7b94216fbf0d7b765`。
-- 本机 skill：`C:/Users/祝浩淇/.codex/skills/snapgene-dna-design/`，225 个发布文件逐一与冻结安装包核对。
-- 旧版备份：`C:/Users/祝浩淇/.codex/backups/skills/snapgene-dna-design-v0.9.2-20260907-130158/`。旧 ZIP 与历史实验输出保留。
+- 本机 skill：`<workspace>`，225 个发布文件逐一与冻结安装包核对。
+- 旧版备份：`<workspace>`。旧 ZIP 与历史实验输出保留。
 - 解压包的 Recipe 验证入口和 Pipeline 入口均运行成功；安装目录中的 Pipeline 再执行，得到与已核验参照完全一致的 11,258 bp guide 载体。
 - 证据：`package-smoke/result.json`、`installed-smoke/result.json`、`installation.json`，均位于本轮 `output/integrity-audit-20260907/`。
 

@@ -1,6 +1,6 @@
 # iGEM 2026 官方要求核对
 
-核对日期：2026-10-11。本文件管理官方规则，版本与提交操作见[GitLab交接](gitlab-migration.md)。依据当前官方页面、部署中的公开页面代码、匿名团队/日历/GitLab API；未访问个人账号。抓取和 SHA-256 保存在本机审查目录的 `igem/SOURCE-INDEX.json`。普通页面抓取仅得到 JavaScript 外壳，失败的浏览器渲染不计为验证。以下为转述，不是官方规则副本。
+核对日期：2026-10-11；源码/CI状态于2026-10-13重新核对。本文件管理官方规则，版本与提交操作见[GitLab交接](gitlab-migration.md)。依据当前官方页面、部署中的公开页面代码、匿名团队/日历/GitLab API；未访问个人账号。抓取和 SHA-256 保存在本机审查目录的 `igem/SOURCE-INDEX.json`。普通页面抓取仅得到 JavaScript 外壳，失败的浏览器渲染不计为验证。以下为转述，不是官方规则副本。
 
 ## 已核实要求
 
@@ -16,7 +16,7 @@
 | O8 | 实验边界 | AI计算、局部检测或 Trace 完整不能替代实验事实、安全审核及人的责任 | [团队AI政策](https://igem.org/legal?tab=ai-policy-teams)、[安全政策](https://responsibility.igem.org/safety-policies) |
 | O9 | 安全日程 | 最终 Project Safety Form 10月7日、Check-In 9月23日截止，均15:00 UTC；日期已过，本轮未核查团队提交/批准回执 | [2026日历](https://competition.igem.org/calendar) |
 | O10 | 软件内容 | 每仓库有说明用途/用户/安装/运行/主结果复现的 README、OSI LICENSE、可复现构建运行步骤和固定依赖；提交源码，不用编译二进制代替；Git仓库小于50MB | [Software要求](https://teams.igem.org/go/deliverables/software/requirements) |
-| O11 | 源码位置 | 本队官方模板要求全部软件源码进入专属仓库 `main`，Wiki Freeze 时自动生成评审 Release。当前公开 main 仍是模板，不能称已提交本软件 | [本队官方模板](https://gitlab.igem.org/2026/software/tianjin/igem-tianjin2026/-/blob/main/README.md) |
+| O11 | 源码位置 | 本队官方模板要求全部软件源码进入专属仓库 `main`，Wiki Freeze 时自动生成评审 Release。当前公开main已含Toolkit0.1.0/Core2.2.2/Trace0.3.3候选源码及成功CI；新版候选与正式提交仍须分别核查 | [本队官方模板](https://gitlab.igem.org/2026/software/tianjin/igem-tianjin2026/-/blob/main/README.md) |
 | O12 | Wiki内容 | 静态站点由 GitLab CI 构建，固定依赖；运行资产托管在 iGEM，视频/音频用 Video Universe；页脚保留 CC-BY 4.0 和 Wiki源码链接；不引入外部CDN、字体/API运行请求 | [Wiki要求](https://teams.igem.org/go/deliverables/wiki/requirements) |
 | O13 | AI与证据 | README披露模型、已知训练/微调来源、评估和限制；Attributions单列AI用途及人的核查。科研内容来自团队真实工作；不能把AI生成/修改的图像当实验或计算证据 | [Software](https://teams.igem.org/go/deliverables/software/requirements)、[Wiki](https://teams.igem.org/go/deliverables/wiki/requirements)、[Attributions](https://teams.igem.org/go/deliverables/attributions/requirements) |
 | O14 | 人工提交 | 官方账号、声明、选项、表单和最终提交由负责的真人执行，AI仅辅助准备。不能因后续写入授权而让AI代操作iGEM个人账号 | [通用AI政策§2.2](https://igem.org/legal?tab=ai-policy) |
@@ -33,11 +33,11 @@ Best Software：**BS1** 标准/格式兼容；**BS2** 验证；**BS3** 其他项
 
 公开API已确认团队6404/Tianjin、2026、accepted、Foundational Advance，并列出：
 
-- 专属软件：[igem-tianjin2026](https://gitlab.igem.org/2026/software/tianjin/igem-tianjin2026)。只读 main 为 `241b12fcad038e9f56fac563438f717f38e40644`，根目录仅 `.claude/`、`CLAUDE.md`、`LICENSE`、`README.md`。
+- 专属软件：[igem-tianjin2026](https://gitlab.igem.org/2026/software/tianjin/igem-tianjin2026)。本次只读main为`0c764c6`，已有两个程序目录、测试/构包、README、LICENSE、固定依赖及GitLab CI；[流水线748177成功](https://gitlab.igem.org/2026/software/tianjin/igem-tianjin2026/-/pipelines/748177)。这是0.1.0/2.2.2/0.3.3快照，未包含本轮整合。
 - Wiki源码：[2026/tianjin](https://gitlab.igem.org/2026/tianjin)；站点：[Tianjin Wiki](https://2026.igem.wiki/tianjin)。两者不等于软件仓库。
 
-**未核实：**个人写权限、正式表单保存/提交、安全批准、奖项自荐及最终回执。未推送或部署本轮 Toolkit。负责人需要审定科学事实、作者/外部资产权属和AI披露，再亲自完成官方操作及回执核对。
+**未核实：**个人写权限、正式表单保存/提交、安全批准、奖项自荐及最终回执。本次仅授权推官方新的精选候选分支；不推main、不发布Wiki或代填正式表单。负责人需要审定科学事实、作者/外部资产权属和AI披露，再亲自完成官方操作及回执核对。
 
-本轮本地技术准备已有9bc9aa3冻结包、实际工程/独立包及自然宿主主候选证据；额外宿主文稿和原请求摘要边界如实保留。源码r2已从新本地Git目录运行原套件与builder，额外资源skip未改门限。它们不替代正式远端main、Linux/GitLab CI、权属批准或官方提交回执。具体状态由[GitLab交接](gitlab-migration.md)和[Wiki证据段](software-wiki-draft.md)拥有。
+本轮本地技术准备已有9bc9aa3冻结包、实际工程/独立包及自然宿主主候选证据；额外宿主文稿和原请求摘要边界如实保留。源码r2已从新本地Git目录运行原套件与builder，额外资源skip未改门限。这些历史本地记录不替代本次新提交的精确CI。现有旧main源码/成功CI已核实；素材权属与正式提交回执仍未完成。具体状态由[GitLab交接](gitlab-migration.md)和Wiki证据段（原稿曾公开，现已移出当前树并完整私有备份；历史仍可见）拥有。
 
-10月15日代码冻结、16日上传、17日内部验收是本队内部计划，不能表述成iGEM官方截止。本轮本地候选与验证见[实施记录](../archive/plans/genome-revival-toolkit-v0.1.md)；后续授权看[当前交接](../development-plans/README.md)。
+10月15日代码冻结、16日上传、17日内部验收是本队内部计划，不能表述成iGEM官方截止。本轮本地候选与验证见实施记录（原稿曾公开，现已移出当前树并完整私有备份；历史仍可见）；后续授权看[当前交接](../development-plans/README.md)。

@@ -1,10 +1,7 @@
-# Complete template regression fixture
+# Template regression inputs
 
-`pBP-eGFP.gb` is the complete 2808 bp EcoFlex donor record from Karen Polizzi's lab, used unchanged in paper tasks Q2/Q3. Source context: Moore et al. (2016), DOI `10.1021/acssynbio.6b00031`, and the [Addgene EcoFlex kit](https://www.addgene.org/kits/freemont-ecoflex-moclo/).
+The former external donor record has been moved out of the current source tree. The [Addgene EcoFlex kit](https://www.addgene.org/kits/freemont-ecoflex-moclo/) provides GenBank resources, but [its terms](https://www.addgene.org/terms-of-use/) do not establish unrestricted redistribution permission for that record. Article licensing does not automatically apply to the depositor ZIP. The original is retained privately for known-case integration.
 
-The regression preserves the entire circular template, including competing binding sites and annotations. It must not be shortened or resequenced to make primer design pass. The source CDS has its original F/G residues at reference GFP positions 64/65; its filename is not evidence for the common F64L/S65T EGFP sequence.
+Default regressions now use the standalone fixed-seed generator `scripts/synthetic_trace_template.py`: complete 3100/4200 bp circular inputs, independent annotations, unchanged outside DNA, actual successive PCR intermediates and exported file readback. Expected values come from construction and direct slicing, not the implementation under test. Repeated binding sites and independently confirmed excessive hairpin structure remain rejection cases; thresholds are unchanged.
 
-The redistributable release excludes this external fixture pending confirmation
-of redistribution terms. Tests are included for reproducibility; tests requiring
-this record report an explicit skip when it is absent. The academic archive is a
-local research bundle, not evidence of permission to publish every included asset.
+Set `SNAPGENE_EXTERNAL_REGRESSION_TEMPLATE` only when a legally obtained complete original is available. Those optional known-input integrations are reported separately; absence is a skip, not a passed default regression. Private originals are not copied into source, release packages or official candidates. A private archive is not a redistribution license.

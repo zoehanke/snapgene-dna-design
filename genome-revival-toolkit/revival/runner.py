@@ -162,6 +162,7 @@ def execute(request, context, out_dir, invocation, request_path):
         params['_request_dir'] = str(Path(request_path).resolve().parent)
     result = observe('toolkit.' + kit, function, params, context, Path(out_dir))
     result.update(toolkit_version=__version__, core_version=CORE_VERSION, invocation=invocation,
+                  report_title=request.get('title'),
                   report_scope=HUMAN_SCOPE[kit], report_unverified_scope=HUMAN_LIMITS[kit],
                   original_request=request['original_request'], context=context_snapshot,
                   original_task_verified=False,
@@ -221,6 +222,8 @@ def run(kit, request_path, context_path, out_dir, *, trace_mode='normal', trace_
         raise ValueError('Unsupported ' + kit + ' fields: ' + ', '.join(sorted(unknown)))
     if request.get('kit', kit) != kit or not isinstance(request.get('original_request'), str) or not request['original_request'].strip():
         raise ValueError('Provide the original_request and a matching Kit.')
+    if request.get('title') is not None and (not isinstance(request['title'], str) or not request['title'].strip()):
+        raise ValueError('title must be nonempty text when provided.')
     request['kit'] = kit
     context = ProjectContext.load(context_path)
     out = Path(out_dir).resolve()

@@ -2,7 +2,7 @@
 
 状态：强制实施规范  
 基线：v0.9.0，只读保留  
-开发目录：`D:\codex_project\snapgene-dna-design-v0.9.1-dev1-work`  
+开发目录：`<workspace>`
 目标版本：v0.9.1  
 首要目标：解除低效程序对 LLM 生物学理解能力的错误压缩，同时以确定性程序约束序列计算、验证和正式交付。
 
@@ -566,7 +566,7 @@ v0.9.1-rc1 只有满足以下条件才能生成：
 8. truth 冻结和证据印章测试通过。
 9. 源码、academic ZIP、redistributable ZIP 全量测试通过。
 10. coverage、mutation、property、smoke、schema、manifest 和 license 门禁通过。
-11. 本机 `D:\SnapGene\SnapGene.exe` 官方往返按声明等级通过。
+11. 本机 `<workspace>` 官方往返按声明等级通过。
 12. 至少一轮独立自然语言前向测试，评估方看不到 truth 和历史错误提示。
 13. 真人能够从报告区分公开复现、用户指定构建、内部回归、合成测试和实验性预览。
 14. 无开放 P0、P1；任何未实现 task kind 不得在 Skill 中宣称支持。

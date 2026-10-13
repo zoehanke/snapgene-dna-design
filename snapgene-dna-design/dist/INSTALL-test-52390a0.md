@@ -4,8 +4,8 @@
 
 压缩包：`snapgene-dna-design-v0.9.1-dev2-test-52390a0.zip`。
 
-1. 解压，将完整的 `snapgene-dna-design` 文件夹放进 `C:\Users\祝浩淇\.codex\skills\`。
-2. 确认入口为 `C:\Users\祝浩淇\.codex\skills\snapgene-dna-design\SKILL.md`，不要多套一层文件夹。
+1. 解压，将完整的 `snapgene-dna-design` 文件夹放进 `<workspace>`。
+2. 确认入口为 `<workspace>`，不要多套一层文件夹。
 3. 安装后，Codex 下一轮可识别该 skill。若已有同名版本，先移走旧文件夹，避免混合版本。
 
 包内保留当前提交的 skill、运行代码、参数文档和依赖声明，未修复或改写任何业务逻辑。真实任务和输入文件由评测者另行提供。开发审计文档、仓库测试、既有产物和真实质粒样例未装入测试包。

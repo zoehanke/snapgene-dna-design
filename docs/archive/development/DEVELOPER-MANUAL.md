@@ -1,7 +1,7 @@
 # DEVELOPER MANUAL — SnapGene DNA Design v0.9.0
 
 - 版本：0.9.0（技术门禁通过；等待真人独立生物学验收）
-- 仓库：`D:\codex_project\snapgene-dna-design-v0.9.0-work`
+- 仓库：`<workspace>`
 - 读者：需要理解、核查、修改本项目任一技术细节的开发者。
 - 使用约定：本手册所有文件路径均相对仓库根；行号引用为编写时快照，若代码移动以实际文件为准。文中不省略技术细节：每个脚本/模块都说明技术原理、生物原理与引用、实现路径、科学边界与测试。
 
@@ -216,7 +216,7 @@ CDS、overlap、PCR、密码子和协议证据均为 fail-closed。输出构建�
 本项目验证环境使用的解释器是 **Python 3.12.4**，完整路径：
 
 ```text
-C:\Users\祝浩淇\AppData\Local\Programs\Python\Python312\python.exe
+<workspace>
 ```
 
 该解释器安装了 `requirements.txt` 与 `requirements-optional.txt` 的全部依赖。若当前 shell 的 `python` 不是上述解释器（例如指向 Anaconda），必须先切换，否则会出现 `No module named Bio` 等错误。逐条确认：
@@ -224,11 +224,11 @@ C:\Users\祝浩淇\AppData\Local\Programs\Python\Python312\python.exe
 ```powershell
 # 1. 确认解释器路径
 where python
-C:\Users\祝浩淇\AppData\Local\Programs\Python\Python312\python.exe --version
-C:\Users\祝浩淇\AppData\Local\Programs\Python\Python312\python.exe -c "import Bio; print(Bio.__version__)"
+<workspace> --version
+<workspace> -c "import Bio; print(Bio.__version__)"
 
 # 2. 推荐：创建专用虚拟环境
-C:\Users\祝浩淇\AppData\Local\Programs\Python\Python312\python.exe -m venv .venv
+<workspace> -m venv .venv
 .venv\Scripts\activate
 
 # 3. 安装依赖
@@ -237,14 +237,14 @@ python -m pip install -r requirements-optional.txt
 
 # 4. 外部后端（可选但 release-real 必需）
 # primer3_core（通过 primer3-py wheel 发现或 PRIMER3_CORE 显式指定）
-$env:PRIMER3_CORE="C:\Users\祝浩淇\AppData\Local\Programs\Python\Python312\Lib\site-packages\primer3\src\libprimer3\primer3_core.exe"
-$env:CAS_OFFINDER_EXE="D:\codex_project\output\dev3-backends\cas-offinder.exe"
-$env:CAS_OFFINDER_EXE_V3="D:\codex_project\output\dev3-backends\cas-offinder-3.0.0b3\build\cas-offinder.exe"
-$env:CAS_OFFINDER_TMP="D:\codex_project\output\dev3-backends\tmp"
+$env:PRIMER3_CORE="<workspace>"
+$env:CAS_OFFINDER_EXE="<workspace>"
+$env:CAS_OFFINDER_EXE_V3="<workspace>"
+$env:CAS_OFFINDER_TMP="<workspace>"
 $env:SNAPGENE_RUN_REAL_MODELS="1"
 $env:SNAPGENE_RUN_PRIMER3="1"
 $env:SNAPGENE_RUN_ONLINE="1"
-# SnapGene.exe 位于 D:\SnapGene\SnapGene.exe（仅 roundtrip 官方核验需要）
+# SnapGene.exe 位于 <workspace> roundtrip 官方核验需要）
 
 # 5. 环境自检
 python -X utf8 -B scripts/check_env.py --json
@@ -268,7 +268,7 @@ python -X utf8 -B scripts/check_env.py --json
 
 除这 13 个脚本外，本章还会覆盖 `SKILL.md` 中的对应命令、`references/schemas/` 下的 JSON Schema、`fixtures/` 目录结构、坐标约定，以及 BioPython `SeqIO`、`sgffp`、`snapgene_reader` 的读写路径与容错行为。
 
-文中所有行号引用均以仓库根目录 `D:/codex_project/snapgene-dna-design-v0.9.0-work` 为基准，格式为 `文件路径:起始行`。函数签名与行号以 v0.9.0 实际代码为准；如果后续版本代码移动，应以仓库内 `SKILL.md` 与 `references/upgrade-log.md` 的版本说明为准。
+文中所有行号引用均以仓库根目录 `<workspace>` 为基准，格式为 `文件路径:起始行`。函数签名与行号以 v0.9.0 实际代码为准；如果后续版本代码移动，应以仓库内 `SKILL.md` 与 `references/upgrade-log.md` 的版本说明为准。
 
 ## 2. 包结构与资源布局
 
@@ -1341,7 +1341,7 @@ python scripts/validate_roundtrip.py construct.gb --format dna --strict --json
 | PCR 层 | `scripts/pcr_strategy.py` | 按模板长度/GC/用途推荐聚合酶、添加剂、退火与延伸策略 |
 | PCR 层 | `scripts/simulate_pcr.py` | 引物定位与 PCR 产物预测（线性/环状、错配容忍） |
 
-本章所有路径均相对仓库根 `D:/codex_project/snapgene-dna-design-v0.9.0-work`。坐标说明：CLI 输入输出沿用 1-based 闭区间；`primer3_core_backend.py` 与 `primer_design_engine.py` 内部使用 0-based 半开区间和 0-based `bind_start/bind_end`；`design_primers.py` 在输出前把候选坐标映射回 1-based 闭区间（`scripts/design_primers.py:636-646`）。本章的“模板”指待扩增区域序列，`n` 指待扩增区域长度。
+本章所有路径均相对仓库根 `<workspace>`。坐标说明：CLI 输入输出沿用 1-based 闭区间；`primer3_core_backend.py` 与 `primer_design_engine.py` 内部使用 0-based 半开区间和 0-based `bind_start/bind_end`；`design_primers.py` 在输出前把候选坐标映射回 1-based 闭区间（`scripts/design_primers.py:636-646`）。本章的“模板”指待扩增区域序列，`n` 指待扩增区域长度。
 
 **阅读顺序建议**：先读 `primer3_core_backend.py`（引擎与坐标语义），再读 `primer_design_engine.py`（四层重试与 consent 接线），然后读 `design_primers.py`（CLI 把前两者装配成产品形态）；QC 层从 `primer_qc.py`（启发式结构评分）到 `validation_crosscheck.py`（独立交叉验证）；`validate_primer3_integration.py` 是发布门禁；`pcr_strategy.py` 与 `simulate_pcr.py` 是设计下游的 PCR 策略与产物模拟。
 
@@ -1524,7 +1524,7 @@ primer3_probe.py __main__
 ```text
 # 真实引擎正式设计（失败关闭）
 python scripts/design_primers.py template.gb --start 100 --end 900 \
-  --require-primer3 --primer3-core "C:\tools\primer3_core.exe" \
+  --require-primer3 --primer3-core "<workspace>" \
   --json --consent auto
 
 # Gibson 引物：正向 overlap 按原序列接 5'，反向 overlap 自动取反向互补
@@ -2042,7 +2042,7 @@ Doench 2016、Kim 2018 与 Cas-OFFinder 属于 CRISPR 靶点预测与脱靶搜�
 | 序列分析 | `scripts/methylation.py` | dam/dcm/EcoKI 甲基化 motif 重叠提示（实验性） |
 | 序列分析 | `scripts/annotate.py` | ORF 自动注释与酶切位点 feature 写出 |
 
-所有路径均相对仓库根 `D:/codex_project/snapgene-dna-design-v0.9.0-work`。坐标约定与全仓库一致：CLI 参数和兼容字段中的 feature/识别序列坐标使用 1-based 闭区间；`assembly_model.py`、`construct_model.py` 内部只使用 0-based 半开区间；`sg_common.restriction_hits` 同时输出识别序列 1-based 起点和双链切口 0-based 边界。拓扑默认线性，只有显式标注 `circular` 才按环状处理（`scripts/sg_common.py:198-206`）。
+所有路径均相对仓库根 `<workspace>`。坐标约定与全仓库一致：CLI 参数和兼容字段中的 feature/识别序列坐标使用 1-based 闭区间；`assembly_model.py`、`construct_model.py` 内部只使用 0-based 半开区间；`sg_common.restriction_hits` 同时输出识别序列 1-based 起点和双链切口 0-based 边界。拓扑默认线性，只有显式标注 `circular` 才按环状处理（`scripts/sg_common.py:198-206`）。
 
 本章的“实验性”标注与仓库 README 第 9 节一致：所有组装模拟输出均为计算预测，不等同于湿实验方案；`experimental: true` 的 JSON 输出只能作为概念预演。各脚本的适用边界、已知限制与对应测试在每小节“科学性说明”给出。
 
@@ -2713,7 +2713,7 @@ main
 | 参数来源 | `references/biological-parameters-sources.json`、`references/biological-parameters-sources.md` | 默认生物学参数单一来源索引（P01-P30） |
 | 政策文件 | `references/source-policy.md`、`references/privacy-and-consent.md`、`references/protocol-recommendation.md`、`references/protocol-evidence-dev2.json` | 来源优先级、隐私与同意、协议推荐规则、已加载协议证据 |
 
-所有路径相对仓库根 `D:/codex_project/snapgene-dna-design-v0.9.0-work`。坐标约定与全仓库一致：CLI 参数与兼容字段使用 1-based 闭区间；`planning/planner.py` 内部 `fragment_assignments` 同时给出 `source_interval_0based`（0-based 半开）与 `source_interval_1based`（1-based 闭区间）；`sg_common.restriction_hits` 输出识别序列起点与双链切口 0-based 边界（`scripts/sg_common.py:258-300`）。拓扑默认线性，只有显式标注 `circular` 才按环状处理（`scripts/sg_common.py:198-206`）。
+所有路径相对仓库根 `<workspace>`。坐标约定与全仓库一致：CLI 参数与兼容字段使用 1-based 闭区间；`planning/planner.py` 内部 `fragment_assignments` 同时给出 `source_interval_0based`（0-based 半开）与 `source_interval_1based`（1-based 闭区间）；`sg_common.restriction_hits` 输出识别序列起点与双链切口 0-based 边界（`scripts/sg_common.py:258-300`）。拓扑默认线性，只有显式标注 `circular` 才按环状处理（`scripts/sg_common.py:198-206`）。
 
 **引用来源**：本章引用 Sambrook & Russell《Molecular Cloning: A Laboratory Manual》（CSHL Press）；Gibson et al. 2009 *Nat Methods* 6:343-345（DOI 10.1038/nmeth.1318）；Engler et al. 2008 *PLoS One* 3:e3647（DOI 10.1371/journal.pone.0003647）；NEB/Takara/IDT 官方协议与 FAQ；Primer3 官方手册（https://primer3.org/manual.html）；Doench et al. 2016 *Nat Biotechnol* 34:184-191（DOI 10.1038/nbt.3437）；Kim et al. 2018 *Nat Biotechnol* 36:239-241（DOI 10.1038/nbt.4061）；Cas-OFFinder GitHub（https://github.com/snugel/cas-offinder）；BioPython/Bio.Restriction 文档。以上引用均已在 `references/biological-parameters-sources.md`、`references/biological-parameters-sources.json` 或 `rules/feasibility_rules.json` 中登记，本章沿用仓库既有 DOI/URL，不新增 DOI/URL。
 
@@ -3502,7 +3502,7 @@ scripts/characterize_reaction.py:main
 
 # 第 5 章：CRISPR gRNA 设计、on/off-target 模型与 Cas-OFFinder 集成
 
-本章覆盖 v0.9.0 中 CRISPR 引导 RNA（gRNA）候选扫描、on-target 评分模型、off-target 搜索与注释、CRISPR 设计报告生成，以及与 Cas-OFFinder / CRISPOR 的外部工具适配。全章涉及的脚本、参考数据与 Schema 均相对仓库根 `D:/codex_project/snapgene-dna-design-v0.9.0-work`。
+本章覆盖 v0.9.0 中 CRISPR 引导 RNA（gRNA）候选扫描、on-target 评分模型、off-target 搜索与注释、CRISPR 设计报告生成，以及与 Cas-OFFinder / CRISPOR 的外部工具适配。全章涉及的脚本、参考数据与 Schema 均相对仓库根 `<workspace>`。
 
 必须覆盖的文件为：
 
@@ -4506,7 +4506,7 @@ main
 
 > 适用范围：`snapgene-dna-design` v0.8.0-dev3（开发预览，不是 RC，不是正式版）。
 > 本章只描述计算端行为：打包、发布清单、许可证门禁、覆盖率门禁、变异测试、property 测试、烟雾测试、rich fixture、场景套件与参数溯源。所有模拟结果都是计算预测；标有 `experimental` 的克隆功能只能作为概念预演，不得作为可直接执行的湿实验方案。
-> 行号引用以仓库根目录 `D:/codex_project/snapgene-dna-design-v0.9.0-work` 为基准，格式为 `文件路径:起始行`。函数签名与行号以 v0.9.0 实际代码为准。
+> 行号引用以仓库根目录 `<workspace>` 为基准，格式为 `文件路径:起始行`。函数签名与行号以 v0.9.0 实际代码为准。
 
 ## 1. 本章总览与发布物结构
 
@@ -5506,23 +5506,23 @@ python scripts/validate_release_manifest.py dist/snapgene-dna-design-v0.8.0-dev3
 
 - 验证日期：2026-08-21
 - 验证目的：确认本说明书与当前代码一致（脚本数量、函数路径、测试名称、场景数量均以本次运行实际输出为准）。
-- 解释器：`C:\Users\祝浩淇\AppData\Local\Programs\Python\Python312\python.exe`（Python 3.12.4）；不使用系统默认 `python`。环境搭建见第 0.5 节。
+- 解释器：`<workspace>`（Python 3.12.4）；不使用系统默认 `python`。环境搭建见第 0.5 节。
 
 ## 7.1 全量单元/集成测试
 
 命令：
 
 ```text
-cd D:\codex_project\snapgene-dna-design-v0.9.0-work
-$env:PYTHONPATH='D:\codex_project\.tmp\dev2-deps;D:\codex_project\snapgene-dna-design-v0.9.0-work;D:\codex_project\snapgene-dna-design-v0.9.0-work\scripts'
-$env:PRIMER3_CORE='D:\codex_project\.primer3-artifacts\wheel\primer3\src\libprimer3\primer3_core.exe'
+cd <workspace>
+$env:PYTHONPATH='<workspace>'
+$env:PRIMER3_CORE='<workspace>'
 $env:SNAPGENE_RUN_PRIMER3='1'
-$env:CAS_OFFINDER_REGISTRY='D:\codex_project\.tmp\cas-offinder-registry-dev2.json'
-D:\anaconda\python.exe -X utf8 -B -m unittest discover -s tests
+$env:CAS_OFFINDER_REGISTRY='<workspace>'
+<workspace> -X utf8 -B -m unittest discover -s tests
 ```
 
 结果：`Ran 427 tests`，`OK (skipped=7)`，失败 0。
-本机解释器：Python 3.14.6；依赖使用隔离目录 `D:\codex_project\.tmp\dev2-deps`。
+本机解释器：Python 3.14.6；依赖使用隔离目录 `<workspace>`。
 
 skipped=13 的构成与手册一致：真实后端/在线开关未打开的集成用例按仓库策略跳过（`PRIMER3_CORE`、`CAS_OFFINDER_EXE(_V3)`、`SNAPGENE_RUN_REAL_MODELS`、`SNAPGENE_RUN_ONLINE` 等），每个 skip 都输出固定原因字符串，不视为通过。
 
@@ -5531,9 +5531,9 @@ skipped=13 的构成与手册一致：真实后端/在线开关未打开的集�
 命令：
 
 ```text
-$env:PYTHONPATH='D:\codex_project\.tmp\dev2-deps;D:\codex_project\snapgene-dna-design-v0.9.0-work;D:\codex_project\snapgene-dna-design-v0.9.0-work\scripts'
-$env:PRIMER3_CORE='D:\codex_project\.primer3-artifacts\wheel\primer3\src\libprimer3\primer3_core.exe'
-D:\anaconda\python.exe -X utf8 -B scripts/run_scenario_suite.py --out-dir reports/scenarios
+$env:PYTHONPATH='<workspace>'
+$env:PRIMER3_CORE='<workspace>'
+<workspace> -X utf8 -B scripts/run_scenario_suite.py --out-dir reports/scenarios
 ```
 
 结果：`PASS 90 / FAIL 0 / total 90`。
@@ -5616,7 +5616,7 @@ dev2 已完成本机证据闭环，历史报告 `reports/v09-dev1-agent-core-rep
 | 90 场景 | PASS 90 / FAIL 0；complete 40 / partial 11 / blocked 39；ground_truth 90/90 |
 | 真实后端 | Cas-OFFinder v2/v3、Azimuth、DeepCpf1、Primer3 真实测试 8/8 OK |
 | 在线来源 | 仅公开关键词 EGFP 的 NCBI 查询 1/1 OK；无用户序列上传 |
-| 官方 SnapGene | `D:\SnapGene\SnapGene.exe` 官方往返：8 fixtures、GenBank/.dna 两路径，declared compatibility gate PASS |
+| 官方 SnapGene | `<workspace>` 官方往返：8 fixtures、GenBank/.dna 两路径，declared compatibility gate PASS |
 
 ## 9.3 当前交付语义
 
