@@ -53,7 +53,7 @@ git ls-remote gitlab HEAD refs/heads/main refs/tags/*
 
 范围为Core2.2.4、Toolkit0.1.1和Trace0.3.4，开发分支为`codex/crispr-skill-fixes-20261012`。官方候选分支为`codex/candidate-core-2.2.4-toolkit-0.1.1-trace-0.3.4-20261013`。按明确Git提交构造，不直接把开发工作树推到官方。
 
-当前已按用户要求通过 Edge 网页提交 [42590dbe](https://gitlab.igem.org/2026/software/tianjin/igem-tianjin2026/-/commit/42590dbe27757fc377c6c256e161964a76dfb7ec)，没有 Git 远程推送或 main 操作。首次网页保存保留10个CRLF及1个额外LF，独立回读拒绝后正常追加修正提交；原失败保留，不做换行归一化验收。最新实际源 ZIP 与服务器干净 clone 的443文件/442条清单原字节全部相符，clone含Git元数据总容量7,993,922字节。最新[流水线752345](https://gitlab.igem.org/2026/software/tianjin/igem-tianjin2026/-/pipelines/752345) pending，项目没有在线执行器，未通过官方CI。当前结果与未完成事项由[日期处置表](public-risk-disposition-2026-10-13.md)统一记录。
+当前已按用户要求通过 Edge 网页提交 [42590dbe](https://gitlab.igem.org/2026/software/tianjin/igem-tianjin2026/-/commit/42590dbe27757fc377c6c256e161964a76dfb7ec)，没有 Git 远程推送或 main 操作。首次网页保存保留10个CRLF及1个额外LF，独立回读拒绝后正常追加修正提交；原失败保留，不做换行归一化验收。最新实际源 ZIP 与服务器干净 clone 的443文件/442条清单原字节全部相符，clone含Git元数据总容量7,993,922字节。[流水线752345](https://gitlab.igem.org/2026/software/tianjin/igem-tianjin2026/-/pipelines/752345)已触发但调度失败，官方GitLab CI未执行。当前结果与未完成事项由[日期处置表](public-risk-disposition-2026-10-13.md)统一记录。
 
 2026-10-14用户说明官方不允许使用执行器；本轮不新增、注册或恢复执行器。最终任务页确认任务未启动，官方CI记为未执行、未验收；本地完整套件、服务器文件一致性与GitHub CI分别列示，不换算成官方通过。
 
@@ -61,7 +61,9 @@ git ls-remote gitlab HEAD refs/heads/main refs/tags/*
 
 用户明确授权：若官方CI确实无法执行，按GitHub实际检出同一官方提交的CI、本地完整套件及逐文件回读验收后续准备；报告必须保留“官方 GitLab CI 未执行”。新GitHub工作流的控制SHA与受测官方SHA分别记录，逐文件回执与受测提交绑定。若找到符合官方规则的候选触发方法，优先核实并尝试；不改main、不降低执行器保护或索取凭据。
 
-替代证据已取得：[GitHub实际官方源码CI](https://github.com/zoehanke/snapgene-dna-design/actions/runs/38432148990)的控制提交为c07295d，实际检出的受测源码为完整官方42590dbe。八个互斥分片共1271项，1245通过、26跳过、0失败/错误，真实Primer3门槛通过；每个分片都保存443文件的原始哈希回读回执。原本地冻结套件仍为1251通过/20跳过，平台差异单列，不相加或改写来源。独立冻结源到真实服务器克隆的443行CSV另保留，原网页提交11项失配反例仍退出失败。官方GitLab752345尚未执行，组执行器的保护配置仍未知，浏览器操作通道故障阻断登录页面核实；不将未知归因为官方禁令。
+替代证据已取得：[GitHub实际官方源码CI](https://github.com/zoehanke/snapgene-dna-design/actions/runs/38432148990)的控制提交为c07295d，实际检出的受测源码为完整官方42590dbe。八个互斥分片共1271项，1245通过、26跳过、0失败/错误，真实Primer3门槛通过；每个分片都保存443文件的原始哈希回读回执。原本地冻结套件仍为1251通过/20跳过，平台差异单列，不相加或改写来源。独立冻结源到真实服务器克隆的443行CSV另保留，原网页提交11项失配反例仍退出失败。
+
+2026-10-14登录后的Edge页面和公开API一致：准备任务1817129的失败原因为`stuck_pending_no_matching_runners`，started_at及runner均为空，页面显示没有任务trace；八个测试与打包均未开始。执行器设置路由返回404，Build菜单未提供Runners，所以保护配置和项目分配细节仍未知。旧748177的成功确由在线组执行器67执行，不能说平台没有执行器或禁止CI。按页面允许的“Run this job again”重试产生1818489，未修改main、分支保护或执行器；新任务的最终状态另存实际回执。证据为API返回及登录页面原文，不把调度失败写成源码测试失败。
 
 两内层程序、公共测试/必要tools闭包、CI、固定依赖、LICENSE与README为主体。AGENTS、开发CLAUDE、specs、开发计划/归档、results、题库、用户DNA、个人路径、稿件和大媒体排除。官方main原有CLAUDE/.claude模板按原字节继承，不用开发副本覆盖；许可文本保留来源。
 
