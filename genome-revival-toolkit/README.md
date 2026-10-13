@@ -10,6 +10,8 @@
 
 Toolkit v0.1.1复用DNA Design Core 2.2.4，Evidence Trace为0.3.4。没有训练新的模型权重，也没有另一套DNA算法。开发源码共用底座，独立包携带同版运行代码。
 
+官方 GitLab CI 未执行。GitHub测试、本地工程验证、文件回读与湿实验是不同证据；当前软件文件和制备模拟不证明实验成功。
+
 ## 安装和开始使用
 
 解压完整包，将整个`genome-revival-toolkit`目录安装到宿主的Skills目录。只需一个Skill，内部包含三个Kit。先在Skill目录安装受测依赖：

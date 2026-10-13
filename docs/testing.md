@@ -68,6 +68,12 @@ Trace记录完整不等于宿主全流程覆盖或科学结论成立。浏览器
 
 ## 环境与独立包
 
+### 官方源码的替代 CI 与逐文件回读
+
+`.github/workflows/official-source.yml` 的控制提交和实际受测提交单列。工作流从官方公开仓库检出指定完整 Git SHA，先经 `tools/check_official_source.py` 检查 HEAD、清单原字节及全部源文件哈希，再安装官方固定依赖、执行八个互斥分片；所有分片回执保留跳过，不能累计矩阵重复。每份 `source-readback.json` 保存文件、预期哈希、实际哈希、大小和是否相符；清单自身绑定其 Git blob，避免循环写入自己的摘要。原网页保存失败克隆须仍被该入口拒绝，不做换行归一化。
+
+该流程是 GitHub 对实际官方提交的计算测试，不是 GitLab CI；工作流页面的控制提交 SHA 不能代称受测源码 SHA。官方分支的流水线创建、任务执行和科学验证分别记录。平台限制未确认时不推断“官方禁止执行器”，也不为触发 CI 修改 main 或执行器安全设置。
+
 ### Genome Revival Toolkit
 
 Toolkit独立工程用例在`tests/test_genome_revival_*.py`、`test_revival_evidence.py`与`test_toolkit_trace_boundaries.py`，同一完整runner会发现它们。覆盖真实公共CLI、独立正反例、版本变更、失败保留、Trace三档和实际文件回执；使用已启用的外部Primer3，不以Mock DNA算法替代。

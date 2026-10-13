@@ -57,6 +57,10 @@ git ls-remote gitlab HEAD refs/heads/main refs/tags/*
 
 2026-10-14用户说明官方不允许使用执行器；本轮不新增、注册或恢复执行器。最终任务页确认任务未启动，官方CI记为未执行、未验收；本地完整套件、服务器文件一致性与GitHub CI分别列示，不换算成官方通过。
 
+同日进一步核查：公开 API 返回旧流水线748177的source为push、ref为main，10个任务由组执行器67成功完成；该执行器当前返回online。新候选752345同样已由push触发，但预备任务未开始、runner为空。main为protected，候选分支为非protected；两者差异只提示需要核对执行器限制，尚不证明保护规则就是阻断原因。匿名执行器列表401和未返回的配置字段表示未知，不代表没有执行器或禁用CI。先前用户说明保留来源，不再将其当平台规则已独立证实。
+
+用户明确授权：若官方CI确实无法执行，按GitHub实际检出同一官方提交的CI、本地完整套件及逐文件回读验收后续准备；报告必须保留“官方 GitLab CI 未执行”。新GitHub工作流的控制SHA与受测官方SHA分别记录，逐文件回执与受测提交绑定。若找到符合官方规则的候选触发方法，优先核实并尝试；不改main、不降低执行器保护或索取凭据。
+
 两内层程序、公共测试/必要tools闭包、CI、固定依赖、LICENSE与README为主体。AGENTS、开发CLAUDE、specs、开发计划/归档、results、题库、用户DNA、个人路径、稿件和大媒体排除。官方main原有CLAUDE/.claude模板按原字节继承，不用开发副本覆盖；许可文本保留来源。
 
 外层额外项逐项说明：LICENSES和THIRD_PARTY_NOTICE保留上游/模板许可；SOURCE/VERSION/VERSIONS/FILE-LIST及选择回执绑定软件版本、源码及逐文件哈希；自包含examples/run_demo.py让README的完整640 bp合成流程可复现，不复制outer DNA或开发稿。其余工具按实际测试调用闭包选择，publisher自身开发测试不进入官方运行测试树，并记排除理由；既有运行要求、阈值与资源skip条件不降低。

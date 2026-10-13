@@ -14,6 +14,8 @@
 
 `snapgene-dna-design/`维护通用Core Skill；`genome-revival-toolkit/`维护复用它的项目专用Skill。`docs/`、`specs/`、`tests/`、`benchmarks/`和`tools/`是开发资料。包排除开发资料、题库、评分工具和历史解题记录。
 
+当前官方候选已上传；官方 GitLab CI 未执行。GitHub测试、本地完整套件和官方源码逐文件回读分别记录，不能代称GitLab通过。实际候选、受测提交及未确认的执行器限制见[源码交接](docs/igem/gitlab-migration.md)。
+
 从项目根执行：
 
 全量测试需启用真实Primer3。PowerShell先设置`$env:SNAPGENE_RUN_PRIMER3='1'`，bash使用`export SNAPGENE_RUN_PRIMER3=1`。
