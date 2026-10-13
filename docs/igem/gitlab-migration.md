@@ -61,6 +61,8 @@ git ls-remote gitlab HEAD refs/heads/main refs/tags/*
 
 用户明确授权：若官方CI确实无法执行，按GitHub实际检出同一官方提交的CI、本地完整套件及逐文件回读验收后续准备；报告必须保留“官方 GitLab CI 未执行”。新GitHub工作流的控制SHA与受测官方SHA分别记录，逐文件回执与受测提交绑定。若找到符合官方规则的候选触发方法，优先核实并尝试；不改main、不降低执行器保护或索取凭据。
 
+替代证据已取得：[GitHub实际官方源码CI](https://github.com/zoehanke/snapgene-dna-design/actions/runs/38432148990)的控制提交为c07295d，实际检出的受测源码为完整官方42590dbe。八个互斥分片共1271项，1245通过、26跳过、0失败/错误，真实Primer3门槛通过；每个分片都保存443文件的原始哈希回读回执。原本地冻结套件仍为1251通过/20跳过，平台差异单列，不相加或改写来源。独立冻结源到真实服务器克隆的443行CSV另保留，原网页提交11项失配反例仍退出失败。官方GitLab752345尚未执行，组执行器的保护配置仍未知，浏览器操作通道故障阻断登录页面核实；不将未知归因为官方禁令。
+
 两内层程序、公共测试/必要tools闭包、CI、固定依赖、LICENSE与README为主体。AGENTS、开发CLAUDE、specs、开发计划/归档、results、题库、用户DNA、个人路径、稿件和大媒体排除。官方main原有CLAUDE/.claude模板按原字节继承，不用开发副本覆盖；许可文本保留来源。
 
 外层额外项逐项说明：LICENSES和THIRD_PARTY_NOTICE保留上游/模板许可；SOURCE/VERSION/VERSIONS/FILE-LIST及选择回执绑定软件版本、源码及逐文件哈希；自包含examples/run_demo.py让README的完整640 bp合成流程可复现，不复制outer DNA或开发稿。其余工具按实际测试调用闭包选择，publisher自身开发测试不进入官方运行测试树，并记排除理由；既有运行要求、阈值与资源skip条件不降低。
