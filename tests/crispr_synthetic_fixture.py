@@ -102,7 +102,7 @@ def build_cases(seed):
     }
 
 
-def write_native(record, path):
+def write_native(record, path, *, double_stranded=False):
     """Independent SnapGene packet construction, no runtime native writer."""
     packet = lambda kind,payload: struct.pack('>BI',kind,len(payload))+payload
     features = ET.Element('Features')
@@ -110,8 +110,13 @@ def write_native(record, path):
         node = ET.SubElement(features,'Feature',{'type':feature.type,
             'name':feature.qualifiers['label'][0],'directionality':'1' if feature.location.strand==1 else '2'})
         ET.SubElement(node,'Segment',{'range':f'{int(feature.location.start)+1}-{int(feature.location.end)}','type':'standard'})
+    # SnapGeneReader's independent format implementation: bit 0x01 circular,
+    # bit 0x02 double-stranded. Preserve original circular-single test packets
+    # by default; physical preparation inputs must explicitly request duplex.
+    # https://github.com/Edinburgh-Genome-Foundry/SnapGeneReader/blob/master/snapgene_reader/snapgene_reader.py
+    flags = 0x01 | (0x02 if double_stranded else 0)
     Path(path).write_bytes(packet(9,b'SnapGene'+struct.pack('>HHH',1,1,1))+
-        packet(0,b'\x01'+str(record.seq).encode('ascii'))+packet(10,ET.tostring(features,encoding='utf-8')))
+        packet(0,bytes([flags])+str(record.seq).encode('ascii'))+packet(10,ET.tostring(features,encoding='utf-8')))
 
 
 def materialize(directory, seed):

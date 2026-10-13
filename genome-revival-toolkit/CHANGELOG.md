@@ -1,5 +1,11 @@
 # Changes
 
+## 0.2.0
+
+- Add a fourth CRISPR plasmid Kit over the same Core source: candidate evidence, sequence-based direction/PAM, supplied-vector self-target checks and planned inverse-PCR construction.
+- Map complete annotated markers to conditional selection media with row-level sources and explicit user genotype; missing background and conflicts retain unresolved/failed outcomes.
+- Bind selection tables and failed candidates to actual file receipts. No wet-lab, whole-genome off-target or editing-efficiency claim.
+
 ## 0.1.1
 
 - Bundle DNA Design Core 2.2.4 and Evidence Trace 0.3.4 from the same reviewed source snapshot.

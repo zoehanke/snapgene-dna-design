@@ -24,6 +24,18 @@ Required: `method: integration_donor`, `target_reference`, `cargo_reference`, `t
 
 Alternatively `design_assays` contains `id`, `target_reference`, `interval`, optional `target_tm` (Core default 60°C), `annealing_temperature_C`, `size_resolution_bp` and `expected`. The program designs at those explicit interval ends, checks complete oligos, and predicts each reference. An unsuitable candidate may need different valid boundaries; failure of one interval is not proof that no assay exists. Size discrimination needs declared resolution; experimental band separation remains unverified.
 
+## CRISPR plasmid preparation
+
+`vector_reference` and `target_reference` select actual Context files. `operation` is `check` or `replace`; replacement additionally requires explicit `spacer_seq` of exactly 20 A/C/G/T bases. `promoter_name`, or explicit `promoter_end_0based`/`transcription_strand`, and `scaffold_seq` use the Core cassette selectors; no plasmid name or fixed position determines the edit. `target_tm` defaults to Core's 60°C; native single strands or incomplete circular templates cannot establish inverse-PCR preparation.
+
+`transcription_promoter` is Core's `unspecified / human_U6 / other_pol_III / non_pol_III`, default `other_pol_III`. `max_mismatches` defaults to three for the supplied-vector NGG screen. Neither candidates nor mismatch counts are calibrated editing efficiencies or genome-wide specificity.
+
+`strain_genotype` is an explicit object: `organism`, optional human-readable `description`, `existing_markers`, and `auxotrophies`. Empty lists are statements by the caller, not defaults inferred from a strain name. Missing genotype, relevant lists or host mappings remain UNKNOWN. E. coli and S. cerevisiae mappings cover documented marker families in `revival/selection.py`; every returned plate option carries its literature/manufacturer source. Marker names need complete actual CDS structure; function remains NOT_TESTED. Existing-marker conflicts, wrong auxotrophy and guide-sized false CDS annotations do not become successful selection advice.
+
+Compatibility is scoped to the declared recipient. A bacterial propagation marker is NOT_APPLICABLE to a yeast recipient; its bacterial plate remains visible with UNKNOWN compatibility until that host's genotype is supplied. NatMX has the documented nourseothricin mapping. Unmapped recognized cassettes remain visible and unresolved. Generic APH labels do not identify a kanamycin determinant ([APH(6)-Id primary study](https://pmc.ncbi.nlm.nih.gov/articles/PMC3942886/)); tetR alone does not identify the resistance efflux gene ([Tn10 primary study](https://pmc.ncbi.nlm.nih.gov/articles/PMC216410/)). Neither is promoted to a supported plate by its name or an intact ORF.
+
+Replacement records before/after, outside-window preservation, actual Core primer/condition data and independently simulated preparation. Route status PLANNED never means a completed PCR, DpnI, KLD, transformation or knockout. Formal DNA delivery uses Core's existing gate; failed/unresolved attempts retain candidate files and reports. `selection.tsv` and presented DNA files are bound to the Toolkit receipt, and `verify` detects later edits.
+
 ## Revival Evidence
 
 `observations` rows have unique `id`, `group`, `colonies` and optional `plated_cells`, `role`, `source` and experimental conditions. Missing counts stay missing. `observations_file` accepts UTF-8 CSV with these columns, resolved relative to request JSON. Totals and normalised yields are descriptive counts, not revival rates. The explicit role `inactivated_donor_control` permits checking whether reported outgrowth contradicts absence of donor-control growth.

@@ -22,6 +22,11 @@ EXAMPLES = {
                                     'interval': {'start0': 100, 'end0': 700}, 'size_resolution_bp': 20}]},
     'evidence': {'original_request': 'Compare the submitted observations and state their genetic-evidence limits.',
                  'observations': [], 'comparisons': [], 'genotype_results': []},
+    'crispr': {'original_request': 'Replace the guide using my supplied vector/target, check direction/PAM and self-targets, and provide a planned construction route.',
+               'operation': 'replace', 'vector_reference': 'guide_vector', 'target_reference': 'target_region',
+               'spacer_seq': 'SUPPLY_EXPLICIT_20_NT_ACGT',
+               'strain_genotype': {'description': 'Provide actual strain genotype', 'organism': 'Supply organism',
+                                   'existing_markers': [], 'auxotrophies': []}},
 }
 
 
@@ -29,7 +34,7 @@ def main():
     for stream in (sys.stdout, sys.stderr):
         if hasattr(stream, 'reconfigure'):
             stream.reconfigure(encoding='utf-8', errors='replace')
-    parser = argparse.ArgumentParser(description='Genome Revival Toolkit: construct, given-region identity and evidence records.')
+    parser = argparse.ArgumentParser(description='Genome Revival Toolkit: construct, given-region identity, evidence records and CRISPR plasmid preparation.')
     commands = parser.add_subparsers(dest='command', required=True)
     describe = commands.add_parser('describe', help='Show a minimal input shape; example coordinates are not project answers.')
     describe.add_argument('kit', choices=EXAMPLES)

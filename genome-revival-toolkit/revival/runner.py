@@ -1,4 +1,4 @@
-"""One application boundary for the three Kits and the existing Trace sidecar."""
+"""One application boundary for the Kits and the existing Trace sidecar."""
 from __future__ import annotations
 
 import copy
@@ -22,16 +22,23 @@ FIELDS = {
                   'assembly_overlap_bp', 'preparation_method', 'donor_template_reference', 'donor_interval', 'requirements'},
     'identity': {'references', 'compare_regions', 'alignment_mode', 'assays', 'design_assays'},
     'evidence': {'observations', 'observations_file', 'comparisons', 'genotype_results'},
+    'crispr': {'vector_reference', 'target_reference', 'operation', 'spacer_seq', 'promoter_name',
+               'promoter_end_0based', 'transcription_strand', 'scaffold_seq', 'target_tm',
+               'max_mismatches', 'transcription_promoter', 'strain_genotype'},
 }
 HUMAN_SCOPE = {
     'construct': '程序核对供体序列、真实计算制备、两侧供体鉴别、保存文件及已声明目标。这里没有进行基因组整合实验。',
     'identity': '仅检查提供的参考和选定区域：比对、逐参考PCR预测、完整引物质量及声明的鉴别条件。没有检验区域外特异性或实际PCR表现。',
     'evidence': '整理已提交的观察与对照，检查数值、引用和记录范围。程序没有重新做实验或认证复活机制。',
+    'crispr': 'Checks supplied sequence direction/PAM, candidate factors, vector self-targets, separately simulated preparation and declared selection background. Wet experiments NOT_PERFORMED.',
 }
 HUMAN_LIMITS = {
     'construct': ['实际菌株基因型、实体模板及实验制备效率未由本计算确认。', '供体接口检查不等于已完成基因组整合；整合与复活需要实验。', '给定参考之外的全基因组特异性未覆盖。'],
     'identity': ['预测只适用于本次给定参考与区域，不能直接推广到实验株或完整基因组。', '实验扩增、条带分离及真实基因型尚未由本计算确认。', '所选标记不能单独证明整个宿主基因组消除或供体基因组恢复功能。'],
     'evidence': ['数据是研究者提交的记录，程序未独立认证实验真实性。', '未检测区域、功能依赖和机制证据仍未覆盖。'],
+    'crispr': ['Construct preparation is PLANNED; PCR, DpnI, KLD and editing were not performed.',
+               'Only supplied target/vector sequences were searched; no genome-wide off-target or editing efficiency claim.',
+               'Annotated CDS structure and declared genotype do not establish measured resistance or functional gRNA.'],
 }
 
 
@@ -40,6 +47,8 @@ def selected_references(kit, request, context):
         return list(dict.fromkeys(request[k] for k in ('target_reference', 'cargo_reference', 'donor_template_reference') if request.get(k)))
     if kit == 'identity':
         return request.get('references', list(context.references))
+    if kit == 'crispr':
+        return list(dict.fromkeys(request[k] for k in ('vector_reference', 'target_reference') if request.get(k)))
     return list(dict.fromkeys(row['reference_id'] for row in request.get('genotype_results', []) if row.get('reference_id')))
 
 
@@ -84,6 +93,42 @@ def make_trace_bundle(request, context, invocation, request_path, reference_ids)
 
 def human_summary(result, context_snapshot, request):
     text = lambda value: str(value).replace('<', '&lt;').replace('>', '&gt;')
+    if result['kit'] == 'crispr':
+        guide = result['grna']
+        lines = ['# ' + text(request.get('title', 'CRISPR plasmid preparation')), '',
+                 '## Goal', '', text(request['original_request']), '',
+                 '## Current outcome', '', text(result['summary']), '',
+                 'Status: ' + result['status'], '',
+                 '## What was checked and changed', '',
+                 '- Transcribed spacer: `' + guide['spacer'] + '`.',
+                 '- Direction: ' + guide['direction_status'] + '; coordinate system: 0-based half-open.',
+                 '- Earlier check: ' + result['initial_grna']['direction_status'] + '.',
+                 '- Supplied-vector self-target screen: ' + result['self_target']['self_target_status'] + '.',
+                 '- Selection compatibility: ' + result['selection']['status'] + '. ' + result['selection']['message']]
+        for hit in guide['target_matches']:
+            lines.append('- Actual target match: ' + str(hit['protospacer_parts_0based']) +
+                         '; identical DNA strand ' + str(hit['strand']) + '; RNA-binding strand ' +
+                         str(hit['rna_binding_strand']) + '; PAM ' + hit['pam'] +
+                         '; PAM valid: ' + str(hit['pam_valid']) + '.')
+        for warning in guide['warnings']:
+            lines.append('- Annotation/sequence warning: ' + text(warning['message']))
+        if result.get('preparation'):
+            data = result['preparation']
+            route = data['preparation_route']
+            lines.extend(['', '## Planned preparation', '',
+                '- Before: `' + data['replacement']['before'] + '`; after: `' + data['replacement']['after'] + '`.',
+                '- Outside replacement window unchanged: ' + str(data['replacement']['outside_window_unchanged']) + '.',
+                '- Route: ' + route['status'] + '; independent sequence simulation: ' + route['simulation_status'] + '.'])
+            lines.extend('- ' + text(row['action']) for row in data['protocol_steps'])
+        lines.extend(['', '## Checks', ''])
+        lines.extend('- ' + row['name'] + ': ' + row['status'] + '.' for row in result['checks'])
+        lines.extend(['', '## Files', ''])
+        lines.extend('[' + text(row['purpose']) + '](<' + Path(row['path']).resolve().as_uri() + '>)'
+                     for row in result.get('present_files', []))
+        lines.extend(['', '## Limits', '', *('- ' + text(row) for row in HUMAN_LIMITS['crispr']),
+                      '- Official GitLab CI has not been executed for the current candidate.',
+                      '- Trace records execution and submitted explanations; it does not prove scientific conclusions.', ''])
+        return '\n'.join(lines)
     lines = ['# ' + text(request.get('title', 'Genome Revival Toolkit 结果')), '',
              '## 我们要完成什么？', '', text(request['original_request']), '',
              '## 本次得到了什么？', '', text(result.get('summary', result.get('error', '当前任务未完成。'))), '',
@@ -143,6 +188,7 @@ def save_result_files(result, context_snapshot, request, out_dir):
                                                             'assay': assay['id'], 'quality_status': assay['quality_status']})
         files.append(path)
         writes.append({'path': str(path.resolve()), 'sha256': file_digest(path), 'characters_written': characters_written})
+    files.extend(Path(item['path']) for item in result.get('auxiliary_files', []))
     return {'paths': [str(path) for path in files], 'write_receipts': writes}
 
 
@@ -157,6 +203,8 @@ def execute(request, context, out_dir, invocation, request_path):
         from revival.construct import run_construct as function
     elif kit == 'identity':
         from revival.identity import run_identity as function
+    elif kit == 'crispr':
+        from revival.crispr import run_crispr as function
     else:
         from revival.evidence import run_evidence as function
         params['_request_dir'] = str(Path(request_path).resolve().parent)
@@ -169,16 +217,17 @@ def execute(request, context, out_dir, invocation, request_path):
                   original_task_scope='Explicit supported fields and program checks only; arbitrary natural-language completeness is not certified.')
     if result.get('delivery'):
         observe_value('outcome', result['delivery'])
-    items = [dict(row) for row in result.get('delivery', {}).get('present_files', [])] if result.get('delivery') else []
+    items = [dict(row) for row in (result.get('delivery') or {}).get('present_files', [])]
     for item in items:
         item.setdefault('purpose', item.get('label', Path(item['path']).name))
     items.append({'path': str(Path(out_dir).resolve() / 'summary.md'), 'purpose': '本次任务与实际结果摘要'})
     if result.get('assays'):
         items.append({'path': str(Path(out_dir).resolve() / 'identity-primers.tsv'), 'purpose': '检测候选及完整质量状态；失败候选不可当作已通过订单'})
+    items.extend(result.get('auxiliary_files', []))
     result['present_files'] = items
     export = observe_files('toolkit.export', save_result_files,
         args=(result, context_snapshot, request, Path(out_dir)),
-        input_paths=[row['path'] for row in result.get('delivery',{}).get('present_files',[])],
+        input_paths=[row['path'] for row in (result.get('delivery') or {}).get('present_files',[])]+[row['path'] for row in result.get('auxiliary_files',[])],
         output_paths=lambda value: value['paths'],
         output_directories=[Path(out_dir)], artifact_role='supporting-file')
     result['result_files'] = export['paths']
@@ -212,7 +261,7 @@ def verify_outputs(directory, expected_receipt_sha256=None):
 
 def run(kit, request_path, context_path, out_dir, *, trace_mode='normal', trace_dir=None):
     if kit not in FIELDS:
-        raise ValueError('Choose construct, identity or evidence.')
+        raise ValueError('Choose construct, identity, evidence or crispr.')
     request_sha256 = file_digest(request_path)
     request = read_json(request_path)
     if file_digest(request_path) != request_sha256:

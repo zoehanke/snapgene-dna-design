@@ -7,14 +7,15 @@
 | 从手头模板制备标记供体并核查结构 | Construct | 实际制备链、完整引物及质量、供体文件、两侧鉴别和Core回执 |
 | 比较两种参考的指定区域，评估PCR能否区分 | Genome Identity | 当前比对、逐参考扩增预测、候选质量和鉴别条件 |
 | 整理实验组/对照、菌落及遗传检测 | Revival Evidence | 观察比较、证据支持范围、反证和未检测项目 |
+| 检查或替换已有gRNA，准备敲除质粒 | CRISPR | 候选因素、方向/PAM、自切检查、计划制备、完整引物、条件性筛选映射及文件 |
 
-Toolkit v0.1.1复用DNA Design Core 2.2.4，Evidence Trace为0.3.4。没有训练新的模型权重，也没有另一套DNA算法。开发源码共用底座，独立包携带同版运行代码。
+Toolkit v0.2.0复用DNA Design Core 2.2.4，Evidence Trace为0.3.4。没有训练新的模型权重，也没有另一套DNA算法。开发源码共用底座，独立包携带同版运行代码。
 
 官方 GitLab CI 未执行。GitHub测试、本地工程验证、文件回读与湿实验是不同证据；当前软件文件和制备模拟不证明实验成功。
 
 ## 安装和开始使用
 
-解压完整包，将整个`genome-revival-toolkit`目录安装到宿主的Skills目录。只需一个Skill，内部包含三个Kit。先在Skill目录安装受测依赖：
+解压完整包，将整个`genome-revival-toolkit`目录安装到宿主的Skills目录。只需一个Skill，内部包含四个Kit。先在Skill目录安装受测依赖：
 
 ```text
 python -X utf8 -m pip install -r requirements.txt
@@ -35,6 +36,8 @@ python -X utf8 -B scripts/run_toolkit.py verify --out-dir results --receipt-sha2
 ```
 
 [输入说明](references/workflows.md)解释各Kit字段；[项目Context样式](assets/project-context-template.json)只提供结构，不能代替真实材料。
+
+CRISPR 使用 `describe crispr` 查询字段，再通过 `crispr --context ... --request ... --out-dir ...` 运行。检查已有构建使用 `operation: check`；替换需明确20 nt间隔序列。输入菌株基因型和已有标记，才能判断条件性筛选兼容；未提供就保持未知。构建路线与引物经过序列模拟，实验仍为 PLANNED/NOT_PERFORMED，不声称已验证可用或已实现敲除。
 
 ## 怎么读结果
 
