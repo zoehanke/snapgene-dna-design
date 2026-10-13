@@ -109,12 +109,14 @@ class ImpactReportTests(unittest.TestCase):
 class RelationStandingTests(unittest.TestCase):
     def renderer_edges(self, report):
         source = (SKILL_ROOT / "evidence_trace/view.js").read_text(encoding="utf-8")
+        locale = re.search(r"const catalogue = [^\n]*\nconst T = [^\n]*", source).group(0)
         functions = []
         for name in ("relationStanding", "flowGraph"):
             match = re.search(r"function " + name + r"\([^\n]*\) \{[\s\S]*?(?=\nfunction )", source)
             if match:
                 functions.append(match.group(0))
         code = ("const data=JSON.parse(require('fs').readFileSync(0,'utf8'));"
+                + locale + "\n"
                 "const flowOrder=()=>data.steps.map(s=>s.id); const laneOf=()=> 'program';"
                 "const stepById=Object.fromEntries(data.steps.map(s=>[s.id,s]));\n"
                 + "\n".join(functions) + "\nprocess.stdout.write(JSON.stringify(flowGraph().edges));")
@@ -127,7 +129,8 @@ class RelationStandingTests(unittest.TestCase):
     def test_choice_lane_does_not_label_user_or_unknown_choices_as_ai(self):
         source = (SKILL_ROOT / "evidence_trace/view.js").read_text(encoding="utf-8")
         declarations = re.search(r"const LANES = [\s\S]*?\nconst laneOf = [^\n]*", source).group(0)
-        code = declarations + "\nprocess.stdout.write(JSON.stringify(['用户选择','选择者未记录'].map(label=>LANES.find(l=>l.key===laneOf({kind:'choice',label})).label)));"
+        locale = re.search(r"const catalogue = [^\n]*\nconst T = [^\n]*", source).group(0)
+        code = "const data={language:'zh'};\n" + locale + "\n" + declarations + "\nprocess.stdout.write(JSON.stringify(['用户选择','选择者未记录'].map(label=>LANES.find(l=>l.key===laneOf({kind:'choice',label})).label)));"
         result = subprocess.run([shutil.which("node"), "-e", code], capture_output=True,
                                 encoding="utf-8", errors="replace")
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -156,6 +159,10 @@ class RelationStandingTests(unittest.TestCase):
         edges = self.renderer_edges(report)
         self.assertEqual([(row["id"], row["backed"]) for row in edges], cases)
         self.assertIn("不证明科学支持、物理使用或因果", edges[1]["standing"])
+        from evidence_trace.localization import ENGLISH
+        translated = self.renderer_edges({**report,"language":"en","ui_text":ENGLISH})
+        self.assertEqual([(row["id"],row["backed"]) for row in translated],cases)
+        self.assertIn("not scientific support",translated[1]["standing"])
 
     @unittest.skipUnless(shutil.which("node"), "JavaScript relation semantics require Node.js; browser checks are separate")
     def test_public_export_declared_fact_id_stays_dashed_in_saved_report(self):

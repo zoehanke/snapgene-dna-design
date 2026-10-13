@@ -1,4 +1,6 @@
-# Evidence Trace v0.3.2
+# Evidence Trace v0.3.5
+
+`trace_design.py render --trace-dir <trace> --language en` exports English UI and fixed display text. Default `zh` is compatible with existing views. Original submitted prose and source excerpts are preserved. HTML/Markdown are deterministic local projections; changing language appends no fact or scientific relationship. Toolkit commands and `rebuild-report` accept the same language flag.
 
 Optional local sidecar for scientific decisions, evidence and actual program results. It does not change DNA design, decide safety, or capture hidden model reasoning. Phase 2 adds structured input-choice coverage and context comparison, not general biological interpretation. Runtime has no new package dependencies.
 

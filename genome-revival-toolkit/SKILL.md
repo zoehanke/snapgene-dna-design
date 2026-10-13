@@ -5,9 +5,11 @@ description: Prepare and verify yeast marker donors and CRISPR guide plasmids, c
 
 # Genome Revival Toolkit
 
-Toolkit 0.2.0 uses Core 2.2.4 and Evidence Trace 0.3.4. Use the four Kits through `scripts/run_toolkit.py`. The package includes the same DNA Design Core used by these workflows. Scientific choices remain yours; use program results for sequence, preparation, quality and file facts. Official GitLab CI has not been executed for the current candidate.
+Toolkit 0.2.1 uses Core 2.2.5 and Evidence Trace 0.3.5. Use the four Kits through `scripts/run_toolkit.py`. The package includes the same DNA Design Core used by these workflows. Scientific choices remain yours; use program results for sequence, preparation, quality and file facts. Official GitLab CI has not been executed for the current candidate.
 
 Read `INSTALL-SOURCE.json` in this Skill root when present and use its verified interpreter. Otherwise install the listed dependencies and use the interpreter that passes the local checks. Do not search unrelated parent/test folders for installation records.
+
+For English summaries and Trace UI add `--language en` to a Kit command or `rebuild-report`. Original supplied statements stay unchanged; language does not change DNA, check statuses or relation evidence. Earlier rejected inputs remain earlier versions, not unresolved defects in the corrected molecule.
 
 1. Inspect actual materials with `python -X utf8 -B scripts/run_toolkit.py inspect --context project-context.json`. Context holds reference paths, explicit record/region selection, declared strains and source-labelled project facts. Relative material paths resolve from the context file. A reference filename does not establish an experimental strain or locus.
 2. Choose the Kit and read its input shape with `... run_toolkit.py describe construct`, `describe identity`, `describe evidence` or `describe crispr`. Write the original request and only the supported parameters. See [workflow inputs](references/workflows.md) for conditional fields. Context and requests are ordinary task inputs, not examiner material.

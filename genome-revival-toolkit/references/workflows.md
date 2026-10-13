@@ -43,3 +43,5 @@ Replacement records before/after, outside-window preservation, actual Core prime
 Optional `comparisons` specify existing `experiment_group` and `control_group`. `genotype_results` specify `sample_id`, supplied `reference_id`, `result: positive/negative/indeterminate/not_tested`, and reported `control_status: passed/failed/unknown`, plus source/assay details. A supported selected-marker observation does not establish whole-genome absence. Contradictory submitted results remain visible.
 
 No primary data means no fabricated measurements. The workflow reports supplied observations, their scope and `SUPPORTED / INSUFFICIENT / CONTRADICTED / NOT_TESTED` conclusions where applicable; zero colonies mean no reported outgrowth, not proven death. Revival and entire-genome elimination require evidence beyond the supported local record analysis.
+
+Kit commands and rebuild-report accept --language en for English summary/Trace UI. This changes display only. Output directories are observed before/after, and current Core manifest identity is retained for the three final molecular files; supporting orders are not final DNA.

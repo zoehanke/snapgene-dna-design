@@ -28,3 +28,12 @@ python -X utf8 -B tools/build_toolkit.py --out-dir output/toolkit-package
 ```
 
 本次目录迁移保留历史Git对象及原材料；既有本机产物仍在Skill目录内的`output/`、`dist/`，属于忽略项，不进入运行包。
+
+英文纠错报告可从完整源码检出复现。构造器独立决定预期序列；脚本调用公开入口，保留初次失败及纠正后的实际返回，并重新读取文件字节核对哈希关系。输出目录须新建，避免覆盖旧失败。它们是合成工程示例，不是自主宿主或真人试读结果。
+
+```text
+python -X utf8 -B examples/generate_evidence_inputs.py --out-dir output/synthetic-corrections
+python -X utf8 -B examples/run_evidence_example.py --case core-guide --inputs output/synthetic-corrections
+python -X utf8 -B examples/run_evidence_example.py --case kit-construct --inputs output/synthetic-corrections
+python -X utf8 -B examples/run_evidence_example.py --case kit-guide --inputs output/synthetic-corrections
+```

@@ -68,7 +68,7 @@ def run_crispr(request, context, out_dir):
     out.mkdir(parents=True, exist_ok=True)
     table = out / 'selection.tsv'
     observe_files('crispr.selection_table', write_selection, args=(selection, table),
-                  output_paths=lambda value: value['paths'], artifact_role='supporting-file')
+                  output_paths=lambda value:value['paths'], output_directories=[out], artifact_role='supporting-file')
     checks = [*checked.checks,
         {'name': 'provided_vector_self_target', 'status': 'PASSED' if self_target['self_target_status'] == 'NO_MATCH_IN_SEARCH_SCOPE' else 'INCOMPLETE' if self_target['self_target_status'] == 'INCOMPLETE' else 'FAILED',
          'scope': 'provided_vector', 'details': self_target},
@@ -83,8 +83,10 @@ def run_crispr(request, context, out_dir):
     ready = all(check['status'] in ('PASSED', 'NOT_APPLICABLE') for check in checks)
     if ready and operation == 'replace':
         try:
-            delivery = observe('crispr.delivery', deliver_result, requirements, sources,
-                               steps, candidate, out / 'dna', result_kind='construct')
+            delivery = observe_files('crispr.delivery', deliver_result,
+                args=(requirements, sources, steps, candidate, out / 'dna'), kwargs={'result_kind':'construct'},
+                output_paths=lambda value:[row['path'] for row in value.get('present_files',[])],
+                output_directories=[out/'dna'], artifact_role='supporting-file')
         except GateRejected as exc:
             checks.append({'name': 'core_delivery', 'status': 'FAILED', 'scope': 'delivery', 'details': exc.to_dict()})
             ready = False

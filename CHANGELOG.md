@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.2.5 · English evidence reports
+
+- Add optional English Trace UI and preserve original source text, event bytes and scientific relationship semantics.
+- Observe CRISPR output write boundaries without demoting Core final DNA to supporting records.
+- Ship source-only fixed-seed correction examples; expected sequences follow independent construction. DNA algorithms remain those of Core 2.2.4.
+
 ## 2.2.2 · 2026-10-11 reference-bound integration donors
 
 - Derive omitted homology arms from the explicitly selected reference locus and positive arm length; keep negative-strand biological arm order and reject unavailable flanks.

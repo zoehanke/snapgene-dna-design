@@ -69,6 +69,8 @@ git ls-remote gitlab HEAD refs/heads/main refs/tags/*
 
 外层额外项逐项说明：LICENSES和THIRD_PARTY_NOTICE保留上游/模板许可；SOURCE/VERSION/VERSIONS/FILE-LIST及选择回执绑定软件版本、源码及逐文件哈希；自包含examples/run_demo.py让README的完整640 bp合成流程可复现，不复制outer DNA或开发稿。其余工具按实际测试调用闭包选择，publisher自身开发测试不进入官方运行测试树，并记排除理由；既有运行要求、阈值与资源skip条件不降低。
 
+英文纠错展示另纳入`examples/generate_evidence_inputs.py`与`examples/run_evidence_example.py`两个源码文件，理由是按固定种子构造独立预期并调用公开入口复现Core和Toolkit报告。它们复用已纳入的合成测试构造器，不是运行时依赖；不携带生成DNA、报告、读者问题或答案。逐文件选择回执须列明这两个最小外层例外。
+
 工具`tools/build_official_candidate.py --source-commit <commit> --official-base-dir <clean-official-clone> --candidate-branch <new-candidate-branch> --out-dir <new-export-dir>`输出逐文件纳入/排除与变换理由。`--working-tree`仅诊断，不能称冻结。clean clone核查当前树、软件清单、固定依赖/许可、实际入口及物理Git对象大小；源树payload大小与仓库quota分开，不能用前者冒充后者。不得覆盖既有输出或混入符号链接。
 
 Wiki默认口径：记录执行顺序与作者声明；程序支撑关系仅限真实输出文件与另一步骤声明输入文件的SHA-256相等。它不证明实际物理使用、科学支持或因果。新截图用独立合成公共流程和真实离线浏览器，不复用未批准图或私人材料；两份handoff稿各自记录实际软件文档哈希与路径差异。

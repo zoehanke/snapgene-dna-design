@@ -6,9 +6,15 @@ from evidence_trace import __version__
 from evidence_trace.process import assemble
 from evidence_trace.report import build_report, markdown
 from evidence_trace.storage import machine_json, expand_machine
+from evidence_trace.localization import ENGLISH, get_language, language_scope, tr
 
 
-def render(directory, graph, formats="both"):
+def render(directory, graph, formats="both", language=None):
+    with language_scope(language):
+        return _render(directory, graph, formats)
+
+
+def _render(directory, graph, formats):
     directory = pathlib.Path(directory)
     if formats not in {"html", "markdown", "both"}:
         raise ValueError("Unknown report format")
@@ -16,6 +22,7 @@ def render(directory, graph, formats="both"):
     if graph.get("schema_version") != "design-process-v1":
         graph = assemble(graph.get("audit_events", []), graph.get("issues", []))
     graph["report"] = build_report(graph)
+    graph["report"].update(language=get_language(), ui_text=ENGLISH if get_language() == 'en' else {})
     graph["report"]["available_formats"] = ["html", "markdown"] if formats == "both" else [formats]
     # Keep the complete compatibility machine view outside the offline reader.
     # The HTML needs readable details, not duplicate run inputs and event payloads.
@@ -32,7 +39,9 @@ def render(directory, graph, formats="both"):
                                  + (["report.md", "details.md"] if formats in {"markdown", "both"} else [])}
     (directory / "TRACE-MANIFEST.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
     assets = pathlib.Path(__file__).parent
-    document = PAGE.replace("__STYLE__", (assets / "view.css").read_text(encoding="utf-8"))
+    # Translate the shipped shell before inserting any report/source text.
+    shell = tr(PAGE).replace('lang="zh-CN"', 'lang="en"') if get_language() == 'en' else PAGE
+    document = shell.replace("__STYLE__", (assets / "view.css").read_text(encoding="utf-8"))
     document = document.replace("__SCRIPT__", (assets / "view.js").read_text(encoding="utf-8"))
     # Host text cannot break out of this inert JSON element.
     document = document.replace("__TRACE_DATA__", payload.replace("<", "\\u003c").replace("&", "\\u0026"))
@@ -40,9 +49,10 @@ def render(directory, graph, formats="both"):
         (directory / "index.html").write_text(document, encoding="utf-8")
     if formats in {"markdown", "both"}:
         complete = markdown(graph['report'])
-        body, _, details = complete.partition('\n## 查看详细记录\n')
-        (directory / 'report.md').write_text(body + '\n## 查看详细记录\n\n[可读详情](details.md) · [完整技术记录](graph.json)\n', encoding='utf-8')
-        (directory / 'details.md').write_text('# 可读详情\n' + details, encoding='utf-8')
+        heading = '\n## ' + tr('查看详细记录') + '\n'
+        body, _, details = complete.partition(heading)
+        (directory / 'report.md').write_text(body + heading + '\n[' + tr('可读详情') + '](details.md) · [' + tr('完整技术记录') + '](graph.json)\n', encoding='utf-8')
+        (directory / 'details.md').write_text('# ' + tr('可读详情') + '\n' + details, encoding='utf-8')
     return graph
 
 

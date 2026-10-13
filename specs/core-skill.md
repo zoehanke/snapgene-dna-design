@@ -184,3 +184,5 @@ Release packaging uses reviewed tracked paths, or an explicit source list outsid
 Keep historical coverage results scoped to their measured commit and environment; newer repairs do not inherit them. Record fresh checks only when actually run.
 
 Legacy-preview handoff now uses an immutable snapshot in preview/delivery, separate from preview working files. Preview working files and delivery snapshots are separate; snapshots include actual omission reasons, stay consistent with their hashes and cannot absorb stale outputs. Missing/unreadable sources and unverified state block preview handoff. Its deprecated formal route stays blocked. Coverage instrumentation must not change which regression scenarios execute.
+
+Core 2.2.5 adds optional report language and preserves Core 2.2.4 DNA algorithms and checks. CLI trace export accepts --language en; language does not change molecular bytes, original statements or validation scope.

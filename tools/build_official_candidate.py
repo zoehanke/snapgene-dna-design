@@ -337,20 +337,37 @@ def project_links(name, data, selected, files, commit):
     return text.encode('utf-8'), sorted(set(changed))
 
 
-def public_readme(data, values, candidate_branch=None):
+def public_readme(data, values, candidate_branch=None, *, source_files=()):
     text = data.decode('utf-8')
     text = re.sub(r'DNA Design Core \d+\.\d+\.\d+', 'DNA Design Core ' + values['core'], text)
     text = re.sub(r'Evidence Trace \d+\.\d+\.\d+', 'Evidence Trace ' + values['evidence_trace'], text)
+    if 'genome-revival-toolkit/revival/crispr.py' in source_files:
+        text = text.replace('One Skill contains all three Kits.', 'One Skill contains all four Kits.')
+        row = '| CRISPR | Replace or check a supplied guide plasmid | Candidate factors, sequence direction/PAM, supplied-vector self-targeting, conditional selection and a planned inverse-PCR route |\n'
+        if '| CRISPR |' not in text:
+            text = text.replace('\n\nOne Skill contains', '\n' + row + '\nOne Skill contains')
     if candidate_branch:
-        text = text.replace('git clone --branch main ', 'git clone --branch ' + candidate_branch + ' ')
+        text = re.sub(r'git clone --branch \S+ ', 'git clone --branch ' + candidate_branch + ' ', text)
     elif 'git clone --branch main ' in text:
         text = text.replace('## Install from source\n', '## Install from source\n\n'
             'Public main remains the earlier published snapshot. To install this candidate, '
             'check out its separately reported candidate branch after cloning; these version labels do not update main.\n')
     text = text.replace('## Validation and limits\n', '## Validation and limits\n\n'
+        'Toolkit version ' + values['toolkit'] + '. Official GitLab CI for this candidate has not been executed. '
+        'GitHub tests, local tests and official file-byte readback must be identified separately; none is GitLab CI.\n\n'
         'Historical validation below belongs to the earlier public source snapshot. '
         'The implementation versions in VERSIONS.json do not transfer those results to this candidate; '
         'candidate test, package and CI results must be recorded separately.\n')
+    if all(name in source_files for name in ('examples/generate_evidence_inputs.py','examples/run_evidence_example.py')):
+        text = text.replace('## Use your materials\n', '## Reproduce correction reports\n\n'
+            'These source-only scripts independently construct synthetic expected sequences, preserve the rejected attempt, '
+            'invoke public entries and read actual file bytes to check hash relationships. They are scripted examples, '
+            'not autonomous host evaluations or wet experiments. Use a fresh output directory.\n\n'
+            '```sh\npython -X utf8 -B examples/generate_evidence_inputs.py --out-dir output/synthetic-corrections\n'
+            'python -X utf8 -B examples/run_evidence_example.py --case core-guide --inputs output/synthetic-corrections\n'
+            'python -X utf8 -B examples/run_evidence_example.py --case kit-construct --inputs output/synthetic-corrections\n'
+            'python -X utf8 -B examples/run_evidence_example.py --case kit-guide --inputs output/synthetic-corrections\n```\n\n'
+            '## Use your materials\n')
     return text.encode('utf-8')
 
 
@@ -457,7 +474,14 @@ def build_candidate(repository, out_dir, *, source_commit=None, working_tree=Fal
                       'reason': 'Explicit outer exception: reproduce the complete 640 bp public synthetic workflow through actual Toolkit CLI and verify; generate independent local templates instead of importing outer DNA',
                       'transformations': ['Replace unbundled material dependencies with documented fixed-seed/slice construction and an independent saved-sequence check'],
                       'original_source_sha256': digest(original_example)}
-    chosen['README.md'] = {'data': public_readme((base / 'README.md').read_bytes(), values, candidate_branch),
+    for name in ('examples/generate_evidence_inputs.py', 'examples/run_evidence_example.py'):
+        if name not in files:
+            continue
+        data = files[name]
+        screen(name, data)
+        chosen[name] = {'data': data, 'source': name,
+            'reason': 'Explicit outer exception: source-only reproducible synthetic correction examples through public Core/Toolkit entries; no reader questions/answers, user material or generated report artifacts'}
+    chosen['README.md'] = {'data': public_readme((base / 'README.md').read_bytes(), values, candidate_branch, source_files=files),
         'source': 'official-public:README.md',
         'reason': 'Official public README projected to selected entry points and current implementation versions; historical evidence retains its scope'}
     for name, row in list(chosen.items()):

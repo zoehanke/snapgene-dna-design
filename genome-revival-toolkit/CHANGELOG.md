@@ -1,5 +1,10 @@
 # Changes
 
+## 0.2.1
+
+- Add optional English summaries and Trace UI. Preserve original requests, rationale and events.
+- Observe CRISPR selection/delivery writes, retain Core-authoritative DNA roles and keep file relationships limited to hash equality.
+
 ## 0.2.0
 
 - Add a fourth CRISPR plasmid Kit over the same Core source: candidate evidence, sequence-based direction/PAM, supplied-vector self-target checks and planned inverse-PCR construction.

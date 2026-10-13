@@ -47,6 +47,7 @@ def main():
         command.add_argument('--out-dir', required=True)
         command.add_argument('--trace-dir')
         command.add_argument('--trace-mode', choices=('normal', 'strict'), default='normal')
+        command.add_argument('--language', choices=('zh', 'en'), default='zh', help='Report language; captured statements remain original')
     verify = commands.add_parser('verify', help='Check actual output/input versions and the existing Core receipt.')
     verify.add_argument('--out-dir', required=True)
     verify.add_argument('--receipt-sha256')
@@ -54,6 +55,7 @@ def main():
     level.add_argument('level', choices=('off', 'observed', 'full'))
     report = commands.add_parser('rebuild-report', help='Rebuild saved Trace reports; retain stale/missing records.')
     report.add_argument('--trace-dir', required=True)
+    report.add_argument('--language', choices=('zh', 'en'), default='zh')
     args = parser.parse_args()
     try:
         if args.command == 'describe':
@@ -68,10 +70,12 @@ def main():
             result = {'trace_level': args.level, 'settings': str(set_level(args.level))}
         elif args.command == 'rebuild-report':
             from revival.reporting import rebuild
-            result = rebuild(args.trace_dir)
+            from evidence_trace.localization import language_scope
+            with language_scope(args.language):
+                result = rebuild(args.trace_dir)
         else:
             result = run(args.command, args.request, args.context, args.out_dir,
-                         trace_mode=args.trace_mode, trace_dir=args.trace_dir)
+                         trace_mode=args.trace_mode, trace_dir=args.trace_dir, language=args.language)
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0 if result.get('status') not in ('failed', 'incomplete') else 2
     except Exception as exc:

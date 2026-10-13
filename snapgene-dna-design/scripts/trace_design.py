@@ -34,6 +34,7 @@ def main():
     p.add_argument("--run-id", help="Reader projection for one recorded run (reader only)")
     p.add_argument("--handoff-id", help="Focus an exact recorded handoff event without discarding supporting history")
     p.add_argument("--format", choices=["html", "markdown", "both"], default="both", help="render output formats")
+    p.add_argument("--language", choices=["zh", "en"], default="zh", help="Report UI language; original captured text is preserved")
     p.add_argument("--data", action="store_true", help="inspect: full captured snapshot for authored organization")
     p.add_argument("--process-ref", help="Exact organization version for report-plan/render/inspect")
     p.add_argument("--through-sequence", type=int, help="Read a historical event prefix")
@@ -117,7 +118,7 @@ def main():
         if args.action in {"record", "render", "compare"}:
             if args.process_ref or args.through_sequence is not None:
                 graph = assemble(events, errors, process_ref=args.process_ref, through_sequence=args.through_sequence)
-            graph = render(pathlib.Path(args.trace_dir), graph, formats=args.format)
+            graph = render(pathlib.Path(args.trace_dir), graph, formats=args.format, language=args.language)
         else:
             graph = build_chains(graph)
         if args.action == "reader":

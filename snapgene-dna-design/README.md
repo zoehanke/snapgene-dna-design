@@ -2,7 +2,7 @@
 
 把自然语言需求和真实序列材料转成可检查的DNA设计、制备链、引物及GenBank/SnapGene文件。宿主AI选择路线，程序计算实际反应；文件检查不代表实验成功。
 
-当前版本2.2.4。Recipe与原子操作共用实际产物、当前质量检查和正式交付；工作目录支持逐步继续，原材料及失败记录保留。AI选择路线，程序不把正确序列或局部PASS自动当作完整任务完成。
+当前版本2.2.5。Recipe与原子操作共用实际产物、当前质量检查和正式交付；工作目录支持逐步继续，原材料及失败记录保留。AI选择路线，程序不把正确序列或局部PASS自动当作完整任务完成。
 
 官方 GitLab CI 未执行。GitHub CI、本地序列模拟和文件核验分别提供限定范围的工程证据，不代称官方流水线通过或湿实验验证。
 
@@ -58,7 +58,7 @@ python scripts/finalize_workflow.py --workspace work --candidate-ref "$final.pro
 - `authoritative/`：该运行通过正式门限的`.gb/.dna/.fasta`及清单，仍限定于程序实际检查的范围。
 - 直接使用返回的`present_files`主链接；`scripts/verify_delivery.py`核查最后选择是否属于未改变的正式交付，并返回该回执原有的检查范围与任务完成边界。`preparation_quality.json`记录制备引物质量；`verification_quality.json`单独记录最终QC订单、亲本PCR预测与测序覆盖假设。
 - 补充测序引物传给QC Recipe的`sequencing_primers`，亲本材料传`background_templates`。[参数与范围](references/recipes.md)。复核后的科学说明放共同收尾的`report_notes`。订单、注释或文稿变更后重新finalize，再呈现当前回执的路径；文稿版本核查不等于自动证明其科学结论。
-- Evidence Trace 0.3.4：可选的过程与依据记录，保持DNA主线旁路。泳道图的实线仅表示程序核验文件SHA-256相等，声明或结构关系保持虚线，不认证科学因果。[使用说明](references/evidence-trace.md)
+- Evidence Trace 0.3.5：可选的过程与依据记录，保持DNA主线旁路。泳道图的实线仅表示程序核验文件SHA-256相等，声明或结构关系保持虚线，不认证科学因果。[使用说明](references/evidence-trace.md)
 
 直接调用scripts辅助模块时，在Skill目录把它加入Python导入路径：
 

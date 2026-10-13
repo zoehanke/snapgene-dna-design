@@ -217,7 +217,8 @@ class TraceRun:
             if previous:
                 self.recorder.compare_runs(previous[-1]["id"], self.run_id)
 
-    def capture_files(self, value, result_event_ref=None):
+    def register_authoritative_files(self, value):
+        """Use the same bound Core manifest for every observed output boundary."""
         if isinstance(value, dict):
             if value.get('status') == 'delivered' and value.get('directory') and value.get('manifest_sha256'):
                 directory = pathlib.Path(value['directory']).resolve()
@@ -229,6 +230,15 @@ class TraceRun:
                             info = manifest.get('files', {}).get(name, {})
                             if info.get('sha256'):
                                 self.authoritative_files.add((str(directory / name), info['sha256'].lower()))
+            for item in value.values():
+                self.register_authoritative_files(item)
+        elif isinstance(value, (tuple, list)):
+            for item in value:
+                self.register_authoritative_files(item)
+
+    def capture_files(self, value, result_event_ref=None):
+        if isinstance(value, dict):
+            self.register_authoritative_files(value)
             if value.get("directory") and isinstance(value.get("files"), list):
                 for name in value["files"]:
                     self.capture_files(pathlib.Path(value["directory"]) / name, result_event_ref)
@@ -348,6 +358,9 @@ def observe_files(stage, fn, *, args=(), kwargs=None, input_paths=(), output_pat
         raise
     def capture():
         paths = list(output_paths(result))
+        # Recognize final molecular identity before caching file stamps. A
+        # mixed bundle's default supporting role must not demote its DNA.
+        run.register_authoritative_files(result)
         after = stamps(paths)
         event = run.event("file_operation_completed", {"stage": stage, "stage_ref": stage_ref,
             "result": snapshot(result), "before": before, "after": after})
@@ -370,7 +383,8 @@ def observe_files(stage, fn, *, args=(), kwargs=None, input_paths=(), output_pat
             if known and previous.get(item['path']) == item['sha256'] and written.get('sha256') == item['sha256']:
                 status = 'rewritten_same_content'
             key = run.recorder.record({"id": "A-" + uuid.uuid4().hex, "kind": "artifact", **item,
-                "role": artifact_role, "generation_observation": status, "input_artifact_refs": inputs,
+                "role": "authoritative" if (str(path), item['sha256'].lower()) in run.authoritative_files else artifact_role,
+                "generation_observation": status, "input_artifact_refs": inputs,
                 "input_files": before[:len(input_paths)], "result_event_ref": event["event_id"],
                 "decision_ids": run.decisions, "validated_by": [], "association_scope": "file_operation"}, runtime=True)
             run.artifacts.add((str(path), item["sha256"]))

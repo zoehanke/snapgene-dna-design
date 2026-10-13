@@ -172,6 +172,21 @@ class CrisprKitTests(unittest.TestCase):
                     actual=SeqIO.read(handle,'genbank')
                 self.assertEqual(str(actual.seq),expected)
                 self.assertTrue((delivery/'primer_order_table.tsv').is_file())
+                # Mixed observed bundles must retain Core's three final DNA
+                # roles without promoting supporting orders to DNA artifacts.
+                sys.path.insert(0,str(ROOT/'snapgene-dna-design'))
+                from evidence_trace.recorder import Recorder
+                from evidence_trace.process import assemble
+                graph=assemble(Recorder(root/'result/evidence-trace').events)
+                for name in ('construct.gb','construct.dna','construct.fasta'):
+                    nodes=[row for row in graph['nodes'] if row.get('kind')=='artifact' and
+                           Path(row.get('path','')).resolve()==(delivery/name).resolve()]
+                    self.assertTrue(nodes)
+                    self.assertTrue(all(row['role']=='authoritative' for row in nodes))
+                orders=[row for row in graph['nodes'] if row.get('kind')=='artifact' and
+                        Path(row.get('path','')).resolve()==(delivery/'primer_order_table.tsv').resolve()]
+                self.assertTrue(orders)
+                self.assertTrue(all(row['role']!='authoritative' for row in orders))
                 verified=subprocess.run([sys.executable,'-X','utf8','-B',str(CLI),'verify','--out-dir',str(root/'result')],
                     capture_output=True,text=True,encoding='utf-8')
                 self.assertEqual(json.loads(verified.stdout)['status'],'verified',verified.stdout)
