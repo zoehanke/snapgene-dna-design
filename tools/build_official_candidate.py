@@ -426,11 +426,11 @@ def build_candidate(repository, out_dir, *, source_commit=None, working_tree=Fal
     for name in ROOT_SOURCE:
         if name not in chosen:
             raise CandidateError('Required source entry missing: ' + name)
-    for name in ['CLAUDE.md', 'README.md']:
+    for name in ['CLAUDE.md', 'README.md', '.gitattributes']:
         reject_link(base / name)
         if not (base / name).is_file():
             raise CandidateError('Official template/public README is absent')
-    inherited = ['CLAUDE.md']
+    inherited = ['CLAUDE.md', '.gitattributes']
     for directory in ('.claude', 'LICENSES'):
         reject_link(base / directory)
         if not (base / directory).is_dir():
@@ -444,6 +444,9 @@ def build_candidate(repository, out_dir, *, source_commit=None, working_tree=Fal
         screen(name, data)
         chosen[name] = {'data': data, 'source': 'official-template:' + name,
                         'reason': 'Inherited unchanged official template/configuration or template license; not development import'}
+        if name == '.gitattributes':
+            chosen[name]['reason'] = ('Explicit outer exception: inherit official checkout byte-stability policy unchanged; '
+                'LF source and declared binary files must retain FILE-LIST bytes even when core.autocrlf=true')
     example = 'examples/run_demo.py'
     reject_link(base / example)
     if not (base / example).is_file():

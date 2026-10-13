@@ -83,9 +83,10 @@ def fixture():
         }
         for name, value in files.items():
             write(repo, name, value)
-        official = {'CLAUDE.md': b'Official template instructions\r\n',
-                    '.claude/RESPONSIBLE_AI_USE.md': b'Official responsible-use template\r\n',
-                    'LICENSES/TEMPLATE.txt': b'Official template licensing\r\n',
+        official = {'CLAUDE.md': b'Official template instructions\n',
+                    '.claude/RESPONSIBLE_AI_USE.md': b'Official responsible-use template\n',
+                    'LICENSES/TEMPLATE.txt': b'Official template licensing\n',
+                    '.gitattributes': '* text=auto eol=lf\n*.bat text eol=crlf\n*.ps1 text eol=crlf\n*.dna binary\n*.zip binary\n*.h5 binary\n*.pickle binary\n',
                     'README.md': ('# Official public source\n\n'
                                   'DNA Design Core 0.1.0 and Evidence Trace 0.2.0.\n\n'
                                   '## Install from source\n\ngit clone --branch main https://example.invalid/repo.git\n\n'
@@ -117,7 +118,7 @@ class OfficialCandidateSelectionTests(unittest.TestCase):
             self.assertFalse((selected / 'docs').exists())
             self.assertFalse((selected / 'specs').exists())
             self.assertFalse((selected / 'AGENTS.md').exists())
-            for name in ('CLAUDE.md', '.claude/RESPONSIBLE_AI_USE.md', 'LICENSES/TEMPLATE.txt'):
+            for name in ('CLAUDE.md', '.claude/RESPONSIBLE_AI_USE.md', 'LICENSES/TEMPLATE.txt', '.gitattributes'):
                 expected = official[name] if isinstance(official[name], bytes) else official[name].encode('utf-8')
                 self.assertEqual((selected / name).read_bytes(), expected)
             self.assertFalse((selected / 'examples/unused.py').exists())
@@ -268,6 +269,29 @@ class OfficialCandidateSelectionTests(unittest.TestCase):
                 with self.assertRaisesRegex(CandidateError, 'Nonplaceholder'):
                     build_candidate(repo, root / 'private-shape', source_commit=frozen, official_base_dir=base)
                 self.assertFalse((root / 'private-shape').exists())
+
+    def test_real_autocrlf_clone_retains_every_manifest_byte(self):
+        with fixture() as (root, repo, base, frozen, _, official):
+            out = root / 'byte-stable'
+            build_candidate(repo, out, source_commit=frozen, official_base_dir=base)
+            selected = out / 'source'
+            # Actual Git checkout with CRLF defaults previously changed all LF
+            # text bytes. The inherited official policy must prevent that change.
+            command(selected, 'init', '-b', 'codex/synthetic-byte-check')
+            command(selected, 'config', 'user.name', 'Synthetic selection fixture')
+            command(selected, 'config', 'user.email', 'fixture@example.invalid')
+            command(selected, 'config', 'core.autocrlf', 'false')
+            command(selected, 'add', '.')
+            command(selected, 'commit', '-m', 'Freeze selected synthetic source bytes')
+            clone = root / 'checkout'
+            command(root, '-c', 'core.autocrlf=true', 'clone', '--no-hardlinks', '--quiet', str(selected), str(clone))
+            manifest = json.loads((selected / 'FILE-LIST.json').read_text(encoding='utf-8'))
+            self.assertEqual((clone / '.gitattributes').read_bytes(), official['.gitattributes'].encode('utf-8'))
+            for row in manifest['entries']:
+                with self.subTest(destination=row['destination']):
+                    actual = (clone / row['destination']).read_bytes()
+                    self.assertEqual(len(actual), row['size'])
+                    self.assertEqual(hashlib.sha256(actual).hexdigest(), row['sha256'])
 
 
 if __name__ == '__main__':
