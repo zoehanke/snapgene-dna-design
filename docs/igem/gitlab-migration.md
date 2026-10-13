@@ -55,6 +55,8 @@ git ls-remote gitlab HEAD refs/heads/main refs/tags/*
 
 当前已按用户要求通过 Edge 网页提交 [42590dbe](https://gitlab.igem.org/2026/software/tianjin/igem-tianjin2026/-/commit/42590dbe27757fc377c6c256e161964a76dfb7ec)，没有 Git 远程推送或 main 操作。首次网页保存保留10个CRLF及1个额外LF，独立回读拒绝后正常追加修正提交；原失败保留，不做换行归一化验收。最新实际源 ZIP 与服务器干净 clone 的443文件/442条清单原字节全部相符，clone含Git元数据总容量7,993,922字节。最新[流水线752345](https://gitlab.igem.org/2026/software/tianjin/igem-tianjin2026/-/pipelines/752345) pending，项目没有在线执行器，未通过官方CI。当前结果与未完成事项由[日期处置表](public-risk-disposition-2026-10-13.md)统一记录。
 
+2026-10-14用户说明官方不允许使用执行器；本轮不新增、注册或恢复执行器。最终任务页确认任务未启动，官方CI记为未执行、未验收；本地完整套件、服务器文件一致性与GitHub CI分别列示，不换算成官方通过。
+
 两内层程序、公共测试/必要tools闭包、CI、固定依赖、LICENSE与README为主体。AGENTS、开发CLAUDE、specs、开发计划/归档、results、题库、用户DNA、个人路径、稿件和大媒体排除。官方main原有CLAUDE/.claude模板按原字节继承，不用开发副本覆盖；许可文本保留来源。
 
 外层额外项逐项说明：LICENSES和THIRD_PARTY_NOTICE保留上游/模板许可；SOURCE/VERSION/VERSIONS/FILE-LIST及选择回执绑定软件版本、源码及逐文件哈希；自包含examples/run_demo.py让README的完整640 bp合成流程可复现，不复制outer DNA或开发稿。其余工具按实际测试调用闭包选择，publisher自身开发测试不进入官方运行测试树，并记排除理由；既有运行要求、阈值与资源skip条件不降低。

@@ -41,6 +41,8 @@
 
 最新[GitLab 流水线 752345](https://gitlab.igem.org/2026/software/tianjin/igem-tianjin2026/-/pipelines/752345)绑定 `42590dbe`，状态 pending；[预备任务](https://gitlab.igem.org/2026/software/tianjin/igem-tianjin2026/-/jobs/1817129)没有开始。页面确认项目没有在线执行器。因此官方 CI 尚未通过，计划继续开放，不能把 pending 或本地测试当作官方通过。
 
+2026-10-14用户说明官方不允许使用执行器。本轮不新增、注册或恢复执行器，不再把恢复执行器列为待办；官方CI保留未执行、未验收。此规则来自用户说明，独立页面核查只证明无在线执行器及任务未启动，不声称已独立核实平台规则。
+
 已从实际官方提交重新构建 Toolkit 0.1.1/Core 2.2.4/Trace 0.3.4 独立包：256 个 payload、257 个 ZIP 条目、CRC 通过；包软件摘要 `BA354FB8F274831B304FEF24EAE882C8FEE68586B58A92ADA86905F5284001CA`。其 256 个软件 payload 与冻结 GitHub 包逐项相同，来源 manifest 单列；两份完整交接文档各按实际字节分别记录摘要。精选纳入/排除理由见[迁移清单](gitlab-migration.md)。私有交接仅供审阅，未发布 Wiki、正式表单或正式 Release。
 
-未做湿实验、独立陌生评测或真人理解验证。现有执行器恢复、历史取舍、Attributions、Best Software 表单、素材权属、Wiki 发布及 AI 披露終审仍需真人处理；不新增执行器权限或替用户决定历史重写。
+未做湿实验、独立陌生评测或真人理解验证。历史取舍、Attributions、Best Software 表单、素材权属、Wiki 发布及 AI 披露終审仍需真人处理；不替用户决定历史重写。官方CI受上述平台限制保持未验收。
