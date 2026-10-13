@@ -46,3 +46,5 @@ CRISPR筛选总状态仅针对用户声明的受体宿主。其他宿主的扩�
 真实SY14/XT2角色、URA3位点和实验完成状态以本轮原件核查为准。缺口不补造；可用独立合成材料验工程但不能称项目实验成功。外部真人理解、湿实验和正式官方提交若未取得证据，保持未验证。
 
 Toolkit 0.2.1 adds optional English reports for all four Kits and observed before/after output directories. Mixed Core delivery retains the manifest-defined final DNA identity; a supporting report cannot demote or promote molecular artifacts. Known scripted synthetic examples and isolated report-reading rehearsal are separate from autonomous host or wet-lab evidence.
+
+0.2.2公共报告契约：Identity的序列比对比较与Evidence的提交计数比较采用各自字段，不按同名comparisons数组假定共同结构。Evidence无分母保留未知，不变为零；没有遗传检测的全基因组消除结论仍NOT_TESTED。合成记录必须明确标为软件测试向量，不作为实验结果或机制证据。

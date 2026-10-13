@@ -5,7 +5,7 @@ description: Prepare and verify yeast marker donors and CRISPR guide plasmids, c
 
 # Genome Revival Toolkit
 
-Toolkit 0.2.1 uses Core 2.2.5 and Evidence Trace 0.3.5. Use the four Kits through `scripts/run_toolkit.py`. The package includes the same DNA Design Core used by these workflows. Scientific choices remain yours; use program results for sequence, preparation, quality and file facts. Official GitLab CI has not been executed for the current candidate.
+Toolkit 0.2.2 uses Core 2.2.5 and Evidence Trace 0.3.5. Use the four Kits through `scripts/run_toolkit.py`. The package includes the same DNA Design Core used by these workflows. Scientific choices remain yours; use program results for sequence, preparation, quality and file facts. Official GitLab CI has not been executed for the current candidate.
 
 Read `INSTALL-SOURCE.json` in this Skill root when present and use its verified interpreter. Otherwise install the listed dependencies and use the interpreter that passes the local checks. Do not search unrelated parent/test folders for installation records.
 

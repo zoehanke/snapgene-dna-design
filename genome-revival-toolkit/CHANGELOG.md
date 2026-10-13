@@ -26,3 +26,7 @@
 - Actual donor preparation/QC consumes the shared DNA Core; analysis does not become experimental proof.
 - Public workflow capture and deterministic Trace reports retain observations, supplied reasons, failures and current file versions.
 - Local candidate package/installation and iGEM preparation remain distinct from official submission.
+
+## 0.2.2
+
+Evidence计数比较不再被公共摘要当成Identity比对结果；保留差值、缺失分母和结论边界。新增四Kit源码合成示例，不附带实验真实性或陌生宿主成功率。

@@ -8,6 +8,7 @@ _LANGUAGE = ContextVar('trace_report_language', default='zh')
 # it to a report recursively: that would rewrite original statements/evidence.
 ENGLISH = dict(line.split('\t', 1) for line in '''用户要求	User requirement
 状态：	Status:\x20
+：仅按提交计数计算的菌落产率差 	: colony-yield difference calculated from submitted counts\x20
 这些发现保留各自输入与版本的范围，可能包括先前被拒绝的尝试；当前交付另行标明。	These findings retain their recorded input/version scopes and may include earlier rejected attempts; the current handoff is identified separately.
 程序检查未通过	A program check failed on its recorded input/version
 程序检查结果待确认	A program check remains unresolved

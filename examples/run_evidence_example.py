@@ -143,6 +143,28 @@ def run(name,inputs):
     os.environ['SNAPGENE_TRACE_CONFIG']=str(case_dir/'trace-settings.json')
     if trace.exists():raise FileExistsError('Preserve earlier attempts; use newly generated inputs')
     oracle=read_json(inputs/'construction.json')[name]
+    if name in ('kit-identity','kit-evidence'):
+        command=name.removeprefix('kit-');output=case_dir/'result'
+        process=subprocess.run([sys.executable,'-X','utf8','-B',str(ROOT/'genome-revival-toolkit/scripts/run_toolkit.py'),
+            command,'--context',str(case_dir/'context.json'),'--request',str(case_dir/'request.json'),
+            '--out-dir',str(output),'--trace-dir',str(trace),'--language','en'],capture_output=True,encoding='utf-8')
+        assert process.returncode==0,process.stderr
+        result=read_json(output/'result.json');assert result['status']=='analysed'
+        if command=='identity':
+            assay=result['assays'][0];assert assay['quality_status']=='PASSED'
+            assert {row['reference']:row.get('amplicon_length_bp') for row in assay['predictions']}==oracle['amplicon_lengths']
+            assert assay['discrimination']['status']=='PREDICTED_DIFFERENT'
+        else:
+            assert {row['group']:row['colony_yield_per_reported_cell'] for row in result['groups']}==oracle['colony_yields']
+            assert abs(result['comparisons'][0]['normalised_difference']-oracle['normalised_difference'])<1e-12
+            assert len(result['findings'])==oracle['expected_contradictions']
+            assert all(row['status']=='INSUFFICIENT' for row in result['conclusions'])
+        verified=subprocess.run([sys.executable,'-X','utf8','-B',str(ROOT/'genome-revival-toolkit/scripts/run_toolkit.py'),
+            'verify','--out-dir',str(output)],capture_output=True,encoding='utf-8')
+        assert verified.returncode==0 and json.loads(verified.stdout)['status']=='verified'
+        receipt={'case':name,'independent_construction_checks':'PASSED','file_check':'verified',
+            'scope':oracle['scope'],'wet_lab':'NOT_PERFORMED'}
+        write_json(case_dir/'example-check.json',receipt);return receipt
     packets=[]
     if name=='core-guide':
         request=read_json(case_dir/'corrected-request.json')
@@ -190,7 +212,7 @@ def run(name,inputs):
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--case',choices=('core-guide','kit-guide','kit-construct'),required=True)
+    parser.add_argument('--case',choices=('core-guide','kit-guide','kit-construct','kit-identity','kit-evidence'),required=True)
     parser.add_argument('--inputs',type=Path,required=True)
     args=parser.parse_args();receipt=run(args.case,args.inputs.resolve())
     print(json.dumps({key:value for key,value in receipt.items() if key!='independent_file_hash_checks'},indent=2))

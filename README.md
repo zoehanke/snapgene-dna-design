@@ -36,4 +36,6 @@ python -X utf8 -B examples/generate_evidence_inputs.py --out-dir output/syntheti
 python -X utf8 -B examples/run_evidence_example.py --case core-guide --inputs output/synthetic-corrections
 python -X utf8 -B examples/run_evidence_example.py --case kit-construct --inputs output/synthetic-corrections
 python -X utf8 -B examples/run_evidence_example.py --case kit-guide --inputs output/synthetic-corrections
+python -X utf8 -B examples/run_evidence_example.py --case kit-identity --inputs output/synthetic-corrections
+python -X utf8 -B examples/run_evidence_example.py --case kit-evidence --inputs output/synthetic-corrections
 ```

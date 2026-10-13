@@ -138,8 +138,13 @@ def human_summary(result, context_snapshot, request):
         lines.append(('- ' + str(text(reference['id'])) + tr('：') + str(reference['length_bp']) + ' bp; ' + str(text(reference['region'] or tr('完整所选记录'))) + str(tr('。声明菌株身份与实际参考文件核对分开。'))))
     lines.extend(['', tr('## 程序确认了什么？'), '', tr(HUMAN_SCOPE[result['kit']]), ''])
     for comparison in result.get('comparisons', []):
-        data = comparison['analysis']
-        lines.append(('- ' + str(text(comparison['query'])) + ' / ' + str(text(comparison['reference'])) + str(tr('：选定区域长度 ')) + str(data['query_length']) + ' / ' + str(data['reference_length']) + str(tr(' bp；比对身份比例 ')) + str(data['identity_pct']) + str(tr('%。最佳比对不证明唯一定位。'))))
+        if result['kit'] == 'identity':
+            data = comparison['analysis']
+            lines.append(('- ' + str(text(comparison['query'])) + ' / ' + str(text(comparison['reference'])) + str(tr('：选定区域长度 ')) + str(data['query_length']) + ' / ' + str(data['reference_length']) + str(tr(' bp；比对身份比例 ')) + str(data['identity_pct']) + str(tr('%。最佳比对不证明唯一定位。'))))
+        elif result['kit'] == 'evidence':
+            lines.append('- ' + text(comparison['experiment_group']) + ' / ' + text(comparison['control_group']) +
+                tr('：仅按提交计数计算的菌落产率差 ') + str(comparison['normalised_difference']) +
+                '; ' + text(comparison['scope']))
     for assay in result.get('assays', []):
         quality = {'PASSED': tr('通过'), 'FAILED': tr('未通过'), 'INCOMPLETE': tr('未完成')}[assay['quality_status']]
         discrimination = {'PREDICTED_DIFFERENT': tr('在给定参考中预测可区分'), 'NOT_DISCRIMINATING': tr('不能区分给定参考'), 'NEEDS_REVIEW': tr('鉴别条件待确认'), 'UNKNOWN': tr('结果未确定'), 'NOT_CHECKED': tr('未检查多背景鉴别')}[assay['discrimination']['status']]

@@ -366,7 +366,9 @@ def public_readme(data, values, candidate_branch=None, *, source_files=()):
             '```sh\npython -X utf8 -B examples/generate_evidence_inputs.py --out-dir output/synthetic-corrections\n'
             'python -X utf8 -B examples/run_evidence_example.py --case core-guide --inputs output/synthetic-corrections\n'
             'python -X utf8 -B examples/run_evidence_example.py --case kit-construct --inputs output/synthetic-corrections\n'
-            'python -X utf8 -B examples/run_evidence_example.py --case kit-guide --inputs output/synthetic-corrections\n```\n\n'
+            'python -X utf8 -B examples/run_evidence_example.py --case kit-guide --inputs output/synthetic-corrections\n'
+            'python -X utf8 -B examples/run_evidence_example.py --case kit-identity --inputs output/synthetic-corrections\n'
+            'python -X utf8 -B examples/run_evidence_example.py --case kit-evidence --inputs output/synthetic-corrections\n```\n\n'
             '## Use your materials\n')
     return text.encode('utf-8')
 
