@@ -1,10 +1,15 @@
 # -*- coding: utf-8 -*-
 """Validate semantic round trips for GenBank and native SnapGene exports."""
 import argparse
+from contextlib import contextmanager
 import copy
+import errno
+import hashlib
 import os
+from pathlib import Path
 import subprocess
 import tempfile
+import time
 import warnings as py_warnings
 
 from Bio import SeqIO
@@ -161,7 +166,49 @@ def _find_snapgene(explicit=None):
     return str(detected) if detected is not None else None
 
 
+@contextmanager
+def _conversion_lock(executable, timeout=90):
+    """One desktop converter instance receives one request at a time."""
+    identity=os.path.normcase(str(Path(executable).resolve()))
+    name=hashlib.sha256(identity.encode('utf-8')).hexdigest()
+    path=Path(tempfile.gettempdir())/('dna-conversion-'+name+'.lock')
+    # Keep the file after release: unlinking would permit two independent
+    # lock-file objects while another process is waiting.
+    with path.open('a+b') as handle:
+        if handle.seek(0,os.SEEK_END)==0:
+            handle.write(b'0');handle.flush()
+        deadline=time.monotonic()+timeout
+        while True:
+            try:
+                handle.seek(0)
+                if os.name=='nt':
+                    import msvcrt
+                    msvcrt.locking(handle.fileno(),msvcrt.LK_NBLCK,1)
+                else:
+                    import fcntl
+                    fcntl.flock(handle.fileno(),fcntl.LOCK_EX|fcntl.LOCK_NB)
+                break
+            except OSError as error:
+                if error.errno not in (errno.EACCES,errno.EAGAIN):
+                    raise
+                if time.monotonic()>=deadline:
+                    raise RuntimeError('Timed out waiting for the desktop conversion resource') from error
+                time.sleep(0.05)
+        try:
+            yield
+        finally:
+            if os.name=='nt':
+                handle.seek(0);msvcrt.locking(handle.fileno(),msvcrt.LK_UNLCK,1)
+            else:
+                fcntl.flock(handle.fileno(),fcntl.LOCK_UN)
+
+
 def _official_convert(executable, input_path, output_path, target_format):
+    with _conversion_lock(executable):
+        _official_convert_owned(executable,input_path,output_path,target_format)
+
+
+def _official_convert_owned(executable, input_path, output_path, target_format):
     startupinfo = None
     creationflags = 0
     if os.name == "nt":
