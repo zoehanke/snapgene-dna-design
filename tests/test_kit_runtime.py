@@ -140,6 +140,39 @@ class KitRuntimeTests(unittest.TestCase):
         (self.folder/'kit.json').write_text(json.dumps(value),encoding='utf-8')
         catalog=self.catalog()
         self.assertEqual(catalog.errors[0]['error_code'],'KIT_CONTRIBUTION_UNSUPPORTED')
+    def test_reloading_records_one_operation_per_real_step(self):
+        from core.workflow import run_step
+        catalog=self.catalog()
+        before=set(TOOL_REGISTRY)
+        for _ in range(3):
+            catalog.load('toy-math')
+            step=run_step('kit.toy-math.double',{'number':13})
+            self.assertIsNone(step.error)
+            self.assertEqual(step.result.analysis,{'doubled':26})
+            self.assertEqual(len(step.operations),1)
+            catalog.unload('toy-math')
+            self.assertEqual(set(TOOL_REGISTRY),before)
+    def test_disappeared_manifest_and_import_exit_do_not_block_neighbor(self):
+        gone,_=make_toy(self.root,'a-gone')
+        exited,_=make_toy(self.root,'b-exit')
+        catalog=self.catalog()
+        (gone/'kit.json').unlink()
+        path=exited/'scripts/entry.py'
+        path.write_text('raise SystemExit(17)\n'+path.read_text(encoding='utf-8'),encoding='utf-8')
+        data=catalog.load_tools()
+        self.assertEqual({row['name']:row['error_code'] for row in data['errors']},
+                         {'a-gone':'KIT_MANIFEST_INVALID','b-exit':'KIT_LOAD_FAILED'})
+        self.assertEqual(TOOL_REGISTRY['kit.toy-math.double'].execute(number=7).analysis,{'doubled':14})
+    def test_non_json_results_are_reported_through_public_cli(self):
+        for index,literal in enumerate(('float("nan")','{1}','(1,2)')):
+            folder,_=make_toy(self.root,'invalid-result-'+str(index))
+            path=folder/'scripts/entry.py'
+            path.write_text(path.read_text(encoding='utf-8').replace('value={"doubled": inputs["number"] * 2}',
+                            'value={"invalid": '+literal+'}').replace('__import__("json").dumps(value)','"unverified result"'),encoding='utf-8')
+            process,data=self.cli('run_kit.py','run','invalid-result-'+str(index),'--kit-dir',folder,
+                '--input',self.write_input({'number':7}),'--out-dir',self.root/('invalid-result-output-'+str(index)))
+            self.assertNotEqual(process.returncode,0)
+            self.assertEqual(data['error']['error_code'],'KIT_RESULT_INVALID')
     def test_input_and_parameter_failures_preserve_contract(self):
         process,data=self.cli('run_kit.py','run','toy-math','--kit-dir',self.root,'--input',self.write_input({'number':'bad'}),'--out-dir',self.root/'invalid')
         self.assertEqual(data['error']['error_code'],'KIT_INPUT_INVALID')

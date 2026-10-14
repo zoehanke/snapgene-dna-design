@@ -31,7 +31,7 @@ The executable shape is [schemas/kit-v1.json](../schemas/kit-v1.json). JSON text
 | core_version | `minimum` inclusive and `maximum_exclusive`; numeric stable three-part Core versions, with minimum less than maximum. No implicit wildcard/prerelease rules. |
 | input_schema | Existing Draft 7 JSON Schema, describing an object. Unknown fields should have an explicit policy. |
 | input_example | An object satisfying input_schema. Prefer file placeholders or construction-based synthetic data. |
-| entrypoint | Kit-relative Python file and module-level function, e.g. `scripts/run.py:run`; the function accepts `(inputs, out_dir)` and returns a JSON object. Paths stay inside the Kit. |
+| entrypoint | Kit-relative Python file and module-level function, e.g. `scripts/run.py:run`; the function accepts `(inputs, out_dir)` and returns a JSON object. Non-JSON values, non-string object keys and nonfinite numbers receive KIT_RESULT_INVALID. Paths stay inside the Kit. |
 | outputs | `contract: json-object`, plus declared relative file roles/names. This declaration does not itself validate DNA or authorize delivery. |
 | contributions | Rows with `target`, local `name`, `content`, `source` and `description`. Sources explain where the rule/capability comes from; they are not automatic verification. |
 
@@ -49,6 +49,8 @@ Pipeline, gate and rule contributions are **NOT_IMPLEMENTED** in phase 1; manife
 6. Test valid input, invalid input, incompatible Core, missing entrypoint and a malformed neighbor Kit. Test namespacing/collisions and category enforcement. Keep test-only toys outside the distributed tree.
 
 The caller controls explicit directories. Discovery reads package-local kits/ and explicit directories only, never downloads code, and does not search user home or neighboring repositories. Metadata discovery does not execute Python. Missing required fields, incompatible versions and missing entrypoints have separate diagnostics; a malformed neighbor does not hide valid Kits.
+
+Unloading removes the catalog's contributed registry entries and restores its module wrappers, so reloading records one operation per actual call. It does not undo arbitrary import side effects or unload Python modules. Loading failures, including an entry module's SystemExit and a manifest disappearing after discovery, remain diagnostics without blocking a valid neighbor.
 
 The complete Kit CLI closes its loading recorder under kit-loading/ before calling a Kit-owned application/receipt boundary. Its domain Trace can then retain its established files and scopes. Atomic tool loading inside run_step is observed in that step's existing Trace. These are actual loading facts, not new scientific relationships. A local file URI can name a non-DNA configuration input; ordinary existing-file strings in the current step material collector denote DNA.
 

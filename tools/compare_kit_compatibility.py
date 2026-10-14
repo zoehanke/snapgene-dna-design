@@ -147,7 +147,8 @@ def compare(root,baseline,current,label):
         rows.append({'file':name,'before_sha256':digest(a[name]) if name in a else None,
                      'after_sha256':digest(b[name]) if name in b else None,'byte_equal':exact,
                      'structured_or_code_location_equal':normalized,'passed':exact or normalized})
-    record={'baseline_commit':'e7b1f1629e9677ff04d9428c3fb7c2fa459cf375',
+    record={'baseline_commit':json.loads((before/'CAPTURE.json').read_text(encoding='utf-8'))['repository_commit'],
+        'current_commit':json.loads((after/'CAPTURE.json').read_text(encoding='utf-8'))['repository_commit'],
         'metadata_control':json.loads((root/'CONDITIONS.json').read_text(encoding='utf-8'))['metadata_control'],
         'ignored_fields':[], 'structural_equivalence':'JSON object key order only; every value/type and remaining HTML preserved',
         'rows':rows,'passed':all(r['passed'] for r in rows)}

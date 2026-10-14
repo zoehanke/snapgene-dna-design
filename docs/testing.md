@@ -86,7 +86,7 @@ Toolkit独立工程用例在`tests/test_genome_revival_*.py`、`test_revival_evi
 python -X utf8 -B tools/build_toolkit.py --out-dir output/toolkit-package
 ```
 
-默认从精确Git提交构包，包内只有一个Skill入口，同版Core由源树生成vendor子集。`--working-tree`只产出诊断包，不是冻结候选。最终候选须在仓库外解包，核对TOOLKIT-MANIFEST及SHA，清除PYTHONPATH后实际调用三Kit和verify。正常宿主另用独立测试配置安装此包，只给自然请求与必要原材料，不给预先选好的引物、完整参数或参考答案；现用安装保持不变。
+默认从精确Git提交构包，包内只有一个顶层安装入口；Kit子Skill位于kits/并有相邻清单，同版Core由源树生成vendor子集。`--working-tree`只产出诊断包，不是冻结候选。最终候选须在仓库外解包，核对TOOLKIT-MANIFEST及SHA，清除PYTHONPATH后实际调用四Kit和verify。正常宿主另用独立测试配置安装此包，只给自然请求与必要原材料，不给预先选好的引物、完整参数或参考答案；现用安装保持不变。
 
 开发者指定路线、改选检测窗口和宿主自主完成分别记录。真实材料例不等于陌生评测；局部PCR预测、来源记录、文件核验和湿实验结论也分别报告。报告浏览器及链接可用不替代真人理解试读。当前阶段及实际证据由Toolkit计划（原稿曾公开，现已移出当前树并完整私有备份；历史仍可见）拥有。
 

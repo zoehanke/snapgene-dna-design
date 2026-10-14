@@ -47,6 +47,18 @@ class IdentityKitContractTests(unittest.TestCase):
         stored=json.loads((self.root/'step/steps.json').read_text(encoding='utf-8'))
         analysis=stored['steps'][0]['result']['analysis']
         self.assertEqual(analysis['assays'][0]['predictions'][0]['amplicon_length_bp'],164)
+        self.assertEqual(stored['steps'][0]['result']['checks'],analysis['checks'])
+    def test_contributed_tool_preserves_failed_assay_checks(self):
+        request=json.loads((self.inputs/'request.json').read_text(encoding='utf-8'))
+        # Constructed negative has a broken primer end. Expecting an amplicon
+        # contradicts that input, independently of the Kit's returned answer.
+        request['assays'][0]['expected']={'negative':'AMPLICON'}
+        step=self.root/'negative-step.json';step.write_text(json.dumps({'method':'kit.genome-identity.assess',
+            'params':{'request':request,'context_uri':(self.inputs/'context.json').as_uri()}}),encoding='utf-8')
+        p,data=self.call(CORE/'scripts/run_step.py','--kit-dir',KIT,'--input',step,'--out-dir',self.root/'negative-step','--full')
+        self.assertEqual(p.returncode,0,p.stderr+p.stdout)
+        stored=json.loads((self.root/'negative-step/steps.json').read_text(encoding='utf-8'))
+        self.assertEqual(stored['steps'][0]['result']['checks'][0]['status'],'FAILED')
     def test_unsupported_field_remains_failure(self):
         request=json.loads((self.inputs/'request.json').read_text(encoding='utf-8'));request['unknown_field']=True
         (self.inputs/'request.json').write_text(json.dumps(request),encoding='utf-8')

@@ -77,6 +77,7 @@ class KitCatalog:
         self.errors = []
         self._loaded = {}
         self._registrations = {}
+        self._bindings = {}
         self.core_version = core_version or (ROOT / 'VERSION').read_text(encoding='utf-8').strip()
         self._schema = Draft7Validator(json.loads((ROOT / 'schemas/kit-v1.json').read_text(encoding='utf-8')))
         bundled = Path(bundled_directory) if bundled_directory is not None else ROOT / 'kits'
@@ -181,7 +182,11 @@ class KitCatalog:
         if name in self._loaded:
             return self._loaded[name]
         kit = self._require(name)
-        if hashlib.sha256((kit.directory/'kit.json').read_bytes()).hexdigest() != kit.manifest_sha256:
+        try:
+            raw = (kit.directory/'kit.json').read_bytes()
+        except OSError as error:
+            _fail('KIT_MANIFEST_INVALID', 'Kit manifest became unreadable after discovery.', reason=type(error).__name__)
+        if hashlib.sha256(raw).hexdigest() != kit.manifest_sha256:
             _fail('KIT_MANIFEST_CHANGED', 'Kit manifest changed after discovery; rediscover before loading.')
         if self._read(kit.directory, kit.origin).manifest != kit.manifest:
             _fail('KIT_MANIFEST_CHANGED', 'Kit descriptor changed after validation; rediscover before loading.')
@@ -190,6 +195,7 @@ class KitCatalog:
         from core.tools.registry import TOOL_REGISTRY, ToolSpec, register_tool
         specs = []
         registered = []
+        bindings = []
         try:
             function = self._function(kit, kit.manifest['entrypoint'])
             for row in kit.manifest['contributions']:
@@ -200,15 +206,21 @@ class KitCatalog:
                 specs.append(ToolSpec(tool_name, self._function(kit, content['entrypoint']),
                     content['category'], row['description'], content['parameters_schema']))
             for spec in specs:
+                original = spec._function
+                module = sys.modules.get(original.__module__)
+                aliases = [key for key, value in vars(module).items() if value is original] if module else []
                 register_tool(spec)
                 registered.append(spec.name)
-        except Exception as error:
+                bindings.extend((module, key, original, spec.callable) for key in aliases)
+        except (Exception, SystemExit) as error:
             for tool_name in registered:
                 TOOL_REGISTRY.pop(tool_name, None)
+            self._restore_bindings(bindings)
             if isinstance(error, KitError):
                 raise
             _fail('KIT_LOAD_FAILED', 'Kit Python code or callable contract could not be loaded.', name=name, reason=type(error).__name__)
         self._registrations[name] = registered
+        self._bindings[name] = bindings
         self._loaded[name] = function
         from evidence_trace.runtime import observe_value
         observe_value('kit.load', kit.receipt())
@@ -227,7 +239,14 @@ class KitCatalog:
         from core.tools.registry import TOOL_REGISTRY
         for tool_name in self._registrations.pop(name, []):
             TOOL_REGISTRY.pop(tool_name, None)
+        self._restore_bindings(self._bindings.pop(name, []))
         self._loaded.pop(name, None)
+
+    @staticmethod
+    def _restore_bindings(bindings):
+        for module, key, original, wrapper in reversed(bindings):
+            if getattr(module, key, None) is wrapper:
+                setattr(module, key, original)
 
     def validate_inputs(self, name, inputs):
         kit = self._require(name)
@@ -240,4 +259,10 @@ class KitCatalog:
         result = self.load(name)(inputs, Path(out_dir))
         if not isinstance(result, dict):
             _fail('KIT_RESULT_INVALID', 'Kit entrypoint must return a JSON object.')
+        try:
+            encoded = json.dumps(result, allow_nan=False)
+            if json.loads(encoded) != result:
+                raise ValueError('Result changes under JSON serialization.')
+        except (TypeError, ValueError, OverflowError, RecursionError) as error:
+            _fail('KIT_RESULT_INVALID', 'Kit entrypoint must return a JSON object with finite JSON values.', reason=type(error).__name__)
         return result

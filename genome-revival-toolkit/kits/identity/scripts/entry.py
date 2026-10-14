@@ -30,4 +30,5 @@ def assess(request: dict, context_uri: str):
         raise ValueError('context_uri must identify a local file URI.')
     path = Path(url2pathname(address.path))
     context = ProjectContext.load(path)
-    return ToolResult(analysis=run_identity(request, context, path.resolve().parent))
+    result = run_identity(request, context, path.resolve().parent)
+    return ToolResult(analysis=result, checks=result['checks'])

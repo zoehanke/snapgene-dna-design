@@ -6,6 +6,7 @@
 |---|---|
 | 修改主设计、CLI、交付或接口 | [Core spec](../specs/core-skill.md)；需要定位模块时读[架构](architecture.md) |
 | 修改Genome Revival四个Kit或项目Context | [Toolkit spec](../specs/genome-revival-toolkit.md)、[当前交接](development-plans/README.md)；Kit接口扩展先读[扩展点盘点](kit-extension-inventory.md)，DNA/Trace共用边界仍读对应spec |
+| 查块K第一阶段验收与后续边界 | [日期检查点](kit-runtime-phase1-checkpoint-2026-10-14.md)，仅记录本阶段证据，后续适配和冻结并入未授权 |
 | 修改Evidence Trace | [安全模块spec](../specs/safety-module.md)；修改报告时加读[阅读与界面规范](trace-report/design.md) |
 | 环境、调试、扩展与提交 | [开发指南](developer-guide.md) |
 | 测试、复现、打包或性能测量 | [测试与验收](testing.md)；任务评分另读[评分规则](question-bank/scoring-v0.1.md) |
