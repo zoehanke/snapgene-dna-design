@@ -293,6 +293,34 @@ class OfficialCandidateSelectionTests(unittest.TestCase):
                     self.assertEqual(len(actual), row['size'])
                     self.assertEqual(hashlib.sha256(actual).hexdigest(), row['sha256'])
 
+    def test_inherited_crlf_blob_survives_new_commit_and_clone(self):
+        with fixture() as (root, repo, base, frozen, _, official):
+            expected = b'Independent official license vector\r\nSecond line\r\n'
+            # Construct an actual committed CRLF blob without changing the
+            # official tracked broad LF policy. Expected bytes are literal.
+            write(base, '.git/info/attributes', 'LICENSES/** -text\n')
+            write(base, 'LICENSES/TEMPLATE.txt', expected)
+            commit(base)
+            selected = root / 'crlf-candidate'
+            build_candidate(repo, selected, source_commit=frozen, official_base_dir=base)
+            tree = selected / 'source'
+            self.assertEqual((tree / 'LICENSES/TEMPLATE.txt').read_bytes(), expected)
+            policy = (tree / '.gitattributes').read_bytes()
+            self.assertTrue(policy.startswith(official['.gitattributes'].encode('utf-8')))
+            self.assertIn(b'LICENSES/** -text', policy)
+            command(tree, 'init', '-b', 'codex/synthetic-crlf')
+            command(tree, 'config', 'user.name', 'Synthetic selection fixture')
+            command(tree, 'config', 'user.email', 'fixture@example.invalid')
+            command(tree, 'config', 'core.autocrlf', 'false')
+            command(tree, 'add', '.')
+            command(tree, 'commit', '-m', 'Freeze independent CRLF source vector')
+            clone = root / 'crlf-clone'
+            command(root, '-c', 'core.autocrlf=true', 'clone', '--no-hardlinks', '--quiet', str(tree), str(clone))
+            self.assertEqual((clone / 'LICENSES/TEMPLATE.txt').read_bytes(), expected)
+            rows = json.loads((clone / 'FILE-LIST.json').read_text(encoding='utf-8'))['entries']
+            for row in rows:
+                self.assertEqual(hashlib.sha256((clone / row['destination']).read_bytes()).hexdigest(), row['sha256'])
+
 
 if __name__ == '__main__':
     unittest.main()

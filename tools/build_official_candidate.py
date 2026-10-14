@@ -466,6 +466,20 @@ def build_candidate(repository, out_dir, *, source_commit=None, working_tree=Fal
         if name == '.gitattributes':
             chosen[name]['reason'] = ('Explicit outer exception: inherit official checkout byte-stability policy unchanged; '
                 'LF source and declared binary files must retain FILE-LIST bytes even when core.autocrlf=true')
+    if any(b'\r\n' in chosen[name]['data'] for name in inherited if name != '.gitattributes'):
+        # Existing official blobs may intentionally contain CRLF despite their
+        # broad LF policy. Preserve all inherited template/license bytes rather
+        # than normalising their source text or exempting their manifest hashes.
+        policy = chosen['.gitattributes']
+        original = policy['data']
+        policy['data'] = original + (b'' if original.endswith(b'\n') else b'\n') + (
+            b'\n# Preserve inherited official template and license bytes.\n'
+            b'CLAUDE.md -text\n.claude/** -text\nLICENSES/** -text\n')
+        policy['source'] = 'projection-of-official-byte-policy:.gitattributes'
+        policy['reason'] = ('Explicit outer exception: preserve original official LF/binary rules and append '
+            'no-normalisation rules for inherited templates/licenses because their source blobs contain CRLF')
+        policy['transformations'] = ['Append byte-preservation rules; inherited template/license payloads remain unchanged']
+        policy['original_source_sha256'] = digest(original)
     example = 'examples/run_demo.py'
     reject_link(base / example)
     if not (base / example).is_file():
