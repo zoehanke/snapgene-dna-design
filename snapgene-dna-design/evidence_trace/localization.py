@@ -3,6 +3,7 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 
 _LANGUAGE = ContextVar('trace_report_language', default='zh')
+_TRANSLATIONS = ContextVar('trace_report_translations', default=None)
 
 # Only code-owned literals and display enums use this catalogue. Do not apply
 # it to a report recursively: that would rewrite original statements/evidence.
@@ -267,9 +268,7 @@ AI 同期公开说明（提交者声明）	Contemporaneous AI explanation (submi
 组装实际PCR片段	Assemble actual PCR fragments
 检查当前供体接口	Check current donor junction
 当前任务中的判断	Assessment within current task
-Genome Revival：任务过程与证据	Genome Revival: workflow and evidence
 任务怎样形成实际结果？	How the task produced its result
-Genome Revival Toolkit 结果	Genome Revival Toolkit result
 我们要完成什么？	What are we trying to do?
 本次得到了什么？	What was obtained?
 使用了哪些实际材料？	Which materials were supplied?
@@ -457,8 +456,23 @@ def language_scope(language=None):
 def tr(text):
     if get_language() != 'en' or not isinstance(text, str):
         return text
-    if text in ENGLISH:
-        return ENGLISH[text]
-    for original, english in _ENTRIES:
+    extra = _TRANSLATIONS.get()
+    entries = {**ENGLISH, **extra} if extra else ENGLISH
+    if text in entries:
+        return entries[text]
+    pairs = sorted(entries.items(), key=lambda pair: len(pair[0]), reverse=True) if extra else _ENTRIES
+    for original, english in pairs:
         text = text.replace(original, english)
     return text
+
+
+@contextmanager
+def translation_scope(translations):
+    """Apply caller-owned display literals without global/project registrations."""
+    if not isinstance(translations, dict) or any(not isinstance(k, str) or not isinstance(v, str) for k, v in translations.items()):
+        raise ValueError('Display translations must map text to text')
+    token = _TRANSLATIONS.set({**(_TRANSLATIONS.get() or {}), **translations})
+    try:
+        yield
+    finally:
+        _TRANSLATIONS.reset(token)

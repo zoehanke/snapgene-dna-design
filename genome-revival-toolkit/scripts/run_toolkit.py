@@ -70,7 +70,7 @@ def main():
             result = {'trace_level': args.level, 'settings': str(set_level(args.level))}
         elif args.command == 'rebuild-report':
             from revival.reporting import rebuild
-            from evidence_trace.localization import language_scope
+            from revival.localization import language_scope
             with language_scope(args.language):
                 result = rebuild(args.trace_dir)
         else:

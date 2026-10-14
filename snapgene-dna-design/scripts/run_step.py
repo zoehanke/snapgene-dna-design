@@ -19,6 +19,10 @@ def restore(data):
 
 @traced_run('step')
 def execute(config,out_dir):
+    if config.get('kit_dirs') or (ROOT/'kits').is_dir():
+        from core.kits import KitCatalog
+        catalog = KitCatalog(config.get('kit_dirs', []))
+        catalog.load_tools()
     if config.get('history_file'):
         history=read_workflow_record(config['history_file'])
         extra=config.get('sources',{})
@@ -58,6 +62,7 @@ def main():
     parser.add_argument('--workspace',help='Keep executed steps.json and reuse its actual products automatically')
     parser.add_argument('--status',action='store_true',help='Show current materials, last checks and product references')
     parser.add_argument('--full',action='store_true',help='Include complete stored step facts instead of the concise summary')
+    parser.add_argument('--kit-dir',action='append',default=[],help='Load local Kit tool contributions from an explicit directory')
     add_trace_arguments(parser)
     args=parser.parse_args()
     if hasattr(sys.stdout,'reconfigure'):sys.stdout.reconfigure(encoding='utf-8',errors='replace')
@@ -76,6 +81,7 @@ def main():
             raise ValidationError('STEP_CONFIG_REQUIRED','Use --input plus --workspace or --out-dir')
         config=json.loads(Path(args.input).read_text(encoding='utf-8-sig'))
         if not isinstance(config,dict):raise ValidationError('STEP_CONFIG_INVALID','Step input must be an object with method and params')
+        if args.kit_dir:config['kit_dirs']=args.kit_dir
         if workspace and (workspace/'steps.json').is_file() and not config.get('history_file'):
             config['history_file']=str(workspace/'steps.json')
         prior=read_workflow_record(config['history_file']) if config.get('history_file') else {'steps':[]}

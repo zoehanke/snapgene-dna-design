@@ -18,7 +18,7 @@ kits/example/
 
 SKILL.md describes when the host should select the Kit and the supported scientific scope. kit.json owns machine fields. Shared domain context/reporting code belongs on the Kit side; the Core knows only this interface. Existing DNA algorithms remain in Core.
 
-Genome Revival Toolkit is the product/distribution name. The complete distribution will assemble Core runtime code and Kits at build time, from the same source. This phase does not build a release or a single-Kit package.
+A complete Skill distribution can assemble Core runtime code and Kits at build time, from the same source. This phase does not build a release or a single-Kit package.
 
 ## Manifest fields
 

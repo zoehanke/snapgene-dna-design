@@ -48,8 +48,13 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('name', nargs='?', help='Tool/recipe name; omit to list available names')
     parser.add_argument('--search',help='Find methods by capability/name/docstring; does not choose a scientific route')
+    parser.add_argument('--kit-dir',action='append',default=[],help='Load local Kit tool contributions; external Python import emits a notice')
     args = parser.parse_args()
     try:
+        if args.kit_dir or (ROOT/'kits').is_dir():
+            from core.kits import KitCatalog
+            kit_catalog=KitCatalog(args.kit_dir)
+            kit_catalog.load_tools()
         if args.search:
             from core.workflow import method_definitions
             query=args.search.casefold()
@@ -57,6 +62,7 @@ def main():
                     'required_parameters':d['parameters'].get('required',[])} for d in method_definitions()
                     if query in (d['name']+' '+d.get('description','')).casefold()]}
         else:result = describe(args.name)
+        if args.kit_dir or (ROOT/'kits').is_dir():result['kit_catalog']=kit_catalog.describe()
     except ValueError as error:
         parser.error(str(error))
     print(json.dumps(result,ensure_ascii=False,indent=2))

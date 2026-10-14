@@ -11,6 +11,8 @@ First decide whether supplied material can be reused, needs physical preparation
 
 ## Short workflow
 
+For a locally supplied Kit, read its SKILL.md and discover its machine contract with `scripts/run_kit.py list/describe --kit-dir <directory>`. Run its declared entry through `run_kit.py run`; contributed tools use the existing `describe_tools.py` / `run_step.py` with the same `--kit-dir`. External Kit loading executes Python with host permissions and emits a notice; metadata discovery alone does not execute it. Only tool contributions are implemented in this phase. Read [Kit contract](references/kit-contract.md) when adding/loading a Kit; ordinary DNA work keeps the existing routes below.
+
 Read `INSTALL-SOURCE.json` only in this Skill root when present and use its verified `python_executable`. If absent, choose an interpreter and run `scripts/check_env.py --json` once. Do not search parent/test directories for installation records. Setup instructions are in [docs/installation.md](docs/installation.md).
 
 1. **Inspect sources.** Identify every source record, topology, feature interval, strand, and coordinate system. Start with:

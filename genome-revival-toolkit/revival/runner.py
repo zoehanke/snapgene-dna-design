@@ -1,6 +1,7 @@
 """One application boundary for the Kits and the existing Trace sidecar."""
 from __future__ import annotations
-from evidence_trace.localization import tr, get_language, language_scope
+from evidence_trace.localization import tr, get_language
+from revival.localization import language_scope
 
 import copy
 import csv
