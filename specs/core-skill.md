@@ -52,6 +52,8 @@ Lead the answer with the material conclusion, whether new design is needed and t
 
 ## Workflow freedom and reuse
 
+Block K phase 1 (2026-10-14): add a generic, local Kit API over the existing atomic ToolSpec registry. Discovery/manifest validation/describe, external-code notice and captured load metadata are implementation scope; only tool contributions are supported. Pipeline/gate/rule/Handler/Recipe/schema contributions remain unimplemented. Core/Trace must contain no project-specific Kit registrations or dependencies. No-Kit behavior and DNA calculation contracts remain unchanged. The machine shape is schemas/kit-v1.json; the user-facing contract is [Kit contract](../snapgene-dna-design/references/kit-contract.md). External Python executes with host permissions, not an invented sandbox. No main/frozen candidate/release change is authorized by this phase.
+
 Confirmed direction, 2026-10-06. v2.1.0 implements bounded single-step execution, common candidate validation and current-bundle delivery. [Architecture](../docs/architecture.md#流程复用与结构收敛方向) owns the interfaces; [handoff](../docs/development-plans/README.md) owns execution scope and outstanding host acceptance.
 
 - A workflow can be composed by the host, reused from built-in methods, or adapted from a user-supplied workflow. Its origin does not require a separate execution, validation or delivery architecture.
