@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 """v0.8 guide scanning, provenance, consent and reaction profile tests."""
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import json
 import pathlib
 import sys
@@ -9,7 +11,7 @@ from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
 HERE = pathlib.Path(__file__).resolve().parent
-ROOT = HERE.parent
+ROOT = SKILL_ROOT
 SCRIPTS = ROOT / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 

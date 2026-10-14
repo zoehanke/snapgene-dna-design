@@ -1,0 +1,229 @@
+# -*- coding: utf-8 -*-
+"""core/tools/inspection.py - Atomic DNA inspection tool.
+
+Allows AI agents and deterministic pipelines to inspect sequence structure,
+topology, GC content, annotations, and open reading frames from any input file.
+"""
+from __future__ import annotations
+from core.tools.result import ToolResult
+
+import hashlib
+import pathlib
+import re
+from typing import Any
+
+from Bio import SeqIO
+from Bio.Seq import Seq
+from Bio.SeqRecord import SeqRecord
+
+
+from core.io.input_resolution import resolve_sequence_input, resolve_sequence_record
+
+
+def _load_record(file_path_or_record: str | pathlib.Path | SeqRecord) -> SeqRecord:
+    try:
+        return resolve_sequence_record(file_path_or_record, default_topology="linear")
+    except (ValueError, FileNotFoundError) as exc:
+        raise FileNotFoundError(f"Sequence file not found or invalid sequence: {file_path_or_record}") from exc
+
+
+def inspect_dna(file_path_or_record: str | pathlib.Path | SeqRecord) -> ToolResult:
+    """Inspect sequence file and return structured metadata and features.
+
+    Returns:
+        dict with sequence_length, topology, gc_content, sequence_sha256,
+        and structured features list.
+    """
+    rec = _load_record(file_path_or_record)
+    seq_str = str(rec.seq).upper()
+    n = len(seq_str)
+    gc = (seq_str.count("G") + seq_str.count("C")) / n * 100.0 if n > 0 else 0.0
+    topo = rec.annotations.get("topology", "linear")
+
+    features = []
+    for f in getattr(rec, "features", []):
+        if f.type == "source":
+            continue
+        # Extract name from common qualifiers
+        name = ""
+        for q in ("label", "gene", "product", "note", "locus_tag"):
+            vals = f.qualifiers.get(q)
+            if vals and isinstance(vals, list) and vals[0]:
+                name = str(vals[0])
+                break
+            elif vals and isinstance(vals, str):
+                name = vals
+                break
+        if not name:
+            name = f"{f.type}_{int(f.location.start)}"
+
+        start0 = int(f.location.start)
+        end0 = int(f.location.end)
+        strand = int(f.location.strand or 1)
+
+        translation = ""
+        trans_vals = f.qualifiers.get("translation")
+        if trans_vals:
+            translation = trans_vals[0] if isinstance(trans_vals, list) else str(trans_vals)
+
+        # Extract color if present in qualifiers
+        color = ""
+        for cq in ("ApEinfo_fcolor", "color", "label_color", "note"):
+            cval = f.qualifiers.get(cq)
+            if cval and isinstance(cval, list) and str(cval[0]).startswith("#"):
+                color = str(cval[0])
+                break
+            elif cval and str(cval).startswith("#"):
+                color = str(cval)
+                break
+
+        features.append({
+            "name": name,
+            "type": f.type,
+            "interval_0based": [start0, end0],
+            "length": len(f),
+            "parts_0based": [[int(part.start), int(part.end)] for part in f.location.parts],
+            "strand": strand,
+            "translation": translation,
+            "color": color,
+            "qualifiers": {k: v for k, v in f.qualifiers.items() if k != "translation"},
+        })
+
+    marker_evidence = selection_marker_evidence(rec)
+    return ToolResult(analysis={
+        "name": getattr(rec, "name", "") or getattr(rec, "id", "") or "unnamed",
+        "sequence_length": n,
+        "topology": topo,
+        "gc_content": round(gc, 2),
+        "sequence_sha256": hashlib.sha256(seq_str.encode("utf-8")).hexdigest().upper(),
+        "feature_count": len(features),
+        "features": features,
+        **marker_evidence,
+    })
+
+
+def annotated_selection_marker(name: str) -> str | None:
+    """Recognize annotated marker names without matching unrelated gene substrings."""
+    markers = (
+        (r"amp(?:r|icillin)?|bla(?:tem\d*)?|beta-lactamase", "Ampicillin (AmpR / bla)"),
+        (r"kan(?:r|mx\d*|amycin)?|aph(?:\([^)]*\))?", "Kanamycin (KanR / aph)"),
+        (r"neo(?:r|mycin)?", "Neomycin / Kanamycin (NeoR)"),
+        (r"cmr|camr|cat|chloramphenicol", "Chloramphenicol (CmR / cat)"),
+        (r"tet(?:r|racycline)?", "Tetracycline (TetR)"),
+        (r"hyg(?:r|romycin)?|hph(?:nt\d+)?", "Hygromycin B (HygR)"),
+        (r"zeo(?:r|cin)?|ble(?:mx\d*)?", "Zeocin (ZeoR / ble)"),
+        (r"spec(?:r|tinomycin)?|aada\d*", "Spectinomycin (SpecR / aadA)"),
+        (r"gent(?:r|amicin)?|aac", "Gentamicin (GmR / aac)"),
+        (r"puro(?:r|mycin)?|pac", "Puromycin (PuroR)"),
+        (r"bsd|bsdr|blasticidin", "Blasticidin S (BsdR)"),
+    )
+    for pattern, description in markers:
+        if re.search(r"(?<![a-z0-9])(?:" + pattern + r")(?![a-z0-9])", name, re.I):
+            return description
+    return None
+
+
+def selection_marker_evidence(record: SeqRecord) -> dict[str, Any]:
+    """Keep named markers only when an actual complete CDS supports the label.
+
+    CDS structure supports an annotation, not experimental antibiotic resistance.
+    A short guide mislabeled as a gene remains visible as an annotation conflict.
+    """
+    from core.tools.sequence_ops import validate_cds_feature
+    markers, warnings = [], []
+    for index, feature in enumerate(record.features):
+        if feature.type not in ('CDS', 'gene') or feature.location is None:
+            continue
+        name = feature.type
+        for key in ('label', 'gene', 'product', 'note', 'locus_tag'):
+            values = feature.qualifiers.get(key)
+            if values:
+                name = str(values[0] if isinstance(values, list) else values)
+                break
+        marker = annotated_selection_marker(name)
+        if not marker:
+            continue
+        audit = validate_cds_feature(feature, record.seq)
+        entry = {'name': name, 'marker_type': marker, 'feature_index': index,
+                 'interval_0based': [int(feature.location.start), int(feature.location.end)],
+                 'strand': feature.location.strand}
+        if audit['valid'] and not audit['partial']:
+            markers.append({**entry, 'annotation_status': 'CDS_SUPPORTED', 'functional_status': 'NOT_TESTED'})
+        else:
+            warnings.append({'code': 'SELECTION_MARKER_ANNOTATION_CONFLICT', **entry,
+                'message': 'Annotation may be incorrect (注释可能有误): marker label lacks a complete valid CDS; do not infer selection from this feature.',
+                'cds_errors': audit['errors'], 'partial': audit['partial']})
+    return {'selection_markers': markers, 'warnings': warnings}
+
+
+def summarize_backbone(file_path_or_record: str | pathlib.Path | SeqRecord) -> ToolResult:
+    """Identify key vector backbone components: origins, resistance markers, promoters."""
+    ins = inspect_dna(file_path_or_record).analysis
+    origins = []
+    promoters = []
+
+    for f in ins.get("features", []):
+        fn = f["name"].lower()
+        ft = f["type"].lower()
+
+        if ft in ("rep_origin", "origin"):
+            origins.append({
+                "name": f["name"],
+                "interval_0based": f["interval_0based"],
+                "strand": f["strand"],
+            })
+        elif ft == "promoter" or (ft in ("misc_feature", "regulatory") and "promoter" in fn):
+            promoters.append({
+                "name": f["name"],
+                "interval_0based": f["interval_0based"],
+                "strand": f["strand"],
+            })
+
+    return ToolResult(analysis={
+        "name": ins["name"],
+        "topology": ins["topology"],
+        "sequence_length": ins["sequence_length"],
+        "origins_of_replication": origins,
+        "selection_markers": ins["selection_markers"],
+        "warnings": ins["warnings"],
+        "promoters": promoters,
+    })
+
+
+def find_open_reading_frames(
+    file_path_or_seq: str | pathlib.Path | SeqRecord,
+    min_length_aa: int = 30,
+    transl_table: int = 1,
+) -> ToolResult:
+    """Scan all 6 reading frames for ATG-initiated ORFs with terminal stop codons."""
+    rec, seq_str = resolve_sequence_input(file_path_or_seq)
+
+    n = len(seq_str)
+    orfs = []
+
+    for strand, s in ((1, seq_str), (-1, str(Seq(seq_str).reverse_complement()))):
+        for frame in (0, 1, 2):
+            for i in range(frame, n - 2, 3):
+                if s[i : i + 3] == "ATG":
+                    # Find downstream stop codon in frame
+                    for j in range(i + 3, n - 2, 3):
+                        codon = s[j : j + 3]
+                        if codon in ("TAA", "TAG", "TGA"):
+                            dna_orf = s[i : j + 3]
+                            aa = str(Seq(dna_orf).translate(table=transl_table))
+                            if len(aa) >= min_length_aa:
+                                if strand == 1:
+                                    s0, e0 = i, j + 3
+                                else:
+                                    s0, e0 = n - (j + 3), n - i
+                                orfs.append({
+                                    "start_0based": s0,
+                                    "end_0based": e0,
+                                    "strand": strand,
+                                    "frame": (frame + 1) if strand == 1 else -(frame + 1),
+                                    "length_bp": len(dna_orf),
+                                    "length_aa": len(aa),
+                                    "translation": aa,
+                                })
+                            break
+    return ToolResult(analysis={'orfs': sorted(orfs, key=lambda x: x["length_aa"], reverse=True)})

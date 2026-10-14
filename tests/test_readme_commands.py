@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
 """RG-P1-04: README/SKILL command examples must be executable or removed."""
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import pathlib
 import subprocess
 import sys
 import unittest
 
-ROOT = pathlib.Path(__file__).resolve().parents[1]
+ROOT = SKILL_ROOT
 SCRIPTS = ROOT / "scripts"
 
 
@@ -20,8 +22,12 @@ class ReadmeCommandTests(unittest.TestCase):
 
     def test_skill_does_not_claim_every_script_has_json(self):
         skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
-        self.assertNotIn("所有脚本输出 JSON（`--json`）", skill)
-        self.assertIn("大多数脚本", skill)
+        for claim in (
+            "所有脚本输出 JSON（`--json`）",
+            "所有脚本都支持 `--json`",
+            "every script has --json",
+        ):
+            self.assertNotIn(claim, skill)
 
     def test_representative_readme_commands_run(self):
         commands = [

@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 """v0.4.4 tests: zero contributions, clip_end, JSON schemas, property tests."""
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import json
 import pathlib
 import random
@@ -17,7 +19,7 @@ from Bio.SeqFeature import CompoundLocation, FeatureLocation, SeqFeature
 from Bio.SeqRecord import SeqRecord
 
 HERE = pathlib.Path(__file__).resolve().parent
-ROOT = HERE.parent
+ROOT = SKILL_ROOT
 SCRIPTS = ROOT / "scripts"
 SCHEMAS = ROOT / "references" / "schemas"
 sys.path.insert(0, str(SCRIPTS))
@@ -210,7 +212,7 @@ class GeneralLicenseHashCheckerTests(unittest.TestCase):
     def _run_checker(self, target, *extra):
         completed = subprocess.run(
             [sys.executable, "-X", "utf8",
-             str(SCRIPTS / "check_redistributable.py"), str(target)] + list(extra),
+             str(TOOLS_ROOT / 'check_redistributable.py'), str(target)] + list(extra),
             capture_output=True, text=True, encoding="utf-8", errors="replace")
         return completed.returncode, json.loads(completed.stdout)
 

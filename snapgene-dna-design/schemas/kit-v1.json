@@ -1,0 +1,50 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Local Kit manifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "name", "version", "core_version", "input_schema", "input_example", "entrypoint", "outputs", "contributions"],
+  "properties": {
+    "schema_version": {"const": "kit-v1"},
+    "name": {"type": "string", "pattern": "^[a-z][a-z0-9-]{0,63}$"},
+    "version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+    "core_version": {
+      "type": "object", "additionalProperties": false,
+      "required": ["minimum", "maximum_exclusive"],
+      "properties": {
+        "minimum": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+        "maximum_exclusive": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"}
+      }
+    },
+    "input_schema": {"type": "object"},
+    "input_example": {"type": "object"},
+    "entrypoint": {"$ref": "#/definitions/entrypoint"},
+    "outputs": {
+      "type": "object", "additionalProperties": false, "required": ["contract", "files"],
+      "properties": {"contract": {"const": "json-object"}, "files": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true}}
+    },
+    "contributions": {
+      "type": "array", "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["target", "name", "content", "source", "description"],
+        "properties": {
+          "target": {"enum": ["tools", "pipeline", "gates", "rules", "handlers", "recipes", "contracts", "references"]},
+          "name": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$"},
+          "description": {"type": "string", "minLength": 1},
+          "source": {"type": "string", "minLength": 1},
+          "content": {
+            "type": "object", "additionalProperties": false, "required": ["entrypoint", "category", "parameters_schema"],
+            "properties": {
+              "entrypoint": {"$ref": "#/definitions/entrypoint"},
+              "category": {"enum": ["compute", "inspect", "write", "external", "network"]},
+              "parameters_schema": {"type": "object"}
+            }
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "entrypoint": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_/]*\\.py:[A-Za-z_][A-Za-z0-9_]*$"}
+  }
+}

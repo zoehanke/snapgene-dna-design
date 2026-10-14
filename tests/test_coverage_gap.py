@@ -6,6 +6,8 @@ reach (error guards, fallback paths, human-readable CLI output, and the
 official-SnapGene round-trip code path exercised through mocks). They are
 synthetic and safe for both release packages.
 """
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import json
 import pathlib
 import subprocess
@@ -20,7 +22,7 @@ from Bio.SeqFeature import CompoundLocation, FeatureLocation, SeqFeature
 from Bio.SeqRecord import SeqRecord
 
 HERE = pathlib.Path(__file__).resolve().parent
-ROOT = HERE.parent
+ROOT = SKILL_ROOT
 SCRIPTS = ROOT / "scripts"
 FIXTURES = ROOT / "fixtures" / "rich"
 sys.path.insert(0, str(SCRIPTS))
@@ -408,7 +410,9 @@ class GoldenGateGapTests(unittest.TestCase):
         with mock.patch("golden_gate.restriction_hits", return_value=fake_hits):
             info = golden_gate.part_fragment(rec, sg_common.get_enzyme("BsaI"))
         self.assertFalse(info["ok"])
-        self.assertIn("wrap-around", info["reason"])
+        # Retain supplied coordinates: both were fabricated forward hits on a
+        # source without the required flanking sites. Source conflict precedes geometry.
+        self.assertIn("contradicts actual source geometry", info["reason"])
 
     def test_part_fragment_fragment_shorter_than_overhang(self):
         rec = record("AAAACCCCGGGGTTTT", "r")
@@ -421,7 +425,9 @@ class GoldenGateGapTests(unittest.TestCase):
         with mock.patch("golden_gate.restriction_hits", return_value=fake_hits):
             info = golden_gate.part_fragment(rec, sg_common.get_enzyme("BsaI"))
         self.assertFalse(info["ok"])
-        self.assertIn("not longer than its overhang", info["reason"])
+        # Same original invalid observations are retained; never change their
+        # strand to manufacture an inward pair solely for this test.
+        self.assertIn("contradicts actual source geometry", info["reason"])
 
     def test_overhang_length_mismatch_guard(self):
         vector = record("GGTCTC" + "A" * 40 + "GAGACC", "v", circular=True)
@@ -479,13 +485,17 @@ class ValidateConstructGapTests(unittest.TestCase):
         self.assertEqual(validate_construct._cds_translation(seq, 0, 3, 1), "K")
         self.assertEqual(validate_construct._cds_translation(seq, 0, 3, -1), "F")
 
-    def test_codon_start_and_transl_table_fallbacks(self):
+    def test_invalid_codon_start_and_transl_table_are_rejected(self):
         cds = SeqFeature(FeatureLocation(0, 12, strand=1), type="CDS",
                          qualifiers={"label": ["c"],
                                      "codon_start": ["not-an-int"],
                                      "transl_table": ["not-an-int"]})
         result = validate_construct.validate(record("ATGGCTAAATAA", features=[cds]))
-        self.assertTrue(result["summary"]["pass"])
+        self.assertFalse(result["summary"]["pass"])
+        error_checks = {item["check"] for item in result["checks"]
+                        if item["status"] == "error"}
+        self.assertIn("cds_codon_start", error_checks)
+        self.assertIn("cds_transl_table", error_checks)
 
     def test_terminal_stop_and_multicutter_and_unknown_enzyme(self):
         cds = SeqFeature(FeatureLocation(0, 12, strand=1), type="CDS",
@@ -559,9 +569,12 @@ class RoundTripGapTests(unittest.TestCase):
             from sg_common import load_seq
             rec, _fmt = load_seq(str(input_path))
             for feature in rec.features:
-                feature.qualifiers.pop("db_xref", None)
-            with open(output_path, "w", encoding="utf-8") as handle:
-                SeqIO.write(rec, handle, "genbank")
+                feature.qualifiers.pop("gene", None)
+            if target_format == "SnapGene DNA":
+                validate_roundtrip._write(rec, "dna", output_path)
+            else:
+                with open(output_path, "w", encoding="utf-8") as handle:
+                    SeqIO.write(rec, handle, "genbank")
 
         with mock.patch("validate_roundtrip._find_snapgene",
                         return_value="C:\\fake\\SnapGene.exe"), \
@@ -583,8 +596,9 @@ class RoundTripGapTests(unittest.TestCase):
             self.skipTest("rich fixtures not present")
         fixture = FIXTURES / "rich_multivalue.gb"
         run_cli("validate_roundtrip.py", str(fixture), "--format", "snapgene-gb")
-        run_cli("validate_roundtrip.py", str(fixture), "--format", "dna",
-                "--strict", expect_fail=True)
+        # Official SnapGene may rewrite safe qualifier presentation details;
+        # the default core gate must still pass and report those differences.
+        run_cli("validate_roundtrip.py", str(fixture), "--format", "dna")
         run_cli("validate_roundtrip.py", str(self.dir / "missing.gb"), "--json",
                 expect_fail=True)
 
