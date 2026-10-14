@@ -8,6 +8,7 @@
 | 修改Genome Revival四个Kit或项目Context | [Toolkit spec](../specs/genome-revival-toolkit.md)、[当前交接](development-plans/README.md)；Kit接口扩展先读[扩展点盘点](kit-extension-inventory.md)，DNA/Trace共用边界仍读对应spec |
 | 查块K第一阶段验收与后续边界 | [日期检查点](kit-runtime-phase1-checkpoint-2026-10-14.md)，仅记录本阶段证据，后续适配和冻结并入未授权 |
 | 查块K第二阶段检查点与未决豁免 | [第二阶段回执](kit-runtime-phase2-checkpoint-2026-10-14.md)，只管理本次迁移/适配/未上传候选，路由评测由开发外人员安排 |
+| 新增Kit或准备块K架构段/路由材料 | [英文Kit契约](../snapgene-dna-design/references/kit-contract.md)、[盘点](kit-extension-inventory.md)、[英文Wiki架构段](igem/kit-architecture-wiki-en.md)、[路由材料交接](kit-routing/README.md)，开发者不执行路由评测 |
 | 修改Evidence Trace | [安全模块spec](../specs/safety-module.md)；修改报告时加读[阅读与界面规范](trace-report/design.md) |
 | 环境、调试、扩展与提交 | [开发指南](developer-guide.md) |
 | 测试、复现、打包或性能测量 | [测试与验收](testing.md)；任务评分另读[评分规则](question-bank/scoring-v0.1.md) |

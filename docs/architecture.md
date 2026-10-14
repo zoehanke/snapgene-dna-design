@@ -4,11 +4,13 @@
 
 ## Genome Revival Toolkit：项目专用调用边界
 
-`genome-revival-toolkit/scripts/run_toolkit.py`路由Construct、Genome Identity和Revival Evidence；`revival/context.py`解析版本化项目JSON，校对实际文件、记录ID/区域及声明身份，文件或已加载Context变化不沿用旧版本。`revival/construct.py`组合已有Task供体模型、真实PCR/Gibson、供体QC和Core交付；Identity组合已有比对、引物设计、完整质量及逐参考PCR；Evidence只比较已提交观察/对照。
+`genome-revival-toolkit/scripts/run_toolkit.py`从`kits/catalog.py`发现四个清单拥有的子Skill：Construct、Genome Identity、Revival Evidence和CRISPR。科学实现与选源/展示在各自`kits/<name>/scripts/`，原`revival/<name>.py`只保留导入兼容别名，共享层不维护固定Kit名单。`revival/context.py`解析版本化项目JSON，校对实际文件、记录ID/区域及声明身份，文件或已加载Context变化不沿用旧版本。Construct组合已有Task、PCR/Gibson、QC和Core交付；Identity组合已有比对、引物设计、质量与逐参考PCR；Evidence只比较已提交观察/对照；CRISPR复用已有方向/PAM/自切、替换与制备模拟。
 
 `revival/runner.py`提供共享执行/导出，`reporting.py`按实际事件投影已知流程、关联文件并复用Trace确定性报告。程序只组织已知工作流事实，不生成科学理由；明确提交的说明保留归属。Toolkit配套文件回执核对报告/输入版本，DNA仍由原Core回执负责，不另建DNA裁判。关闭Trace不改变生物学参数或领域结果。
 
-Core源码只在`snapgene-dna-design/`维护。开发入口复用兄弟目录，独立包在`vendor/dna-design-core/`携带同版受审运行模块与许可，不含第二个Skill入口。`tools/build_toolkit.py`正式构建只取精确Git归档；工作树诊断包单独标识。本轮Core必要修复为2.2.2，来源2.2.1；Trace为0.3.3，Toolkit为0.1.0。
+Core源码只在`snapgene-dna-design/`维护。开发入口复用兄弟目录，独立包在`vendor/dna-design-core/`携带同版运行模块与许可；一个顶层安装入口，下方是四个有清单的子Skill。`tools/build_toolkit.py`正式构建只取精确Git归档；工作树诊断包单独标识。块K第二阶段源码为Core 2.2.5、Trace 0.3.5、Toolkit 0.2.2，仍是独立开发候选，未并入既有冻结包。
+
+`core/kits.py`拥有通用发现、清单校验、describe、加载身份与注册恢复；`core/kit_contributions.py`把v2贡献适配到既有ToolSpec/复合Pipeline、候选验证及experience规则。Kit输入经原jsonschema验证，规则额外字段只在本次作用域存在。必跑Kit gate绑定实际候选版本并增加条件，原Core四个交付范围的判断不变；Core继承诊断接纳未实现。CRISPR不启用豁免，四个实际Kit未使用Pipeline模板。Core/Trace不登记具体项目Kit；ProjectContext、筛选表和项目样式留在Toolkit侧。英文对外架构段及证据边界见[Wiki片段](igem/kit-architecture-wiki-en.md)。
 
 ## 当前程序全景：谁决策、谁传数据、谁验收
 

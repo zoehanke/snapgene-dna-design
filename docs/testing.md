@@ -90,6 +90,8 @@ python -X utf8 -B tools/build_toolkit.py --out-dir output/toolkit-package
 
 `tools/verify_toolkit_kits.py --archive <zip> --source-commit <exact-sha> --out-dir <new-directory>`核验完整包：从空目录解包、逐文件对照实际Git源字节，只有既有第三方声明允许注明生成来源；清单外文件与缺失源映射在执行前拒绝。清除PYTHONPATH后，Core/Trace必须来自安装目录，目录页只暴露四个实际Kit。安装包自带的纯构造生成器决定DNA切片、PCR长度和计数预期，随后通过公共run_kit/verify读取实际文件、英文Trace与CRISPR三项gate。运行环境按包内固定依赖在独立venv安装。该验证属于开发组织的合成回归，不是自然请求路由或湿实验；原诊断包和失败探测保留。官方候选逐文件选择/排除及源码哈希由原build_official_candidate工具生成，不上传，不改官方main。
 
+候选必须经过实际Git提交/干净克隆再核对全部清单字节；只有导出目录哈希相等不够。真实官方许可证的CRLF blob会被广义LF属性重写，因此选包只在继承内容确含CRLF时追加模板/许可证保字节规则，记录原属性哈希和转换理由，许可证及CLAUDE/.claude原字节保留。独立字面CRLF回归和旧LF回归分别运行，不规范化验收哈希来放行。自然语言路由材料见`docs/kit-routing/`，开发者只检查结构，不运行选择评测，不给执行agent预期答案。
+
 开发者指定路线、改选检测窗口和宿主自主完成分别记录。真实材料例不等于陌生评测；局部PCR预测、来源记录、文件核验和湿实验结论也分别报告。报告浏览器及链接可用不替代真人理解试读。当前阶段及实际证据由Toolkit计划（原稿曾公开，现已移出当前树并完整私有备份；历史仍可见）拥有。
 
 记录源码提交、包清单/哈希、解释器、依赖、平台、实际后端、输入条件与人工介入。同平台精确复现可参考Skill内requirements-tested；跨平台或可选后端不沿用未经验证的保证。精确模型token不可得时写未知。
