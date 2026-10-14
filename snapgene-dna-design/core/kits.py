@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import ast
+import copy
 from dataclasses import dataclass
 import hashlib
 import importlib
@@ -153,7 +154,7 @@ class KitCatalog:
                              **k.receipt()} for k in self.kits.values()],
                     'errors': self.errors, 'extension_points': dict(EXTENSION_POINTS)}
         kit = self._require(name)
-        return {**kit.receipt(), 'manifest': kit.manifest,
+        return {**kit.receipt(), 'manifest': copy.deepcopy(kit.manifest),
                 'skill': str(kit.directory/'SKILL.md'), 'extension_points': dict(EXTENSION_POINTS)}
 
     def _require(self, name):
@@ -182,6 +183,8 @@ class KitCatalog:
         kit = self._require(name)
         if hashlib.sha256((kit.directory/'kit.json').read_bytes()).hexdigest() != kit.manifest_sha256:
             _fail('KIT_MANIFEST_CHANGED', 'Kit manifest changed after discovery; rediscover before loading.')
+        if self._read(kit.directory, kit.origin).manifest != kit.manifest:
+            _fail('KIT_MANIFEST_CHANGED', 'Kit descriptor changed after validation; rediscover before loading.')
         if kit.origin == 'external':
             print('External Kit '+kit.name+': loading Python code with host permissions from the supplied directory.', file=sys.stderr)
         from core.tools.registry import TOOL_REGISTRY, ToolSpec, register_tool
@@ -226,11 +229,14 @@ class KitCatalog:
             TOOL_REGISTRY.pop(tool_name, None)
         self._loaded.pop(name, None)
 
-    def run(self, name, inputs, out_dir):
+    def validate_inputs(self, name, inputs):
         kit = self._require(name)
         errors = list(Draft7Validator(kit.manifest['input_schema']).iter_errors(inputs))
         if errors:
             _fail('KIT_INPUT_INVALID', errors[0].message, field=list(errors[0].path))
+
+    def run(self, name, inputs, out_dir):
+        self.validate_inputs(name, inputs)
         result = self.load(name)(inputs, Path(out_dir))
         if not isinstance(result, dict):
             _fail('KIT_RESULT_INVALID', 'Kit entrypoint must return a JSON object.')

@@ -50,6 +50,8 @@ Pipeline, gate and rule contributions are **NOT_IMPLEMENTED** in phase 1; manife
 
 The caller controls explicit directories. Discovery reads package-local kits/ and explicit directories only, never downloads code, and does not search user home or neighboring repositories. Metadata discovery does not execute Python. Missing required fields, incompatible versions and missing entrypoints have separate diagnostics; a malformed neighbor does not hide valid Kits.
 
+The complete Kit CLI closes its loading recorder under kit-loading/ before calling a Kit-owned application/receipt boundary. Its domain Trace can then retain its established files and scopes. Atomic tool loading inside run_step is observed in that step's existing Trace. These are actual loading facts, not new scientific relationships. A local file URI can name a non-DNA configuration input; ordinary existing-file strings in the current step material collector denote DNA.
+
 ## SKILL.md template
 
 ```markdown

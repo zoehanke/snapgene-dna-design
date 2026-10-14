@@ -1,0 +1,8 @@
+{
+  "status": "SOURCED_GUIDANCE_ONLY; Kit rule contribution adapter NOT_IMPLEMENTED",
+  "rules": [
+    {"id": "supplied-region-scope", "statement": "Alignment and PCR conclusions cover only supplied selected records/regions.", "source": "scripts/workflow.py:run_identity checked_scope; original given-region workflow contract"},
+    {"id": "prediction-not-experiment", "statement": "Exact PCR predictions do not certify observed bands, genotype or genomic specificity.", "source": "scripts/workflow.py:run_identity unverified; existing Toolkit scientific contract"},
+    {"id": "full-quality-and-resolution", "statement": "Full oligo quality and an explicit size-resolution condition remain separate from predicted product presence.", "source": "scripts/workflow.py:run_identity and _discrimination; retained independent primer/region regression tests"}
+  ]
+}

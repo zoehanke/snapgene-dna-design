@@ -6,7 +6,7 @@ from evidence_trace import __version__
 from evidence_trace.process import assemble
 from evidence_trace.report import build_report, markdown
 from evidence_trace.storage import machine_json, expand_machine
-from evidence_trace.localization import ENGLISH, get_language, language_scope, tr
+from evidence_trace.localization import display_translations, get_language, language_scope, tr
 
 
 def render(directory, graph, formats="both", language=None):
@@ -22,7 +22,7 @@ def _render(directory, graph, formats):
     if graph.get("schema_version") != "design-process-v1":
         graph = assemble(graph.get("audit_events", []), graph.get("issues", []))
     graph["report"] = build_report(graph)
-    graph["report"].update(language=get_language(), ui_text=ENGLISH if get_language() == 'en' else {})
+    graph["report"].update(language=get_language(), ui_text=display_translations() if get_language() == 'en' else {})
     graph["report"]["available_formats"] = ["html", "markdown"] if formats == "both" else [formats]
     # Keep the complete compatibility machine view outside the offline reader.
     # The HTML needs readable details, not duplicate run inputs and event payloads.

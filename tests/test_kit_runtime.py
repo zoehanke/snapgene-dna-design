@@ -73,6 +73,10 @@ class KitRuntimeTests(unittest.TestCase):
         self.assertNotIn('TOY_IMPORT_EXECUTED',process.stderr)
         self.assertEqual(data['manifest_sha256'],hashlib.sha256((self.folder/'kit.json').read_bytes()).hexdigest())
         self.assertEqual(data['extension_points']['pipeline'],'NOT_IMPLEMENTED')
+        catalog=self.catalog()
+        description=catalog.describe('toy-math')
+        description['manifest']['name']='changed'
+        self.assertEqual(catalog.describe('toy-math')['manifest']['name'],'toy-math')
     def test_three_bad_neighbors_are_isolated(self):
         expected={'missing':'KIT_MANIFEST_INVALID','incompatible':'KIT_CORE_INCOMPATIBLE','entry':'KIT_ENTRY_MISSING'}
         for label in expected:
@@ -114,7 +118,7 @@ class KitRuntimeTests(unittest.TestCase):
         process,data=self.cli('run_kit.py','run','toy-math','--kit-dir',self.root,'--input',self.write_input({'number':9}),'--out-dir',self.root/'entry')
         self.assertEqual(process.returncode,0,process.stderr)
         self.assertEqual(json.loads((self.root/'entry/answer.json').read_text(encoding='utf-8')),{'doubled':18})
-        events=(self.root/'entry/evidence-trace/events.jsonl').read_text(encoding='utf-8')
+        events=(self.root/'entry/kit-loading/evidence-trace/events.jsonl').read_text(encoding='utf-8')
         self.assertIn('kit.load',events)
         self.assertIn('external',events)
     def test_unload_restores_registry_and_removed_directory_is_not_discovered(self):

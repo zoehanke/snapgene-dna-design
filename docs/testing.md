@@ -46,6 +46,8 @@ Coverage读取真实模块的行/分支及套件退出码，目标和阈值以[�
 
 Kit运行时第一阶段由`tests/test_kit_runtime.py`通过真实`run_kit.py`、`describe_tools.py`、`run_step.py`验证。仅测试生成的包外玩具Kit有独立整数算术预期；检查元数据查询不执行Python、三个坏邻居不影响正常Kit、命名空间、真实步骤文件、加载清单哈希/来源、写副作用在调用前被原分类门拒绝、移除恢复及UTF-8路径。类别声明不是OS沙箱。Core/Trace扫描具体项目标识与依赖，不把通用identity/evidence/construct词汇等同于具体Kit。Pipeline/gate/规则贡献仍NOT_IMPLEMENTED，官方GitLab CI未执行。
 
+Identity子Skill公开验收在`kits/identity/tests/test_contract.py`，由原完整runner的`tests/test_kit_identity_pilot.py`发现。独立固定种子/23 nt删除及3-prime破坏定义164/141 bp/无精确产物；检查实际run_kit文件、原verify回执及通过run_step调用的inspect工具。`tools/compare_kit_compatibility.py`保留原源码e7b1f16、所有失败/重试和原文件，通过原CLI main在相同输入/工作位置执行；只固定观察时钟与UUID，不替换科学计算。比较不忽略字段：原始字节，或JSON对象键顺序/指定源码前缀的结构比较，HTML其他内容不变。观察时间是软件比较控制量，不是实验记录。原科学模块迁移后字节哈希相同。
+
 Toolkit文件关系回归在`tests/test_toolkit_file_relations.py`：实际文件写入/读取、改名但同字节的输入、改后哈希不匹配、较晚记录的artifact，以及真实多步Construct公共CLI。供体640 bp预期由原target/cargo直接切片拼接；关系逐条绑定实际哈希事实，负例不补关系。现有公共Off/Observed/Full和normal/strict故障测试继续核查DNA、质量与文件语义；不改阅读界面。
 
 固定种子CRISPR夹具由`tests/crispr_synthetic_fixture.py`独立构造，无Core导入或私有材料读取。两种种子生成随机质粒/靶标/定位anchor，明确插反、左移一位后PAM末尾CG、注释链冲突、20 nt假CDS、重复靶标与PCR双核心复制，均配正确对照。`tests/test_crispr_synthetic_fixture.py`真实读取独立生成的native packet，经公共run_step保存文件并检查；PCR预期为原模板的已知环形区间加指定5-prime尾。只入库生成器和构造说明，DNA/结果在临时目录。随机promoter/scaffold仅作定位符，不认证其实验功能；这些是工程回归，不是陌生题或湿实验。

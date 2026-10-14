@@ -65,7 +65,17 @@ class GenomeRevivalPackageTests(unittest.TestCase):
         self.assertEqual(manifest['package_class'], 'frozen-source-candidate')
         self.assertTrue(manifest['git_archive'])
         with zipfile.ZipFile(self.build['archive']) as archive:
-            self.assertEqual(sum(Path(name).name.lower() == 'skill.md' for name in archive.namelist()), 1)
+            # One installed root, with manifest-defined sub-Skills underneath.
+            # A basename-only count incorrectly classified a nested Kit as a
+            # second installation after the explicit Kit/sub-Skill contract.
+            skill_entries=[name for name in archive.namelist() if Path(name).name.lower()=='skill.md']
+            self.assertEqual(skill_entries.count(PREFIX+'SKILL.md'),1)
+            for name in skill_entries:
+                if name==PREFIX+'SKILL.md':continue
+                relative=Path(name.removeprefix(PREFIX))
+                self.assertEqual(relative.parts[0],'kits')
+                self.assertEqual(len(relative.parts),3)
+                self.assertIn(PREFIX+str(relative.parent/'kit.json').replace('\\','/'),archive.namelist())
             self.assertFalse(any('/agents/' in name or '/fixtures/' in name for name in archive.namelist()))
             self.assertFalse(any(Path(name).suffix.lower() in ('.dna', '.gb', '.fasta', '.fa') for name in archive.namelist()))
             for entry in manifest['entries']:

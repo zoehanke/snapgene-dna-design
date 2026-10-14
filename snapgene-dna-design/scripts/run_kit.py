@@ -11,11 +11,24 @@ from core.errors import CoreError
 from evidence_trace.runtime import traced_run, add_trace_arguments, trace_options
 
 
-@traced_run('kit')
-def execute(name, inputs, out_dir, directories):
+@traced_run('kit.load')
+def load(catalog, name, out_dir):
+    catalog.load(name)
+    return catalog.describe(name)
+
+
+def execute(name, inputs, out_dir, directories, **options):
     catalog = KitCatalog(directories)
+    catalog.validate_inputs(name, inputs)
+    # Loading has its own facts. A Kit may retain an existing complete domain
+    # Trace/receipt boundary, which must not nest in our loading recorder.
+    loading = Path(out_dir) / 'kit-loading'
+    if options.get('trace_dir'):
+        options['trace_dir'] = str(Path(options['trace_dir']) / 'kit-loading')
+    metadata = load(catalog, name, loading, **options)
     result = catalog.run(name, inputs, out_dir)
-    return {'status': 'completed', 'kit': catalog.describe(name), 'result': result}
+    return {'status': 'completed', 'kit': metadata, 'result': result,
+            'loading_trace_directory': str(Path(options.get('trace_dir') or loading/'evidence-trace').resolve())}
 
 
 def main():

@@ -9,6 +9,15 @@ Toolkit 0.2.2 uses Core 2.2.5 and Evidence Trace 0.3.5. Use the four Kits throug
 
 Read `INSTALL-SOURCE.json` in this Skill root when present and use its verified interpreter. Otherwise install the listed dependencies and use the interpreter that passes the local checks. Do not search unrelated parent/test folders for installation records.
 
+## Kit directory
+
+- Given-reference region/PCR assessment: [Identity sub-Skill](kits/identity/SKILL.md), with its own manifest and sourced scope. This is the first local Kit API pilot.
+- Donor preparation and junction checks: Construct uses the retained workflow below.
+- Submitted observation/control comparison: Evidence uses the retained workflow below.
+- Guide-plasmid direction, replacement and planned preparation: CRISPR uses the retained workflow below.
+
+Only Identity is migrated in this phase. Its old subcommand and parameters remain available; the other three retain their current structure. Select from the descriptions and actual task, not from a presumed universal Kit route.
+
 For English summaries and Trace UI add `--language en` to a Kit command or `rebuild-report`. Original supplied statements stay unchanged; language does not change DNA, check statuses or relation evidence. Earlier rejected inputs remain earlier versions, not unresolved defects in the corrected molecule.
 
 1. Inspect actual materials with `python -X utf8 -B scripts/run_toolkit.py inspect --context project-context.json`. Context holds reference paths, explicit record/region selection, declared strains and source-labelled project facts. Relative material paths resolve from the context file. A reference filename does not establish an experimental strain or locus.

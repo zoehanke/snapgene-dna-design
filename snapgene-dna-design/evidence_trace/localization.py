@@ -436,6 +436,11 @@ def get_language():
     return _LANGUAGE.get()
 
 
+def display_translations():
+    """Current caller-owned display catalogue; no project names in the renderer."""
+    return {**ENGLISH, **(_TRANSLATIONS.get() or {})}
+
+
 def display(mapping, key, default=None):
     """Translate a known display enum, preserving unknown/source values."""
     return tr(mapping[key]) if key in mapping else default
@@ -457,7 +462,7 @@ def tr(text):
     if get_language() != 'en' or not isinstance(text, str):
         return text
     extra = _TRANSLATIONS.get()
-    entries = {**ENGLISH, **extra} if extra else ENGLISH
+    entries = display_translations() if extra else ENGLISH
     if text in entries:
         return entries[text]
     pairs = sorted(entries.items(), key=lambda pair: len(pair[0]), reverse=True) if extra else _ENTRIES

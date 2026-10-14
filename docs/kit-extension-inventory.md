@@ -46,4 +46,8 @@ Preserve the legacy Identity import/CLI and shared project reporting. New generi
 
 Only the tool contribution adapter is implemented in phase 1. Pipeline, gates and rules remain unsupported contributions, with explicit diagnostics. The test-only external toy Kit is generated in a temporary directory and is never shipped.
 
+Pilot validation found a generic seam limit: ordinary existing-file strings in step parameters are collected as DNA. The analytical tool therefore names its non-DNA project context with a local file URI, while the complete legacy entry retains its context_file argument. No sequence calculation/material collector is changed, and remote URI schemes are rejected. A later typed non-DNA input contract may replace this adapter.
+
+One obsolete package assertion counted every nested SKILL.md as another installed Skill. The explicit new sub-Skill requirement retains one top-level installable folder and permits only manifest-defined kits/*/SKILL.md below it. The corresponding package gate/test now check that structure; original payload/hash, private-material, vendor and real-CLI checks stay unchanged. This contract correction is recorded rather than hidden by omitting the pilot from tests.
+
 Official GitLab CI is not executed for this phase. Development GitHub CI must be bound to its actual final commit. No main or frozen candidate is changed.

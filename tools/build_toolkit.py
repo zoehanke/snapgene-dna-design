@@ -149,8 +149,15 @@ def _write_archive(out, snapshot, source_commit, *, diagnostic, baseline_commit=
     with zipfile.ZipFile(archive_path) as archive:
         if archive.testzip() is not None:
             raise ValueError('ZIP CRC check failed.')
-        if sum(Path(name).name.lower() == 'skill.md' for name in archive.namelist()) != 1:
-            raise ValueError('Package must contain exactly one Skill entry.')
+        skill_entries = [name for name in archive.namelist() if Path(name).name.lower() == 'skill.md']
+        if skill_entries.count(PREFIX + 'SKILL.md') != 1:
+            raise ValueError('Package must contain exactly one top-level installable Skill entry.')
+        for name in skill_entries:
+            if name == PREFIX + 'SKILL.md':
+                continue
+            relative = PurePosixPath(name.removeprefix(PREFIX))
+            if len(relative.parts) != 3 or relative.parts[0] != 'kits' or PREFIX + str(relative.parent / 'kit.json') not in archive.namelist():
+                raise ValueError('Nested sub-Skill must belong to a manifest-defined kits/ directory.')
         for entry in manifest['entries']:
             if hashlib.sha256(archive.read(PREFIX + entry['path'])).hexdigest().upper() != entry['sha256']:
                 raise ValueError('Package payload differs from manifest.')
