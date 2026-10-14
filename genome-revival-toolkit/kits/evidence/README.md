@@ -1,6 +1,6 @@
 # Revival Evidence Kit
 
-Use this Kit for submitted counts, controls and selected-region genotype records. The unchanged scripts/workflow.py performs record parsing and bounded comparisons. Identity handles sequence/PCR candidates, Construct prepares donors and CRISPR checks/prepares guide vectors.
+Use this Kit for submitted counts, controls and selected-region genotype records. scripts/workflow.py performs parsing and bounded comparisons; rules/conclusions.json owns the existing conclusion truth table, claim text, reasons and per-rule scope-contract sources. Identity handles sequence/PCR candidates, Construct prepares donors and CRISPR checks/prepares guide vectors.
 
 ## Inputs and run
 
@@ -18,4 +18,4 @@ Generated records are software test vectors. Arithmetic expectation is 30/50 min
 
 Inspect input structure, references, duplicates, controls, contradictions and explicit conclusion scopes. Results include result.json, context-snapshot.json, summary.md, TOOLKIT-RECEIPT.json and Trace when enabled. Keep original failure messages and missing values.
 
-rules/scope.json records existing guidance sources, not permission to waive checks. Submitted observations are not authenticated by the software. Colony growth, fluorescence or local genetic results do not prove causal revival or complete genome elimination. Official GitLab CI was not executed.
+rules/scope.json is guidance; rules/conclusions.json is loaded for the four existing count-present/genotype-tested states. Its sources are explicit project contracts, not empirical validation. It distinguishes NOT_TESTED from INSUFFICIENT and does not define sufficient proof of revival or genome elimination. No rule language or exemption is added. Submitted observations are not authenticated by the software. Colony growth, fluorescence or local genetic results do not prove causal revival or complete genome elimination. Official GitLab CI was not executed.

@@ -2,12 +2,22 @@
 from __future__ import annotations
 
 import csv
+import json
 from collections import defaultdict
 from pathlib import Path
 
 from evidence_trace.models import file_digest
 from evidence_trace.runtime import observe
 from revival import __version__
+
+CONCLUSION_RULES = json.loads((Path(__file__).resolve().parents[1]/'rules/conclusions.json').read_text(encoding='utf-8'))['rules']
+
+
+def conclusion_rows(observed_counts, tested_genotypes):
+    # A finite truth table for the two existing observation flags, not a DSL.
+    state = int(bool(observed_counts)) + 2 * int(bool(tested_genotypes))
+    return [{'claim': rule['claim'], 'status': rule['status_by_state'][state], 'reason': rule['reason']}
+            for rule in CONCLUSION_RULES]
 
 
 def read_observations(path):
@@ -122,10 +132,6 @@ def run_evidence(request, context, out_dir):
             'checks': [{'name': 'Submitted record structure and explicit references', 'status': 'PASSED' if reported else 'INCOMPLETE',
                         'tool': 'genome-revival-toolkit', 'tool_version': __version__,
                         'scope': 'Local parsing, nonnegative integer counts and reference correspondence; no experimental authentication.'}],
-            'conclusions': [
-                {'claim': 'Donor genome functional revival', 'status': 'INSUFFICIENT' if observed_counts or tested_genotypes else 'NOT_TESTED',
-                 'reason': 'Colony growth and selected markers alone do not establish donor-dependent restoration, exclude recipient growth, or identify the causal route.'},
-                {'claim': 'Complete host-genome elimination', 'status': 'INSUFFICIENT' if tested_genotypes else 'NOT_TESTED',
-                 'reason': 'Negative selected-region tests do not cover the complete genome.'}],
+            'conclusions': conclusion_rows(observed_counts,tested_genotypes),
             'checked_scope': 'Consistency and scope of supplied experimental records, not a new experiment.',
             'unverified': ['Experimental record authenticity.', 'Unmeasured genomic regions and functional dependencies.']}
