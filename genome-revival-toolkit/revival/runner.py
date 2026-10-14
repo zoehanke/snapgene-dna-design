@@ -105,6 +105,15 @@ def execute(request, context, out_dir, invocation, request_path):
     directory_parameter=application(kit)['manifest']['metadata'].get('request_directory_parameter')
     if directory_parameter:params[directory_parameter]=str(Path(request_path).resolve().parent)
     result = observe('toolkit.' + kit, function, params, context, Path(out_dir))
+    metadata=application(kit)['manifest']['metadata']
+    if metadata.get('gate_context_entry'):
+        from core.kit_contributions import evaluate_active_gates
+        from core.kits import KitCatalog
+        gate_context=application_function(kit,'gate_context_entry')(request,result,context,Path(out_dir))
+        results=evaluate_active_gates(**gate_context)
+        result['kit_gate_results']=results
+        if any(not row['passed'] for row in results) and result['status'] not in ('failed','incomplete'):
+            result['status']='failed'
     result.update(toolkit_version=__version__, core_version=CORE_VERSION, invocation=invocation,
                   report_title=request.get('title'),
                   report_scope=tr(application(kit)['manifest']['metadata']['scope']), report_unverified_scope=[tr(value) for value in application(kit)['manifest']['metadata']['limits']],
@@ -157,8 +166,21 @@ def verify_outputs(directory, expected_receipt_sha256=None):
 
 
 def run(kit, request_path, context_path, out_dir, *, trace_mode='normal', trace_dir=None, language='zh'):
-    with language_scope(language):
-        return _run(kit, request_path, context_path, out_dir, trace_mode=trace_mode, trace_dir=trace_dir)
+    from core.kits import KitCatalog
+    from core.kit_contributions import active_validation
+    app=application(kit)
+    active=active_validation()
+    if active and active['kit']['name']==app['manifest']['name']:
+        with language_scope(language):
+            return _run(kit,request_path,context_path,out_dir,trace_mode=trace_mode,trace_dir=trace_dir)
+    catalog=KitCatalog(bundled_directory=app['directory'].parent)
+    try:
+        with catalog.execution_scope(app['manifest']['name'],{'request_file':str(request_path),'context_file':str(context_path)}):
+            with language_scope(language):
+                result=_run(kit,request_path,context_path,out_dir,trace_mode=trace_mode,trace_dir=trace_dir)
+                active_validation()['terminal_status']=result['status']
+                return result
+    finally:catalog.unload(app['manifest']['name'])
 
 
 def _run(kit, request_path, context_path, out_dir, *, trace_mode='normal', trace_dir=None):

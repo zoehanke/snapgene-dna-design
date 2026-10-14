@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import ast
 import copy
+from contextlib import contextmanager
 from dataclasses import dataclass
 import hashlib
 import importlib
@@ -22,6 +23,7 @@ EXTENSION_POINTS = {
     'handlers': 'NOT_IMPLEMENTED', 'recipes': 'NOT_IMPLEMENTED',
     'contracts': 'NOT_IMPLEMENTED', 'references': 'NOT_IMPLEMENTED',
 }
+V2_EXTENSION_POINTS = {**EXTENSION_POINTS, 'pipeline':'IMPLEMENTED', 'gates':'IMPLEMENTED', 'rules':'IMPLEMENTED'}
 
 
 class KitError(CoreError):
@@ -78,8 +80,11 @@ class KitCatalog:
         self._loaded = {}
         self._registrations = {}
         self._bindings = {}
+        self._gates = {}
+        self._rules = {}
         self.core_version = core_version or (ROOT / 'VERSION').read_text(encoding='utf-8').strip()
-        self._schema = Draft7Validator(json.loads((ROOT / 'schemas/kit-v1.json').read_text(encoding='utf-8')))
+        self._schemas = {version:Draft7Validator(json.loads((ROOT / ('schemas/'+version+'.json')).read_text(encoding='utf-8')))
+                         for version in ('kit-v1','kit-v2')}
         bundled = Path(bundled_directory) if bundled_directory is not None else ROOT / 'kits'
         roots = [(bundled, 'bundled')] if bundled.exists() else []
         roots += [(Path(path), 'external') for path in directories]
@@ -109,7 +114,10 @@ class KitCatalog:
             data = json.loads(raw.decode('utf-8-sig'))
         except (OSError, UnicodeError, ValueError) as error:
             _fail('KIT_MANIFEST_INVALID', 'Kit manifest is missing or unreadable JSON.', reason=type(error).__name__)
-        errors = sorted(self._schema.iter_errors(data), key=lambda e: str(list(e.path)))
+        schema=self._schemas.get(data.get('schema_version')) if isinstance(data,dict) else None
+        if schema is None:
+            _fail('KIT_MANIFEST_INVALID','Kit manifest needs a supported schema_version (kit-v1 or kit-v2).')
+        errors = sorted(schema.iter_errors(data), key=lambda e: str(list(e.path)))
         if errors:
             first = errors[0]
             _fail('KIT_MANIFEST_INVALID', first.message, field=list(first.path))
@@ -134,29 +142,52 @@ class KitCatalog:
             _fail('KIT_INPUT_SCHEMA_INVALID', 'Kit input schema/example is invalid.', reason=type(error).__name__)
         _entry(directory, data['entrypoint'])
         names = set()
+        points=V2_EXTENSION_POINTS if data['schema_version']=='kit-v2' else EXTENSION_POINTS
         for contribution in data['contributions']:
             target = contribution['target']
-            if EXTENSION_POINTS[target] != 'IMPLEMENTED':
+            if points[target] != 'IMPLEMENTED':
                 _fail('KIT_CONTRIBUTION_UNSUPPORTED', 'Contribution point is not implemented in this phase.', target=target)
             if contribution['name'] in names:
                 _fail('KIT_TOOL_CONFLICT', 'Duplicate local tool contribution.', name=contribution['name'])
             names.add(contribution['name'])
-            _entry(directory, contribution['content']['entrypoint'])
+            content=contribution['content']
+            if not contribution['source'].strip():
+                _fail('KIT_CONTRIBUTION_SOURCE_MISSING','Every contribution needs a nonblank source.')
+            if target in ('tools','gates'):_entry(directory, content['entrypoint'])
             try:
-                Draft7Validator.check_schema(contribution['content']['parameters_schema'])
+                if target=='tools':Draft7Validator.check_schema(content['parameters_schema'])
+                if target=='pipeline':Draft7Validator.check_schema(content['inputs_schema'])
             except Exception as error:
                 _fail('KIT_TOOL_SCHEMA_INVALID', 'Contributed tool schema is invalid.', reason=type(error).__name__)
+            if target=='gates':
+                scopes=[row['scope'] for row in content['required_scopes']]
+                if len(scopes)!=len(set(scopes)):_fail('KIT_GATE_CONFLICT','Gate scopes must be unique.')
+                accepted=set()
+                for row in content.get('acceptances',[]):
+                    if row['scope'] not in scopes or row['scope'] in accepted or not row['source'].strip() or not row['reason'].strip():
+                        _fail('KIT_ACCEPTANCE_INVALID','Acceptance needs one declared scope, source and reason.')
+                    accepted.add(row['scope'])
+            if target=='rules':
+                from core.kit_contributions import rule_rows
+                path=(directory/content['path']).resolve()
+                if not path.is_relative_to(directory) or not path.is_file():_fail('KIT_RULE_MISSING','Rule file is missing or outside its Kit.')
+                try:rule_rows(path,content['fields'])
+                except CoreError as error:_fail(error.error_code,error.message,**error.details)
         return Kit(directory, data, hashlib.sha256(raw).hexdigest(), origin)
 
     def describe(self, name=None):
         if name is None:
             return {'kits': [{'name': k.name, 'version': k.manifest['version'],
-                             'tools': ['kit.'+k.name+'.'+c['name'] for c in k.manifest['contributions']],
+                             'tools': [self.contribution_name(k,c) for c in k.manifest['contributions'] if c['target'] in ('tools','pipeline')],
                              **k.receipt()} for k in self.kits.values()],
-                    'errors': self.errors, 'extension_points': dict(EXTENSION_POINTS)}
+                    'errors': self.errors, 'extension_points': dict(V2_EXTENSION_POINTS)}
         kit = self._require(name)
         return {**kit.receipt(), 'manifest': copy.deepcopy(kit.manifest),
-                'skill': str(kit.directory/'SKILL.md'), 'extension_points': dict(EXTENSION_POINTS)}
+                'skill': str(kit.directory/'SKILL.md'), 'extension_points': dict(V2_EXTENSION_POINTS if kit.manifest['schema_version']=='kit-v2' else EXTENSION_POINTS)}
+
+    @staticmethod
+    def contribution_name(kit,row):
+        return 'kit.'+kit.name+'.'+('' if row['target']=='tools' else row['target']+'.')+row['name']
 
     def _require(self, name):
         if name not in self.kits:
@@ -196,15 +227,29 @@ class KitCatalog:
         specs = []
         registered = []
         bindings = []
+        gates=[];rules=[]
         try:
             function = self._function(kit, kit.manifest['entrypoint'])
             for row in kit.manifest['contributions']:
                 content = row['content']
-                tool_name = 'kit.'+kit.name+'.'+row['name']
+                tool_name = self.contribution_name(kit,row)
+                if row['target']=='gates':
+                    gates.append({'name':tool_name,'content':copy.deepcopy(content),'source':row['source'],
+                                  'callable':self._function(kit,content['entrypoint'])})
+                    continue
+                if row['target']=='rules':
+                    from core.kit_contributions import rule_rows
+                    rules.append({'name':tool_name,'fields':content['fields'],'rows':rule_rows(kit.directory/content['path'],content['fields'])})
+                    continue
                 if tool_name in TOOL_REGISTRY:
                     _fail('KIT_TOOL_CONFLICT', 'Tool name already exists; no override.', name=tool_name)
-                specs.append(ToolSpec(tool_name, self._function(kit, content['entrypoint']),
-                    content['category'], row['description'], content['parameters_schema']))
+                if row['target']=='pipeline':
+                    from core.kit_contributions import pipeline_callable
+                    specs.append(ToolSpec(tool_name,pipeline_callable(content,lambda inputs:self.execution_scope(name,inputs)),'compute',row['description'],
+                        {'type':'object','properties':{'inputs':content['inputs_schema']}}))
+                else:
+                    specs.append(ToolSpec(tool_name, self._function(kit, content['entrypoint']),
+                        content['category'], row['description'], content['parameters_schema']))
             for spec in specs:
                 original = spec._function
                 module = sys.modules.get(original.__module__)
@@ -222,6 +267,8 @@ class KitCatalog:
         self._registrations[name] = registered
         self._bindings[name] = bindings
         self._loaded[name] = function
+        self._gates[name]=gates
+        self._rules[name]=rules
         from evidence_trace.runtime import observe_value
         observe_value('kit.load', kit.receipt())
         return function
@@ -241,6 +288,8 @@ class KitCatalog:
             TOOL_REGISTRY.pop(tool_name, None)
         self._restore_bindings(self._bindings.pop(name, []))
         self._loaded.pop(name, None)
+        self._gates.pop(name,None)
+        self._rules.pop(name,None)
 
     @staticmethod
     def _restore_bindings(bindings):
@@ -256,7 +305,14 @@ class KitCatalog:
 
     def run(self, name, inputs, out_dir):
         self.validate_inputs(name, inputs)
-        result = self.load(name)(inputs, Path(out_dir))
+        function=self.load(name)
+        with self.execution_scope(name,inputs):
+            result = function(inputs, Path(out_dir))
+            from core.kit_contributions import active_validation
+            context=active_validation()
+            context['terminal_status']=result.get('status') if isinstance(result,dict) else None
+            if isinstance(result,dict) and self._gates[name]:
+                result['kit_gate_results']=list(context['results'].values())
         if not isinstance(result, dict):
             _fail('KIT_RESULT_INVALID', 'Kit entrypoint must return a JSON object.')
         try:
@@ -266,3 +322,45 @@ class KitCatalog:
         except (TypeError, ValueError, OverflowError, RecursionError) as error:
             _fail('KIT_RESULT_INVALID', 'Kit entrypoint must return a JSON object with finite JSON values.', reason=type(error).__name__)
         return result
+
+    @contextmanager
+    def execution_scope(self,name,inputs):
+        from core.kit_contributions import validation_scope,active_validation
+        if name not in self._loaded:self.load(name)
+        active=active_validation()
+        receipt=self._require(name).receipt()
+        parent=active if active and active['kit']==receipt else None
+        with validation_scope(receipt,inputs,self._gates[name]) as context:
+            try:yield
+            finally:
+                if parent:
+                    parent['evaluated'].update(context['evaluated'])
+                    parent['results'].update(context['results'])
+            missing=[gate['name'] for gate in context['gates'] if gate['name'] not in context['evaluated']]
+            if missing:_fail('KIT_GATE_NOT_EXECUTED','A declared mandatory gate was not executed.',gates=missing)
+            if context.get('terminal_status') not in ('failed','incomplete','blocked'):
+                from core.kit_contributions import require_gate_results
+                require_gate_results(context['results'].values())
+
+    def gate(self,name,gate_name,*,candidate,sources,requirements=None,steps=(),inputs=None):
+        from core.kit_contributions import evaluate_gate
+        self.load(name)
+        target=next((gate for gate in self._gates[name] if gate['name'].endswith('.'+gate_name)),None)
+        if target is None:_fail('KIT_GATE_NOT_FOUND','Declared gate is not available.',name=gate_name)
+        return evaluate_gate(target,candidate=candidate,sources=sources,requirements=requirements,steps=steps,inputs=inputs)
+
+    def rules(self,name,rule_name=None):
+        kit=self._require(name)
+        from core.kit_contributions import rule_rows
+        result=[]
+        for row in kit.manifest['contributions']:
+            if row['target']=='rules' and (rule_name is None or row['name']==rule_name):
+                result.append({'name':self.contribution_name(kit,row),'fields':row['content']['fields'],
+                              'rows':rule_rows(kit.directory/row['content']['path'],row['content']['fields'])})
+        return result
+
+    def evaluate_rules(self,name,rule_name,trigger,context):
+        from core.kit_contributions import evaluate_rule_rows
+        entries=self.rules(name,rule_name)
+        if not entries:_fail('KIT_RULE_NOT_FOUND','Declared rule contribution is not available.',name=rule_name)
+        return evaluate_rule_rows(entries[0]['rows'],entries[0]['fields'],trigger,context,name)

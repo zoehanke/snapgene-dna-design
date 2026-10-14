@@ -1,5 +1,5 @@
 {
-  "schema_version": "kit-v1",
+  "schema_version": "kit-v2",
   "name": "genome-crispr",
   "version": "0.1.0",
   "core_version": {
@@ -125,7 +125,46 @@
       "TOOLKIT-RECEIPT.json"
     ]
   },
-  "contributions": [],
+  "contributions": [
+    {
+      "target": "rules",
+      "name": "selection",
+      "description": "Existing conditional marker/host mappings with row sources.",
+      "source": "rules/selection.json host_sources; retained published/source-labelled mapping.",
+      "content": {
+        "path": "rules/selection.json",
+        "fields": [
+          "marker_id"
+        ]
+      }
+    },
+    {
+      "target": "gates",
+      "name": "guide",
+      "description": "Mandatory actual direction, PAM and supplied-vector checks.",
+      "source": "scripts/workflow.py existing readiness checks and Core check_grna/check_grna_vector.",
+      "content": {
+        "entrypoint": "scripts/gates.py:evaluate",
+        "required_scopes": [
+          {
+            "scope": "direction",
+            "error_code": "KIT_GUIDE_DIRECTION",
+            "message": "Sequence direction must be correct and distinguishable at one supplied target locus."
+          },
+          {
+            "scope": "pam",
+            "error_code": "KIT_GUIDE_PAM",
+            "message": "One actual supplied target locus must have a valid PAM."
+          },
+          {
+            "scope": "vector_self_target",
+            "error_code": "KIT_VECTOR_SELF_TARGET",
+            "message": "The supplied candidate vector must have no match within the declared screen."
+          }
+        ]
+      }
+    }
+  ],
   "metadata": {
     "command": "crispr",
     "order": 3,
@@ -169,6 +208,7 @@
     "trace_skip": [],
     "trace_strip_prefix": "",
     "legacy_module": "revival.crispr",
-    "cli_description": "CRISPR plasmid preparation"
+    "cli_description": "CRISPR plasmid preparation",
+    "gate_context_entry": "scripts/gates.py:context_for_result"
   }
 }

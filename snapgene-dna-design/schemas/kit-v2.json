@@ -1,0 +1,343 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Local Kit manifest v2: existing tool/Pipeline/gate/rule adapters",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "name",
+    "version",
+    "core_version",
+    "input_schema",
+    "input_example",
+    "entrypoint",
+    "outputs",
+    "contributions"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "kit-v2"
+    },
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{0,63}$"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "core_version": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "minimum",
+        "maximum_exclusive"
+      ],
+      "properties": {
+        "minimum": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+        },
+        "maximum_exclusive": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+        }
+      }
+    },
+    "input_schema": {
+      "type": "object"
+    },
+    "input_example": {
+      "type": "object"
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Kit-owned application/presentation data; Core does not interpret project concepts."
+    },
+    "entrypoint": {
+      "$ref": "#/definitions/entrypoint"
+    },
+    "outputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contract",
+        "files"
+      ],
+      "properties": {
+        "contract": {
+          "const": "json-object"
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        }
+      }
+    },
+    "contributions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "target",
+          "name",
+          "content",
+          "source",
+          "description"
+        ],
+        "properties": {
+          "target": {
+            "enum": [
+              "tools",
+              "pipeline",
+              "gates",
+              "rules",
+              "handlers",
+              "recipes",
+              "contracts",
+              "references"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,63}$"
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          },
+          "source": {
+            "type": "string",
+            "minLength": 1
+          },
+          "content": {
+            "type": "object"
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "target": {
+                  "const": "tools"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "content": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "entrypoint",
+                    "category",
+                    "parameters_schema"
+                  ],
+                  "properties": {
+                    "entrypoint": {
+                      "$ref": "#/definitions/entrypoint"
+                    },
+                    "category": {
+                      "enum": [
+                        "compute",
+                        "inspect",
+                        "write",
+                        "external",
+                        "network"
+                      ]
+                    },
+                    "parameters_schema": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "target": {
+                  "const": "pipeline"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "content": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "steps",
+                    "inputs_schema"
+                  ],
+                  "properties": {
+                    "steps": {
+                      "type": "array",
+                      "minItems": 1,
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "step_id",
+                          "tool",
+                          "params"
+                        ],
+                        "properties": {
+                          "step_id": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "tool": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "params": {
+                            "type": "object"
+                          }
+                        }
+                      }
+                    },
+                    "inputs_schema": {
+                      "type": "object"
+                    },
+                    "output_step": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "target": {
+                  "const": "gates"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "content": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "entrypoint",
+                    "required_scopes"
+                  ],
+                  "properties": {
+                    "entrypoint": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z_][A-Za-z0-9_/]*\\.py:[A-Za-z_][A-Za-z0-9_]*$"
+                    },
+                    "required_scopes": {
+                      "type": "array",
+                      "minItems": 1,
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "scope",
+                          "error_code",
+                          "message"
+                        ],
+                        "properties": {
+                          "scope": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "error_code": {
+                            "type": "string",
+                            "pattern": "^[A-Z][A-Z0-9_]+$"
+                          },
+                          "message": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        }
+                      }
+                    },
+                    "acceptances": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "scope",
+                          "source",
+                          "reason"
+                        ],
+                        "properties": {
+                          "scope": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "source": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "reason": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "target": {
+                  "const": "rules"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "content": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "path",
+                    "fields"
+                  ],
+                  "properties": {
+                    "path": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z_][A-Za-z0-9_/-]*\\.json$"
+                    },
+                    "fields": {
+                      "type": "array",
+                      "uniqueItems": true,
+                      "items": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "entrypoint": {
+      "type": "string",
+      "pattern": "^[A-Za-z_][A-Za-z0-9_/]*\\.py:[A-Za-z_][A-Za-z0-9_]*$"
+    }
+  }
+}

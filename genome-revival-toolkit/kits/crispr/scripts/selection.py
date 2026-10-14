@@ -1,38 +1,51 @@
 """Source-labelled selection mapping from actual, complete annotated CDSs."""
 import re
+import hashlib
+from functools import lru_cache
 
 from core.tools.inspection import inspect_dna
+from core.kits import KitCatalog
+from pathlib import Path
 from core.tools.sequence_ops import validate_cds_feature
 
 
-SOURCES = {
-    'NEB': {'source_type': 'manufacturer', 'name': 'NEB Turbo competent E. coli: antibiotics for plasmid selection',
-            'url': 'https://www.neb.com/en-us/products/c2986-neb-turbo-electrocompetent-e-coli',
-            'retrieved_at': '2026-10-14', 'verification_status': 'verified'},
-    'pRS': {'source_type': 'peer_reviewed_paper', 'name': 'Chee and Haase, G3 2012, redesigned pRS vectors',
-            'url': 'https://pmc.ncbi.nlm.nih.gov/articles/PMC3362935/',
-            'retrieved_at': '2026-10-14', 'verification_status': 'verified'},
-    'SGD': {'source_type': 'curated_database', 'name': 'SGD commonly used auxotrophic markers',
-            'url': 'https://wiki.yeastgenome.org/index.php/Commonly_used_auxotrophic_markers',
-            'retrieved_at': '2026-10-14', 'verification_status': 'verified'},
-}
+
 # These are documented gene/cassette aliases, not plasmid identities. Selection
 # is host-dependent; CDS structure never proves expression or resistance.
-MARKERS = [
-    ('amp', r'ampr|ampicillin|bla(?:tem\d*)?|beta-lactamase', {'ecoli': ('LB + ampicillin', 'NEB')}, None),
-    ('kan', r'kanr|kanmx\d*|kanamycin', {'ecoli': ('LB + kanamycin', 'NEB'), 'yeast': ('G418 selection medium', 'pRS')}, None),
-    ('cat', r'cmr|camr|cat|chloramphenicol', {'ecoli': ('LB + chloramphenicol', 'NEB')}, None),
-    ('hph', r'hygr|hygromycin|hph(?:nt\d+|mx\d*)?', {'yeast': ('Hygromycin B selection medium', 'pRS')}, None),
-    ('nat', r'natmx\d*|nourseothricin', {'yeast': ('Nourseothricin selection medium', 'pRS')}, None),
-    ('ura3', r'ura3', {'yeast': ('Synthetic defined medium without uracil', 'pRS')}, 'ura3'),
-    ('his3', r'his3', {'yeast': ('Synthetic defined medium without histidine', 'SGD')}, 'his3'),
-    ('leu2', r'leu2', {'yeast': ('Synthetic defined medium without leucine', 'SGD')}, 'leu2'),
-    ('trp1', r'trp1', {'yeast': ('Synthetic defined medium without tryptophan', 'SGD')}, 'trp1'),
-]
+
+
+
+
+def mapping_rows():
+    directory=Path(__file__).resolve().parents[1]
+    digest=hashlib.sha256((directory/'rules/selection.json').read_bytes()).hexdigest()
+    return _mapping_rows(digest)
+
+
+@lru_cache(maxsize=1)
+def _mapping_rows(rule_file_sha256):
+    directory=Path(__file__).resolve().parents[1]
+    catalog=KitCatalog([directory])
+    entries=catalog.rules('genome-crispr','selection')
+    mappings=[]
+    for rule in entries[0]['rows']:
+        marker=rule['action']['value']['marker_id']
+        evaluated=catalog.evaluate_rules('genome-crispr','selection','before_culture_plan',{'marker_id':marker})
+        if evaluated['diagnostics']:raise ValueError('Selection rules have unresolved diagnostics.')
+        mappings.extend(hit['action']['value'] for hit in evaluated['hits'])
+    return mappings
+
+
+def marker_mappings():
+    return [(row['marker_id'],row['pattern'],row['hosts'],row['auxotrophy']) for row in mapping_rows()]
+
+
+def mapping_sources():
+    return {key:value for row in mapping_rows() for key,value in row['sources'].items()}
 
 
 def marker_ids(name):
-    return [key for key, pattern, _, _ in MARKERS
+    return [key for key, pattern, _, _ in marker_mappings()
             if re.search(r'(?<![a-z0-9])(?:' + pattern + r')(?![a-z0-9])', name, re.I)]
 
 
@@ -75,7 +88,7 @@ def selection_report(vector, genotype=None):
             conflicts.append({'code': 'SELECTION_MARKER_ANNOTATION_CONFLICT', 'name': name,
                               'feature_index': index, 'message': 'Annotation may be incorrect; no plate inferred.'})
             continue
-        key, _, alternatives, requirement = next(row for row in MARKERS if row[0] == keys[0])
+        key, _, alternatives, requirement = next(row for row in marker_mappings() if row[0] == keys[0])
         compatibility = 'UNKNOWN'
         reason = '未提供基因型，无法判断兼容性' if not genotype else 'Declared host or relevant marker background is incomplete.'
         if host is not None and host not in alternatives:
@@ -89,7 +102,7 @@ def selection_report(vector, genotype=None):
                 compatibility, reason = 'CONFLICT', 'The declared background does not supply the required auxotrophy.'
             else:
                 compatibility, reason = 'DECLARED_COMPATIBLE', 'Conditional on the user-declared background; phenotype NOT_TESTED.'
-        choices = [{'host': species, 'plate': plate, 'source': SOURCES[source],
+        choices = [{'host': species, 'plate': plate, 'source': mapping_sources()[source],
                     'compatibility': compatibility if species == host else 'UNKNOWN',
                     'reason': reason if species == host else 'No explicit genotype for this host was supplied.'}
                    for species, (plate, source) in alternatives.items()]

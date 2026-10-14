@@ -330,5 +330,7 @@ def validate_candidate(requirements,sources,steps,candidate,*,primers=None,files
             'requirements':requirements,'conditions':runtime_conditions(),'primers':primers or [],'sanity_context':context,'sanity_check':sanity,
             'steps_sha256':_digest([_step(s).to_dict() for s in steps]),'artifact_hashes':hashes,'file_paths':{k:str(v) for k,v in (files or {}).items()},
             'required_scopes':required,'result_kind':result_kind,'output_step':output_step,'product_index':product_index}
+    from core.kit_contributions import apply_validation_gates
+    apply_validation_gates(result,candidate=material,sources=sources,requirements=requirements,steps=steps)
     result['validation_sha256']=_digest(result)
     return result

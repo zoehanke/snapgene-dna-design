@@ -1,6 +1,6 @@
 # Kit contract and how to add a Kit
 
-Phase 1 draft. A Kit is a local sub-Skill and a manifest-defined contribution to the DNA Core. It is not an independent DNA engine or a promise of compatibility with arbitrary third-party code. The installed runtime must provide Kit API v1; the stable Core version range alone does not make older releases acquire this API.
+A Kit is a local sub-Skill and a manifest-defined contribution to the DNA Core. It is not an independent DNA engine or a promise of compatibility with arbitrary third-party code. The installed runtime must support the manifest's Kit API version; a numeric Core version range alone does not make an older runtime acquire that API.
 
 ## Layout and responsibility
 
@@ -18,15 +18,15 @@ kits/example/
 
 SKILL.md describes when the host should select the Kit and the supported scientific scope. kit.json owns machine fields. Shared domain context/reporting code belongs on the Kit side; the Core knows only this interface. Existing DNA algorithms remain in Core.
 
-A complete Skill distribution can assemble Core runtime code and Kits at build time, from the same source. This phase does not build a release or a single-Kit package.
+A complete Skill distribution assembles Core runtime code and Kits at build time, from the same source. Individual-Kit packaging is outside this phase.
 
 ## Manifest fields
 
-The executable shape is [schemas/kit-v1.json](../schemas/kit-v1.json). JSON text uses UTF-8. No user DNA, personal absolute path or credentials belong in a committed manifest/example.
+Executable shapes are [kit-v1](../schemas/kit-v1.json) for the original tool-only contract and [kit-v2](../schemas/kit-v2.json) for tools, Pipeline templates, gates and rules. JSON text uses UTF-8. No user DNA, personal absolute path or credentials belong in a committed manifest/example.
 
 | Field | Meaning |
 |---|---|
-| schema_version | `kit-v1`; incompatible versions are rejected. |
+| schema_version | `kit-v1` or `kit-v2`; unknown versions are rejected. v1 retains its original tool-only behavior. |
 | name / version | Local stable identifier and numeric `major.minor.patch` Kit version. |
 | core_version | `minimum` inclusive and `maximum_exclusive`; numeric stable three-part Core versions, with minimum less than maximum. No implicit wildcard/prerelease rules. |
 | input_schema | Existing Draft 7 JSON Schema, describing an object. Unknown fields should have an explicit policy. |
@@ -34,10 +34,21 @@ The executable shape is [schemas/kit-v1.json](../schemas/kit-v1.json). JSON text
 | entrypoint | Kit-relative Python file and module-level function, e.g. `scripts/run.py:run`; the function accepts `(inputs, out_dir)` and returns a JSON object. Non-JSON values, non-string object keys and nonfinite numbers receive KIT_RESULT_INVALID. Paths stay inside the Kit. |
 | outputs | `contract: json-object`, plus declared relative file roles/names. This declaration does not itself validate DNA or authorize delivery. |
 | contributions | Rows with `target`, local `name`, `content`, `source` and `description`. Sources explain where the rule/capability comes from; they are not automatic verification. |
+| metadata | Opaque application-owned declaration. Core does not interpret project-specific fields or register project names. |
 
-Phase 1 supports only `target: tools`. Its content contains an entrypoint, a side-effect category and parameters_schema. The effective name is `kit.<Kit-name>.<tool-name>`. Existing ToolSpec checks signature, aliases, parameters and ToolResult; the existing run_step gate rejects write/network/external categories. Imported Python is not sandboxed, and an inaccurate category cannot make unsafe code safe.
+For `target: tools`, content contains an entrypoint, a side-effect category and parameters_schema. The effective name is `kit.<Kit-name>.<tool-name>`. Existing ToolSpec checks signature, aliases, parameters and ToolResult; the existing run_step gate rejects write/network/external categories. Imported Python is not sandboxed, and an inaccurate category cannot make unsafe code safe.
 
-Pipeline, gate and rule contributions are **NOT_IMPLEMENTED** in phase 1; manifests requesting them receive an explicit unsupported-contribution error. Handler, Recipe, data-contract and reference adapters are also deferred. The catalog reports this support table rather than implying all seams are extensible. This phase uses a tool-shaped content definition only; later adapters need their own typed shapes rather than pretending every seam is a tool.
+v2 adds three typed adapters into existing seams:
+
+| target | content and execution boundary |
+|---|---|
+| pipeline | `steps` is the existing linear `step_id/tool/params` list; `inputs_schema` validates host-supplied inputs; optional `output_step` uses the existing product selector. Effective ToolSpec name is `kit.<name>.pipeline.<local-name>`. Existing composite Pipeline executes it, including the original side-effect gate. Conditions remain Kit Python. |
+| gates | `entrypoint` returns current-version scoped check rows. `required_scopes` supplies scope/error_code/message. Missing execution, missing scopes or failed checks block a successful Kit result. Active Kit requirements are added to candidate validation; original Core judgments are retained. |
+| rules | `path` names UTF-8 JSON in the existing experience-rule grammar; `fields` explicitly declares extra local context fields. Every row needs a nonblank source type and description or URL. Evaluation uses the original rule engine and restores local fields afterwards. |
+
+Optional gate `acceptances` require an explicit Kit-owned scope, nonblank source and reason. A failed row must bind the actual input identifier/version before receiving effective status ACCEPTED_BY_KIT_RULE. Output and Trace retain its raw FAILED status, source, reason and notice “按 Kit 规则豁免”. This cannot accept original Core inherited diagnoses or clear Core errors. An input-template annotation error can therefore still prevent formal delivery. This phase demonstrates acceptance with a toy only; the project CRISPR Kit enables none.
+
+Handler, Recipe, data-contract and reference adapters remain **NOT_IMPLEMENTED**. All four current project Kits keep their established conditional workflows; none uses a contributed Pipeline template. A temporary external toy proves that adapter.
 
 ## Shortest addition workflow
 

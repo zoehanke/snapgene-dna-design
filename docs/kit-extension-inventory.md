@@ -51,3 +51,11 @@ Pilot validation found a generic seam limit: ordinary existing-file strings in s
 One obsolete package assertion counted every nested SKILL.md as another installed Skill. The explicit new sub-Skill requirement retains one top-level installable folder and permits only manifest-defined kits/*/SKILL.md below it. The corresponding package gate/test now check that structure; original payload/hash, private-material, vendor and real-CLI checks stay unchanged. This contract correction is recorded rather than hidden by omitting the pilot from tests.
 
 Official GitLab CI is not executed for this phase. Development GitHub CI must be bound to its actual final commit. No main or frozen candidate is changed.
+
+## Phase 2 adapter status
+
+The baseline table above is retained as evidence. Phase 2 adds kit-v2 typed adapters: tools still use ToolSpec; Pipeline templates use the existing composite executor; required Kit gates add current-version checks at the selected Kit execution/validation boundaries; sourced rules use the existing experience grammar with temporary declared fields. v1 retains its original tool-only contract. Handler, Recipe, task/result-contract and reference adapters remain unimplemented.
+
+All four project Kits now own their manifests, scientific code and presentation declarations. Shared revival dispatch discovers those declarations instead of maintaining a Kit list. CRISPR uses gates and sourced selection rules. None of the four uses a Pipeline template; a temporary external toy proves that adapter without altering conditional scientific workflows.
+
+Explicit acceptance is limited to Kit-owned check scopes. Raw failures, bound input versions, source/reason and notice are retained. Original Core diagnoses and delivery judgments cannot be accepted through this adapter; an inherited input annotation error can still block delivery. No project Kit enables acceptance. Original Core inherited-diagnosis acceptance remains a future user decision requiring separate implementation and verification.

@@ -15,9 +15,20 @@ import json
 import pathlib
 import tempfile
 import uuid
+from contextlib import contextmanager
+from contextvars import ContextVar
 
 
 SCHEMA_VERSION = "1.0.0"
+_EXTERNAL_FIELDS = ContextVar('experience_external_fields',default=frozenset())
+
+
+@contextmanager
+def field_scope(fields):
+    """Caller-declared fields are scoped; ordinary built-in rules do not change."""
+    token=_EXTERNAL_FIELDS.set(frozenset(fields)|_EXTERNAL_FIELDS.get())
+    try:yield
+    finally:_EXTERNAL_FIELDS.reset(token)
 ALLOWED_TRIGGERS = {
     "assembly_feasibility",
     "before_protocol_recommendation",
@@ -227,7 +238,7 @@ def validate_condition(condition, path="when"):
         return errors
     field = condition.get("field")
     operator = condition.get("operator")
-    if field not in KNOWN_FIELDS:
+    if field not in KNOWN_FIELDS and field not in _EXTERNAL_FIELDS.get():
         errors.append("%s unknown field: %s" % (path, field))
     if operator not in ALLOWED_OPERATORS:
         errors.append("%s unsupported operator: %s" % (path, operator))

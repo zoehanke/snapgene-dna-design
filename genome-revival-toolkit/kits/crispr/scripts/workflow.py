@@ -101,6 +101,7 @@ def run_crispr(request, context, out_dir):
     failed = any(row['status'] == 'FAILED' for row in checks)
     status = 'delivered' if delivery else 'analysed' if ready else 'failed' if failed else 'incomplete'
     return {'kit': 'crispr', 'status': status,
+        '_kit_gate_context': {'candidate':candidate,'sources':sources},
         'summary': ('Current sequence and conditional selection checks completed.' if ready else
                     'Candidate retained; failed or unresolved checks prevent a complete handoff.'),
         'checked_scope': 'Given target/vector, sequence direction and PAM, simulated preparation and user-declared selection background.',

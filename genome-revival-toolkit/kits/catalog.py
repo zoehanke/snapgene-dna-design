@@ -11,8 +11,8 @@ ROOT=Path(__file__).resolve().parent
 @lru_cache(maxsize=1)
 def applications():
     catalog=KitCatalog([ROOT])
-    if catalog.errors:
-        raise ValueError('Toolkit Kit metadata is invalid: '+str(catalog.errors))
+    # Invalid neighbors remain visible through Core catalog diagnostics; they
+    # do not hide the other valid applications.
     result={}
     kits=sorted(catalog.kits.values(),key=lambda k:k.manifest.get('metadata',{}).get('order',999))
     for kit in kits:
