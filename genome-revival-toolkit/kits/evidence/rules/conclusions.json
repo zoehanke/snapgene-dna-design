@@ -1,0 +1,33 @@
+{
+  "schema_version": "evidence-conclusion-table-v1",
+  "state_index": [
+    {"index": 0, "observed_counts": false, "tested_genotypes": false},
+    {"index": 1, "observed_counts": true, "tested_genotypes": false},
+    {"index": 2, "observed_counts": false, "tested_genotypes": true},
+    {"index": 3, "observed_counts": true, "tested_genotypes": true}
+  ],
+  "rules": [
+    {
+      "id": "functional-revival-scope",
+      "claim": "Donor genome functional revival",
+      "status_by_state": ["NOT_TESTED", "INSUFFICIENT", "INSUFFICIENT", "INSUFFICIENT"],
+      "reason": "Colony growth and selected markers alone do not establish donor-dependent restoration, exclude recipient growth, or identify the causal route.",
+      "source": {
+        "type": "project_contract",
+        "reference": "specs/genome-revival-toolkit.md: supported scope and evidence limits",
+        "description": "Existing bounded assessment policy. This table preserves the original conclusion truth table; it does not define sufficient experimental evidence or certify a mechanism."
+      }
+    },
+    {
+      "id": "whole-genome-elimination-scope",
+      "claim": "Complete host-genome elimination",
+      "status_by_state": ["NOT_TESTED", "NOT_TESTED", "INSUFFICIENT", "INSUFFICIENT"],
+      "reason": "Negative selected-region tests do not cover the complete genome.",
+      "source": {
+        "type": "project_contract",
+        "reference": "specs/genome-revival-toolkit.md: local genetic assessment boundary",
+        "description": "Existing project scope contract, not a new biological model. A reported local assay cannot establish a whole-genome claim."
+      }
+    }
+  ]
+}

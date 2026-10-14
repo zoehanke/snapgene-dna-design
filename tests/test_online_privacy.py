@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 """RG-P0-01: online source adapters must never leak sequence without consent."""
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import json
 import pathlib
 import sys
@@ -7,7 +9,7 @@ import unittest
 from unittest import mock
 
 HERE = pathlib.Path(__file__).resolve().parent
-ROOT = HERE.parent
+ROOT = SKILL_ROOT
 sys.path.insert(0, str(ROOT / "scripts"))
 
 import online_sources  # noqa: E402

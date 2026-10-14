@@ -1,0 +1,60 @@
+# Validate source and build an installable candidate. No deployment jobs.
+image: python:3.12.4-slim-bookworm
+
+stages:
+  - prepare
+  - test
+  - package
+
+variables:
+  PYTHONUTF8: "1"
+  PYTHONDONTWRITEBYTECODE: "1"
+  SNAPGENE_RUN_PRIMER3: "1"
+
+default:
+  before_script:
+    - apt-get update
+    - apt-get install -y --no-install-recommends git nodejs
+    - python -m pip install --find-links .ci-wheels --requirement snapgene-dna-design/requirements-tested.txt
+
+prepare-dependencies:
+  stage: prepare
+  before_script: []
+  script:
+    - apt-get update
+    # Build native dependencies once on the same Python image and runner platform.
+    - apt-get install -y --no-install-recommends build-essential
+    - python -m pip wheel --requirement snapgene-dna-design/requirements-tested.txt --wheel-dir .ci-wheels
+  artifacts:
+    paths:
+      - .ci-wheels/primer3_py-*.whl
+    expire_in: 1 day
+
+test:
+  stage: test
+  # Disjoint shards retain the full suite within the shared runner's limit.
+  parallel: 8
+  timeout: 10m
+  dependencies:
+    - prepare-dependencies
+  script:
+    - python -X utf8 -B tools/run_test_suite.py --shard-count "$CI_NODE_TOTAL" --shard-index "$CI_NODE_INDEX" --verbose --report-json "ci-reports/shard-${CI_NODE_INDEX}.json"
+
+  artifacts:
+    when: always
+    paths:
+      - ci-reports/*.json
+    expire_in: 7 days
+
+package:
+  stage: package
+  dependencies:
+    - prepare-dependencies
+  script:
+    - python -X utf8 -B tools/build_toolkit.py --out-dir dist
+  artifacts:
+    name: "genome-revival-toolkit-${CI_COMMIT_SHORT_SHA}"
+    paths:
+      - dist/*.zip
+      - dist/*manifest*.json
+      - dist/*MANIFEST*.json

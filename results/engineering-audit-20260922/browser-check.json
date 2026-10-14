@@ -1,0 +1,36 @@
+{
+  "method": "headless CLI, disposable HTML harness; no debugging port",
+  "runs": [
+    {
+      "passed": true,
+      "sizes": {
+        "width": 1410,
+        "documentWidth": 1395,
+        "height": 905
+      },
+      "checks": [
+        "demo",
+        "human file detail",
+        "drawer",
+        "shared selection",
+        "mobile menu if narrow"
+      ]
+    },
+    {
+      "passed": true,
+      "sizes": {
+        "width": 504,
+        "documentWidth": 489,
+        "height": 905
+      },
+      "checks": [
+        "demo",
+        "human file detail",
+        "drawer",
+        "shared selection",
+        "mobile menu if narrow"
+      ]
+    }
+  ],
+  "human_comprehension_test": false
+}

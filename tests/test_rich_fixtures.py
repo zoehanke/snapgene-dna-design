@@ -6,12 +6,15 @@ Covers the v0.5 formal gate checklist: forward/reverse CDS, CompoundLocation
 Fixtures are fully synthetic (``fixtures/rich/``), so they are safe for both
 the academic-full and the redistributable packages.
 """
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import pathlib
 import sys
 import unittest
+from unittest import mock
 
 HERE = pathlib.Path(__file__).resolve().parent
-ROOT = HERE.parent
+ROOT = SKILL_ROOT
 SCRIPTS = ROOT / "scripts"
 FIXTURES = ROOT / "fixtures" / "rich"
 sys.path.insert(0, str(SCRIPTS))
@@ -37,8 +40,9 @@ class RichFixtureRoundTripTests(unittest.TestCase):
             if not fixture.exists():
                 failures.append("%s: fixture missing" % name)
                 continue
-            result = validate_roundtrip.validate(
-                str(fixture), "snapgene-gb", strict=True)
+            with mock.patch("validate_roundtrip.find_snapgene_executable", return_value=None):
+                result = validate_roundtrip.validate(
+                    str(fixture), "snapgene-gb", strict=True)
             if not result["core_passed"]:
                 failures.append("%s: core failed" % name)
             if not result["strict_passed"]:
@@ -46,6 +50,18 @@ class RichFixtureRoundTripTests(unittest.TestCase):
                     "%s: strict failed (grade=%s)"
                     % (name, result["delivery_grade"]))
         self.assertEqual(failures, [], "; ".join(failures))
+
+    def test_official_order_operator_boundary_is_explicit(self):
+        fixture = FIXTURES / "rich_order.gb"
+        executable = validate_roundtrip.find_snapgene_executable()
+        if executable is None:
+            self.skipTest("SnapGene executable not installed")
+        result = validate_roundtrip.validate(
+            str(fixture), "snapgene-gb", snapgene_exe=str(executable), strict=True
+        )
+        self.assertTrue(result["internal_roundtrip"]["passed"], result)
+        self.assertFalse(result["official_snapgene_roundtrip"]["features_equal"], result)
+        self.assertFalse(result["core_passed"], result)
 
     def test_native_dna_roundtrip_matches_declared_compatibility(self):
         failures = []

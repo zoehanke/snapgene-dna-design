@@ -11,6 +11,8 @@ release-iteration-requirements.md:
 * slide-retry gate: A (tail), B (high-GC terminal), C (poly-G terminal
   alternative suggestions), with the real primer3_core when available.
 """
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import json
 import os
 import pathlib
@@ -21,7 +23,7 @@ import unittest
 from unittest import mock
 
 HERE = pathlib.Path(__file__).resolve().parent
-ROOT = HERE.parent
+ROOT = SKILL_ROOT
 SCRIPTS = ROOT / "scripts"
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(SCRIPTS))
