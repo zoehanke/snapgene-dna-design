@@ -1,31 +1,170 @@
 {
-  "schema_version": "kit-v1", "name": "genome-identity", "version": "0.1.0",
-  "core_version": {"minimum": "2.2.5", "maximum_exclusive": "3.0.0"},
-  "input_schema": {
-    "type": "object", "additionalProperties": false, "required": ["request_file", "context_file"],
-    "properties": {
-      "request_file": {"type": "string", "minLength": 1}, "context_file": {"type": "string", "minLength": 1},
-      "language": {"enum": ["zh", "en"]}, "trace_mode": {"enum": ["normal", "strict"]}
-    },
-    "definitions": {"request": {
-      "type": "object", "additionalProperties": false, "required": ["original_request"],
-      "properties": {
-        "kit": {"const": "identity"}, "title": {"type": "string"},
-        "original_request": {"type": "string", "minLength": 1}, "decisions": {"type": "array"},
-        "references": {"type": "array", "items": {"type": "string"}}, "compare_regions": {"type": "boolean"},
-        "alignment_mode": {"enum": ["local", "global"]}, "assays": {"type": "array"}, "design_assays": {"type": "array"}
-      }
-    }}
+  "schema_version": "kit-v1",
+  "name": "genome-identity",
+  "version": "0.1.0",
+  "core_version": {
+    "minimum": "2.2.5",
+    "maximum_exclusive": "3.0.0"
   },
-  "input_example": {"request_file": "examples/request.json", "context_file": "examples/context.json", "language": "en"},
-  "entrypoint": "scripts/entry.py:run",
-  "outputs": {"contract": "json-object", "files": ["result.json", "context-snapshot.json", "summary.md", "TOOLKIT-RECEIPT.json"]},
-  "contributions": [{
-    "target": "tools", "name": "assess", "description": "Assess supplied-region alignment/PCR/full-oligo quality using the unchanged analytical workflow.",
-    "source": "README.md#scope-and-sources; original scoped workflow and independent positive/negative regression inputs.",
-    "content": {
-      "entrypoint": "scripts/entry.py:assess", "category": "inspect",
-      "parameters_schema": {"type": "object", "properties": {"request": {"type": "object"}, "context_uri": {"type": "string", "format": "uri"}}}
+  "input_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "request_file",
+      "context_file"
+    ],
+    "properties": {
+      "request_file": {
+        "type": "string",
+        "minLength": 1
+      },
+      "context_file": {
+        "type": "string",
+        "minLength": 1
+      },
+      "language": {
+        "enum": [
+          "zh",
+          "en"
+        ]
+      },
+      "trace_mode": {
+        "enum": [
+          "normal",
+          "strict"
+        ]
+      }
+    },
+    "definitions": {
+      "request": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "original_request"
+        ],
+        "properties": {
+          "kit": {
+            "const": "identity"
+          },
+          "title": {
+            "type": "string"
+          },
+          "original_request": {
+            "type": "string",
+            "minLength": 1
+          },
+          "decisions": {
+            "type": "array"
+          },
+          "references": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "compare_regions": {
+            "type": "boolean"
+          },
+          "alignment_mode": {
+            "enum": [
+              "local",
+              "global"
+            ]
+          },
+          "assays": {
+            "type": "array"
+          },
+          "design_assays": {
+            "type": "array"
+          }
+        }
+      }
     }
-  }]
+  },
+  "input_example": {
+    "request_file": "examples/request.json",
+    "context_file": "examples/context.json",
+    "language": "en"
+  },
+  "entrypoint": "scripts/entry.py:run",
+  "outputs": {
+    "contract": "json-object",
+    "files": [
+      "result.json",
+      "context-snapshot.json",
+      "summary.md",
+      "TOOLKIT-RECEIPT.json"
+    ]
+  },
+  "contributions": [
+    {
+      "target": "tools",
+      "name": "assess",
+      "description": "Assess supplied-region alignment/PCR/full-oligo quality using the unchanged analytical workflow.",
+      "source": "README.md#scope-and-sources; original scoped workflow and independent positive/negative regression inputs.",
+      "content": {
+        "entrypoint": "scripts/entry.py:assess",
+        "category": "inspect",
+        "parameters_schema": {
+          "type": "object",
+          "properties": {
+            "request": {
+              "type": "object"
+            },
+            "context_uri": {
+              "type": "string",
+              "format": "uri"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "command": "identity",
+    "order": 1,
+    "request_example": {
+      "original_request": "Compare these supplied regions and test whether my candidate PCR distinguishes them.",
+      "references": [
+        "recipient_region",
+        "donor_region"
+      ],
+      "compare_regions": true,
+      "design_assays": [
+        {
+          "id": "regional_test",
+          "target_reference": "recipient_region",
+          "interval": {
+            "start0": 100,
+            "end0": 700
+          },
+          "size_resolution_bp": 20
+        }
+      ]
+    },
+    "scope": "仅检查提供的参考和选定区域：比对、逐参考PCR预测、完整引物质量及声明的鉴别条件。没有检验区域外特异性或实际PCR表现。",
+    "limits": [
+      "预测只适用于本次给定参考与区域，不能直接推广到实验株或完整基因组。",
+      "实验扩增、条带分离及真实基因型尚未由本计算确认。",
+      "所选标记不能单独证明整个宿主基因组消除或供体基因组恢复功能。"
+    ],
+    "references_entry": "scripts/hooks.py:references",
+    "workflow_entry": "scripts/workflow.py:run_identity",
+    "summary_entry": "scripts/presentation.py:summary",
+    "fact_entry": "scripts/presentation.py:fact_text",
+    "trace_labels": {
+      "toolkit.identity": "汇总给定区域的鉴别结果",
+      "identity.compare_regions": "比较两份给定参考区域",
+      "identity.design_primers": "为选定区间设计检测引物",
+      "identity.complete_oligo_quality": "检查完整引物及当前条件",
+      "identity.simulate_pcr": "在实际参考上模拟PCR"
+    },
+    "trace_skip": [
+      "toolkit.identity"
+    ],
+    "trace_strip_prefix": "",
+    "legacy_module": "revival.identity",
+    "cli_description": "given-region identity",
+    "output_entry": "scripts/output.py:outputs"
+  }
 }

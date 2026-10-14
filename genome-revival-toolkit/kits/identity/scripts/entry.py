@@ -8,8 +8,9 @@ TOOLKIT_ROOT = Path(__file__).resolve().parents[3]
 if str(TOOLKIT_ROOT) not in sys.path:
     sys.path.insert(0, str(TOOLKIT_ROOT))
 from revival.bootstrap import CORE_VERSION
-from revival.runner import run as legacy_run, FIELDS, COMMON
+from revival.runner import run as legacy_run, COMMON
 from revival.context import ProjectContext
+from kits.catalog import request_fields
 from revival.identity import run_identity
 from core.tools.result import ToolResult
 
@@ -22,7 +23,7 @@ def run(inputs, out_dir):
 
 def assess(request: dict, context_uri: str):
     """Read given references and return the unchanged scoped analytical result."""
-    unknown = set(request) - FIELDS['identity'] - COMMON
+    unknown = set(request) - request_fields('identity') - COMMON
     if unknown:
         raise ValueError('Unsupported identity fields: ' + ', '.join(sorted(unknown)))
     address = urlsplit(context_uri)

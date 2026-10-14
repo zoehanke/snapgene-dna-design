@@ -9,38 +9,23 @@ from revival.bootstrap import CORE_VERSION
 from revival import __version__
 from revival.context import ProjectContext, read_json
 from revival.runner import run, verify_outputs
+from kits.catalog import applications, cli_description
 from evidence_trace.settings import set_level
 
-EXAMPLES = {
-    'construct': {'original_request': 'Prepare the specified donor from my actual templates and verify both donor interfaces.',
-                  'method': 'integration_donor', 'target_reference': 'genomic_region', 'cargo_reference': 'marker_template',
-                  'target_interval': {'start0': 800, 'end0': 850}, 'cargo_interval': {'start0': 100, 'end0': 900},
-                  'arm_length': 200, 'preparation_method': 'gibson'},
-    'identity': {'original_request': 'Compare these supplied regions and test whether my candidate PCR distinguishes them.',
-                 'references': ['recipient_region', 'donor_region'], 'compare_regions': True,
-                 'design_assays': [{'id': 'regional_test', 'target_reference': 'recipient_region',
-                                    'interval': {'start0': 100, 'end0': 700}, 'size_resolution_bp': 20}]},
-    'evidence': {'original_request': 'Compare the submitted observations and state their genetic-evidence limits.',
-                 'observations': [], 'comparisons': [], 'genotype_results': []},
-    'crispr': {'original_request': 'Replace the guide using my supplied vector/target, check direction/PAM and self-targets, and provide a planned construction route.',
-               'operation': 'replace', 'vector_reference': 'guide_vector', 'target_reference': 'target_region',
-               'spacer_seq': 'SUPPLY_EXPLICIT_20_NT_ACGT',
-               'strain_genotype': {'description': 'Provide actual strain genotype', 'organism': 'Supply organism',
-                                   'existing_markers': [], 'auxotrophies': []}},
-}
+
 
 
 def main():
     for stream in (sys.stdout, sys.stderr):
         if hasattr(stream, 'reconfigure'):
             stream.reconfigure(encoding='utf-8', errors='replace')
-    parser = argparse.ArgumentParser(description='Genome Revival Toolkit: construct, given-region identity, evidence records and CRISPR plasmid preparation.')
+    parser = argparse.ArgumentParser(description=cli_description())
     commands = parser.add_subparsers(dest='command', required=True)
     describe = commands.add_parser('describe', help='Show a minimal input shape; example coordinates are not project answers.')
-    describe.add_argument('kit', choices=EXAMPLES)
+    describe.add_argument('kit', choices=applications())
     inspect = commands.add_parser('inspect', help='Inspect actual context files and declared identities.')
     inspect.add_argument('--context', required=True)
-    for kit in EXAMPLES:
+    for kit in applications():
         command = commands.add_parser(kit, help='Execute the supported ' + kit + ' workflow.')
         command.add_argument('--context', required=True)
         command.add_argument('--request', required=True)
@@ -60,7 +45,7 @@ def main():
     try:
         if args.command == 'describe':
             result = {'toolkit_version': __version__, 'core_version': CORE_VERSION, 'example_only': True,
-                      'request': EXAMPLES[args.kit], 'coordinate_system': '0-based half-open on selected context records',
+                      'request': applications()[args.kit]['manifest']['metadata']['request_example'], 'coordinate_system': '0-based half-open on selected context records',
                       'context': 'references map IDs to actual file paths; use inspect before selecting intervals.'}
         elif args.command == 'inspect':
             result = ProjectContext.load(args.context).describe()

@@ -3,6 +3,8 @@ from __future__ import annotations
 from evidence_trace.localization import tr, display, get_language
 
 from pathlib import Path
+from types import MappingProxyType
+from kits.catalog import stage_application, application_function, trace_labels, trace_skip, strip_trace_prefix
 
 from evidence_trace.recorder import Recorder, load_events
 from evidence_trace.process import assemble, organize
@@ -11,32 +13,10 @@ from evidence_trace.render import render
 from evidence_trace.models import file_digest
 from evidence_trace.runtime import TraceStopped
 
-LABELS = {
-    'toolkit.crispr': 'Review supplied guide and preparation result',
-    'crispr.vector': 'Read supplied guide plasmid', 'crispr.target': 'Read supplied target',
-    'crispr.candidates': 'Evaluate candidate factors and supplied-vector matches',
-    'crispr.initial_check': 'Check the original spacer, direction and PAM',
-    'crispr.replace': 'Replace the spacer and simulate the planned preparation',
-    'crispr.final_check': 'Check the selected spacer, direction and PAM',
-    'crispr.self_target': 'Screen the supplied vector for self-target sites',
-    'crispr.selection': 'Check conditional selection against declared genotype',
-    'crispr.selection_table': 'Save source-labelled selection table',
-    'crispr.delivery': 'Check and deliver current guide construct',
-    'crispr.candidate_export': 'Preserve candidate files from incomplete attempt',
-    'toolkit.context': '核对项目材料与当前文件版本',
-    'toolkit.construct': '完成供体制备与正式验收', 'toolkit.identity': '汇总给定区域的鉴别结果',
-    'toolkit.evidence': '整理实验观察与结论范围', 'toolkit.export': '保存本次报告与技术记录',
-    'construct.reference': '读取实际目标参考', 'construct.cargo': '读取实际标记模板',
-    'construct.donor_template': '核对可用完整PCR模板',
-    'construct.model': '核对同源臂、标记片段与目标边界',
-    'construct.left_boundary_qc': '检查供体左侧接口',
-    'construct.right_boundary_qc': '检查供体右侧接口',
-    'construct.delivery': '核查并交付当前供体', 'construct.delivery_receipt': '核对真正交付的文件',
-    'construct.outcome': '记录供体构建的实际结果', 'outcome': '记录本次实际结果',
-    'identity.compare_regions': '比较两份给定参考区域', 'identity.design_primers': '为选定区间设计检测引物',
-    'identity.complete_oligo_quality': '检查完整引物及当前条件', 'identity.simulate_pcr': '在实际参考上模拟PCR',
-    'evidence.read_observations': '读取实验记录文件',
-}
+# Legacy readers retain a read-only view; declarations are owned by manifests.
+LABELS = MappingProxyType(trace_labels())
+
+
 
 
 def _returned_text(record):
@@ -44,30 +24,17 @@ def _returned_text(record):
     value = payload.get('result', {})
     if record['event_type'].endswith('_failed'):
         return tr('本次调用未得到正常返回：') + str(payload.get('error', tr('未记录原因')))
-    if payload.get('stage') == 'construct.model' and isinstance(value, list) and len(value) == 2:
-        model = value[1]
-        if isinstance(model, dict):
-            length = model.get('product', {}).get('expected_length')
-            if length is not None:
-                return (str(tr('按明确的参考位点、左右同源臂和标记边界，核对预期 ')) + str(length) + str(tr(' bp 线性供体。这里只建立序列与注释模型，实际制备在后续步骤执行。')))
+
+    app=stage_application(payload.get('stage',''))
+    if app:
+        custom=application_function(app['manifest']['metadata']['command'],'fact_entry')(record)
+        if custom is not None:return custom
     if isinstance(value, dict):
         if get_language() == 'en' and value.get('kit'):
             return value.get('report_summary') or ('Toolkit ' + value['kit'] + ': ' + str(value.get('status')) + '. See scoped checks and files.')
         analysis = value.get('analysis', {})
-        if payload.get('stage') in ('crispr.initial_check', 'crispr.final_check') and isinstance(analysis, dict):
-            sites = analysis.get('target_matches', [])
-            spacer=analysis.get('spacer')
-            spacer_text=(str(spacer.get('length'))+' nt (raw sequence minimized; compare supplied request and final file)' if isinstance(spacer,dict) else str(spacer))
-            return 'Transcribed spacer ' + spacer_text + ': ' + str(analysis.get('direction_status')) + '. Target matches/PAMs: ' + '; '.join(
-                str(row['protospacer_parts_0based']) + ', identical strand ' + str(row['strand']) +
-                ', RNA-binding strand ' + str(row['rna_binding_strand']) + ', PAM ' + str(row['pam']) +
-                ', valid=' + str(row['pam_valid']) for row in sites) + '. Sequence determines direction; annotation warnings remain separate.'
-        if payload.get('stage') == 'crispr.replace' and isinstance(value.get('result'), dict):
-            data = value['result'].get('analysis', {})
-            edit, route = data.get('replacement', {}), data.get('preparation_route', {})
-            return ('Requested 20 nt spacer replaced; original and current versions are retained' +
-                '; outside window unchanged=' + str(edit.get('outside_window_unchanged')) +
-                '; route=' + str(route.get('status')) + ', independent simulation=' + str(route.get('simulation_status')) + '. Wet experiment NOT_PERFORMED.')
+
+
         if value.get('summary'):
             return str(value['summary'])
         method = value.get('method')
@@ -76,32 +43,11 @@ def _returned_text(record):
         if method and value.get('status') == 'failed':
             error = value.get('error') or {}
             return tr('本次方法未完成：') + str(error.get('message', tr('原因见实际返回。')))
-        if method in ('prepare_pcr_fragment', 'recipe_gibson_assembly') and value.get('status') == 'completed':
-            products = returned.get('products', [])
-            sequence = products[0].get('sequence') if len(products) == 1 else None
-            length = sequence.get('length') if isinstance(sequence, dict) else len(sequence) if isinstance(sequence, str) else None
-            if length is not None:
-                route = tr('由完整模板和本次引物计算得到') if method == 'prepare_pcr_fragment' else tr('由实际PCR片段计算组装得到')
-                return (str(route) + ' ' + str(length) + str(tr(' bp 供体候选。完整引物、条件及结构质量另行检查；计算产物不等于实际实验成功。')))
-        if method == 'recipe_cloning_verification' and value.get('status') == 'completed':
-            details = analysis.get('details', {})
-            length = details.get('junction_pcr_primers', {}).get('expected_amplicon_size_bp')
-            if length is not None:
-                backgrounds = details.get('parental_pcr', {}).get('templates', [])
-                background_text = (tr('在本次给定背景参考中未预测产物') if backgrounds and all(row.get('status') == 'NO_PRODUCT_PREDICTED' for row in backgrounds)
-                                   else tr('给定背景也有预测产物，需要结合具体长度区分') if any(row.get('status') == 'PRODUCT_PREDICTED' for row in backgrounds)
-                                   else tr('背景鉴别尚未完整核查'))
-                return (str(tr('当前供体的该接口PCR预测为 ')) + str(length) + ' bp；' + str(background_text) + str(tr('。这是给定序列上的计算方案，不是实测PCR或全基因组特异性结论。')))
-        if payload.get('stage') == 'construct.delivery' and value.get('status') == 'delivered':
-            scopes = value.get('validation', {}).get('scope_results', {})
-            if all(scopes.get(name, {}).get('status') == 'PASSED' for name in ('sequence_model', 'preparation_model', 'file', 'user_goal')):
-                return tr('当前正式文件已回读，供体序列、计算制备链、实际文件和已声明目标四项核查通过。该结论不包括实际整合、表达或基因组复活。')
-        if payload.get('stage') == 'construct.delivery_receipt' and value.get('status') == 'verified':
-            return tr('真正选择交付的文件与本次受检版本一致。回执核对文件归属及完整性，不重新下生物学结论。')
-        if payload.get('stage') in ('construct.reference', 'construct.cargo', 'construct.donor_template'):
-            sequence = value.get('sequence')
-            if isinstance(sequence, dict) and sequence.get('length') is not None:
-                return (str(tr('读取本次选定的 ')) + str(sequence['length']) + str(tr(' bp 序列记录，供后续来源和边界核对。文件存在与版本核对不等于实际菌株身份认证。')))
+
+
+
+
+
         if value.get('status'):
             return tr('程序返回状态：') + str(value['status']) + tr('。含义与实际范围以该次返回为准。')
         analysis = value.get('analysis', {})
@@ -140,17 +86,17 @@ def _workflow_packet(graph, request_title=None):
     for event in events:
         ref = event['event_id']
         stage = event['payload'].get('stage', '')
-        if stage in {'toolkit.construct', 'toolkit.identity', 'toolkit.evidence', 'construct.outcome'}:
+        if stage in trace_skip():
             continue  # Echoed aggregate returns remain in technical data, not duplicated as extra work.
         if stage == 'outcome' and not event['payload'].get('result', {}).get('kit'):
             continue
-        title = display(LABELS, stage)
+        title = display(trace_labels(), stage)
         value = event['payload'].get('result', {})
         if title is None and isinstance(value, dict) and value.get('method'):
             title = {'prepare_pcr_fragment': tr('从实际模板扩增片段'), 'recipe_gibson_assembly': tr('组装实际PCR片段'),
                      'recipe_cloning_verification': tr('检查当前供体接口')}.get(value['method'])
         if title is None:
-            title = tr('执行 ') + stage.removeprefix('construct.')
+            title = tr('执行 ') + strip_trace_prefix(stage)
         outcomes = [key for key, row in records.items() if row.get('kind') in ('validation', 'artifact') and row.get('result_event_ref') == ref]
         steps['step-' + str(len(steps) + 1)] = {'kind': 'program_result', 'title': title,
             'content': _returned_text(event), 'source_refs': [ref],

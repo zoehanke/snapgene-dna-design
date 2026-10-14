@@ -1,0 +1,174 @@
+{
+  "schema_version": "kit-v1",
+  "name": "genome-crispr",
+  "version": "0.1.0",
+  "core_version": {
+    "minimum": "2.2.5",
+    "maximum_exclusive": "3.0.0"
+  },
+  "input_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "request_file",
+      "context_file"
+    ],
+    "properties": {
+      "request_file": {
+        "type": "string",
+        "minLength": 1
+      },
+      "context_file": {
+        "type": "string",
+        "minLength": 1
+      },
+      "language": {
+        "enum": [
+          "zh",
+          "en"
+        ]
+      },
+      "trace_mode": {
+        "enum": [
+          "normal",
+          "strict"
+        ]
+      }
+    },
+    "definitions": {
+      "request": {
+        "type": "object",
+        "properties": {
+          "decisions": {
+            "type": "array"
+          },
+          "kit": {
+            "const": "crispr"
+          },
+          "max_mismatches": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "operation": {
+            "enum": [
+              "check",
+              "replace"
+            ]
+          },
+          "original_request": {
+            "type": "string",
+            "minLength": 1
+          },
+          "promoter_end_0based": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "promoter_name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "scaffold_seq": {
+            "type": "string",
+            "minLength": 1
+          },
+          "spacer_seq": {
+            "type": "string",
+            "pattern": "^[ACGTacgt]{20}$"
+          },
+          "strain_genotype": {
+            "type": "object"
+          },
+          "target_reference": {
+            "type": "string",
+            "minLength": 1
+          },
+          "target_tm": {
+            "type": "number"
+          },
+          "title": {
+            "type": "string"
+          },
+          "transcription_promoter": {
+            "type": "string",
+            "minLength": 1
+          },
+          "transcription_strand": {
+            "enum": [
+              1,
+              -1
+            ]
+          },
+          "vector_reference": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "original_request"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "input_example": {
+    "request_file": "request.json",
+    "context_file": "context.json",
+    "language": "en"
+  },
+  "entrypoint": "scripts/entry.py:run",
+  "outputs": {
+    "contract": "json-object",
+    "files": [
+      "result.json",
+      "summary.md",
+      "context-snapshot.json",
+      "TOOLKIT-RECEIPT.json"
+    ]
+  },
+  "contributions": [],
+  "metadata": {
+    "command": "crispr",
+    "order": 3,
+    "request_example": {
+      "original_request": "Replace the guide using my supplied vector/target, check direction/PAM and self-targets, and provide a planned construction route.",
+      "operation": "replace",
+      "vector_reference": "guide_vector",
+      "target_reference": "target_region",
+      "spacer_seq": "SUPPLY_EXPLICIT_20_NT_ACGT",
+      "strain_genotype": {
+        "description": "Provide actual strain genotype",
+        "organism": "Supply organism",
+        "existing_markers": [],
+        "auxotrophies": []
+      }
+    },
+    "scope": "Checks supplied sequence direction/PAM, candidate factors, vector self-targets, separately simulated preparation and declared selection background. Wet experiments NOT_PERFORMED.",
+    "limits": [
+      "Construct preparation is PLANNED; PCR, DpnI, KLD and editing were not performed.",
+      "Only supplied target/vector sequences were searched; no genome-wide off-target or editing efficiency claim.",
+      "Annotated CDS structure and declared genotype do not establish measured resistance or functional gRNA."
+    ],
+    "references_entry": "scripts/hooks.py:references",
+    "workflow_entry": "scripts/workflow.py:run_crispr",
+    "summary_entry": "scripts/presentation.py:summary",
+    "fact_entry": "scripts/presentation.py:fact_text",
+    "trace_labels": {
+      "toolkit.crispr": "Review supplied guide and preparation result",
+      "crispr.vector": "Read supplied guide plasmid",
+      "crispr.target": "Read supplied target",
+      "crispr.candidates": "Evaluate candidate factors and supplied-vector matches",
+      "crispr.initial_check": "Check the original spacer, direction and PAM",
+      "crispr.replace": "Replace the spacer and simulate the planned preparation",
+      "crispr.final_check": "Check the selected spacer, direction and PAM",
+      "crispr.self_target": "Screen the supplied vector for self-target sites",
+      "crispr.selection": "Check conditional selection against declared genotype",
+      "crispr.selection_table": "Save source-labelled selection table",
+      "crispr.delivery": "Check and deliver current guide construct",
+      "crispr.candidate_export": "Preserve candidate files from incomplete attempt"
+    },
+    "trace_skip": [],
+    "trace_strip_prefix": "",
+    "legacy_module": "revival.crispr",
+    "cli_description": "CRISPR plasmid preparation"
+  }
+}

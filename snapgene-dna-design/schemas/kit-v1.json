@@ -18,6 +18,7 @@
     },
     "input_schema": {"type": "object"},
     "input_example": {"type": "object"},
+    "metadata": {"type": "object", "description": "Kit-owned application/presentation data; Core does not interpret project concepts."},
     "entrypoint": {"$ref": "#/definitions/entrypoint"},
     "outputs": {
       "type": "object", "additionalProperties": false, "required": ["contract", "files"],
