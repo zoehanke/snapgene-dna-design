@@ -17,6 +17,7 @@ from Bio.SeqRecord import SeqRecord
 
 sys.path.insert(0, str(PROJECT_ROOT / 'tools'))
 from build_toolkit import build_toolkit, _reviewed, PREFIX
+from verify_toolkit_kits import verify as verify_all_kits
 
 
 class GenomeRevivalPackageTests(unittest.TestCase):
@@ -91,6 +92,42 @@ class GenomeRevivalPackageTests(unittest.TestCase):
         self.assertIn('-working-tree.zip', diagnostic['archive'])
         with zipfile.ZipFile(diagnostic['archive']) as archive:
             self.assertIn(b'UNCOMMITTED_PACKAGE_SENTINEL', archive.read(PREFIX + 'revival/evidence.py'))
+
+    def test_all_four_kits_run_from_one_independent_installation(self):
+        receipt = verify_all_kits(self.build['archive'], self.root / 'all-kits-installed',
+                                 source_commit=self.commit, repository=self.repository)
+        self.assertEqual(receipt['status'], 'PASSED')
+        self.assertEqual(len(receipt['kits']), 4)
+        for row in receipt['kits']:
+            self.assertEqual(row['independent_oracle'], 'PASSED')
+            self.assertEqual(row['receipt'], 'verified')
+            self.assertEqual(row['trace'], 'complete')
+            self.assertEqual(row['report_language'], 'en')
+        self.assertEqual(receipt['source_verification']['status'], 'VERIFIED')
+
+    def test_valid_payload_hash_cannot_replace_missing_source_mapping(self):
+        altered = self.root / 'unmapped-source.zip'
+        with zipfile.ZipFile(self.build['archive']) as original, zipfile.ZipFile(altered, 'w') as destination:
+            for name in original.namelist():
+                data = original.read(name)
+                if name == PREFIX + 'TOOLKIT-MANIFEST.json':
+                    manifest = json.loads(data)
+                    manifest['entries'][0]['source_path'] = 'unregistered-source'
+                    data = json.dumps(manifest).encode('utf-8')
+                destination.writestr(name, data)
+        with self.assertRaisesRegex(ValueError, 'no committed source mapping'):
+            verify_all_kits(altered, self.root / 'rejected-unmapped-source',
+                            source_commit=self.commit, repository=self.repository)
+
+    def test_unlisted_archive_file_is_rejected_before_kit_execution(self):
+        altered = self.root / 'extra-member.zip'
+        with zipfile.ZipFile(self.build['archive']) as original, zipfile.ZipFile(altered, 'w') as destination:
+            for name in original.namelist():
+                destination.writestr(name, original.read(name))
+            destination.writestr(PREFIX + 'kits/unlisted/README.md', 'Unregistered synthetic test file')
+        with self.assertRaisesRegex(ValueError, 'Archive membership'):
+            verify_all_kits(altered, self.root / 'rejected-extra-member',
+                            source_commit=self.commit, repository=self.repository)
 
     def test_standalone_cli_uses_vendor_and_completes_actual_pcr_donor(self):
         environment = dict(os.environ)

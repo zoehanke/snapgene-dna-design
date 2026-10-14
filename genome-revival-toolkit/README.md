@@ -59,6 +59,8 @@ Off/Observed/Full控制之后的采集；normal记录故障保留主任务结果
 
 ## 来源和扩展
 
-专用代码位于`revival/`，入口位于`scripts/`；`vendor/dna-design-core/`是构建时携带的同版Core，修改上游再重新构建，不单独维护其复制品。项目开发规范、测试与官方交付资料在源码仓库的`specs/`、`docs/`和`tests/`，不进入运行包。
+四个子Skill位于`kits/<name>/`，各自拥有SKILL.md、kit.json、脚本、来源规则、合成例子与源树测试。项目共享Context/样式及旧导入兼容入口位于`revival/`，不维护第二份Kit名单。命令入口位于`scripts/`；`vendor/dna-design-core/`是构建时从唯一上游源码复制的同版Core，修改上游再构建，不另维护算法。完整包只有一个顶层安装目录，不发布单Kit包，测试玩具不进入包。项目开发规范、测试与官方交付资料在源码仓库的`specs/`、`docs/`和`tests/`，不进入运行包。
+
+Kit v2支持既有工具、线性Pipeline模板、必跑gate及逐行来源规则。CRISPR接入方向/PAM/自切gate与筛选规则；四个现有Kit未使用Pipeline模板。继承输入模板的Core诊断仍可能阻止正式交付，CRISPR不启用任何豁免。完整包的通用接口可通过`vendor/dna-design-core/scripts/run_kit.py list --kit-dir kits`查询；安装包契约位于`vendor/dna-design-core/references/kit-contract.md`，开发源码对应`snapgene-dna-design/references/kit-contract.md`。
 
 MIT许可及依赖归属见[LICENSE](LICENSE)、[第三方来源](THIRD_PARTY_NOTICE.md)。程序计算和AI协助均需如实披露；实验或独立真人验证须有各自证据。

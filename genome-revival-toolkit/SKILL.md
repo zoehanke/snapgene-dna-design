@@ -11,12 +11,14 @@ Read `INSTALL-SOURCE.json` in this Skill root when present and use its verified 
 
 ## Kit directory
 
-- Given-reference region/PCR assessment: [Identity sub-Skill](kits/identity/SKILL.md), with its own manifest and sourced scope. This is the first local Kit API pilot.
-- Donor preparation and junction checks: Construct uses the retained workflow below.
-- Submitted observation/control comparison: Evidence uses the retained workflow below.
-- Guide-plasmid direction, replacement and planned preparation: CRISPR uses the retained workflow below.
+- Given-reference region/PCR assessment: [Identity sub-Skill](kits/identity/SKILL.md).
+- Donor preparation and junction checks: [Construct sub-Skill](kits/construct/SKILL.md).
+- Submitted observation/control comparison: [Evidence sub-Skill](kits/evidence/SKILL.md).
+- Guide-plasmid direction, replacement and planned preparation: [CRISPR sub-Skill](kits/crispr/SKILL.md).
 
-Only Identity is migrated in this phase. Its old subcommand and parameters remain available; the other three retain their current structure. Select from the descriptions and actual task, not from a presumed universal Kit route.
+Each sub-Skill owns SKILL.md, kit.json, code, sourced guidance and synthetic examples. Established subcommands and parameters remain available. Select from descriptions and the actual task. This directory does not certify host routing quality.
+
+The complete package bundles one Core runtime with Kit loading and Trace. For generic manifest discovery use `python -X utf8 -B vendor/dna-design-core/scripts/run_kit.py list --kit-dir kits`; `describe <name>` shows its contract. Run `run <name> --kit-dir kits --input inputs.json --out-dir results` with that entry when a manifest-owned request is desired. The retained Toolkit commands below remain the normal project interface.
 
 For English summaries and Trace UI add `--language en` to a Kit command or `rebuild-report`. Original supplied statements stay unchanged; language does not change DNA, check statuses or relation evidence. Earlier rejected inputs remain earlier versions, not unresolved defects in the corrected molecule.
 
@@ -32,6 +34,8 @@ For English summaries and Trace UI add `--language en` to a Kit command or `rebu
 **Evidence:** organise submitted observations and controls. Missing counts are not zero. Reported colony growth, local PCR or fluorescence alone does not prove donor-genome functional revival. Distinguish supplied experimental observations from computational predictions and record authentication.
 
 **CRISPR:** supply actual vector/target references and a uniquely directed promoter-to-scaffold cassette. `operation: check` checks existing DNA without redesign; `replace` needs the user's explicit 20 nt `spacer_seq`. Candidate factors, direction/PAM and supplied-vector self-targets use Core. Replacement preserves outside DNA, designs variable-length inverse-PCR primers, and independently simulates PCR/circularisation. PCR, DpnI and KLD are PLANNED, wet experiments NOT_PERFORMED. Do not infer strain genotype or resistance from a filename or guide/CDS label. Complete annotated CDSs support conditional marker-to-medium mappings with row-level sources; unknown mappings and conflicts remain unresolved. Missing genotype means “未提供基因型，无法判断兼容性”. A successful software run is not experimentally validated knockout activity.
+
+CRISPR direction/PAM/vector-self-target gates are required and cannot be skipped through the Kit interface. No exemption is enabled. Input-template diagnoses, including inherited annotation errors, can still block formal Core delivery; retain those findings and their input provenance. Kit rules cannot clear original Core diagnoses. All four established workflows retain their Kit code; none currently uses a contributed Pipeline template.
 
 Evidence Trace collects these public calls. Global Off/Observed/Full is set by `... run_toolkit.py trace-level <level>`; use isolated settings only for explicit testing. Observed needs no extra AI explanation. In Full, submit short `decisions` alongside actual consequential choices, with actor, rationale, origin and material basis where available. Preserve user reasons. Omit a rationale when none was supplied; later explanation must not masquerade as the original reason. Exported reports do not call another model or reconstruct hidden thought.
 
