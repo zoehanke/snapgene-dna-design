@@ -78,7 +78,7 @@ def evaluate_gate(gate,*,candidate,sources,requirements=None,steps=(),inputs=Non
     observe_value('kit.gate',result)
     active=_ACTIVE.get()
     if active is not None:
-        active['evaluated'].add(gate['name']);active['results'][gate['name']]=result
+        active['evaluated'].add(gate['name']);active['results'][gate['name']]=copy.deepcopy(result)
     return result
 
 

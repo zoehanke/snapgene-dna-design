@@ -58,6 +58,8 @@ Block K phase 2 authorizes migration of the remaining three Kits, then adapters 
 
 Implemented phase 2 contract: kit-v1 retains tool-only compatibility; kit-v2 supplies typed tools/pipeline/gates/rules content. Pipeline delegates to the existing composite executor; rule evaluation uses the existing experience grammar with temporary explicit fields and per-row sources. Required gates execute within the selected Kit scope, bind current candidate versions and add requirements without changing original Core scope/goal/file/preparation judgments. User disposition explicitly excludes acceptance of original Core inherited diagnoses: this would require a separate base-delivery change and independent verification. Only explicitly sourced Kit-owned check acceptance is demonstrated, with original statuses and the acceptance notice retained in outputs/Trace. No current project Kit enables it.
 
+Required-gate judgments are owned snapshots: editing a returned report object must not alter the selected execution scope's stored errors or permit promotion. This is data ownership, not a new acceptance policy or a change to DNA calculations.
+
 Confirmed direction, 2026-10-06. v2.1.0 implements bounded single-step execution, common candidate validation and current-bundle delivery. [Architecture](../docs/architecture.md#流程复用与结构收敛方向) owns the interfaces; [handoff](../docs/development-plans/README.md) owns execution scope and outstanding host acceptance.
 
 - A workflow can be composed by the host, reused from built-in methods, or adapted from a user-supplied workflow. Its origin does not require a separate execution, validation or delivery architecture.

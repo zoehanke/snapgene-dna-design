@@ -1,6 +1,7 @@
 """Source-labelled selection mapping from actual, complete annotated CDSs."""
 import re
 import hashlib
+import copy
 from functools import lru_cache
 
 from core.tools.inspection import inspect_dna
@@ -102,7 +103,7 @@ def selection_report(vector, genotype=None):
                 compatibility, reason = 'CONFLICT', 'The declared background does not supply the required auxotrophy.'
             else:
                 compatibility, reason = 'DECLARED_COMPATIBLE', 'Conditional on the user-declared background; phenotype NOT_TESTED.'
-        choices = [{'host': species, 'plate': plate, 'source': mapping_sources()[source],
+        choices = [{'host': species, 'plate': plate, 'source': copy.deepcopy(mapping_sources()[source]),
                     'compatibility': compatibility if species == host else 'UNKNOWN',
                     'reason': reason if species == host else 'No explicit genotype for this host was supplied.'}
                    for species, (plate, source) in alternatives.items()]
