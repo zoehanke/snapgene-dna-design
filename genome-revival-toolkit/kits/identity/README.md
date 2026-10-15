@@ -1,6 +1,6 @@
 # Given-reference Identity Kit
 
-This sub-Skill assesses supplied regions and declared PCR candidates. It retains the existing Identity scientific implementation and shared project context/reporting/receipt boundary. Construct, Evidence and CRISPR are unchanged legacy Kits in this phase.
+This sub-Skill assesses supplied regions and declared PCR candidates through the shared project Context/reporting/receipt boundary. Optional file handoffs connect actual Construct QC candidates and Evidence's reported-observation comparison; all DNA/PCR calculations reuse Core.
 
 ## Run
 
@@ -38,4 +38,10 @@ python snapgene-dna-design/scripts/run_kit.py run genome-identity --kit-dir geno
 
 Fixed-seed strings and a 23-base deletion define predicted lengths independently. A disrupted exact primer end supplies a no-product control. They are software vectors, not real materials or experiments. Generate outside source. Run Kit tests with unittest discovery in tests/; original repository Identity/public tests remain unchanged.
 
-No single-Kit or frozen release package is issued in phase 1. This Kit relies on shared project-side context/reporting and the same Core/Trace in the complete source/distribution. Official GitLab CI was not executed.
+This Kit ships within the complete Toolkit and relies on shared Context/reporting and the same Core/Trace. This development branch is not a frozen integration. Official GitLab CI was not executed.
+
+## Optional machine-readable expectations
+
+`construct_handoff_file` imports completed donor-QC pairs from `construct-identity-handoff-v1`. Use the explicitly selected reference IDs; file hash, selected record/region/topology and available record versions must match. Relative handoff paths use the Context directory. Candidates are rechecked by the existing full-pair quality and exact-PCR tools on every selected reference; donor QC alone does not establish genomic discrimination.
+
+`export_expectations: true` additionally writes `identity-expected-results.json`. Each assay/reference row records AMPLICON plus size, NO_EXACT_PRODUCT, or NOT_COVERED, complete-primer quality, discrimination conditions and limited interpretation. Its reference bindings accompany the file. A matching observed band can support only this bounded comparison under reported controls, not whole-genome identity or actual integration. Default requests retain their original bytes. See [the synthetic chain](../../examples/data-chain/README.md).

@@ -44,6 +44,8 @@ Coverage读取真实模块的行/分支及套件退出码，目标和阈值以[�
 
 ## 真正检查最终结果
 
+块S来源验证由test_public_source_trace.py使用本地假HTTP服务和独立hashlib检查真实文件/来源节点；默认source/环境命令禁网，显式取回之外不连接真实服务。test_kit_network_defaults.py实际执行四Kit的26个describe/工作流/verify命令，并阻断计数socket/DNS。可选闭环由test_kit_data_chain.py通过原公共CLI验证：构造的带型/错带/未知对照/缺检测/无产物/坏格式/版本不符边界，另跑完整合成故事及14次零连接调用。examples/data-chain/independent_check.py不导入Core/Kit，用原始参考切片、引物字符串定位、逆PCR尾部环形序列及整数比较校核输出。未开启新字段的三Kit保存逐文件零差异清单；生成物、原失败与Wiki手册在仓库外。工程验证不算陌生任务或湿实验。官方GitLab CI未执行。
+
 Kit运行时第一阶段由`tests/test_kit_runtime.py`通过真实`run_kit.py`、`describe_tools.py`、`run_step.py`验证。仅测试生成的包外玩具Kit有独立整数算术预期；检查元数据查询不执行Python、三个坏邻居不影响正常Kit、命名空间、真实步骤文件、加载清单哈希/来源、写副作用在调用前被原分类门拒绝、移除恢复及UTF-8路径。类别声明不是OS沙箱。Core/Trace扫描具体项目标识与依赖，不把通用identity/evidence/construct词汇等同于具体Kit。第二阶段`tests/test_kit_contributions.py`保留v1预期，用包外v2玩具验证既有线性Pipeline、必跑gate、逐行来源规则、卸载恢复、坏邻居隔离及显式Kit自有范围接纳。独立字符串切片/反向互补和整数条件决定预期，不调用被测实现生成答案。原Core诊断接纳不在实现范围；CRISPR没有豁免。官方GitLab CI未执行。
 
 Identity子Skill公开验收在`kits/identity/tests/test_contract.py`，由原完整runner的`tests/test_kit_identity_pilot.py`发现。独立固定种子/23 nt删除及3-prime破坏定义164/141 bp/无精确产物；检查实际run_kit文件、原verify回执及通过run_step调用的inspect工具。`tools/compare_kit_compatibility.py`保留原源码e7b1f16、所有失败/重试和原文件，通过原CLI main在相同输入/工作位置执行；只固定观察时钟与UUID，不替换科学计算。比较不忽略字段：原始字节，或JSON对象键顺序/指定源码前缀的结构比较，HTML其他内容不变。观察时间是软件比较控制量，不是实验记录。原科学模块迁移后字节哈希相同。

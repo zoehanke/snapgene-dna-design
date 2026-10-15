@@ -8,6 +8,8 @@ def summary(result,context_snapshot,request,metadata):
 
 def fact_text(record):
     payload=record["payload"];value=payload.get("result",{})
+    if payload.get('stage')=='construct.identity_handoff':
+        return 'Exported actual completed donor-QC primer candidates and a version-bound Identity request. The supplied references are models, not observed genotypes.'
     if payload.get('stage') == 'construct.model' and isinstance(value, list) and (len(value) == 2):
         model = value[1]
         if isinstance(model, dict):

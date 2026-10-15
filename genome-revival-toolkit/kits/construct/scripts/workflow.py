@@ -34,12 +34,15 @@ def run_construct(request: dict, context: ProjectContext, out_dir: Path) -> dict
     """Prepare a linear donor from explicit reference/cargo bounds; never infer a strain locus."""
     allowed = {'method', 'original_request', 'target_reference', 'cargo_reference', 'target_interval',
                'cargo_interval', 'arm_length', 'assembly_overlap_bp', 'preparation_method',
-               'donor_template_reference', 'donor_interval', 'requirements'}
+               'donor_template_reference', 'donor_interval', 'requirements', 'identity_handoff'}
     if not isinstance(request, dict):
         raise ValueError('Construct request must be an object.')
     unknown = set(request) - allowed
     if unknown:
         raise ValueError('Unsupported Construct fields: ' + ', '.join(sorted(unknown)))
+    if 'identity_handoff' in request:
+        from .handoff import validate_options
+        validate_options(request['identity_handoff'],context)
     for field in ('original_request', 'target_reference', 'cargo_reference'):
         if not isinstance(request.get(field), str) or not request[field].strip():
             raise ValueError(f'{field}: provide the original request or actual reference ID.')
@@ -207,5 +210,14 @@ def run_construct(request: dict, context: ProjectContext, out_dir: Path) -> dict
               'checked_scope': 'Donor sequence, actual computational preparation, donor QC, saved files and declared goals.',
               'not_checked': ['Actual genomic integration or revival', 'Whole-genome specificity', 'Physical stock and experimental efficiency'],
               'coordinate_system': '0-based-half-open on context.material selected records'}
+    if 'identity_handoff' in request:
+        from .handoff import write_handoff
+        ids=request['identity_handoff']['references']
+        handoff=observe_files('construct.identity_handoff',write_handoff,
+            args=(request['identity_handoff'],context,run_dir/'steps.json',out_dir,request['original_request']),
+            input_paths=[run_dir/'steps.json',*[context.references[key]['path'] for key in ids]],
+            output_paths=lambda value:value['paths'],output_directories=[out_dir],artifact_role='supporting-file')
+        result['identity_handoff']=handoff
+        result['auxiliary_files']=[{'path':path,'purpose':'Identity handoff: actual donor-QC candidates and explicit supplied references.'} for path in handoff['paths']]
     observe_value('construct.outcome', result)
     return result

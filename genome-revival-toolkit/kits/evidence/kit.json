@@ -73,6 +73,10 @@
           },
           "title": {
             "type": "string"
+          },
+          "expected_results_file": {
+            "type": "string",
+            "minLength": 1
           }
         },
         "required": [

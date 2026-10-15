@@ -7,7 +7,7 @@ from collections import defaultdict
 from pathlib import Path
 
 from evidence_trace.models import file_digest
-from evidence_trace.runtime import observe
+from evidence_trace.runtime import observe, observe_files
 from revival import __version__
 
 CONCLUSION_RULES = json.loads((Path(__file__).resolve().parents[1]/'rules/conclusions.json').read_text(encoding='utf-8'))['rules']
@@ -45,14 +45,26 @@ def _count(value, field):
 
 
 def run_evidence(request, context, out_dir):
+    predicted=None
+    if 'expected_results_file' in request:
+        from .predictions import read_expected_results
+        path=Path(request.get('_request_dir',context.base_dir))/request['expected_results_file']
+        predicted=observe_files('evidence.read_expected_results',read_expected_results,args=(path,context),
+            input_paths=[path],output_paths=lambda _:())
     observations = request.get('observations', [])
     if not isinstance(observations, list):
         raise ValueError('observations must be a list.')
     observations = list(observations)
     inputs = []
+    if predicted:inputs.append(predicted['input_file'])
     if request.get('observations_file'):
         path = Path(request.get('_request_dir', context.base_dir)) / request['observations_file']
-        loaded = observe('evidence.read_observations', read_observations, path)
+        if predicted:
+            from .predictions import read_bound_observations
+            loaded=observe_files('evidence.read_observations',read_bound_observations,args=(path,read_observations),
+                input_paths=[path],output_paths=lambda _:())
+        else:
+            loaded = observe('evidence.read_observations', read_observations, path)
         observations.extend(loaded['rows'])
         inputs.append({k: loaded[k] for k in ('path', 'sha256')})
     groups = defaultdict(list)
@@ -125,7 +137,7 @@ def run_evidence(request, context, out_dir):
     tested_genotypes = any(row['result'] != 'not_tested' for row in genotypes)
     summary = (f'整理了{len(observations)}条菌落观察和{len(genotypes)}条已报告遗传检测；'
                f'保留{len(findings)}项对照或一致性问题。局部观察尚不能证明基因组复活或完整消除。') if reported else '没有提供可计算的实验观察或遗传检测结果。本次只能记录缺口，未作复活或全基因组消除判断。'
-    return {'kit': 'evidence', 'status': 'analysed' if reported else 'incomplete',
+    result = {'kit': 'evidence', 'status': 'analysed' if reported else 'incomplete',
             'summary': summary,
             'groups': group_rows, 'comparisons': comparisons, 'genotype_results': genotypes, 'findings': findings,
             'input_files': inputs,
@@ -135,3 +147,12 @@ def run_evidence(request, context, out_dir):
             'conclusions': conclusion_rows(observed_counts,tested_genotypes),
             'checked_scope': 'Consistency and scope of supplied experimental records, not a new experiment.',
             'unverified': ['Experimental record authenticity.', 'Unmeasured genomic regions and functional dependencies.']}
+    if predicted:
+        from .predictions import compare_expected, observe_reported_bands
+        observe_reported_bands(request.get('genotype_results',[]))
+        comparison=observe('evidence.compare_expected_results',compare_expected,predicted['table'],genotypes,observed_counts)
+        result['expected_result_comparison']=comparison
+        result['checks'].append({'name':'Supplied PCR prediction versus reported observations',
+            'status':'PASSED' if comparison['status']=='SUPPORTED' else 'FAILED' if comparison['status']=='CONTRADICTED' else 'INCOMPLETE',
+            'tool':'genome-revival-toolkit','tool_version':__version__,'scope':comparison['scope']})
+    return result

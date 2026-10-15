@@ -76,6 +76,13 @@
           },
           "design_assays": {
             "type": "array"
+          },
+          "construct_handoff_file": {
+            "type": "string",
+            "minLength": 1
+          },
+          "export_expectations": {
+            "type": "boolean"
           }
         }
       }

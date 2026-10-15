@@ -7,7 +7,7 @@ from core.tools.comparison import compare_sequences
 from core.tools.amplification import simulate_pcr, design_overhang_primers
 from core.tools.primer3_backend import check_complete_oligo_pair, Primer3CoreError
 from core.tools.result import to_wire
-from evidence_trace.runtime import observe
+from evidence_trace.runtime import observe, observe_files
 from revival import __version__
 
 
@@ -38,6 +38,15 @@ def run_identity(request, context, out_dir):
         raise ValueError('identity.references needs a nonempty list of distinct context reference IDs.')
     materials = context.materials(ids)
     references = [context.reference_info(key) for key in ids]
+    imported=None
+    if 'construct_handoff_file' in request:
+        from pathlib import Path
+        from .handoff import read_construct_handoff
+        path=Path(context.base_dir)/request['construct_handoff_file']
+        imported=observe_files('identity.import_construct_handoff',read_construct_handoff,args=(path,context,ids),
+            input_paths=[path,*[context.references[key]['path'] for key in ids]],output_paths=lambda _:())
+    if 'export_expectations' in request and type(request['export_expectations']) is not bool:
+        raise ValueError('export_expectations must be a boolean.')
     comparisons = []
     if request.get('compare_regions', True):
         for left, right in combinations(ids, 2):
@@ -48,6 +57,7 @@ def run_identity(request, context, out_dir):
     if not isinstance(assays, list):
         raise ValueError('identity.assays must be a list.')
     assays = list(assays)
+    if imported:assays.extend(imported['assays'])
     for design in request.get('design_assays', []):
         if not isinstance(design, dict) or design.get('target_reference') not in materials:
             raise ValueError('design_assays requires a supplied target_reference.')
@@ -138,9 +148,14 @@ def run_identity(request, context, out_dir):
         quality = {'PASSED': '完整引物质量通过', 'FAILED': '完整引物质量未通过', 'INCOMPLETE': '完整引物质量未完成'}[assay['quality_status']]
         descriptions.append(f"{assay['id']}：{predicted}，{verdict}，{quality}。")
     summary = f'已比较{len(materials)}份实际参考中的给定区域。' + (' '.join(descriptions) if descriptions else '本次仅有区域比对，未提供或生成检测候选。')
-    return {'kit': 'identity', 'status': status, 'references': references, 'comparisons': comparisons,
+    result = {'kit': 'identity', 'status': status, 'references': references, 'comparisons': comparisons,
             'assays': analysed, 'checks': checks,
             'summary': summary,
             'checked_scope': 'Only selected input records/regions. Alignment is not unique-placement evidence; negative PCR is a prediction under exact binding.',
             'unverified': ['Whole-genome specificity outside the supplied references.', 'Actual PCR performance and genotype observations.',
                            'Whole-host-genome elimination or donor-genome functional revival.']}
+    if imported:result['input_files']=[imported['input_file']]
+    if request.get('export_expectations'):
+        from .handoff import expectation_table
+        result['expected_results']=expectation_table(analysed,references)
+    return result

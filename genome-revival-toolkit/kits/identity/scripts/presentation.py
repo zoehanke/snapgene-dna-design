@@ -12,4 +12,6 @@ def summary(result,context_snapshot,request,metadata):
 
 def fact_text(record):
     payload=record["payload"];value=payload.get("result",{})
+    if payload.get('stage')=='identity.import_construct_handoff':
+        return 'Imported '+str(len(value.get('assays',[])))+' actual donor-QC candidate pairs after checking supplied reference versions; exact PCR and full-pair quality are checked again.'
     return None

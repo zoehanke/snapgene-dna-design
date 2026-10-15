@@ -8,6 +8,8 @@
 
 `revival/runner.py`提供共享执行/导出，`reporting.py`按实际事件投影已知流程、关联文件并复用Trace确定性报告。程序只组织已知工作流事实，不生成科学理由；明确提交的说明保留归属。Toolkit配套文件回执核对报告/输入版本，DNA仍由原Core回执负责，不另建DNA裁判。关闭Trace不改变生物学参数或领域结果。
 
+块S可选交接留在Kit侧：Construct的scripts/handoff.py从真实steps文件导出已完成QC对，Identity的同名模块核对显式参考并投影原PCR预测表，Evidence的scripts/predictions.py核对该表/参考版本、对比已报告带型并记录其未认证来源。原输入未开启选项时不新增输出。共同上下文、已有文件观察及input_reference哈希事实连接这些实际文件，不另建DNA算法、关系类型或因果层。合成示例及Core-free字符串校核在Toolkit examples/data-chain/。
+
 Core源码只在`snapgene-dna-design/`维护。开发入口复用兄弟目录，独立包在`vendor/dna-design-core/`携带同版运行模块与许可；一个顶层安装入口，下方是四个有清单的子Skill。`tools/build_toolkit.py`正式构建只取精确Git归档；工作树诊断包单独标识。块K第二阶段源码为Core 2.2.5、Trace 0.3.5、Toolkit 0.2.2，仍是独立开发候选，未并入既有冻结包。
 
 `core/kits.py`拥有通用发现、清单校验、describe、加载身份与注册恢复；`core/kit_contributions.py`把v2贡献适配到既有ToolSpec/复合Pipeline、候选验证及experience规则。Kit输入经原jsonschema验证，规则额外字段只在本次作用域存在。必跑Kit gate绑定实际候选版本并增加条件，原Core四个交付范围的判断不变；Core继承诊断接纳未实现。CRISPR不启用豁免，四个实际Kit未使用Pipeline模板。Core/Trace不登记具体项目Kit；ProjectContext、筛选表和项目样式留在Toolkit侧。英文对外架构段及证据边界见[Wiki片段](igem/kit-architecture-wiki-en.md)。

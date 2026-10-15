@@ -12,3 +12,5 @@ Run the declared entry with request_file/context_file. The retained CLI is `run_
 Inspect the actual preparation, complete-oligo quality, both donor interfaces, original goals and saved-file readback. A failed preparation or gate retains its original error; it does not authorize a method change or a candidate delivery.
 
 Present returned DNA/order/verification files and verify TOOLKIT-RECEIPT.json through `run_toolkit.py verify`. Read README.md for generated examples and the unchanged scientific limits. Local donor checks do not establish whole-genome specificity, strain identity, wet preparation, genomic integration or revival.
+
+For a requested Identity handoff, supply optional `identity_handoff: {"references": ["edited_model", "wild_type"], "size_resolution_bp": 20}` using actual Context IDs. The Kit exports the completed donor-QC pairs and a ready Identity request. Run that request against the same Context; Identity must predict each supplied background again. Supplied edited references are prospective models, not evidence that integration happened. See README.md for the file contract.

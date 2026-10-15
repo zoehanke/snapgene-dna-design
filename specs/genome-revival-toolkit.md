@@ -43,6 +43,10 @@ Evidence结论映射由kits/evidence/rules/conclusions.json拥有：两个现有
 
 ## Evidence Trace
 
+块S可选文件闭环：Construct的identity_handoff对象指定实际Context参考ID和可选分辨率，仅在成功交付后导出已完成供体QC引物对及Identity请求；不得把供体QC直接称为基因组鉴别。Identity的construct_handoff_file按原文件/记录/区域/拓扑及可用版本核对后复用既有引物质量和逐参考PCR；export_expectations仅在显式开启时生成identity-expected-results-v1表，含每个assay/reference的产物大小、无精确产物或未覆盖状态、质量和有限解释。参考模型由调用者明确提供，不推断实际菌株。两个Kit不重写DNA/PCR算法。
+
+Evidence的expected_results_file读取该实际文件并绑定同版参考；genotype_results可提供assay_id、observed_band_bp和非负band_tolerance_bp（默认精确相等）。结果只说明研究者报告的带型与所给局部预测是否一致：SUPPORTED/CONTRADICTED/INSUFFICIENT/NOT_TESTED及理由；没有通过的已报告对照/完整引物质量不得支持，未覆盖或缺失检测保留未知。仅菌落计数为INSUFFICIENT并列出未做assay。原record-only判断保留于reported_record_assessment；新assessment绑定预测比较。高层复活/完整消除结论不放宽。没有这些新字段时，原输出逐文件保持一致；示例通过独立字符串/长度脚本生成和重算模拟观察，不用Kit预期表生成答案。
+
 块S来源盘点确认：四Kit仅消费明确提供的本地文件/观察，不自动查询NCBI、Addgene或CRISPOR。公共数据库取回由独立显式操作承担，来源节点的verified仅说明响应/版本/内容已记录，不说明实际菌株身份或实验结论。研究者观察保留提交来源；引用表不因有URL变为已在线核验。
 
 四个Kit共用现有Trace采集、追加式日志、组织和确定性HTML/Markdown。程序可整理自己实际执行的流程骨架和返回事实；科学理由只引用用户/AI/研究者明确提交的记录，不自动补原始思考。观察顺序不冒充因果，记录完整性、DNA检查及实验结论分开。
