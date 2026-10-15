@@ -140,6 +140,12 @@ class WorkflowReplayDiagnosticsTests(unittest.TestCase):
         self.assertEqual(len(details['differing_fields']), 32)
         self.assertTrue(details['differing_fields_truncated'])
 
+    def test_dna_inside_prefixed_field_name_is_not_disclosed(self):
+        config = self.continuation()
+        config['previous'][0]['result']['analysis']['guide_' + self.sequence] = 1
+        details = self.check_failure(config, 'prefixed-dna-key')
+        self.assertEqual(details['differing_fields'], ['result.analysis.[redacted-field]'])
+
     def test_unserializable_record_diagnostics_cannot_replace_original_rejection(self):
         # Original comparison short-circuits on input versions. Computing extra
         # diagnostics must not turn that refusal into a serialization error.

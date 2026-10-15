@@ -53,7 +53,7 @@ def _replay_difference_fields(recorded, replayed, limit=32):
             for key in sorted(left.keys()|right.keys()):
                 label=str(key)
                 if (len(label)>80 or re.search(r'[/\\:]',label) or
-                        len(label)>=20 and set(label.upper())<=set('ACGTUNRYSWKMBDHV')):
+                        re.search(r'[ACGTUNRYSWKMBDHV]{20,}',label,re.IGNORECASE)):
                     label='[redacted-field]'
                 field=path+'.'+label
                 if key not in left or key not in right:paths.append(field)
