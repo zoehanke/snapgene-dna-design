@@ -1,0 +1,2 @@
+# Exact tested runtime dependencies are shipped with the shared Core.
+-r vendor/dna-design-core/requirements-tested.txt

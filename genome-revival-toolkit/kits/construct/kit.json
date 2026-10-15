@@ -1,0 +1,237 @@
+{
+  "schema_version": "kit-v1",
+  "name": "genome-construct",
+  "version": "0.1.0",
+  "core_version": {
+    "minimum": "2.2.5",
+    "maximum_exclusive": "3.0.0"
+  },
+  "input_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "request_file",
+      "context_file"
+    ],
+    "properties": {
+      "request_file": {
+        "type": "string",
+        "minLength": 1
+      },
+      "context_file": {
+        "type": "string",
+        "minLength": 1
+      },
+      "language": {
+        "enum": [
+          "zh",
+          "en"
+        ]
+      },
+      "trace_mode": {
+        "enum": [
+          "normal",
+          "strict"
+        ]
+      }
+    },
+    "definitions": {
+      "request": {
+        "type": "object",
+        "properties": {
+          "arm_length": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "assembly_overlap_bp": {
+            "type": "integer",
+            "minimum": 15,
+            "maximum": 35
+          },
+          "cargo_interval": {
+            "type": "object",
+            "required": [
+              "start0",
+              "end0"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "start0": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "end0": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          },
+          "cargo_reference": {
+            "type": "string",
+            "minLength": 1
+          },
+          "decisions": {
+            "type": "array"
+          },
+          "donor_interval": {
+            "type": "object",
+            "required": [
+              "start0",
+              "end0"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "start0": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "end0": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          },
+          "donor_template_reference": {
+            "type": "string",
+            "minLength": 1
+          },
+          "kit": {
+            "const": "construct"
+          },
+          "method": {
+            "const": "integration_donor"
+          },
+          "original_request": {
+            "type": "string",
+            "minLength": 1
+          },
+          "preparation_method": {
+            "enum": [
+              "pcr",
+              "gibson"
+            ]
+          },
+          "requirements": {
+            "type": "object"
+          },
+          "target_interval": {
+            "type": "object",
+            "required": [
+              "start0",
+              "end0"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "start0": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "end0": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          },
+          "target_reference": {
+            "type": "string",
+            "minLength": 1
+          },
+          "title": {
+            "type": "string"
+          },
+          "identity_handoff": {
+            "type": "object",
+            "required": [
+              "references"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "references": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "size_resolution_bp": {
+                "type": "integer",
+                "minimum": 1
+              }
+            }
+          }
+        },
+        "required": [
+          "original_request"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "input_example": {
+    "request_file": "request.json",
+    "context_file": "context.json",
+    "language": "en"
+  },
+  "entrypoint": "scripts/entry.py:run",
+  "outputs": {
+    "contract": "json-object",
+    "files": [
+      "result.json",
+      "summary.md",
+      "context-snapshot.json",
+      "TOOLKIT-RECEIPT.json"
+    ]
+  },
+  "contributions": [],
+  "metadata": {
+    "command": "construct",
+    "order": 0,
+    "request_example": {
+      "original_request": "Prepare the specified donor from my actual templates and verify both donor interfaces.",
+      "method": "integration_donor",
+      "target_reference": "genomic_region",
+      "cargo_reference": "marker_template",
+      "target_interval": {
+        "start0": 800,
+        "end0": 850
+      },
+      "cargo_interval": {
+        "start0": 100,
+        "end0": 900
+      },
+      "arm_length": 200,
+      "preparation_method": "gibson"
+    },
+    "scope": "程序核对供体序列、真实计算制备、两侧供体鉴别、保存文件及已声明目标。这里没有进行基因组整合实验。",
+    "limits": [
+      "实际菌株基因型、实体模板及实验制备效率未由本计算确认。",
+      "供体接口检查不等于已完成基因组整合；整合与复活需要实验。",
+      "给定参考之外的全基因组特异性未覆盖。"
+    ],
+    "references_entry": "scripts/hooks.py:references",
+    "workflow_entry": "scripts/workflow.py:run_construct",
+    "summary_entry": "scripts/presentation.py:summary",
+    "fact_entry": "scripts/presentation.py:fact_text",
+    "trace_labels": {
+      "toolkit.construct": "完成供体制备与正式验收",
+      "construct.reference": "读取实际目标参考",
+      "construct.cargo": "读取实际标记模板",
+      "construct.donor_template": "核对可用完整PCR模板",
+      "construct.model": "核对同源臂、标记片段与目标边界",
+      "construct.left_boundary_qc": "检查供体左侧接口",
+      "construct.right_boundary_qc": "检查供体右侧接口",
+      "construct.delivery": "核查并交付当前供体",
+      "construct.delivery_receipt": "核对真正交付的文件",
+      "construct.outcome": "记录供体构建的实际结果"
+    },
+    "trace_skip": [
+      "toolkit.construct",
+      "construct.outcome"
+    ],
+    "trace_strip_prefix": "construct.",
+    "legacy_module": "revival.construct",
+    "cli_description": "construct"
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "schema_version": "kit-routing-expectations-v1",
+  "ownership": "Manager only; do not expose to execution agent",
+  "status": "NOT_EXECUTED",
+  "exposure": "Public developer-authored material, not heldout",
+  "cases": [
+    {"id": "construct_1", "expected_kit": "construct", "reason": "Explicit donor preparation from actual complete template with supplied bounds."},
+    {"id": "construct_2", "expected_kit": "construct", "reason": "Bounded marker donor assembly and preparation, not regional assay or observation comparison."},
+    {"id": "construct_3", "expected_kit": null, "expected_action": "NEEDS_CLARIFICATION", "reason": "No product or measurement has been chosen; do not infer a Kit or material role."},
+    {"id": "construct_4", "expected_kit": "identity", "reason": "Regional reference/PCR discrimination without donor construction."},
+    {"id": "identity_1", "expected_kit": "identity", "reason": "Given-region comparison and per-reference assay assessment."},
+    {"id": "identity_2", "expected_kit": "identity", "reason": "Existing complete PCR pair evaluated on all supplied references."},
+    {"id": "identity_3", "expected_kit": null, "expected_action": "REJECT_UNSUPPORTED_CLAIM", "reason": "One local positive band cannot establish whole-genome elimination; any offered assay must retain that limit."},
+    {"id": "identity_4", "expected_kit": "evidence", "reason": "Submitted counts/control comparison, not new PCR design."},
+    {"id": "evidence_1", "expected_kit": "evidence", "reason": "Observation/control counts with explicit missing-data and claim boundaries."},
+    {"id": "evidence_2", "expected_kit": "evidence", "reason": "Organise submitted experimental/genetic records; do not certify functional revival."},
+    {"id": "evidence_3", "expected_kit": null, "expected_action": "NEEDS_CLARIFICATION", "reason": "No supplied records or defined design goal identify an executable bounded workflow."},
+    {"id": "evidence_4", "expected_kit": "crispr", "reason": "Explicit guide replacement, sequence gates and planned preparation."},
+    {"id": "crispr_1", "expected_kit": "crispr", "reason": "Reuse current guide plasmid and check given target/vector without redesign."},
+    {"id": "crispr_2", "expected_kit": "crispr", "reason": "Explicit spacer/cassette replacement plus current preparation and conditional selection."},
+    {"id": "crispr_3", "expected_kit": null, "expected_action": "NEEDS_CLARIFICATION", "reason": "Plasmid improvement does not specify which of the four supported intents is wanted."},
+    {"id": "crispr_4", "expected_kit": "construct", "reason": "Marker donor preparation and junction checks without guide processing."}
+  ]
+}

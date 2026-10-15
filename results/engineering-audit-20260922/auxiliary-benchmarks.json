@@ -1,0 +1,48 @@
+{
+  "environment": "Windows-11-10.0.26200-SP0",
+  "python": "3.12.4",
+  "reference_bp": 1200,
+  "read_bp": 200,
+  "msa_lengths": [
+    250,
+    254,
+    243
+  ],
+  "repetitions": 3,
+  "baseline": "git HEAD",
+  "results": {
+    "align_sanger_before": {
+      "samples_s": [
+        0.050411100033670664,
+        0.04924830002710223,
+        0.049449199927039444
+      ],
+      "median_s": 0.049449199927039444
+    },
+    "align_sanger_after": {
+      "samples_s": [
+        0.09961849998217076,
+        0.09997560002375394,
+        0.09961759997531772
+      ],
+      "median_s": 0.09961849998217076
+    },
+    "msa_before": {
+      "samples_s": [
+        0.023728200001642108,
+        0.024019400007091463,
+        0.023417800082825124
+      ],
+      "median_s": 0.023728200001642108
+    },
+    "msa_after": {
+      "samples_s": [
+        0.02374289999715984,
+        0.023831099970266223,
+        0.0235619000159204
+      ],
+      "median_s": 0.02374289999715984
+    }
+  },
+  "interpretation": "Sanger now computes both orientations; timing increase buys previously missing reverse-read correctness. MSA output preservation is a correctness requirement, not a speed claim. No extrapolation to genome-scale use."
+}

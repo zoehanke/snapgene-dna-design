@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 """Clarification loop and CLI entry tests (AC-2 / AC-13)."""
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import json
 import pathlib
 import subprocess
@@ -13,7 +15,7 @@ from Bio.SeqRecord import SeqRecord
 
 from core import ConstructionTaskSession, collect_task_questions
 
-ROOT = pathlib.Path(__file__).resolve().parents[1]
+ROOT = SKILL_ROOT
 
 
 def _record(seq, name="record", topology="circular"):

@@ -1,0 +1,22 @@
+{
+  "schema_version": "kit-routing-requests-v1",
+  "evaluation_status": "NOT_EXECUTED_BY_DEVELOPERS",
+  "cases": [
+    {"id": "construct_1", "request": "I have a complete donor template and separate target and marker-cargo references. Use the explicit arm and cargo bounds I supplied to prepare the donor by PCR, check full primers and both junctions, and deliver verified files."},
+    {"id": "construct_2", "request": "My supplied target and cargo are separate DNA sources. Prepare a marker donor with the specified homology arms using the supported assembly route, retain physical preparation simulations and check the final saved DNA."},
+    {"id": "construct_3", "request": "Make these files suitable for revival. I have not yet chosen what product or measurement I need."},
+    {"id": "construct_4", "request": "Compare these two supplied reference regions and check whether my complete PCR primer pair can discriminate them. I do not need a new donor."},
+    {"id": "identity_1", "request": "Compare the selected regions from these supplied references. Assess a regional PCR candidate on every reference, including amplicon sizes, primer quality and limits of discrimination."},
+    {"id": "identity_2", "request": "I already have a full primer pair for the given locus. Predict amplification separately on both supplied references and a negative reference, and explain what this regional assay can establish."},
+    {"id": "identity_3", "request": "Establish that the entire donor genome has been eliminated from one positive local PCR band, without any other sequence or experimental evidence."},
+    {"id": "identity_4", "request": "Here is a table of experimental and control colony counts with denominators. Organise their comparison and state which revival claims remain untested; do not design PCR primers."},
+    {"id": "evidence_1", "request": "Organise the supplied experimental and control colony counts, normalise only when denominators are present, and separate observations from untested functional revival claims."},
+    {"id": "evidence_2", "request": "My submitted records include growth, fluorescence and local genetic tests. Compare controls, retain missing measurements and show which claims these records support without inventing experiments."},
+    {"id": "evidence_3", "request": "Recovery failed. Fix it, but I have not provided records, controls, DNA materials or a specific design goal."},
+    {"id": "evidence_4", "request": "Replace the guide spacer in my supplied plasmid with the explicit new 20-base guide, check direction and PAM against the supplied target, screen for vector self-targets and plan preparation."},
+    {"id": "crispr_1", "request": "Check my existing guide plasmid against the supplied target. Report sequence-derived direction, PAM and self-target sites on the supplied vector; do not redesign the spacer."},
+    {"id": "crispr_2", "request": "Use the explicit spacer I supplied to replace the uniquely selected promoter-to-scaffold region. Preserve other DNA and provide primer quality, inverse-PCR/circularisation simulation and conditional selection with its sources."},
+    {"id": "crispr_3", "request": "Make this plasmid better for my strain. I have not stated whether I want guide checking, replacement, a donor or an assay."},
+    {"id": "crispr_4", "request": "Prepare the bounded marker donor from my supplied complete donor template and verify its two homology-arm junctions. No guide plasmid or target-spacer replacement is involved."}
+  ]
+}

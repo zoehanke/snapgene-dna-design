@@ -1,0 +1,6 @@
+{"status":"GUIDANCE_ONLY","rules":[
+  {"id":"sequence-direction","statement":"Sequence downstream of the promoter determines guide orientation and PAM; annotation conflicts remain warnings.","source":"scripts/workflow.py:run_crispr; Core tools/grna.py:check_grna"},
+  {"id":"supplied-vector","statement":"Search the caller's actual supplied vector, with declared mismatch limit and PAM.","source":"scripts/workflow.py:run_crispr; Core tools/grna_evaluation.py:check_grna_vector"},
+  {"id":"planned-not-performed","statement":"Independent sequence simulation is not physical PCR, DpnI or KLD.","source":"scripts/workflow.py:run_crispr laboratory_status/wet_lab"},
+  {"id":"no-template-exemption","statement":"Inherited template errors retain original Core delivery rejection.","source":"scripts/workflow.py:run_crispr Core delivery GateRejected handling"}
+]}

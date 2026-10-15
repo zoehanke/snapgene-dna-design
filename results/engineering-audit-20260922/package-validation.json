@@ -1,0 +1,46 @@
+{
+  "archive": "snapgene-dna-design-v1.0.1-redistributable.zip",
+  "sha256": "1d3df8224c5ec48fca02c2120578c3fde9eb8ccce07dd238ede2e0e7f1456672",
+  "manifest_entries": 444,
+  "manifest_hashes_valid": true,
+  "isolated_from_checkout": true,
+  "checks": [
+    {
+      "check": "pip-check",
+      "returncode": 0
+    },
+    {
+      "check": "manifest-restrictions",
+      "returncode": 0
+    },
+    {
+      "check": "environment",
+      "returncode": 0
+    },
+    {
+      "check": "inspect",
+      "returncode": 0
+    },
+    {
+      "check": "quick-start",
+      "returncode": 0
+    },
+    {
+      "check": "complete-demo",
+      "returncode": 0
+    },
+    {
+      "check": "package-suite",
+      "returncode": 0
+    }
+  ],
+  "demo_independent_checks": {
+    "exact_sequence": true,
+    "protein_unchanged": true,
+    "source_labels_retained": true,
+    "all_linked": true,
+    "handoff_files": 4,
+    "scope": "Synthetic engineering demonstration"
+  },
+  "package_suite_scope": "redistributable excludes academic material; optional backends not installed in clean core environment"
+}

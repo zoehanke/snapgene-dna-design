@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 """v0.9.0 module tests: M1 planner, M2 rules, M3 primers, M4/M5/M6."""
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import json
 import os
 import pathlib
@@ -16,7 +18,7 @@ from Bio.SeqFeature import FeatureLocation, SeqFeature
 from Bio.SeqRecord import SeqRecord
 
 HERE = pathlib.Path(__file__).resolve().parent
-ROOT = HERE.parent
+ROOT = SKILL_ROOT
 SCRIPTS = ROOT / "scripts"
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(SCRIPTS))
@@ -57,26 +59,29 @@ def write_gb(rec, directory, name):
     return str(path)
 
 
-def fake_primer_result(fragment, tail=""):
+def fake_primer_result(fragment, fwd_tail="", rev_tail=""):
+    fragment = str(fragment).upper()
+    fwd_binding = fragment[:18]
+    rev_binding = str(Seq(fragment[-18:]).reverse_complement())
     return {
         "schema_version": "0.9.0", "backend": "primer3-core",
         "backend_status": "available", "primer3_version": "2.6.1",
         "primer3_failure": None,
         "region": {"start": 0, "end": len(fragment), "length": len(fragment)},
-        "fwd_tail": "", "rev_tail": "",
+        "fwd_tail": fwd_tail, "rev_tail": rev_tail,
         "forward_candidates": [{
-            "side": "forward", "binding": "ACGTACGTACGTACGTAC",
-            "tail": "", "sequence": "ACGTACGTACGTACGTAC",
-            "tm": 60.0, "gc": 50.0, "length": 18, "binding_length": 18,
+            "side": "forward", "binding": fwd_binding,
+            "tail": fwd_tail, "sequence": fwd_tail + fwd_binding,
+            "tm": 60.0, "gc": 50.0, "length": len(fwd_tail) + 18, "binding_length": 18,
             "bind_start": 0, "bind_end": 17,
             "hairpin": {"tm": 0.0}, "self_dimer": {"tm_any": 0.0},
             "heterodimer": {"tm_any": 0.0}, "recommended": "high",
             "_backend": "primer3-core"}],
         "reverse_candidates": [{
-            "side": "reverse", "binding": "TGCATGCATGCATGCATG",
-            "tail": "", "sequence": "TGCATGCATGCATGCATG",
-            "tm": 60.0, "gc": 50.0, "length": 18, "binding_length": 18,
-            "bind_start": 0, "bind_end": 17,
+            "side": "reverse", "binding": rev_binding,
+            "tail": rev_tail, "sequence": rev_tail + rev_binding,
+            "tm": 60.0, "gc": 50.0, "length": len(rev_tail) + 18, "binding_length": 18,
+            "bind_start": len(fragment) - 18, "bind_end": len(fragment) - 1,
             "hairpin": {"tm": 0.0}, "self_dimer": {"tm_any": 0.0},
             "heterodimer": {"tm_any": 0.0}, "recommended": "high",
             "_backend": "primer3-core"}],
@@ -142,7 +147,7 @@ class M1PlannerTests(unittest.TestCase):
         return (write_gb(backbone, tmp, "backbone.gb"),
                 write_gb(donor, tmp, "donor.gb"))
 
-    def test_two_fragment_overlap_plan(self):
+    def test_mocked_core_metrics_cannot_certify_bad_complete_oligos(self):
         with tempfile.TemporaryDirectory() as tmp:
             sources = self._sources(pathlib.Path(tmp))
             intent = normalize_intent({
@@ -152,11 +157,31 @@ class M1PlannerTests(unittest.TestCase):
             with mock.patch(
                     "planning.planner.design_region_primers",
                     side_effect=lambda seq, start, **kwargs:
-                        fake_primer_result(seq)):
+                        fake_primer_result(seq, kwargs.get("fwd_tail", ""),
+                                           kwargs.get("rev_tail", ""))):
                 plan = planner_plan_assembly(sources, intent)
+            # Mocked core-only zeroes must not certify the supplied bad pairs.
+            # A separately checked anchored search may legitimately find a
+            # different pair without changing the requested DNA.
             self.assertEqual(plan["status"], "complete")
             self.assertEqual(plan["assembly_strategy"]["method"], "overlap")
-            self.assertEqual(plan["feasibility"]["grade"], "high")
+            rescued = [p for p in plan["primers"] if p.get("anchored_search")]
+            self.assertTrue(rescued)
+            for primer in rescued:
+                self.assertTrue(primer["rejected_short_candidates"])
+                self.assertTrue(all(not check["passed"] for check in primer["rejected_short_candidates"]))
+                self.assertTrue(primer["complete_oligo_structure"]["passed"])
+                self.assertTrue(primer["pcr_product"]["amplicon"])
+                fragment = next(f for f in plan["fragment_assignments"] if f["name"] == primer["fragment"])
+                f_tail = primer["forward"].get("tail") or ""
+                r_tail = primer["reverse"].get("tail") or ""
+                original_bad_pair = (f_tail + fragment["sequence"][:18],
+                    r_tail + str(Seq(fragment["sequence"][-18:]).reverse_complement()))
+                self.assertNotEqual((primer["forward"]["sequence"], primer["reverse"]["sequence"]),original_bad_pair)
+                self.assertEqual(primer["pcr_product"]["amplicon"],
+                    f_tail + fragment["sequence"] + str(Seq(r_tail).reverse_complement()))
+            self.assertEqual(plan["final_construct"]["sequence"],
+                             "".join(f["sequence"] for f in plan["fragment_assignments"]))
             self.assertEqual(len(plan["fragment_assignments"]), 2)
             self.assertTrue(plan["assembly_strategy"]["overlap_junctions"][0]
                             ["length"] >= 15)
@@ -174,7 +199,8 @@ class M1PlannerTests(unittest.TestCase):
             with mock.patch(
                     "planning.planner.design_region_primers",
                     side_effect=lambda seq, start, **kwargs:
-                        fake_primer_result(seq)):
+                        fake_primer_result(seq, kwargs.get("fwd_tail", ""),
+                                           kwargs.get("rev_tail", ""))):
                 plan = planner_plan_assembly([source], intent)
             self.assertEqual(plan["assembly_strategy"]["method"], "gibson")
             self.assertTrue(any(alt["reason"].find("overlap") >= 0
@@ -203,7 +229,8 @@ class M1PlannerTests(unittest.TestCase):
             with mock.patch(
                     "planning.planner.design_region_primers",
                     side_effect=lambda seq, start, **kwargs:
-                        fake_primer_result(seq)):
+                        fake_primer_result(seq, kwargs.get("fwd_tail", ""),
+                                           kwargs.get("rev_tail", ""))):
                 plan = planner_plan_assembly([vector_path, insert_path], intent)
             self.assertEqual(plan["assembly_strategy"]["method"],
                              "golden_gate")
@@ -227,7 +254,8 @@ class M1PlannerTests(unittest.TestCase):
             with mock.patch(
                     "planning.planner.design_region_primers",
                     side_effect=lambda seq, start, **kwargs:
-                        fake_primer_result(seq)):
+                        fake_primer_result(seq, kwargs.get("fwd_tail", ""),
+                                           kwargs.get("rev_tail", ""))):
                 plan = planner_plan_assembly([source], intent)
             extracted = plan["fragment_assignments"][1]["sequence"]
             self.assertEqual(extracted,
@@ -453,7 +481,8 @@ class AdditionalV09CoverageTests(unittest.TestCase):
             with mock.patch(
                     "planning.planner.design_region_primers",
                     side_effect=lambda seq, start, **kwargs:
-                        fake_primer_result(seq)):
+                        fake_primer_result(seq, kwargs.get("fwd_tail", ""),
+                                           kwargs.get("rev_tail", ""))):
                 plan = planner_plan_assembly([source], intent)
             self.assertEqual(plan["assembly_strategy"]["method"], "gibson")
 
@@ -575,7 +604,8 @@ class AdditionalV09CoverageTests(unittest.TestCase):
             with mock.patch(
                     "planning.planner.design_region_primers",
                     side_effect=lambda seq, start, **kwargs:
-                        fake_primer_result(seq)):
+                        fake_primer_result(seq, kwargs.get("fwd_tail", ""),
+                                           kwargs.get("rev_tail", ""))):
                 plan = planner_plan_assembly(sources, intent)
             self.assertEqual(
                 list(Draft202012Validator(schema).iter_errors(plan)), [])
@@ -592,7 +622,8 @@ class AdditionalV09CoverageTests(unittest.TestCase):
             with mock.patch(
                     "planning.planner.design_region_primers",
                     side_effect=lambda seq, start, **kwargs:
-                        fake_primer_result(seq)):
+                        fake_primer_result(seq, kwargs.get("fwd_tail", ""),
+                                           kwargs.get("rev_tail", ""))):
                 plan = planner_plan_assembly([source], intent)
             self.assertEqual(plan["assembly_strategy"]["method"], "gibson")
 
@@ -666,8 +697,14 @@ class AdditionalV09CoverageTests(unittest.TestCase):
             result = online_sources.ncbi_search("EGFP")
         self.assertEqual(result["status"], "verified-online")
         self.assertEqual(result["records"][0]["accession"], "NM_001")
+        # An HTTP response must contain a parsed record, not just a LOCUS prefix.
+        record = SeqRecord(Seq("ACGT"), id="X", name="X")
+        record.annotations["molecule_type"] = "DNA"
+        import io
+        buffer = io.StringIO()
+        SeqIO.write(record, buffer, "genbank")
         with mock.patch.object(online_sources, "_get",
-                               return_value="LOCUS       X"):
+                               return_value=buffer.getvalue()):
             result = online_sources.fetch_genbank("X")
         self.assertEqual(result["status"], "verified-online")
         with mock.patch.object(online_sources, "_get",
@@ -678,7 +715,7 @@ class AdditionalV09CoverageTests(unittest.TestCase):
 
 class M6OnlineSourceTests(unittest.TestCase):
     @unittest.skipUnless(os.environ.get("SNAPGENE_RUN_ONLINE") == "1",
-                         "set SNAPGENE_RUN_ONLINE=1 for live NCBI queries")
+                         "Live NCBI integration is opt-in to keep default suite offline; SNAPGENE_RUN_ONLINE=1 requires network/service availability")
     def test_live_ncbi_search(self):
         result = online_sources.ncbi_search("EGFP", retmax=2, timeout=30)
         self.assertEqual(result["status"], "verified-online")

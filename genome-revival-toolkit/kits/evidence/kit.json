@@ -1,0 +1,135 @@
+{
+  "schema_version": "kit-v1",
+  "name": "genome-evidence",
+  "version": "0.1.0",
+  "core_version": {
+    "minimum": "2.2.5",
+    "maximum_exclusive": "3.0.0"
+  },
+  "input_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "request_file",
+      "context_file"
+    ],
+    "properties": {
+      "request_file": {
+        "type": "string",
+        "minLength": 1
+      },
+      "context_file": {
+        "type": "string",
+        "minLength": 1
+      },
+      "language": {
+        "enum": [
+          "zh",
+          "en"
+        ]
+      },
+      "trace_mode": {
+        "enum": [
+          "normal",
+          "strict"
+        ]
+      }
+    },
+    "definitions": {
+      "request": {
+        "type": "object",
+        "properties": {
+          "comparisons": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "decisions": {
+            "type": "array"
+          },
+          "genotype_results": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "kit": {
+            "const": "evidence"
+          },
+          "observations": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "observations_file": {
+            "type": "string",
+            "minLength": 1
+          },
+          "original_request": {
+            "type": "string",
+            "minLength": 1
+          },
+          "title": {
+            "type": "string"
+          },
+          "expected_results_file": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "original_request"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "input_example": {
+    "request_file": "request.json",
+    "context_file": "context.json",
+    "language": "en"
+  },
+  "entrypoint": "scripts/entry.py:run",
+  "outputs": {
+    "contract": "json-object",
+    "files": [
+      "result.json",
+      "summary.md",
+      "context-snapshot.json",
+      "TOOLKIT-RECEIPT.json"
+    ]
+  },
+  "contributions": [],
+  "metadata": {
+    "command": "evidence",
+    "order": 2,
+    "request_example": {
+      "original_request": "Compare the submitted observations and state their genetic-evidence limits.",
+      "observations": [],
+      "comparisons": [],
+      "genotype_results": []
+    },
+    "scope": "整理已提交的观察与对照，检查数值、引用和记录范围。程序没有重新做实验或认证复活机制。",
+    "limits": [
+      "数据是研究者提交的记录，程序未独立认证实验真实性。",
+      "未检测区域、功能依赖和机制证据仍未覆盖。"
+    ],
+    "references_entry": "scripts/hooks.py:references",
+    "workflow_entry": "scripts/workflow.py:run_evidence",
+    "summary_entry": "scripts/presentation.py:summary",
+    "fact_entry": "scripts/presentation.py:fact_text",
+    "trace_labels": {
+      "toolkit.evidence": "整理实验观察与结论范围",
+      "evidence.read_observations": "读取实验记录文件"
+    },
+    "trace_skip": [
+      "toolkit.evidence"
+    ],
+    "trace_strip_prefix": "",
+    "legacy_module": "revival.evidence",
+    "request_directory_parameter": "_request_dir",
+    "cli_description": "evidence records"
+  }
+}

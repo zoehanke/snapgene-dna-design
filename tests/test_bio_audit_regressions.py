@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 """Regression tests for the 2026-08-20 biological-correctness audit fixes."""
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import sys
 import unittest
 from unittest import mock
@@ -7,7 +9,7 @@ from unittest import mock
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-ROOT = HERE.parent
+ROOT = SKILL_ROOT
 SCRIPTS = ROOT / "scripts"
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(SCRIPTS))

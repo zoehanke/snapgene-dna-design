@@ -1,0 +1,115 @@
+{
+  "gate": "snapgene-official-roundtrip",
+  "cases": {
+    "named_construct.gb": {
+      "passed": true,
+      "core_passed": true,
+      "strict_passed": false,
+      "strict": false,
+      "lossless": false,
+      "delivery_grade": "core-compatible-with-important-differences",
+      "source_format": "genbank",
+      "export_format": "snapgene-gb",
+      "internal_roundtrip": {
+        "passed": true,
+        "sequence_equal": true,
+        "topology_equal": true,
+        "features_equal": true,
+        "qualifiers_equal": true,
+        "qualifier_differences": [],
+        "qualifier_risk": "none",
+        "expected_feature_count": 2,
+        "observed_feature_count": 2,
+        "parser_warnings": []
+      },
+      "official_snapgene_roundtrip": {
+        "passed": true,
+        "sequence_equal": true,
+        "topology_equal": true,
+        "features_equal": true,
+        "qualifiers_equal": false,
+        "qualifier_differences": [
+          {
+            "feature": "demo_gene",
+            "location_operator": "",
+            "location": "((0, 15, 1),)",
+            "missing_keys": [],
+            "unexpected_keys": [
+              "codon_start",
+              "transl_table"
+            ],
+            "changed": {},
+            "important": true
+          }
+        ],
+        "qualifier_risk": "important",
+        "expected_feature_count": 2,
+        "observed_feature_count": 2,
+        "status": "completed",
+        "executable": "SnapGene.exe",
+        "target_format": "SnapGene DNA",
+        "parser_warnings": []
+      },
+      "warnings": [
+        "official SnapGene read-back qualifiers differ (1 difference(s), risk=important): demo_gene"
+      ]
+    },
+    "named_construct.dna": {
+      "passed": true,
+      "core_passed": true,
+      "strict_passed": false,
+      "strict": false,
+      "lossless": false,
+      "delivery_grade": "core-compatible-with-important-differences",
+      "source_format": "snapgene",
+      "export_format": "snapgene-gb",
+      "internal_roundtrip": {
+        "passed": true,
+        "sequence_equal": true,
+        "topology_equal": true,
+        "features_equal": true,
+        "qualifiers_equal": true,
+        "qualifier_differences": [],
+        "qualifier_risk": "none",
+        "expected_feature_count": 2,
+        "observed_feature_count": 2,
+        "parser_warnings": []
+      },
+      "official_snapgene_roundtrip": {
+        "passed": true,
+        "sequence_equal": true,
+        "topology_equal": true,
+        "features_equal": true,
+        "qualifiers_equal": false,
+        "qualifier_differences": [
+          {
+            "feature": "demo_gene",
+            "location_operator": "",
+            "location": "((0, 15, 1),)",
+            "missing_keys": [],
+            "unexpected_keys": [
+              "codon_start",
+              "transl_table"
+            ],
+            "changed": {},
+            "important": true
+          }
+        ],
+        "qualifier_risk": "important",
+        "expected_feature_count": 2,
+        "observed_feature_count": 2,
+        "status": "completed",
+        "executable": "SnapGene.exe",
+        "target_format": "SnapGene DNA",
+        "parser_warnings": []
+      },
+      "warnings": [
+        "official SnapGene read-back qualifiers differ (1 difference(s), risk=important): demo_gene"
+      ]
+    }
+  },
+  "named_pipeline": {
+    "validation_overall": "verified",
+    "error_codes": []
+  }
+}

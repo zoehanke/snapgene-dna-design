@@ -4,20 +4,22 @@
 Runs ``scripts/smoke_core.py`` so the redistributable package does not depend
 on academic-only SnapGene fixtures.
 """
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import os
 import subprocess
 import sys
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-SCRIPTS = os.path.abspath(os.path.join(HERE, "..", "scripts"))
+SCRIPTS = str(TOOLS_ROOT)
 
 
 class SmokeCoreTests(unittest.TestCase):
     def test_smoke_core_passes(self):
         completed = subprocess.run(
             [sys.executable, "-X", "utf8",
-             os.path.join(SCRIPTS, "smoke_core.py")],
+             str(TOOLS_ROOT / "smoke_core.py")],
             cwd=SCRIPTS, capture_output=True, text=True,
             encoding="utf-8", errors="replace",
         )

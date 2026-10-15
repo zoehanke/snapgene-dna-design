@@ -1,0 +1,191 @@
+# -*- coding: utf-8 -*-
+"""core/tools/translation.py - Atomic translation, reverse complement, and silent mutation tools.
+
+Provides reverse complementation, 6-frame translation, and synonymous (silent)
+mutagenesis to silence internal restriction enzyme sites without altering protein sequence.
+"""
+from __future__ import annotations
+from typing import Any
+
+from Bio.Data import CodonTable
+from Bio.Seq import Seq
+from Bio.SeqRecord import SeqRecord
+
+from core.models.molecule import MoleculeInput, ProteinSequence, as_molecule, derived_molecule
+from core.tools.result import ToolResult
+from core.tools.restriction import get_enzyme, restriction_hits
+
+
+def reverse_complement(seq: MoleculeInput) -> ToolResult:
+    source = as_molecule(seq)
+    record = source.reverse_complement(id=True, name=True, description=True, annotations=True, dbxrefs=True)
+    import copy
+    record.features=copy.deepcopy(record.features)
+    record.annotations=copy.deepcopy(record.annotations)
+    record.letter_annotations=copy.deepcopy(dict(record.letter_annotations))
+    left, right = copy.deepcopy(source.right_end), copy.deepcopy(source.left_end)
+    if left is not None:
+        left.cut_boundary = 0
+    if right is not None:
+        right.cut_boundary = len(source)
+    product = derived_molecule(record, [source], operation='reverse_complement',
+                   strandedness=source.strandedness, left_end=left, right_end=right,
+                   mappings=[{'strand': -1, 'length': len(source)}])
+    return ToolResult(products=[product])
+
+
+def translate_dna(seq: MoleculeInput, frame: int = 1, table: int = 1) -> ToolResult:
+    if frame not in (1, 2, 3, -1, -2, -3):
+        raise ValueError('frame must be one of 1, 2, 3, -1, -2, -3')
+    source = as_molecule(seq)
+    sequence = source.seq.reverse_complement() if frame < 0 else source.seq
+    sequence = sequence[abs(frame)-1:]
+    sequence = sequence[:len(sequence) - len(sequence) % 3]
+    return ToolResult(analysis={'translation': ProteinSequence(str(sequence.translate(table=table))),
+                               'frame': frame, 'table': table, 'source_version': source.record_version})
+
+
+def silent_mutation_remove_site(
+    cds_seq: MoleculeInput,
+    enzyme_name: str,
+    frame_offset: int = 0,
+    table: int = 1,
+) -> ToolResult:
+    """Mutate internal restriction sites silently without altering translated amino acid sequence.
+
+    Args:
+        cds_seq: Coding sequence.
+        enzyme_name: Restriction enzyme name (e.g. 'EcoRI', 'BsaI', 'BamHI').
+        frame_offset: 0-based offset of the first base in the reading frame (0, 1, or 2).
+        table: NCBI genetic code table ID (1 = standard).
+
+    Returns:
+        dict with mutated_seq, original_aa, mutated_aa, mutations_applied, and site_removed.
+    """
+    source = as_molecule(cds_seq)
+    s = list(str(source.seq))
+    n = len(s)
+    enz = get_enzyme(enzyme_name)
+
+    # Initial translation
+    orig_aa = translate_dna("".join(s), frame=frame_offset + 1, table=table).analysis["translation"]
+
+    current_hits = restriction_hits(Seq("".join(s)), enz, circular=False)
+    if not current_hits:
+        return ToolResult(products=[source], analysis={
+            "site_removed": True,
+            "mutations_applied": [],
+            "message": f"No {enzyme_name} sites found in sequence",
+            "identical_translation": True,
+        })
+
+    mutations_applied = []
+    forward_table = CodonTable.unambiguous_dna_by_id[table].forward_table
+
+    # Continue attempting to silence sites while sites exist and progress is made
+    max_rounds = len(current_hits) + 4
+    round_count = 0
+    while current_hits and round_count < max_rounds:
+        round_count += 1
+        progress_made = False
+
+        for h in current_hits:
+            site_start = h.get("recognition_start0", h.get("start", 0))
+            site_len = len(str(getattr(enz, "site", "")))
+
+            for pos in range(site_start, min(site_start + site_len, n)):
+                codon_idx = (pos - frame_offset) // 3
+                codon_start = frame_offset + codon_idx * 3
+                codon_end = codon_start + 3
+                if codon_end > n or codon_start < 0:
+                    continue
+
+                current_codon = "".join(s[codon_start:codon_end])
+                orig_amino = forward_table.get(current_codon, "*")
+                base_idx_in_codon = pos - codon_start
+
+                for alt in ("A", "C", "G", "T"):
+                    if alt == s[pos]:
+                        continue
+                    test_codon = list(current_codon)
+                    test_codon[base_idx_in_codon] = alt
+                    test_codon_str = "".join(test_codon)
+                    test_amino = forward_table.get(test_codon_str, "*")
+
+                    if test_amino == orig_amino:
+                        # Synonymous! Test if this mutation reduces the count of restriction sites
+                        test_seq = list(s)
+                        test_seq[pos] = alt
+                        new_hits = restriction_hits(Seq("".join(test_seq)), enz, circular=False)
+                        if len(new_hits) < len(current_hits):
+                            # Successfully eliminated at least one site!
+                            s[pos] = alt
+                            mutations_applied.append({
+                                "position_0based": pos,
+                                "original_base": current_codon[base_idx_in_codon],
+                                "alt_base": alt,
+                                "codon_change": f"{current_codon} -> {test_codon_str}",
+                                "amino_acid": orig_amino,
+                            })
+                            current_hits = new_hits
+                            progress_made = True
+                            break
+                if progress_made:
+                    break
+            if progress_made:
+                break
+
+        if not progress_made:
+            # Cannot eliminate remaining sites with synonymous mutations
+            break
+
+    mutated_str = "".join(s)
+    new_aa = translate_dna(mutated_str, frame=frame_offset + 1, table=table).analysis["translation"]
+    final_hits = restriction_hits(Seq(mutated_str), enz, circular=False)
+
+    from core.models.construct_model import ConstructModel
+    changes = [(index, base) for index, base in enumerate(mutated_str) if base != str(source.seq)[index]]
+    record = ConstructModel(source).mutate(changes).to_record()
+    product = derived_molecule(record,[source],operation='silent_mutation_remove_site',strandedness=source.strandedness)
+    return ToolResult(products=[product],analysis={
+        "site_removed": len(final_hits) == 0,
+        "mutations_applied": mutations_applied,
+        "remaining_cut_count": len(final_hits),
+        "identical_translation": (orig_aa == new_aa),
+    })
+
+
+def get_codon_synonyms(codon: str, table: int = 1) -> ToolResult:
+    """Return all synonymous codons that translate to the same amino acid under specified genetic code.
+
+    Args:
+        codon: 3-base nucleotide triplet (e.g. 'CTG', 'GAA').
+        table: NCBI genetic code table ID (default: 1 standard).
+
+    Returns:
+        dict with amino_acid, original_codon, synonymous_codons list, and codon count.
+    """
+    c = str(codon).strip().upper()
+    if len(c) != 3:
+        raise ValueError(f"Codon must be exactly 3 nucleotides, got '{codon}'")
+
+    codon_table = CodonTable.unambiguous_dna_by_id[table]
+    forward_table = codon_table.forward_table
+    stop_codons = codon_table.stop_codons
+
+    if c in stop_codons:
+        aa = "*"
+        synonyms = [s for s in stop_codons if s != c]
+    else:
+        aa = forward_table.get(c)
+        if not aa:
+            raise ValueError(f"Unrecognized codon '{codon}' in translation table {table}")
+        synonyms = [cod for cod, trans_aa in forward_table.items() if trans_aa == aa and cod != c]
+
+    return ToolResult(analysis={
+        "original_codon": c,
+        "amino_acid": aa,
+        "synonymous_codons": sorted(synonyms),
+        "synonym_count": len(synonyms),
+        "is_stop_codon": (aa == "*"),
+    })

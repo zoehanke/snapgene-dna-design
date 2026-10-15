@@ -1,0 +1,519 @@
+{
+  "schema_version": "1.0.0",
+  "rules": [
+    {
+      "id": "selection-amp",
+      "name": "Conditional selection for amp",
+      "version": 1,
+      "status": "active",
+      "trigger": "before_culture_plan",
+      "scope": {
+        "type": "project",
+        "project_id": "genome-crispr"
+      },
+      "when": {
+        "field": "marker_id",
+        "operator": "eq",
+        "value": "amp"
+      },
+      "action": {
+        "type": "set_default",
+        "field": "selection_mapping",
+        "value": {
+          "marker_id": "amp",
+          "pattern": "ampr|ampicillin|bla(?:tem\\d*)?|beta-lactamase",
+          "hosts": {
+            "ecoli": [
+              "LB + ampicillin",
+              "NEB"
+            ]
+          },
+          "auxotrophy": null,
+          "sources": {
+            "NEB": {
+              "source_type": "manufacturer",
+              "name": "NEB Turbo competent E. coli: antibiotics for plasmid selection",
+              "url": "https://www.neb.com/en-us/products/c2986-neb-turbo-electrocompetent-e-coli",
+              "retrieved_at": "2026-10-14",
+              "verification_status": "verified"
+            }
+          }
+        }
+      },
+      "source": {
+        "type": "manufacturer",
+        "description": "NEB Turbo competent E. coli: antibiotics for plasmid selection",
+        "url": "https://www.neb.com/en-us/products/c2986-neb-turbo-electrocompetent-e-coli",
+        "host_sources": [
+          {
+            "host": "ecoli",
+            "source_type": "manufacturer",
+            "name": "NEB Turbo competent E. coli: antibiotics for plasmid selection",
+            "url": "https://www.neb.com/en-us/products/c2986-neb-turbo-electrocompetent-e-coli",
+            "retrieved_at": "2026-10-14",
+            "verification_status": "verified"
+          }
+        ]
+      }
+    },
+    {
+      "id": "selection-kan",
+      "name": "Conditional selection for kan",
+      "version": 1,
+      "status": "active",
+      "trigger": "before_culture_plan",
+      "scope": {
+        "type": "project",
+        "project_id": "genome-crispr"
+      },
+      "when": {
+        "field": "marker_id",
+        "operator": "eq",
+        "value": "kan"
+      },
+      "action": {
+        "type": "set_default",
+        "field": "selection_mapping",
+        "value": {
+          "marker_id": "kan",
+          "pattern": "kanr|kanmx\\d*|kanamycin",
+          "hosts": {
+            "ecoli": [
+              "LB + kanamycin",
+              "NEB"
+            ],
+            "yeast": [
+              "G418 selection medium",
+              "pRS"
+            ]
+          },
+          "auxotrophy": null,
+          "sources": {
+            "NEB": {
+              "source_type": "manufacturer",
+              "name": "NEB Turbo competent E. coli: antibiotics for plasmid selection",
+              "url": "https://www.neb.com/en-us/products/c2986-neb-turbo-electrocompetent-e-coli",
+              "retrieved_at": "2026-10-14",
+              "verification_status": "verified"
+            },
+            "pRS": {
+              "source_type": "peer_reviewed_paper",
+              "name": "Chee and Haase, G3 2012, redesigned pRS vectors",
+              "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC3362935/",
+              "retrieved_at": "2026-10-14",
+              "verification_status": "verified"
+            }
+          }
+        }
+      },
+      "source": {
+        "type": "manufacturer",
+        "description": "NEB Turbo competent E. coli: antibiotics for plasmid selection",
+        "url": "https://www.neb.com/en-us/products/c2986-neb-turbo-electrocompetent-e-coli",
+        "host_sources": [
+          {
+            "host": "ecoli",
+            "source_type": "manufacturer",
+            "name": "NEB Turbo competent E. coli: antibiotics for plasmid selection",
+            "url": "https://www.neb.com/en-us/products/c2986-neb-turbo-electrocompetent-e-coli",
+            "retrieved_at": "2026-10-14",
+            "verification_status": "verified"
+          },
+          {
+            "host": "yeast",
+            "source_type": "peer_reviewed_paper",
+            "name": "Chee and Haase, G3 2012, redesigned pRS vectors",
+            "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC3362935/",
+            "retrieved_at": "2026-10-14",
+            "verification_status": "verified"
+          }
+        ]
+      }
+    },
+    {
+      "id": "selection-cat",
+      "name": "Conditional selection for cat",
+      "version": 1,
+      "status": "active",
+      "trigger": "before_culture_plan",
+      "scope": {
+        "type": "project",
+        "project_id": "genome-crispr"
+      },
+      "when": {
+        "field": "marker_id",
+        "operator": "eq",
+        "value": "cat"
+      },
+      "action": {
+        "type": "set_default",
+        "field": "selection_mapping",
+        "value": {
+          "marker_id": "cat",
+          "pattern": "cmr|camr|cat|chloramphenicol",
+          "hosts": {
+            "ecoli": [
+              "LB + chloramphenicol",
+              "NEB"
+            ]
+          },
+          "auxotrophy": null,
+          "sources": {
+            "NEB": {
+              "source_type": "manufacturer",
+              "name": "NEB Turbo competent E. coli: antibiotics for plasmid selection",
+              "url": "https://www.neb.com/en-us/products/c2986-neb-turbo-electrocompetent-e-coli",
+              "retrieved_at": "2026-10-14",
+              "verification_status": "verified"
+            }
+          }
+        }
+      },
+      "source": {
+        "type": "manufacturer",
+        "description": "NEB Turbo competent E. coli: antibiotics for plasmid selection",
+        "url": "https://www.neb.com/en-us/products/c2986-neb-turbo-electrocompetent-e-coli",
+        "host_sources": [
+          {
+            "host": "ecoli",
+            "source_type": "manufacturer",
+            "name": "NEB Turbo competent E. coli: antibiotics for plasmid selection",
+            "url": "https://www.neb.com/en-us/products/c2986-neb-turbo-electrocompetent-e-coli",
+            "retrieved_at": "2026-10-14",
+            "verification_status": "verified"
+          }
+        ]
+      }
+    },
+    {
+      "id": "selection-hph",
+      "name": "Conditional selection for hph",
+      "version": 1,
+      "status": "active",
+      "trigger": "before_culture_plan",
+      "scope": {
+        "type": "project",
+        "project_id": "genome-crispr"
+      },
+      "when": {
+        "field": "marker_id",
+        "operator": "eq",
+        "value": "hph"
+      },
+      "action": {
+        "type": "set_default",
+        "field": "selection_mapping",
+        "value": {
+          "marker_id": "hph",
+          "pattern": "hygr|hygromycin|hph(?:nt\\d+|mx\\d*)?",
+          "hosts": {
+            "yeast": [
+              "Hygromycin B selection medium",
+              "pRS"
+            ]
+          },
+          "auxotrophy": null,
+          "sources": {
+            "pRS": {
+              "source_type": "peer_reviewed_paper",
+              "name": "Chee and Haase, G3 2012, redesigned pRS vectors",
+              "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC3362935/",
+              "retrieved_at": "2026-10-14",
+              "verification_status": "verified"
+            }
+          }
+        }
+      },
+      "source": {
+        "type": "peer_reviewed_paper",
+        "description": "Chee and Haase, G3 2012, redesigned pRS vectors",
+        "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC3362935/",
+        "host_sources": [
+          {
+            "host": "yeast",
+            "source_type": "peer_reviewed_paper",
+            "name": "Chee and Haase, G3 2012, redesigned pRS vectors",
+            "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC3362935/",
+            "retrieved_at": "2026-10-14",
+            "verification_status": "verified"
+          }
+        ]
+      }
+    },
+    {
+      "id": "selection-nat",
+      "name": "Conditional selection for nat",
+      "version": 1,
+      "status": "active",
+      "trigger": "before_culture_plan",
+      "scope": {
+        "type": "project",
+        "project_id": "genome-crispr"
+      },
+      "when": {
+        "field": "marker_id",
+        "operator": "eq",
+        "value": "nat"
+      },
+      "action": {
+        "type": "set_default",
+        "field": "selection_mapping",
+        "value": {
+          "marker_id": "nat",
+          "pattern": "natmx\\d*|nourseothricin",
+          "hosts": {
+            "yeast": [
+              "Nourseothricin selection medium",
+              "pRS"
+            ]
+          },
+          "auxotrophy": null,
+          "sources": {
+            "pRS": {
+              "source_type": "peer_reviewed_paper",
+              "name": "Chee and Haase, G3 2012, redesigned pRS vectors",
+              "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC3362935/",
+              "retrieved_at": "2026-10-14",
+              "verification_status": "verified"
+            }
+          }
+        }
+      },
+      "source": {
+        "type": "peer_reviewed_paper",
+        "description": "Chee and Haase, G3 2012, redesigned pRS vectors",
+        "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC3362935/",
+        "host_sources": [
+          {
+            "host": "yeast",
+            "source_type": "peer_reviewed_paper",
+            "name": "Chee and Haase, G3 2012, redesigned pRS vectors",
+            "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC3362935/",
+            "retrieved_at": "2026-10-14",
+            "verification_status": "verified"
+          }
+        ]
+      }
+    },
+    {
+      "id": "selection-ura3",
+      "name": "Conditional selection for ura3",
+      "version": 1,
+      "status": "active",
+      "trigger": "before_culture_plan",
+      "scope": {
+        "type": "project",
+        "project_id": "genome-crispr"
+      },
+      "when": {
+        "field": "marker_id",
+        "operator": "eq",
+        "value": "ura3"
+      },
+      "action": {
+        "type": "set_default",
+        "field": "selection_mapping",
+        "value": {
+          "marker_id": "ura3",
+          "pattern": "ura3",
+          "hosts": {
+            "yeast": [
+              "Synthetic defined medium without uracil",
+              "pRS"
+            ]
+          },
+          "auxotrophy": "ura3",
+          "sources": {
+            "pRS": {
+              "source_type": "peer_reviewed_paper",
+              "name": "Chee and Haase, G3 2012, redesigned pRS vectors",
+              "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC3362935/",
+              "retrieved_at": "2026-10-14",
+              "verification_status": "verified"
+            }
+          }
+        }
+      },
+      "source": {
+        "type": "peer_reviewed_paper",
+        "description": "Chee and Haase, G3 2012, redesigned pRS vectors",
+        "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC3362935/",
+        "host_sources": [
+          {
+            "host": "yeast",
+            "source_type": "peer_reviewed_paper",
+            "name": "Chee and Haase, G3 2012, redesigned pRS vectors",
+            "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC3362935/",
+            "retrieved_at": "2026-10-14",
+            "verification_status": "verified"
+          }
+        ]
+      }
+    },
+    {
+      "id": "selection-his3",
+      "name": "Conditional selection for his3",
+      "version": 1,
+      "status": "active",
+      "trigger": "before_culture_plan",
+      "scope": {
+        "type": "project",
+        "project_id": "genome-crispr"
+      },
+      "when": {
+        "field": "marker_id",
+        "operator": "eq",
+        "value": "his3"
+      },
+      "action": {
+        "type": "set_default",
+        "field": "selection_mapping",
+        "value": {
+          "marker_id": "his3",
+          "pattern": "his3",
+          "hosts": {
+            "yeast": [
+              "Synthetic defined medium without histidine",
+              "SGD"
+            ]
+          },
+          "auxotrophy": "his3",
+          "sources": {
+            "SGD": {
+              "source_type": "curated_database",
+              "name": "SGD commonly used auxotrophic markers",
+              "url": "https://wiki.yeastgenome.org/index.php/Commonly_used_auxotrophic_markers",
+              "retrieved_at": "2026-10-14",
+              "verification_status": "verified"
+            }
+          }
+        }
+      },
+      "source": {
+        "type": "curated_database",
+        "description": "SGD commonly used auxotrophic markers",
+        "url": "https://wiki.yeastgenome.org/index.php/Commonly_used_auxotrophic_markers",
+        "host_sources": [
+          {
+            "host": "yeast",
+            "source_type": "curated_database",
+            "name": "SGD commonly used auxotrophic markers",
+            "url": "https://wiki.yeastgenome.org/index.php/Commonly_used_auxotrophic_markers",
+            "retrieved_at": "2026-10-14",
+            "verification_status": "verified"
+          }
+        ]
+      }
+    },
+    {
+      "id": "selection-leu2",
+      "name": "Conditional selection for leu2",
+      "version": 1,
+      "status": "active",
+      "trigger": "before_culture_plan",
+      "scope": {
+        "type": "project",
+        "project_id": "genome-crispr"
+      },
+      "when": {
+        "field": "marker_id",
+        "operator": "eq",
+        "value": "leu2"
+      },
+      "action": {
+        "type": "set_default",
+        "field": "selection_mapping",
+        "value": {
+          "marker_id": "leu2",
+          "pattern": "leu2",
+          "hosts": {
+            "yeast": [
+              "Synthetic defined medium without leucine",
+              "SGD"
+            ]
+          },
+          "auxotrophy": "leu2",
+          "sources": {
+            "SGD": {
+              "source_type": "curated_database",
+              "name": "SGD commonly used auxotrophic markers",
+              "url": "https://wiki.yeastgenome.org/index.php/Commonly_used_auxotrophic_markers",
+              "retrieved_at": "2026-10-14",
+              "verification_status": "verified"
+            }
+          }
+        }
+      },
+      "source": {
+        "type": "curated_database",
+        "description": "SGD commonly used auxotrophic markers",
+        "url": "https://wiki.yeastgenome.org/index.php/Commonly_used_auxotrophic_markers",
+        "host_sources": [
+          {
+            "host": "yeast",
+            "source_type": "curated_database",
+            "name": "SGD commonly used auxotrophic markers",
+            "url": "https://wiki.yeastgenome.org/index.php/Commonly_used_auxotrophic_markers",
+            "retrieved_at": "2026-10-14",
+            "verification_status": "verified"
+          }
+        ]
+      }
+    },
+    {
+      "id": "selection-trp1",
+      "name": "Conditional selection for trp1",
+      "version": 1,
+      "status": "active",
+      "trigger": "before_culture_plan",
+      "scope": {
+        "type": "project",
+        "project_id": "genome-crispr"
+      },
+      "when": {
+        "field": "marker_id",
+        "operator": "eq",
+        "value": "trp1"
+      },
+      "action": {
+        "type": "set_default",
+        "field": "selection_mapping",
+        "value": {
+          "marker_id": "trp1",
+          "pattern": "trp1",
+          "hosts": {
+            "yeast": [
+              "Synthetic defined medium without tryptophan",
+              "SGD"
+            ]
+          },
+          "auxotrophy": "trp1",
+          "sources": {
+            "SGD": {
+              "source_type": "curated_database",
+              "name": "SGD commonly used auxotrophic markers",
+              "url": "https://wiki.yeastgenome.org/index.php/Commonly_used_auxotrophic_markers",
+              "retrieved_at": "2026-10-14",
+              "verification_status": "verified"
+            }
+          }
+        }
+      },
+      "source": {
+        "type": "curated_database",
+        "description": "SGD commonly used auxotrophic markers",
+        "url": "https://wiki.yeastgenome.org/index.php/Commonly_used_auxotrophic_markers",
+        "host_sources": [
+          {
+            "host": "yeast",
+            "source_type": "curated_database",
+            "name": "SGD commonly used auxotrophic markers",
+            "url": "https://wiki.yeastgenome.org/index.php/Commonly_used_auxotrophic_markers",
+            "retrieved_at": "2026-10-14",
+            "verification_status": "verified"
+          }
+        ]
+      }
+    }
+  ]
+}

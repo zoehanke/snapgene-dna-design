@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="800" viewBox="0 0 1280 800" role="img" aria-labelledby="title description">
+  <title id="title">Genome Revival Toolkit software architecture</title>
+  <desc id="description">One public Skill entry selects Construct, Genome Identity or Revival Evidence. A shared Project Context supplies material versions and declared metadata. Construct and Genome Identity reuse DNA Design Core 2.2.2. Evidence Trace 0.3.3 observes public execution and renders reports without controlling DNA design. This diagram describes software dependencies, not biological mechanisms.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#7c8798"/>
+    </marker>
+    <marker id="trace-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#ad7830"/>
+    </marker>
+    <style>
+      text {font-family:"Segoe UI",Arial,sans-serif;fill:#192538}
+      .title {font-size:32px;font-weight:700}
+      .subtitle {font-size:17px;fill:#536174}
+      .head {font-size:24px;font-weight:650}
+      .body {font-size:18px}
+      .small {font-size:15px;fill:#536174}
+      .code {font-family:Consolas,"Liberation Mono",monospace;font-size:16px;fill:#425670}
+      .line {fill:none;stroke:#7c8798;stroke-width:2;marker-end:url(#arrow)}
+      .trace {fill:none;stroke:#ad7830;stroke-width:2;stroke-dasharray:6 5;marker-end:url(#trace-arrow)}
+    </style>
+  </defs>
+
+  <rect width="1280" height="800" fill="#f7f9fc"/>
+  <text x="48" y="51" class="title">One Skill. Three focused research workflows.</text>
+  <text x="48" y="82" class="subtitle">Existing DNA computation is reused. Execution facts and scientific explanations remain distinct.</text>
+
+  <rect x="48" y="133" width="292" height="94" rx="8" fill="#fff" stroke="#d5dce6"/>
+  <text x="70" y="163" class="body" font-weight="650">Research request</text>
+  <text x="70" y="192" class="small">Original goal and supplied files</text>
+  <text x="70" y="214" class="small">Explicit scientific choices</text>
+
+  <rect x="940" y="133" width="292" height="94" rx="8" fill="#fff" stroke="#d5dce6"/>
+  <text x="962" y="163" class="body" font-weight="650">Project Context</text>
+  <text x="962" y="192" class="small">Versions, regions and sources</text>
+  <text x="962" y="214" class="small">Declared roles, facts and gaps</text>
+
+  <path d="M340 178 H390" class="line"/>
+  <path d="M940 178 H890" class="line"/>
+
+  <rect x="390" y="122" width="500" height="124" rx="8" fill="#eaf0fb" stroke="#87a6d7"/>
+  <text x="640" y="156" class="head" text-anchor="middle">Genome Revival Toolkit 0.1.0</text>
+  <text x="640" y="189" class="code" text-anchor="middle">scripts/run_toolkit.py → revival.runner</text>
+  <text x="640" y="222" class="small" text-anchor="middle">One installable Skill, one public application boundary</text>
+
+  <path d="M640 246 V290 H233 V334" class="line"/>
+  <path d="M640 246 V334" class="line"/>
+  <path d="M640 246 V290 H1047 V334" class="line"/>
+  <text x="48" y="276" class="small">Select the supported Kit for the task</text>
+
+  <rect x="48" y="334" width="370" height="177" rx="8" fill="#fff" stroke="#cdd6e2"/>
+  <rect x="48" y="334" width="370" height="5" fill="#426fac"/>
+  <text x="70" y="373" class="head">Construct Kit</text>
+  <text x="70" y="403" class="code">revival.construct</text>
+  <text x="70" y="437" class="body">Donor preparation and intermediates</text>
+  <text x="70" y="466" class="body">Complete primers and current QC</text>
+  <text x="70" y="494" class="small">Annotated files and Core delivery receipt</text>
+
+  <rect x="455" y="334" width="370" height="177" rx="8" fill="#fff" stroke="#cdd6e2"/>
+  <rect x="455" y="334" width="370" height="5" fill="#426fac"/>
+  <text x="477" y="373" class="head">Genome Identity Kit</text>
+  <text x="477" y="403" class="code">revival.identity</text>
+  <text x="477" y="437" class="body">Compare supplied reference regions</text>
+  <text x="477" y="466" class="body">Predict and assess candidate PCR</text>
+  <text x="477" y="494" class="small">Local discrimination, explicit scope</text>
+
+  <rect x="862" y="334" width="370" height="177" rx="8" fill="#fff" stroke="#cdd6e2"/>
+  <rect x="862" y="334" width="370" height="5" fill="#426fac"/>
+  <text x="884" y="373" class="head">Revival Evidence Kit</text>
+  <text x="884" y="403" class="code">revival.evidence</text>
+  <text x="884" y="437" class="body">Reported observations and controls</text>
+  <text x="884" y="466" class="body">Descriptive comparisons and gaps</text>
+  <text x="884" y="494" class="small">No automatic experimental success verdict</text>
+
+  <path d="M233 511 V568" class="line"/>
+  <path d="M640 511 V568" class="line"/>
+  <text x="330" y="546" class="small">Use existing molecular operations</text>
+
+  <rect x="48" y="568" width="777" height="128" rx="8" fill="#edf6f3" stroke="#8fb6a8"/>
+  <text x="70" y="603" class="head">DNA Design Core 2.2.2</text>
+  <text x="70" y="636" class="body">Molecule · PCR · assembly · primer quality · validation · delivery</text>
+  <text x="70" y="668" class="small">One maintained upstream implementation, bundled at build time</text>
+
+  <path d="M890 246 H1252 V604 H1232" class="trace"/>
+  <text x="978" y="278" class="small" fill="#946121">Observe public calls and results</text>
+
+  <rect x="862" y="568" width="370" height="128" rx="8" fill="#fcf5e9" stroke="#c5aa78"/>
+  <text x="884" y="603" class="head">Evidence Trace 0.3.3</text>
+  <text x="884" y="635" class="body">Capture → organize → report</text>
+  <text x="884" y="666" class="small">Sidecar: observes, does not control DNA</text>
+
+  <line x1="48" y1="728" x2="1232" y2="728" stroke="#d5dce6"/>
+  <text x="48" y="758" class="body">Outputs: scoped results, current files and receipts, readable HTML / Markdown, technical records.</text>
+  <text x="48" y="785" class="small">Arrows show software relationships. This is not a biological mechanism or a claim of genome revival.</text>
+</svg>

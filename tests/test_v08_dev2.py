@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 """v0.8.0-dev2 tests: schemas, Cas-OFFinder parser, scoring gate, protocol evidence."""
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import json
 import pathlib
 import sys
@@ -11,7 +13,7 @@ from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
 HERE = pathlib.Path(__file__).resolve().parent
-ROOT = HERE.parent
+ROOT = SKILL_ROOT
 SCRIPTS = ROOT / "scripts"
 SCHEMAS = ROOT / "schemas"
 sys.path.insert(0, str(SCRIPTS))

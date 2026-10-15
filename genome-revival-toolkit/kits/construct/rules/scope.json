@@ -1,0 +1,5 @@
+{"status":"GUIDANCE_ONLY","rules":[
+  {"id":"explicit-source-bounds","statement":"Use supplied target/cargo intervals and explicit arm length; do not infer a locus.","source":"scripts/workflow.py:run_construct input guards and source-derived model"},
+  {"id":"physical-route","statement":"Actual computational preparation and complete oligos are required for a construct handoff.","source":"scripts/workflow.py:run_construct; same-version Core workflow_delivery.py"},
+  {"id":"donor-not-integration","statement":"Donor interface checks do not establish genomic integration or revival.","source":"scripts/workflow.py:run_construct checked_scope/not_checked"}
+]}

@@ -1,0 +1,1 @@
+"""Manifest-owned Kit resources."""
