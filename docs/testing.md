@@ -32,6 +32,8 @@ bash使用`export SNAPGENE_RUN_PRIMER3=1`。真实Primer3跳过会使正式runne
 
 完整runner终端及可选`--report-json`分别写实际通过、skip及原因、失败、错误；UTF-8文件不把skip或部分执行的方法算通过。passed由unittest实际成功事件计数，子测试失败和class setup错误单列，计数单位写入文件。原21项逐项处置见[2026-10-13审计](archive/reviews/crispr-skip-audit-2026-10-13.md)。
 
+重放失败诊断由`test_workflow_replay_diagnostics.py`经真实`run_step.py`续跑验证：独立构造输入版本、结果、两者同时改变及反应记录改变，原错误码和拒绝不变；未改变记录反向互补两次恢复原序列。检查保存的失败记录、两侧摘要、字段路径、截断和序列脱敏。间歇失败调查另保留完整前序测试顺序、各轮耗时及初次/重放操作数；重复通过不等于根因已修。
+
 官方候选沿用八分片及共享wheel预备：`--shard-count 8 --shard-index 1 --verbose --report-json ci-reports/shard-1.json`。排序后按余数分片，每个完整test case恰归一个shard，subtests不拆；全部八份结果才代表完整套件。分片保留准确skip/失败计数和即时失败详情，非法参数在发现前拒绝。独立六case控制检查无遗漏/重复，失败流式与Primer3门槛照常。GitLab安装Node以执行实际查看器线型回归，不新增Python运行依赖。
 
 旧外源模板从当前树移出；原两项已知集成仅在显式`SNAPGENE_EXTERNAL_REGRESSION_TEMPLATE`合法资源下重放并单列。默认两项测试仍实际执行，改为独立固定种子的3100/4200 bp完整环形输入，公共PCR/逐次中间体、导出及Trace一致性职责不减少。直接Primer3 Boulder独立确认的强发卡原失败与复制退火区域歧义为拒绝边界；默认演示不再要求材料身份。没有把合法缺资源skip算通过。

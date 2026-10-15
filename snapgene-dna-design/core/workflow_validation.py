@@ -2,6 +2,8 @@
 from __future__ import annotations
 import copy
 import inspect
+import json
+import re
 from pathlib import Path
 from core.errors import ValidationError
 from core.models.molecule import as_molecule
@@ -40,6 +42,62 @@ def _step(value):
                          value.get('requirements',{}),value.get('goal_coverage',{}))
 
 
+def _replay_difference_fields(recorded, replayed, limit=32):
+    """Bounded field paths only; never include differing values or DNA-like keys."""
+    paths=[]
+    def visit(left,right,path):
+        if len(paths)>limit:return
+        if type(left) is not type(right):
+            paths.append(path)
+        elif isinstance(left,dict):
+            for key in sorted(left.keys()|right.keys()):
+                label=str(key)
+                if (len(label)>80 or re.search(r'[/\\:]',label) or
+                        len(label)>=20 and set(label.upper())<=set('ACGTUNRYSWKMBDHV')):
+                    label='[redacted-field]'
+                field=path+'.'+label
+                if key not in left or key not in right:paths.append(field)
+                else:visit(left[key],right[key],field)
+                if len(paths)>limit:break
+        elif isinstance(left,list):
+            if len(left)!=len(right):paths.append(path+'.length')
+            for index,(before,after) in enumerate(zip(left,right)):
+                visit(before,after,f'{path}[{index}]')
+                if len(paths)>limit:break
+        elif _digest(left)!=_digest(right):paths.append(path)
+    visit(recorded,replayed,'')
+    return [path.lstrip('.') for path in paths[:limit]],len(paths)>limit
+
+
+def _replay_diagnostics(previous,actual):
+    unavailable=[]
+    def digest(value):
+        try:return _digest(value)
+        except Exception as error:
+            unavailable.append(type(error).__name__)
+            return None
+    def versions(values):
+        if not isinstance(values,list):return {'invalid_versions_sha256':digest(values)}
+        return [value if isinstance(value,str) and re.fullmatch(r'[0-9a-fA-F]{64}',value)
+                and not re.fullmatch(r'[ACGTUNRYSWKMBDHV]+',value,re.IGNORECASE)
+                else {'invalid_version_sha256':digest(value)} for value in values]
+    details={'recorded_input_versions':versions(previous.input_versions),
+            'replayed_input_versions':versions(actual.input_versions),
+            'recorded_result_sha256':digest(previous.result),
+            'replayed_result_sha256':digest(actual.result)}
+    try:
+        fields,truncated=_replay_difference_fields(
+            {'input_versions':previous.input_versions,'result':to_wire(previous.result)},
+            {'input_versions':actual.input_versions,'result':to_wire(actual.result)})
+    except Exception as error:
+        # Diagnostics must not replace an already-decided refusal, including
+        # the original input-version comparison's short-circuit behavior.
+        fields,truncated=['input_versions','result'],False
+        details['diagnostics_unavailable']=type(error).__name__
+    if unavailable:details.setdefault('diagnostics_unavailable',unavailable[0])
+    return {**details,'differing_fields':fields,'differing_fields_truncated':truncated}
+
+
 def replay_steps(steps,sources):
     """Ignore imported PASS/operation claims; recompute each recorded public call."""
     if not isinstance(sources,dict):
@@ -68,7 +126,10 @@ def replay_steps(steps,sources):
                 if any(m.record_version not in available for m in _material_inputs(value)):
                     raise ValidationError('UNDECLARED_INPUT_MATERIAL',f'{previous.step_id}: material is not an original source or completed product')
         if actual.input_versions != previous.input_versions or _digest(actual.result)!=_digest(previous.result):
-            raise ValidationError('EXECUTION_RESULT_CHANGED',f'Recorded parameters/material/result differ at {previous.step_id}')
+            details=_replay_diagnostics(previous,actual)
+            raise ValidationError('EXECUTION_RESULT_CHANGED',
+                f'Recorded parameters/material/result differ at {previous.step_id}; '
+                +json.dumps(details,ensure_ascii=False,sort_keys=True),details=details)
         if _digest(actual.operations)!=_digest(previous.operations):
             raise ValidationError('REACTION_RECORD_CHANGED',f'Internal reaction facts differ at {previous.step_id}')
         if actual.requirements!=previous.requirements:
