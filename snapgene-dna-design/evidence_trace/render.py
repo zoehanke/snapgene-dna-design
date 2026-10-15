@@ -7,17 +7,20 @@ from evidence_trace.process import assemble
 from evidence_trace.report import build_report, markdown
 from evidence_trace.storage import machine_json, expand_machine
 from evidence_trace.localization import display_translations, get_language, language_scope, tr
+from evidence_trace.run_card import project_card, card_html, card_markdown
 
 
-def render(directory, graph, formats="both", language=None):
+def render(directory, graph, formats="both", language=None, notes=None):
     with language_scope(language):
-        return _render(directory, graph, formats)
+        return _render(directory, graph, formats, notes)
 
 
-def _render(directory, graph, formats):
+def _render(directory, graph, formats, notes=None):
     directory = pathlib.Path(directory)
     if formats not in {"html", "markdown", "both"}:
         raise ValueError("Unknown report format")
+    notes=[notes] if isinstance(notes,str) else list(notes or [])
+    if any(not isinstance(note,str) for note in notes):raise ValueError('Display notes must be text, not program findings.')
     graph = expand_machine(graph)
     if graph.get("schema_version") != "design-process-v1":
         graph = assemble(graph.get("audit_events", []), graph.get("issues", []))
@@ -45,13 +48,22 @@ def _render(directory, graph, formats):
     document = document.replace("__SCRIPT__", (assets / "view.js").read_text(encoding="utf-8"))
     # Host text cannot break out of this inert JSON element.
     document = document.replace("__TRACE_DATA__", payload.replace("<", "\\u003c").replace("&", "\\u0026"))
+    card=project_card(graph)
+    card['declared'][:0]=['Author-supplied display note: '+note for note in notes]
+    card_style=(assets/'run_card.css').read_text(encoding='utf-8')
+    card_script=(assets/'run_card.js').read_text(encoding='utf-8')
+    card_payload=json.dumps(card,ensure_ascii=False,separators=(',',':')).replace('<','\\u003c').replace('&','\\u0026')
+    document=document.replace('</head>','<style>'+card_style+'</style></head>')
+    document=document.replace('<body>','<body>'+card_html(card)+'<div id="full-view" hidden>')
+    document=document.replace('</body>','</div><button id="run-card-back" class="rc-back" hidden>Back to Run card</button><script id="run-card-data" type="application/json">'+card_payload+'</script><script>'+card_script+'</script></body>')
     if formats in {"html", "both"}:
         (directory / "index.html").write_text(document, encoding="utf-8")
     if formats in {"markdown", "both"}:
         complete = markdown(graph['report'])
         heading = '\n## ' + tr('查看详细记录') + '\n'
         body, _, details = complete.partition(heading)
-        (directory / 'report.md').write_text(body + heading + '\n[' + tr('可读详情') + '](details.md) · [' + tr('完整技术记录') + '](graph.json)\n', encoding='utf-8')
+        legacy=body + heading + '\n[' + tr('可读详情') + '](details.md) · [' + tr('完整技术记录') + '](graph.json)\n'
+        (directory / 'report.md').write_text(card_markdown(card)+'\n<details>\n<summary>Technical details / Full view</summary>\n\n'+legacy+'\n</details>\n', encoding='utf-8')
         (directory / 'details.md').write_text('# ' + tr('可读详情') + '\n' + details, encoding='utf-8')
     return graph
 

@@ -16,6 +16,8 @@ Core源码只在`snapgene-dna-design/`维护。开发入口复用兄弟目录，
 
 ## 当前程序全景：谁决策、谁传数据、谁验收
 
+块S的evidence_trace/run_card.py、run_card.css/js只提供通用阅读投影：从既有source/fact/run/validation/artifact及其返回内容生成英文运行卡片，再由render.py内联到单个离线HTML。完整view.css/js与原report投影保持可选。来源分组与相邻调用合并不改变数据，候选/正式文件角色保持；实线另核对已有事实的真实输出/输入摘要。无项目Kit登记表、外部资源请求或新科学计算。作者展示注释不进入machine graph；原事件/组织格式不变。
+
 2026-10-08按2.1.1源码核对。下面同时说明实际程序和既有宿主测试，不能把已实现的接口、未来方向和历史运行混为一谈。运行范围含183个Python文件：scripts 80、core 67、agent 8、planning 6、design 2、evidence_trace 18、rules 2；另有Trace的JS/CSS、10份JSON schema、宿主和外部后端。脚本目录含兼容导入及演示，不是80个正式构建入口。
 
 **当前是大模型组织设计，程序用统一材料/结果契约执行支持的方法。不存在一个已强制覆盖所有宿主操作的总设计对象。** 判断架构时要分别看目标表达、材料传递、步骤调度、检查和最终呈现。

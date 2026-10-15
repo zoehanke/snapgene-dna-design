@@ -50,6 +50,14 @@ class KitDataChainTests(unittest.TestCase):
                 links.add(pair)
             self.assertIn(('construct.identity_handoff','identity.import_construct_handoff'),links)
             self.assertIn(('toolkit.export','evidence.read_expected_results'),links)
+            import re
+            for name,wanted in [('chain-trace',('SUPPORTED','CONTRADICTED','INSUFFICIENT')),
+                                ('crispr-trace',('INVALID_PAM','CORRECT','UNKNOWN','PLANNED'))]:
+                document=(root/'story'/name/'index.html').read_text(encoding='utf-8')
+                visible=document.split('<div id="full-view"',1)[0]
+                self.assertTrue('id="run-card"' in visible,'Default card was not rendered for '+name)
+                for status in wanted:self.assertTrue(status in visible,(name,status))
+                self.assertNotRegex(document,r'<(?:script|link)[^>]+(?:src|href)=["\']https?://')
 
     def test_no_product_prediction_uses_reported_controls_and_quality(self):
         with tempfile.TemporaryDirectory() as temp:

@@ -1,5 +1,7 @@
 # Evidence Trace v0.3.5
 
+Default HTML is an English run card of sources, recorded calls, scoped checks/outcomes and files. Technical details / Full view retains the complete reader; `?view=full` selects it directly. Default Markdown adds the overview and folds the original readable body. Events, organization formats and relation types do not change. Solid links require captured output/input SHA-256 equality; dashed context/citations remain declarations. Python `render(..., notes=[...])` adds author-supplied display notes only, never machine facts or scientific validation.
+
 `trace_design.py render --trace-dir <trace> --language en` exports English UI and fixed display text. Default `zh` is compatible with existing views. Original submitted prose and source excerpts are preserved. HTML/Markdown are deterministic local projections; changing language appends no fact or scientific relationship. Toolkit commands and `rebuild-report` accept the same language flag.
 
 Optional local sidecar for scientific decisions, evidence and actual program results. It does not change DNA design, decide safety, or capture hidden model reasoning. Phase 2 adds structured input-choice coverage and context comparison, not general biological interpretation. Runtime has no new package dependencies.

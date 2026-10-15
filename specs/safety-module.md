@@ -78,6 +78,10 @@ REASSESS, RECHECK and RERUN request reconsideration, evidence checking and progr
 
 ## Reading and acceptance
 
+Block S changes only the default reading projection: an English run card places sources, recorded calls and files/scoped outcomes together, with program checks, declarations and work not checked/performed. Existing source/event/organization/fact formats are unchanged. The former complete report remains optional Full view; Markdown has the overview and folded readable body. Grouped repeated calls retain failure/correction facts and file roles/versions.
+
+Card solid lines require existing program_derived input_reference facts with same_file_content/sha256_equality and equal captured producer/input digests. Valid digest syntax alone is insufficient. Declared context/citations stay dashed; order supplies no relation. Author render notes remain view declarations, never machine facts. No external assets load automatically. Browser engineering and reader comprehension are separate acceptance categories.
+
 - Present task context, real process, files/checks and conditional review. Document/Mind Map/Split share data, selection and expansion. Detailed provenance stays available; internal fields do not dominate the default reading layer.
 - Opening a choice, file or source remains a human-reading action: explain its meaning, basis, limits and relationships. Schema, IDs, hashes and raw events are not the default detail content. Unknown types get an honest readable limitation and a separate technical entry, not recursive raw-field rendering.
 - Bind evidence to its actual Decision/Claim; contextual references do not inherit another choice's evidence. Keep each relation, conditions and limits together. Omitting a choice from the main narrative must preserve its readable details. Actual changes and review findings remain readable without opening machine JSON; unfamiliar findings remain visible as unclassified records.

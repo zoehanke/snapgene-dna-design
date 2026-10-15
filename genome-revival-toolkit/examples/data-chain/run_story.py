@@ -39,6 +39,16 @@ def run(root, *, launcher=None):
     kit('crispr',root/'inputs/crispr/check-request.json','crispr-before',guide_trace,2)
     kit('crispr',root/'inputs/crispr/replace-request.json','crispr-after',guide_trace,2)
     report=check(root)
+    # View-only publication disclosure; no event or organization is altered.
+    sys.path.insert(0,str(toolkit))
+    import revival.bootstrap
+    from evidence_trace.recorder import load_events
+    from evidence_trace.process import assemble
+    from evidence_trace.render import render
+    for directory in (trace,guide_trace):
+        before=(directory/'events.jsonl').read_bytes()
+        render(directory,assemble(load_events(directory)[0]),language='en',notes=['Official GitLab CI was not executed.'])
+        assert (directory/'events.jsonl').read_bytes()==before
     return report
 
 
