@@ -5,9 +5,12 @@ Offline/failure is explicit: ``status=offline-unverified``, never a
 silently fabricated sequence.  CRISPOR upload requests reuse the hardened
 ``SequenceUploadConsent`` full-parameter authorization from dev3.
 """
+import argparse
+from datetime import datetime, timezone
 import hashlib
 import io
 import json
+from pathlib import Path
 import sys
 import urllib.error
 import urllib.parse
@@ -17,10 +20,31 @@ from Bio import SeqIO
 from sg_common import normalize_dna
 
 from sequence_upload_consent import SequenceUploadConsent
+from evidence_trace.runtime import observe_source, trace_file_call, add_trace_arguments, trace_options
 
 NCBI_EUTILS = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
 ADDGENE_BASE = "https://www.addgene.org"
 CRISPOR_URL = "https://crispor.org"
+
+
+def _with_source(result, requested, *, text=None, search=False, database='nucleotide'):
+    """A retrieval receipt proves the downloaded record, not its scientific use."""
+    stamp = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
+    source = {'kind':'source', 'source_type':'public-database-search' if search else 'public-database-record',
+              'title':'NCBI ' + str(requested), 'database':'NCBI ' + database,
+              'requested_accession_or_keyword':str(requested),
+              'accession_version':result.get('resolved_accession'), 'retrieved_at':stamp,
+              'retrieval_status':result['status'], 'verification_status':'unverified'}
+    if text is not None and result['status']=='verified-online':
+        source['source_sha256']=hashlib.sha256(text.encode('utf-8')).hexdigest()
+        source['verification_status']='verified'
+        source['verification']={'verifier':'NCBI adapter', 'method':'Parse response and SHA-256 its decoded UTF-8 content',
+            'checked_at':stamp, 'locator':NCBI_EUTILS,
+            'scope':'Retrieved record/content only; not experimental-strain identity, applicability or scientific validity.'}
+    identity = '|'.join((source['database'],str(requested),source.get('source_sha256',result['status'])))
+    source['id']='S-public-'+hashlib.sha256(identity.encode('utf-8')).hexdigest()[:20]
+    result['source']=observe_source(source)
+    return result
 
 
 def _get(url, timeout=20):
@@ -80,8 +104,8 @@ def ncbi_search(term, database="nucleotide", retmax=5, timeout=20):
         if not isinstance(ids, list) or any(not isinstance(uid, str) for uid in ids):
             raise ValueError("Invalid NCBI id list")
         if not ids:
-            return {"status": "offline-unverified",
-                    "reason": "NCBI returned no matching ids"}
+            return _with_source({"status": "offline-unverified",
+                    "reason": "NCBI returned no matching ids"},term,search=True,database=database)
         summary = json.loads(_get(
             "%s/esummary.fcgi?db=%s&id=%s&retmode=json"
             % (NCBI_EUTILS, database, ",".join(ids)), timeout))
@@ -95,20 +119,26 @@ def ncbi_search(term, database="nucleotide", retmax=5, timeout=20):
             records.append({
                 "id": uid,
                 "accession": item.get("caption") or item.get("accessionversion"),
+                "accession_version": item.get("accessionversion"),
                 "title": item.get("title"),
                 "organism": item.get("organism"),
                 "url": "https://www.ncbi.nlm.nih.gov/nuccore/%s"
                        % (item.get("accessionversion") or uid),
             })
-        return {"status": "verified-online", "database": database,
-                "term": term, "records": records}
+        result = {"status": "verified-online", "database": database,
+                  "term": term, "records": records}
+        return _with_source(result,term,text=json.dumps({'search':payload,'summary':summary},
+                            sort_keys=True,ensure_ascii=False,separators=(',',':')),search=True,database=database)
     except (urllib.error.URLError, TimeoutError, OSError, ValueError) as error:
-        return {"status": "offline-unverified",
-                "reason": "NCBI query failed: %s" % error}
+        return _with_source({"status": "offline-unverified",
+                "reason": "NCBI query failed: %s" % error},term,search=True,database=database)
 
 
 def fetch_genbank(accession, timeout=30):
     """Fetch one GenBank record through efetch; never fabricates on failure."""
+    if _looks_like_sequence(accession):
+        return {'status':'refused-consent-required',
+                'reason':'Raw nucleotide sequences cannot be sent as accessions.'}
     try:
         params = urllib.parse.urlencode({
             "db": "nucleotide", "id": accession, "rettype": "gbwithparts",
@@ -124,13 +154,13 @@ def fetch_genbank(accession, timeout=30):
             matches = record.id == requested if "." in requested else record.id.split(".")[0] == requested
             if not matches:
                 raise ValueError("Returned accession does not match requested accession")
-        return {"status": "verified-online", "accession": accession,
+        return _with_source({"status": "verified-online", "accession": accession,
                 "resolved_accession": record.id, "sequence_length": len(sequence),
                 "verification_scope": "One parsed non-empty GenBank DNA record; no experimental or scientific validation.",
-                "format": "genbank", "text": text}
+                "format": "genbank", "text": text},accession,text=text)
     except (urllib.error.URLError, TimeoutError, OSError, ValueError) as error:
-        return {"status": "offline-unverified",
-                "reason": "NCBI efetch failed: %s" % error}
+        return _with_source({"status": "offline-unverified",
+                "reason": "NCBI efetch failed: %s" % error},accession)
 
 
 def addgene_lookup(addgene_id):
@@ -231,8 +261,43 @@ def request_crispor_query(target_sequence, organism, purpose, scope,
     return consent
 
 
-if __name__ == "__main__":
-    print(json.dumps({"ncbi": ncbi_search("EGFP"),
-                      "addgene": addgene_lookup(42230)},
-                     ensure_ascii=False, indent=2))
-    sys.exit(0)
+def main(argv=None):
+    parser=argparse.ArgumentParser(description='Explicit public-record retrieval; no sequence upload.')
+    parser.add_argument('operation',nargs='?',choices=['fetch','search','addgene'])
+    parser.add_argument('value',nargs='?')
+    parser.add_argument('--allow-network',action='store_true',help='Explicitly enable this public-record request only')
+    parser.add_argument('--out',type=Path,help='Save fetched GenBank text or search JSON; retrieval metadata is saved beside it')
+    add_trace_arguments(parser)
+    args=parser.parse_args(argv)
+    if args.operation is None:
+        print(json.dumps({'status':'offline-unverified','network':'disabled',
+                          'operations':['fetch','search','addgene']},indent=2))
+        return 0
+    if not args.value:
+        parser.error('operation requires an accession, keyword or Addgene ID')
+    if args.operation!='addgene' and not args.allow_network:
+        print(json.dumps({'status':'offline-unverified','reason':'Explicit --allow-network is required.'}))
+        return 2
+    def execute():
+        result = (fetch_genbank(args.value) if args.operation=='fetch' else
+                  ncbi_search(args.value) if args.operation=='search' else addgene_lookup(args.value))
+        paths=[]
+        if args.out and (args.operation!='fetch' or result['status']=='verified-online'):
+            args.out.parent.mkdir(parents=True,exist_ok=True)
+            if args.operation=='fetch':
+                if result.get('text') is not None:
+                    args.out.write_bytes(result['text'].encode('utf-8')); paths.append(str(args.out))
+            else:
+                args.out.write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8'); paths.append(str(args.out))
+            if result.get('source'):
+                receipt=args.out.with_suffix(args.out.suffix+'.source.json')
+                receipt.write_text(json.dumps(result['source'],ensure_ascii=False,indent=2),encoding='utf-8')
+                paths.append(str(receipt))
+        return dict(result,output_files=paths)
+    result=trace_file_call('public-database.retrieve',execute,output_paths=lambda value:value['output_files'],
+                           **trace_options(args))
+    print(json.dumps(result,ensure_ascii=False,indent=2))
+    return 0 if result['status']=='verified-online' or args.operation=='addgene' else 2
+
+
+if __name__ == "__main__":sys.exit(main())

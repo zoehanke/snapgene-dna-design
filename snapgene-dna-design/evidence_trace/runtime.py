@@ -326,6 +326,14 @@ def observe_value(stage, value):
     return value
 
 
+def observe_source(source):
+    """Record supplied retrieval metadata using the existing source-node contract."""
+    run = _CURRENT.get()
+    if run:
+        run.safe(lambda: run.recorder.record(source, runtime=True, actor="runtime"))
+    return source
+
+
 def observe_files(stage, fn, *, args=(), kwargs=None, input_paths=(), output_paths,
                   artifact_role="derived", expected_paths=(), output_directories=()):
     """Observe one file operation. Preserve before/after identities, including in-place edits."""

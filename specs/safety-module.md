@@ -48,6 +48,8 @@ Prompt boundary: design-time capture stays mostly automatic, with short contempo
 
 ## Attribution and evidence
 
+Public-record retrieval may append an existing source node through the active recorder: database/accession version, retrieval time, actual content hash and scoped status. Verified retrieval concerns the parsed response, not a strain or scientific claim. Failure stays unverified without invented content/hash. Node/relationship kinds, collection format and Off/normal/strict meanings are unchanged.
+
 - Record consequential choices, not every parameter or compliance with a user constraint. decision_kind is extensible classification, not a limit on AI design.
 - actor is the submitter; decision_actor, decision_source and explanation origin describe the declared chooser/source. Missing authorship stays unknown; a supplied reference is not authentication.
 - Preserve user requirements with original/summary form. User change/confirm/reject needs a source and exact affected references. Reuse user reasons as user reasons.

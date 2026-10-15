@@ -6,6 +6,7 @@
 |---|---|
 | 修改主设计、CLI、交付或接口 | [Core spec](../specs/core-skill.md)；需要定位模块时读[架构](architecture.md) |
 | 修改Genome Revival四个Kit或项目Context | [Toolkit spec](../specs/genome-revival-toolkit.md)、[当前交接](development-plans/README.md)；Kit接口扩展先读[扩展点盘点](kit-extension-inventory.md)，DNA/Trace共用边界仍读对应spec |
+| 块S数据来源、Kit闭环与运行卡片 | [本轮范围](development-plans/data-chain-s-2026-10-15.md)、[来源盘点](data-source-inventory-2026-10-15.md)；替换原G/D，不代表K已验收或并入冻结 |
 | 查块K第一阶段验收与后续边界 | [日期检查点](kit-runtime-phase1-checkpoint-2026-10-14.md)，仅记录本阶段证据，后续适配和冻结并入未授权 |
 | 查块K第二阶段检查点与未决豁免 | [第二阶段回执](kit-runtime-phase2-checkpoint-2026-10-14.md)，只管理本次迁移/适配/未上传候选，路由评测由开发外人员安排 |
 | 新增Kit或准备块K架构段/路由材料 | [英文Kit契约](../snapgene-dna-design/references/kit-contract.md)、[盘点](kit-extension-inventory.md)、[英文Wiki架构段](igem/kit-architecture-wiki-en.md)、[路由材料交接](kit-routing/README.md)，开发者不执行路由评测 |

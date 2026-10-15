@@ -93,8 +93,9 @@ def probe_snapgene():
 
 def probe_online(timeout=5):
     import urllib.request
+    from online_sources import NCBI_EUTILS
     try:
-        url = ("https://eutils.ncbi.nlm.nih.gov/entrez/eutils/"
+        url = (NCBI_EUTILS + "/"
                "esearch.fcgi?db=nucleotide&term=EGFP&retmax=1&retmode=json")
         with urllib.request.urlopen(url, timeout=timeout) as response:
             response.read(256)
@@ -108,6 +109,7 @@ def main():
         sys.stdout.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(description="Check skill environment")
     parser.add_argument("--json", action="store_true")
+    parser.add_argument("--check-online", action="store_true", help="Explicitly probe public NCBI connectivity")
     args = parser.parse_args()
 
     pyver = "%d.%d.%d" % (sys.version_info.major, sys.version_info.minor,
@@ -124,7 +126,7 @@ def main():
     cas_v3 = detect(os.environ.get("CAS_OFFINDER_EXE_V3"))
 
     snapgene = probe_snapgene()
-    online = probe_online()
+    online = probe_online() if args.check_online else {"status":"not-requested", "reason":"Use --check-online for an explicit connectivity probe."}
 
     missing_required = [r for r in required if r["status"] == "missing"]
     bad_artifacts = [a for a in artifacts if a["status"] != "ok"]
