@@ -1,0 +1,11 @@
+{
+  "schema_version": "genome-revival-context-v1",
+  "project": {"title": "Genome Revival", "status": "user-provided research context"},
+  "strains": {},
+  "references": {},
+  "routes": [
+    {"id": "fusion", "purpose": "Study genetic contribution and function after fusion", "status": "planned-or-reported; attach actual sources"},
+    {"id": "genetics", "purpose": "Construct and identify defined genetic configurations", "status": "planned-or-reported; attach actual sources"}
+  ],
+  "facts": []
+}

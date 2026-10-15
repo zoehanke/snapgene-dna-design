@@ -1,0 +1,15 @@
+# Exact core environment used on Windows / Python 3.12 in the 2026-09-22 audit.
+# See docs/reproducibility.md for platform and optional-backend limits.
+attrs==26.1.0
+biopython==1.88
+html2text==2025.4.15
+jsonschema==4.26.0
+jsonschema-specifications==2025.9.1
+numpy==2.0.2
+primer3-py==2.3.0
+referencing==0.37.0
+rpds-py==2026.6.3
+sgffp==0.21.0
+snapgene_reader==0.1.23
+typing_extensions==4.16.0
+xmltodict==1.0.4

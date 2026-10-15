@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 """v0.3 regression tests for structured locations and JSON contracts."""
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import json
 import os
 import subprocess
@@ -13,7 +15,7 @@ from Bio.SeqRecord import SeqRecord
 
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-ROOT = os.path.abspath(os.path.join(HERE, ".."))
+ROOT = str(SKILL_ROOT)
 SCRIPTS = os.path.join(ROOT, "scripts")
 sys.path.insert(0, SCRIPTS)
 
@@ -125,6 +127,8 @@ class ContractAndRoundTripTests(unittest.TestCase):
 
     def test_internal_snapgene_genbank_roundtrip(self):
         fixture = os.path.join(ROOT, "fixtures", "pDONR201.dna")
+        if not os.path.exists(fixture):
+            self.skipTest("fixtures/pDONR201.dna not present (academic-only)")
         result = validate(fixture, "snapgene-gb")
         self.assertTrue(result["internal_roundtrip"]["passed"], result)
         self.assertTrue(result["passed"], result)

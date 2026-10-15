@@ -14,6 +14,8 @@ Coverage targets (first integration phase):
 * Gibson binding/tail separation: annealing parameters from binding,
   structural checks on the full primer.
 """
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import contextlib
 import io
 import json
@@ -29,7 +31,7 @@ from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
 HERE = pathlib.Path(__file__).resolve().parent
-ROOT = HERE.parent
+ROOT = SKILL_ROOT
 SCRIPTS = ROOT / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 

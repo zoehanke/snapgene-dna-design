@@ -1,0 +1,5 @@
+{"status":"GUIDANCE_ONLY","rules":[
+  {"id":"missing-is-unknown","statement":"Missing counts or denominators remain unknown, not zero.","source":"scripts/workflow.py:_count and group normalisation"},
+  {"id":"controls-and-conflicts","statement":"Keep submitted controls and contradictory sample/reference records explicit.","source":"scripts/workflow.py:run_evidence findings"},
+  {"id":"bounded-conclusions","statement":"Local submitted observations do not prove whole-genome elimination or functional revival.","source":"scripts/workflow.py:run_evidence conclusions and checked_scope"}
+]}

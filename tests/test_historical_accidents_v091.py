@@ -5,6 +5,8 @@ Each test reproduces the exact class of error from the v0.9.0 real
 construction audit and asserts the new runtime refuses it with a stable
 error code before any authoritative product is written.
 """
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import pathlib
 import tempfile
 import unittest

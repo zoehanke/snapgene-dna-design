@@ -1,13 +1,20 @@
 # -*- coding: utf-8 -*-
 """v0.8.0-dev3 regression tests for P0/P1 fixes and real backends."""
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import json
 import os
 import pathlib
+import shutil
 import subprocess
 import sys
 import tempfile
 import unittest
 from unittest import mock
+from model_test_requirements import requires_real_models
+
+REAL_CAS_OFFINDER = (os.environ.get('CAS_OFFINDER_EXE') or shutil.which('cas-offinder')
+                    or shutil.which('cas-offinder.exe'))
 
 from Bio import SeqIO
 from Bio.Seq import Seq
@@ -15,7 +22,7 @@ from Bio.SeqFeature import FeatureLocation, SeqFeature
 from Bio.SeqRecord import SeqRecord
 
 HERE = pathlib.Path(__file__).resolve().parent
-ROOT = HERE.parent
+ROOT = SKILL_ROOT
 SCRIPTS = ROOT / "scripts"
 SCHEMAS = ROOT / "schemas"
 sys.path.insert(0, str(SCRIPTS))
@@ -256,7 +263,7 @@ class CasOffinderAdapterTests(unittest.TestCase):
         self.assertNotIn(
             str(cas_offinder_adapter.ROOT).lower(),
             str(default).lower())
-        self.assertIn("SnapGeneDNADesign", str(default))
+        self.assertTrue("snapgenednadesign" in str(default).lower() or "snapgene-dna-design" in str(default).lower())
 
     def test_build_input_contract(self):
         text = cas_offinder_adapter.build_input_text(
@@ -323,7 +330,7 @@ class CasOffinderAdapterTests(unittest.TestCase):
                 self.assertEqual(len(cmd), 4)
                 self.assertEqual(cmd[2], "G0")
                 cwd = pathlib.Path(kwargs.get("cwd"))
-                self.assertEqual(cwd, tmp)
+                self.assertTrue(os.path.samefile(cwd, tmp))
                 self.assertIn("in.txt", str(cmd[1]))
                 self.assertIn("out.txt", str(cmd[3]))
                 input_text = (cwd / str(cmd[1])).read_text(encoding="utf-8")
@@ -366,8 +373,7 @@ class CasOffinderAdapterTests(unittest.TestCase):
 
 
 class RealModelTests(unittest.TestCase):
-    @unittest.skipUnless(os.environ.get("SNAPGENE_RUN_REAL_MODELS") == "1",
-                         "set SNAPGENE_RUN_REAL_MODELS=1 for real model gates")
+    @requires_real_models('azimuth')
     def test_azimuth_real_prediction(self):
         from azimuth_backend import score_30mers
         score = score_30mers(["ACGT" + "ACGT" * 5 + "GGG" + "AAA"])[0]
@@ -375,8 +381,7 @@ class RealModelTests(unittest.TestCase):
         self.assertLessEqual(score, 1.0)
         self.assertAlmostEqual(score, 0.31682680735151075, places=5)
 
-    @unittest.skipUnless(os.environ.get("SNAPGENE_RUN_REAL_MODELS") == "1",
-                         "set SNAPGENE_RUN_REAL_MODELS=1 for real model gates")
+    @requires_real_models('deepcpf1')
     def test_deepcpf1_matches_bioconductor_reference(self):
         from deepcpf1_model import (predict_sequence_only,
                                     predict_with_chromatin)
@@ -433,10 +438,10 @@ class ReportAndOutputFormatTests(unittest.TestCase):
 
 
 class RealCasOffinderIntegrationTests(unittest.TestCase):
-    @unittest.skipUnless(os.environ.get("CAS_OFFINDER_EXE"),
-                         "set CAS_OFFINDER_EXE to a real cas-offinder binary")
+    @unittest.skipUnless(REAL_CAS_OFFINDER,
+                         "Cas-OFFinder not configured or on PATH; provide CAS_OFFINDER_EXE and usable OpenCL")
     def test_real_binary_end_to_end_non_ascii_path(self):
-        exe = os.environ["CAS_OFFINDER_EXE"]
+        exe = REAL_CAS_OFFINDER
         workdir = pathlib.Path(os.environ.get("CAS_OFFINDER_TMP")
                                or tempfile.gettempdir())
         workdir.mkdir(parents=True, exist_ok=True)
@@ -458,7 +463,7 @@ class RealCasOffinderIntegrationTests(unittest.TestCase):
             self.assertEqual(leftovers, [])
 
     @unittest.skipUnless(os.environ.get("CAS_OFFINDER_EXE_V3"),
-                         "set CAS_OFFINDER_EXE_V3 to Cas-OFFinder 3.x")
+                         "Cas-OFFinder 3.x integration not configured; provide CAS_OFFINDER_EXE_V3 and usable OpenCL")
     def test_real_binary_v3_bulge(self):
         exe = os.environ["CAS_OFFINDER_EXE_V3"]
         workdir = pathlib.Path(os.environ.get("CAS_OFFINDER_TMP")
@@ -482,10 +487,10 @@ class RealCasOffinderIntegrationTests(unittest.TestCase):
                                 and h["bulge_size"] == 2
                                 for h in result["hits"]))
 
-    @unittest.skipUnless(os.environ.get("CAS_OFFINDER_EXE"),
-                         "set CAS_OFFINDER_EXE to a real cas-offinder binary")
+    @unittest.skipUnless(REAL_CAS_OFFINDER,
+                         "Cas-OFFinder not configured or on PATH; provide CAS_OFFINDER_EXE and usable OpenCL")
     def test_real_binary_end_to_end(self):
-        exe = os.environ["CAS_OFFINDER_EXE"]
+        exe = REAL_CAS_OFFINDER
         workdir = os.environ.get("CAS_OFFINDER_TMP") or None
         with tempfile.TemporaryDirectory(dir=workdir) as tmp:
             tmp = pathlib.Path(tmp)

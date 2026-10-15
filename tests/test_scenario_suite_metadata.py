@@ -1,17 +1,19 @@
 # -*- coding: utf-8 -*-
 """Metadata checks for the 60-scenario literature suite."""
+
+from repository_paths import PROJECT_ROOT, SKILL_ROOT, TOOLS_ROOT, RUNTIME_SCRIPTS
 import pathlib
 import sys
 import tempfile
 import unittest
 
 HERE = pathlib.Path(__file__).resolve().parent
-ROOT = HERE.parent
+ROOT = SKILL_ROOT
 SCRIPTS = ROOT / "scripts"
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(SCRIPTS))
 
-from scripts.run_scenario_suite import scenarios, run_verification  # noqa: E402
+from tools.run_scenario_suite import scenarios, run_verification  # noqa: E402
 
 
 class ScenarioMetadataTests(unittest.TestCase):

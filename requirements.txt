@@ -1,4 +1,0 @@
-biopython==1.88
-snapgene_reader==0.1.23
-sgffp==0.21.0
-jsonschema>=4.17,<5
